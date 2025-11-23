@@ -1,21 +1,93 @@
-MIT License
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
 
-Copyright (c) 2023 WBP FARMS
+Copyright (c) 2024 Tap Parker Farms / AgTools Professional Crop Consulting System
+All Rights Reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+NOTICE: This software and associated documentation files (the "Software") are
+proprietary and confidential. The Software is made available on GitHub for
+demonstration and portfolio purposes only.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+TERMS AND CONDITIONS:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. GRANT OF LICENSE
+   The copyright holder grants no license to use, copy, modify, merge, publish,
+   distribute, sublicense, or sell copies of the Software without express written
+   permission from the copyright holder.
+
+2. VIEWING RIGHTS
+   The public may view the source code on GitHub for educational and evaluation
+   purposes only. Viewing does not grant any rights to use, copy, or distribute
+   the Software.
+
+3. COMMERCIAL USE PROHIBITED
+   Use of this Software for commercial purposes, including but not limited to:
+   - Running as a service (SaaS)
+   - Integration into commercial products
+   - Consulting services using this Software
+   - Creating derivative works for commercial use
+
+   ...is strictly prohibited without a separate commercial license agreement.
+
+4. SAAS LICENSING AVAILABLE
+   Commercial licenses and SaaS subscriptions are available. Contact the copyright
+   holder for licensing terms and pricing.
+
+5. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+   IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+6. INTELLECTUAL PROPERTY
+   All intellectual property rights in the Software, including but not limited to:
+   - Pest and disease knowledge base
+   - Chemical database and product information
+   - Recommendation algorithms
+   - Economic models
+   - API design and implementation
+
+   ...remain the exclusive property of the copyright holder.
+
+7. TERMINATION
+   Any unauthorized use of the Software will result in immediate termination of
+   any implied rights and may result in legal action.
+
+8. CONTACT FOR LICENSING
+   For commercial licensing, SaaS subscriptions, or white-label opportunities:
+
+   GitHub: https://github.com/wbp318/agtools
+   Repository: https://github.com/wbp318/agtools
+
+   Inquiries: See GitHub profile for contact information
+
+9. EXCEPTIONS
+   The following components retain their original open-source licenses:
+   - Third-party libraries listed in requirements.txt
+   - Any files explicitly marked with different licenses
+
+ADDITIONAL NOTES FOR POTENTIAL CLIENTS:
+
+This is professional-grade crop consulting software designed for commercial use.
+We offer:
+- SaaS subscriptions for consultants and farmers
+- White-label licensing for ag retailers and co-ops
+- Custom development and integration services
+- API access for third-party applications
+- Training and support packages
+
+The software includes:
+- 46+ pest/disease identification models
+- 40+ pesticide product database with label information
+- Economic threshold calculators
+- Spray recommendation engine with resistance management
+- Weather integration for application timing
+- Professional reporting capabilities
+
+Contact us to discuss licensing options tailored to your business needs.
+
+---
+
+Last Updated: November 23, 2024
+Version: 1.0
