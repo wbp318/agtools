@@ -1,5 +1,34 @@
 # AgTools: Professional Crop Consulting System
 
+---
+
+## ⚠️ PROPRIETARY SOFTWARE - DEMONSTRATION ONLY
+
+**This software is NOT open source and NOT free to use.**
+
+This repository is publicly viewable for **demonstration and evaluation purposes only**. All code, algorithms, knowledge bases, and intellectual property are proprietary and confidential.
+
+### 🚫 PROHIBITED Without Commercial License:
+- ❌ Commercial use of any kind
+- ❌ Running as a service (SaaS)
+- ❌ Copying, modifying, or distributing the code
+- ❌ Creating derivative works
+- ❌ Using for consulting services
+
+### ✅ INTERESTED IN USING THIS SYSTEM?
+
+We offer commercial licensing options:
+- **SaaS Subscriptions** - For consultants and farmers
+- **White-Label Licensing** - For ag retailers and co-ops
+- **API Access** - For third-party integration
+- **Custom Development** - Tailored to your business
+
+**Contact:** See [LICENSE](LICENSE) for full terms and contact information.
+
+**Copyright © 2024 New Generation Farms. All Rights Reserved.**
+
+---
+
 ## 🌾 Overview
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, and complete decision support for corn and soybean production.
@@ -7,6 +36,8 @@
 **This is not a hobby project** - it's a professional tool that provides genuine consulting value.
 
 ## ⚡ Quick Start
+
+> **⚠️ FOR EVALUATION ONLY:** These instructions are for authorized evaluation purposes. Commercial use requires a license. See LICENSE file.
 
 ```bash
 # Install dependencies
@@ -227,7 +258,9 @@ This is a living system designed to grow:
 
 ## 📄 License
 
-MIT License - Use this system to build your consulting business!
+**PROPRIETARY LICENSE** - This software is proprietary and confidential. Commercial use is strictly prohibited without a license agreement. See [LICENSE](LICENSE) file for complete terms.
+
+**All intellectual property rights reserved by New Generation Farms.**
 
 ## 🌟 What's Different?
 
