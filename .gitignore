@@ -99,16 +99,16 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Pest Detection Project specific
+# Professional System specific
 *.h5
-pest_detection_model/
+models/
 training_data/
-pest_management_report.txt
-training_history.png
+logs/
 
-# Data files
-*.csv
-*.json
+# Data files (sample/test data only - allow database seed files)
+sample_*.csv
+test_*.csv
+*_sample.csv
 
 # Image files (uncomment if you don't want to track images)
 # *.jpg
