@@ -20,22 +20,79 @@ Think of AgTools as your **digital agronomist** that:
 
 ---
 
+## What You Need Before Starting
+
+Before you can use AgTools, you need a few things on your computer:
+
+1. **Python** (version 3.8 or newer) - This is the programming language the system runs on
+   - Download from: https://www.python.org/downloads/
+   - During installation, **CHECK THE BOX** that says "Add Python to PATH"
+
+2. **Git** (optional but recommended) - This helps you download the code
+   - Download from: https://git-scm.com/downloads
+   - Just click "Next" through the installer
+
+**Not sure if you have these?** Open a command prompt and type:
+```bash
+python --version
+git --version
+```
+If you see version numbers, you're good. If you see an error, you need to install them.
+
+---
+
 ## Getting Started (One-Time Setup)
 
-### Step 1: Install the System
+### Step 1: Download the AgTools Code
 
-Open a command prompt (or have someone help you) and type:
+You have two options:
+
+**Option A: Using Git (Recommended)**
+
+Open a command prompt (search for "cmd" in Windows) and type:
+
+```bash
+git clone https://github.com/wbp318/agtools.git
+```
+
+This downloads all the code to a folder called "agtools" on your computer.
+
+**Option B: Download as ZIP (If you don't have Git)**
+
+1. Go to: https://github.com/wbp318/agtools
+2. Click the green "Code" button
+3. Click "Download ZIP"
+4. Extract the ZIP file to a folder you can find (like your Documents folder)
+
+### Step 2: Open the AgTools Folder
+
+In your command prompt, navigate to where you downloaded the code:
+
+```bash
+cd agtools
+```
+
+**If you downloaded the ZIP**, you might need to type the full path, like:
+```bash
+cd C:\Users\YourName\Documents\agtools-master
+```
+
+**Tip:** You can also type `cd ` (with a space) and then drag the folder into the command prompt window - it will fill in the path for you!
+
+### Step 3: Install the Required Pieces
+
+Now go into the backend folder and install what the system needs:
 
 ```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-This downloads all the pieces the system needs. Only do this once.
+This downloads all the pieces the system needs. **Only do this once** - unless you see errors later, then try running it again.
 
-### Step 2: Start the System
+### Step 4: Start the System
 
-Every time you want to use AgTools, type:
+Every time you want to use AgTools, navigate to the backend folder and type:
 
 ```bash
 python main.py
@@ -43,7 +100,7 @@ python main.py
 
 You'll see a message that says the system is running. Leave this window open.
 
-### Step 3: Open the Tool
+### Step 5: Open the Tool in Your Browser
 
 Open your web browser (Chrome, Edge, Firefox) and go to:
 
