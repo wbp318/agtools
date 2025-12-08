@@ -458,6 +458,356 @@ This system incorporates:
 
 ---
 
+## 💰 INPUT COST OPTIMIZATION (v2.0)
+
+Version 2.0 adds comprehensive input cost optimization - the features that help farmers **reduce costs without reducing yields**. This is where the real money-saving happens.
+
+### Overview: Three Pillars of Cost Reduction
+
+1. **Labor Optimization** - Reduce scouting and application labor costs
+2. **Application Cost Optimization** - Fertilizer, pesticide, and fungicide cost reduction
+3. **Irrigation Optimization** - Water and energy cost savings
+
+### Labor Cost Optimization
+
+The labor optimizer helps you understand where time (and money) is being spent.
+
+#### Scouting Cost Analysis
+
+```python
+POST /api/v1/optimize/labor/scouting
+
+{
+  "fields": [
+    {"name": "North 80", "acres": 80},
+    {"name": "South 160", "acres": 160},
+    {"name": "River Bottom", "acres": 120}
+  ],
+  "scouting_frequency_days": 7,
+  "season_length_days": 120
+}
+```
+
+**Returns:**
+- Hours spent scouting per field
+- Total season cost (at $25/hr for certified scout)
+- Cost per acre
+- **Optimization recommendations**: Route planning, frequency adjustments, drone integration
+
+#### Application Labor Analysis
+
+```python
+POST /api/v1/optimize/labor/application
+
+{
+  "acres": 500,
+  "equipment_type": "self_propelled_120ft",
+  "tank_capacity_gallons": 1200,
+  "custom_application": false
+}
+```
+
+**Returns:**
+- Time required for application
+- Setup and fill times
+- Labor vs. custom applicator comparison
+- **Break-even analysis**: When does owning equipment pay vs. custom?
+
+#### Seasonal Labor Budget
+
+```python
+POST /api/v1/optimize/labor/seasonal-budget?total_acres=500&crop=corn
+```
+
+**Returns complete season breakdown:**
+- Scouting hours and cost
+- Spray application labor
+- Fertilizer application labor
+- Equipment maintenance time
+- Management/planning time
+- **Total labor cost per acre**
+
+### Application Cost Optimization
+
+#### Fertilizer Program Optimization
+
+The most powerful feature for reducing input costs - uses your actual soil tests to recommend exactly what you need.
+
+```python
+POST /api/v1/optimize/fertilizer
+
+{
+  "crop": "corn",
+  "yield_goal": 200,
+  "acres": 500,
+  "soil_test_p_ppm": 22,
+  "soil_test_k_ppm": 145,
+  "nitrogen_credit_lb_per_acre": 40
+}
+```
+
+**Returns:**
+- **Exact nutrient requirements**: N, P2O5, K2O, S (lb/acre)
+- **Most economical products**: Compares anhydrous vs. urea vs. UAN, MAP vs. DAP, etc.
+- **Application timing recommendations**: Fall P/K, spring N, side-dress schedule
+- **Cost per acre and per bushel**
+- **Optimization opportunities**:
+  - Skip P/K if soil tests high
+  - Split N for better efficiency
+  - Variable rate to match field variability
+
+**Real savings example:**
+A 500-acre corn farm with high P levels (40 ppm) might be applying $15/acre in unnecessary P. That's $7,500/year in savings.
+
+#### Pesticide Cost Comparison
+
+```python
+POST /api/v1/optimize/pesticides/compare
+
+{
+  "acres": 160,
+  "products": [
+    {"name": "Warrior II", "cost_per_acre": 8.50, "active_ingredient": "lambda-cyhalothrin", "efficacy": 9},
+    {"name": "Generic Lambda", "cost_per_acre": 5.00, "active_ingredient": "lambda-cyhalothrin", "efficacy": 9},
+    {"name": "Brigade", "cost_per_acre": 9.00, "active_ingredient": "bifenthrin", "efficacy": 8}
+  ],
+  "include_generics": true
+}
+```
+
+**Returns:**
+- Side-by-side cost comparison
+- Cost per efficacy point (value analysis)
+- **Savings vs. most expensive option**
+- Generic alternatives where available
+
+#### Complete Spray Program ROI
+
+```python
+POST /api/v1/optimize/spray-program
+
+{
+  "crop": "corn",
+  "acres": 500,
+  "spray_applications": [
+    {"timing": "V6", "product": "Herbicide", "product_cost_per_acre": 25, "target": "Weeds"},
+    {"timing": "VT", "product": "Fungicide", "product_cost_per_acre": 20, "target": "Gray Leaf Spot"},
+    {"timing": "VT", "product": "Insecticide", "product_cost_per_acre": 10, "target": "Rootworm beetles"}
+  ]
+}
+```
+
+**Returns:**
+- Total program cost
+- Cost per application
+- Estimated yield protection
+- **Complete ROI analysis**: Is the fungicide worth it?
+- **Optimization tips**: Tank-mixing to reduce passes, threshold-based decisions
+
+### Irrigation Optimization
+
+For irrigated operations, water costs can be 15-25% of input costs. These tools help optimize every acre-inch.
+
+#### Crop Water Need Calculator
+
+```python
+POST /api/v1/optimize/irrigation/water-need
+
+{
+  "crop": "corn",
+  "growth_stage": "VT",
+  "reference_et_inches_per_day": 0.30,
+  "recent_rainfall_inches": 0.5,
+  "soil_moisture_percent": 45
+}
+```
+
+**Returns:**
+- Current crop water use (inches/day)
+- Net irrigation need
+- **Urgency level**: Critical, High, Medium, Low
+- Plain English recommendation
+- Whether you're at a critical growth stage
+
+#### Irrigation Cost Calculator
+
+```python
+POST /api/v1/optimize/irrigation/cost
+
+{
+  "acres": 130,
+  "inches_to_apply": 1.0,
+  "irrigation_type": "center_pivot",
+  "water_source": "groundwater_well",
+  "pumping_depth_ft": 180
+}
+```
+
+**Returns:**
+- Energy cost (pumping)
+- Water cost
+- Labor cost
+- Equipment wear
+- **Total cost per acre-inch**
+
+#### Season Irrigation Schedule
+
+```python
+POST /api/v1/optimize/irrigation/season
+
+{
+  "crop": "corn",
+  "acres": 130,
+  "irrigation_type": "center_pivot",
+  "water_source": "groundwater_well",
+  "season_start": "2024-05-15",
+  "season_end": "2024-09-15",
+  "expected_rainfall_inches": 12
+}
+```
+
+**Returns:**
+- Total water need for season
+- Number of irrigations needed
+- Recommended schedule with dates
+- **Total season cost**
+- **ROI analysis**: Dryland vs. irrigated economics
+
+#### Water Savings Analysis
+
+```python
+POST /api/v1/optimize/irrigation/water-savings
+
+{
+  "current_usage_acre_inches": 2400,
+  "acres": 130,
+  "irrigation_type": "center_pivot",
+  "water_source": "groundwater_well"
+}
+```
+
+**Returns prioritized strategies:**
+1. **Soil moisture monitoring**: 15% savings, $500 to implement
+2. **Night irrigation**: 5-8% savings, free to implement
+3. **Deficit irrigation**: 20% savings, requires careful management
+4. **Variable rate irrigation**: 12% savings, $15k+ investment
+5. **Cover crops**: 5% long-term savings, improves soil
+
+Each strategy includes payback period and difficulty level.
+
+### Complete Farm Analysis
+
+The master endpoint that ties everything together:
+
+```python
+POST /api/v1/optimize/complete-analysis
+
+{
+  "total_acres": 800,
+  "crops": [
+    {"crop": "corn", "acres": 500, "yield_goal": 200},
+    {"crop": "soybean", "acres": 300, "yield_goal": 55}
+  ],
+  "irrigation_type": "center_pivot",
+  "water_source": "groundwater_well",
+  "soil_test_p_ppm": 22,
+  "soil_test_k_ppm": 155,
+  "optimization_priority": "cost_reduction"
+}
+```
+
+**Returns comprehensive analysis:**
+
+```json
+{
+  "total_costs": {
+    "labor": 18200,
+    "applications": 120250,
+    "irrigation": 72000,
+    "total": 298450,
+    "cost_per_acre": 373
+  },
+  "potential_savings": 42800,
+  "savings_percent": 14.3,
+  "top_recommendations": [
+    "Install soil moisture sensors - Save $10,800/year",
+    "Switch to night irrigation - Save $5,800/year",
+    "Reduce P application (soil test high) - Save $7,500/year"
+  ],
+  "roi_analysis": {
+    "current_net_return": 156000,
+    "optimized_net_return": 198800,
+    "improvement": 42800
+  }
+}
+```
+
+### Quick Estimate Tool
+
+For fast planning without detailed inputs:
+
+```python
+POST /api/v1/optimize/quick-estimate
+
+{
+  "acres": 160,
+  "crop": "corn",
+  "is_irrigated": true,
+  "yield_goal": 200
+}
+```
+
+**Returns industry-average estimates:**
+- Cost breakdown by category
+- Total cost and cost per acre
+- Break-even yield
+- Potential savings range (10-20%)
+
+### Budget Worksheet Generator
+
+```python
+POST /api/v1/optimize/budget-worksheet
+
+{
+  "total_acres": 800,
+  "crops": [
+    {"crop": "corn", "acres": 500, "yield_goal": 200},
+    {"crop": "soybean", "acres": 300, "yield_goal": 55}
+  ]
+}
+```
+
+**Returns complete budget worksheet:**
+- Line-item breakdown for each crop
+- Revenue projections
+- Break-even analysis
+- **Three scenarios**: Conservative, Aggressive, Optimized
+
+### Real-World Cost Savings Examples
+
+**Example 1: Fertilizer Over-Application**
+- Farm: 1,000 acres corn
+- Soil test: P at 45 ppm (very high)
+- Current practice: Applying 60 lb P2O5/acre maintenance
+- Recommendation: Skip P for 2 years
+- **Savings: $39,000 over 2 years**
+
+**Example 2: Irrigation Efficiency**
+- Farm: 500 acres irrigated
+- Current practice: Water on calendar schedule
+- Recommendation: Soil moisture-based scheduling
+- Water savings: 15%
+- **Savings: $8,500/year**
+
+**Example 3: Spray Program Optimization**
+- Farm: 800 acres
+- Current: 4 spray applications per season
+- Finding: One application below threshold, fungicide on resistant hybrid
+- Recommendation: Skip 2 applications in clean years
+- **Savings: $12,000/year when conditions allow**
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:

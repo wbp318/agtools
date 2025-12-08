@@ -132,3 +132,29 @@ Thumbs.db
 # API keys and sensitive information
 config.ini
 secrets.yaml
+.env.local
+.env.development
+.env.production
+
+# Claude Code
+.claude/
+
+# Database files (local development)
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Node modules (if frontend added later)
+node_modules/
+package-lock.json
+
+# Output files
+output/
+reports/
+exports/

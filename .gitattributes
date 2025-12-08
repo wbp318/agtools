@@ -68,7 +68,21 @@ Dockerfile text eol=lf
 *.pyd binary
 
 # GitHub linguist overrides (for repository language detection)
+# Documentation files
 *.md linguist-documentation
+LICENSE linguist-documentation
+
+# Database files should be detected
 *.sql linguist-detectable
+
+# Core application code - NOT vendored
 database/* linguist-vendored=false
 backend/* linguist-vendored=false
+backend/services/* linguist-vendored=false
+src/* linguist-vendored=false
+
+# Python is the primary language
+*.py linguist-detectable=true
+
+# Ensure service modules are counted
+backend/services/*.py linguist-detectable=true

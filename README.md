@@ -31,7 +31,9 @@ We offer commercial licensing options:
 
 ## 🌾 Overview
 
-**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, and complete decision support for corn and soybean production.
+**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
+
+**Version 2.0** adds comprehensive **Input Cost Optimization** - helping farmers reduce labor costs, optimize fertilizer and pesticide applications, and manage irrigation efficiently.
 
 **This is not a hobby project** - it's a professional tool that provides genuine consulting value.
 
@@ -87,6 +89,13 @@ See **QUICKSTART.md** for detailed 5-minute setup guide.
    - Resistance management documentation
    - Historical tracking
 
+6. **Input Cost Optimization (NEW in v2.0)**
+   - **Labor Cost Analysis**: Scouting routes, application labor, seasonal budgeting
+   - **Fertilizer Optimization**: Soil test-based recommendations, economical nutrient sources
+   - **Pesticide Cost Comparison**: Product comparison, generic alternatives, spray program ROI
+   - **Irrigation Optimization**: Water need calculations, scheduling, system comparison
+   - **Complete Farm Analysis**: Unified cost analysis with prioritized savings opportunities
+
 ## 💰 Business Value
 
 ### What Makes This Worth Money?
@@ -123,7 +132,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application
+│   ├── main.py                       # FastAPI application (v2.0)
 │   ├── requirements.txt              # Python dependencies
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
@@ -131,7 +140,11 @@ agtools/
 │       ├── spray_recommender.py      # Spray recommendations
 │       ├── threshold_calculator.py   # Economic analysis
 │       ├── weather_service.py        # Weather integration
-│       └── ai_identification.py      # AI image recognition
+│       ├── ai_identification.py      # AI image recognition
+│       ├── labor_optimizer.py        # Labor cost optimization (NEW)
+│       ├── application_cost_optimizer.py  # Fertilizer/pesticide costs (NEW)
+│       ├── irrigation_optimizer.py   # Irrigation optimization (NEW)
+│       └── input_cost_optimizer.py   # Unified cost analysis (NEW)
 │
 ├── src/agtools/
 │   └── farm_optimizer.py             # Legacy optimizer (still functional)
@@ -160,6 +173,7 @@ agtools/
 
 ## 🚀 API Endpoints
 
+### Pest & Disease Management
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/v1/pests` | Get pest database |
@@ -171,6 +185,24 @@ agtools/
 | `POST /api/v1/recommend/spray` | Get spray recommendations |
 | `POST /api/v1/threshold/check` | Economic threshold analysis |
 | `GET /api/v1/weather/spray-window` | Spray timing forecast |
+
+### Input Cost Optimization (NEW in v2.0)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/optimize/labor/scouting` | Calculate scouting labor costs |
+| `POST /api/v1/optimize/labor/application` | Application labor analysis |
+| `POST /api/v1/optimize/labor/seasonal-budget` | Complete seasonal labor budget |
+| `POST /api/v1/optimize/fertilizer` | Optimize fertilizer program |
+| `POST /api/v1/optimize/pesticides/compare` | Compare pesticide costs |
+| `POST /api/v1/optimize/spray-program` | Full spray program ROI |
+| `POST /api/v1/optimize/irrigation/water-need` | Current crop water need |
+| `POST /api/v1/optimize/irrigation/cost` | Irrigation cost calculator |
+| `POST /api/v1/optimize/irrigation/season` | Season irrigation schedule |
+| `GET /api/v1/optimize/irrigation/system-comparison` | Compare irrigation systems |
+| `POST /api/v1/optimize/irrigation/water-savings` | Water savings strategies |
+| `POST /api/v1/optimize/complete-analysis` | **Complete farm cost analysis** |
+| `POST /api/v1/optimize/quick-estimate` | Quick cost estimate |
+| `POST /api/v1/optimize/budget-worksheet` | Generate budget worksheet |
 
 Visit http://localhost:8000/docs for interactive documentation.
 
