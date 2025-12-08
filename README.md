@@ -41,8 +41,31 @@ We offer commercial licensing options:
 
 > **⚠️ FOR EVALUATION ONLY:** These instructions are for authorized evaluation purposes. Commercial use requires a license. See LICENSE file.
 
+### Prerequisites
+
+You need these installed on your computer:
+
+- **Python 3.8+** - Download from https://www.python.org/downloads/
+  - During installation, CHECK "Add Python to PATH"
+- **Git** (optional) - Download from https://git-scm.com/downloads
+
+### Installation
+
+**Option 1: Clone with Git (Recommended)**
 ```bash
-# Install dependencies
+git clone https://github.com/wbp318/agtools.git
+cd agtools
+```
+
+**Option 2: Download ZIP**
+1. Go to https://github.com/wbp318/agtools
+2. Click green "Code" button → "Download ZIP"
+3. Extract and open the folder
+
+### Run the System
+
+```bash
+# Install dependencies (one time)
 cd backend
 pip install -r requirements.txt
 
@@ -52,7 +75,7 @@ python main.py
 # Visit http://localhost:8000/docs for interactive API
 ```
 
-See **QUICKSTART.md** for detailed 5-minute setup guide.
+See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide with screenshots.
 
 ## 🎯 What This System Does
 

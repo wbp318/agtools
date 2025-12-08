@@ -108,47 +108,104 @@ agtools/
 
 ### Prerequisites
 
+Before you begin, make sure you have the following installed:
+
+**Required:**
+- **Python 3.8 or newer**
+  - Download: https://www.python.org/downloads/
+  - **IMPORTANT:** During installation, check the box "Add Python to PATH"
+  - Verify installation: Open command prompt and type `python --version`
+
+**Optional but Recommended:**
+- **Git** - For cloning the repository
+  - Download: https://git-scm.com/downloads
+  - Verify installation: `git --version`
+
+### Step 1: Download the Code
+
+**Option A: Using Git (Recommended)**
+
+Open a command prompt or terminal and run:
+
 ```bash
-# Python 3.8+
-python --version
-
-# Install dependencies
-pip install -r requirements.txt
+git clone https://github.com/wbp318/agtools.git
+cd agtools
 ```
 
-### Required Dependencies
+**Option B: Download as ZIP**
 
-```python
-# Backend
-fastapi==0.104.1
-uvicorn==0.24.0
-pydantic==2.4.2
-python-multipart==0.0.6
+1. Visit https://github.com/wbp318/agtools
+2. Click the green **"Code"** button
+3. Select **"Download ZIP"**
+4. Extract the ZIP file to your desired location
+5. Open a command prompt and navigate to the extracted folder
 
-# Database (optional for now - can use in-memory)
-# psycopg2-binary==2.9.9
-# sqlalchemy==2.0.23
+### Step 2: Install Dependencies
 
-# AI/ML
-tensorflow==2.14.0
-pillow==10.1.0
-numpy==1.24.3
-
-# Utilities
-requests==2.31.0
-python-dateutil==2.8.2
-```
-
-### Quick Start - Run the API
+Navigate to the backend folder and install required packages:
 
 ```bash
 cd backend
+pip install -r requirements.txt
+```
+
+This installs all necessary Python packages. You only need to do this once.
+
+### Required Dependencies (Reference)
+
+The system uses these key packages (installed automatically):
+
+```
+fastapi==0.104.1          # Web framework
+uvicorn==0.24.0           # ASGI server
+pydantic==2.4.2           # Data validation
+python-multipart==0.0.6   # File uploads
+tensorflow==2.14.0        # AI/ML (optional)
+pillow==10.1.0            # Image processing
+numpy==1.24.3             # Numerical computing
+pandas==2.1.3             # Data analysis
+scikit-learn==1.3.2       # Machine learning
+requests==2.31.0          # HTTP requests
+```
+
+### Step 3: Run the API Server
+
+```bash
 python main.py
 ```
 
-The API will start at `http://localhost:8000`
+You should see output like:
+```
+INFO:     Started server process
+INFO:     Uvicorn running on http://0.0.0.0:8000
+INFO:     Application startup complete.
+```
 
-Visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI)
+### Step 4: Access the System
+
+Open your web browser and go to:
+
+- **Interactive API Docs:** http://localhost:8000/docs (Swagger UI)
+- **Alternative Docs:** http://localhost:8000/redoc (ReDoc format)
+- **API Health Check:** http://localhost:8000/
+
+### Troubleshooting
+
+**"python is not recognized"**
+- Python wasn't added to PATH during installation
+- Reinstall Python and CHECK "Add Python to PATH"
+- Or use `python3` instead of `python`
+
+**"pip is not recognized"**
+- Try `python -m pip install -r requirements.txt`
+
+**Port 8000 already in use**
+- Another program is using port 8000
+- Edit `main.py` and change the port number (e.g., to 8001)
+
+**Import errors when starting**
+- Run `pip install -r requirements.txt` again
+- Make sure you're in the `backend` folder
 
 ---
 
