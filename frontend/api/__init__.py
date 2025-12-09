@@ -18,6 +18,7 @@ from .client import (
 from .yield_response_api import YieldResponseAPI, get_yield_response_api
 from .spray_api import SprayTimingAPI, get_spray_timing_api
 from .pricing_api import PricingAPI, get_pricing_api
+from .cost_optimizer_api import CostOptimizerAPI, get_cost_optimizer_api
 
 __all__ = [
     # Base client
@@ -39,4 +40,7 @@ __all__ = [
     # Pricing
     "PricingAPI",
     "get_pricing_api",
+    # Cost Optimizer
+    "CostOptimizerAPI",
+    "get_cost_optimizer_api",
 ]

@@ -70,6 +70,25 @@ from .pricing import (
     SupplierComparisonResponse,
 )
 
+from .cost_optimizer import (
+    OptimizationPriority,
+    IrrigationType,
+    CropInfo,
+    QuickEstimateRequest,
+    QuickEstimateResponse,
+    FarmProfileRequest,
+    CostCategory,
+    OptimizationOpportunity,
+    CompleteAnalysisResponse,
+    FertilizerRequest,
+    NutrientRecommendation,
+    FertilizerResponse,
+    IrrigationCostRequest,
+    IrrigationCostResponse,
+    LaborScoutingRequest,
+    LaborScoutingResponse,
+)
+
 __all__ = [
     # Yield Response
     "Crop", "Nutrient", "SoilTestLevel", "ResponseModel",
@@ -95,4 +114,11 @@ __all__ = [
     "InputCostItem", "InputCostSummary", "InputCostRequest", "InputCostResponse",
     "PriceAlert", "PriceAlertsResponse",
     "SupplierComparisonRequest", "SupplierComparison", "SupplierComparisonResponse",
+    # Cost Optimizer
+    "OptimizationPriority", "IrrigationType", "CropInfo",
+    "QuickEstimateRequest", "QuickEstimateResponse",
+    "FarmProfileRequest", "CostCategory", "OptimizationOpportunity", "CompleteAnalysisResponse",
+    "FertilizerRequest", "NutrientRecommendation", "FertilizerResponse",
+    "IrrigationCostRequest", "IrrigationCostResponse",
+    "LaborScoutingRequest", "LaborScoutingResponse",
 ]

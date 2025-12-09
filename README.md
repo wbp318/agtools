@@ -197,13 +197,31 @@ agtools/
 │       ├── spray_timing_optimizer.py # Weather-smart spraying (v2.1)
 │       └── yield_response_optimizer.py # Economic optimum rates (NEW v2.2)
 │
-├── frontend/ (planned)               # Future web application
-│   ├── src/
-│   │   ├── components/               # React components
-│   │   ├── pages/                    # Page layouts
-│   │   ├── services/                 # API client services
-│   │   └── utils/                    # Utility functions
-│   └── public/
+├── frontend/                         # PyQt6 Desktop Application
+│   ├── main.py                       # Entry point
+│   ├── app.py                        # QApplication setup
+│   ├── config.py                     # Settings management
+│   ├── requirements.txt              # PyQt6, httpx, pyqtgraph
+│   ├── api/                          # API client modules
+│   │   ├── client.py                 # Base HTTP client
+│   │   ├── yield_response_api.py     # Yield response endpoints
+│   │   ├── spray_api.py              # Spray timing endpoints
+│   │   ├── pricing_api.py            # Pricing endpoints
+│   │   └── cost_optimizer_api.py     # Cost optimizer endpoints
+│   ├── models/                       # Data classes
+│   │   ├── yield_response.py
+│   │   ├── spray.py
+│   │   ├── pricing.py
+│   │   └── cost_optimizer.py
+│   └── ui/
+│       ├── styles.py                 # Professional QSS theme
+│       ├── sidebar.py                # Navigation sidebar
+│       ├── main_window.py            # Main window layout
+│       └── screens/
+│           ├── dashboard.py          # Home screen
+│           ├── yield_response.py     # Yield calculator with charts
+│           ├── spray_timing.py       # Weather evaluation
+│           └── cost_optimizer.py     # Tabbed cost analysis
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation

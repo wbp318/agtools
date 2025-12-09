@@ -6,11 +6,63 @@
 
 ## Current Version: 2.2.0 (Released December 8, 2025)
 
-### Latest Session: December 9, 2025 @ 8:28 AM CST
+### Latest Session: December 9, 2025 @ 8:50 AM CST
 
 #### Features Completed This Session
 
-1. **PyQt6 Frontend - Phase 4: Spray Timing Screen** ✅ COMPLETE
+1. **PyQt6 Frontend - Phase 5: Cost Optimizer Screen** ✅ COMPLETE
+   - Location: `frontend/ui/screens/cost_optimizer.py`
+   - **New API Client & Models Created:**
+     - `frontend/models/cost_optimizer.py` (~350 lines):
+       - OptimizationPriority, IrrigationType enums
+       - CropInfo, QuickEstimateRequest/Response
+       - FarmProfileRequest, CompleteAnalysisResponse
+       - FertilizerRequest/Response, IrrigationCostRequest/Response
+       - LaborScoutingRequest/Response
+     - `frontend/api/cost_optimizer_api.py` (~130 lines):
+       - quick_estimate(), complete_analysis()
+       - optimize_fertilizer(), analyze_irrigation_cost()
+       - analyze_scouting_labor(), get_budget_worksheet()
+   - **Tabbed Interface with 3 Tabs:**
+     - **Quick Estimate Tab:**
+       - Crop, acres, yield goal, irrigated inputs
+       - Cost summary cards (Total Cost, Revenue, Net Return)
+       - Detailed cost breakdown table by category
+       - Savings potential display (10-20% range)
+       - Break-even yield calculation
+     - **Fertilizer Tab:**
+       - Crop selection and yield goal
+       - Soil test inputs (P ppm, K ppm, pH)
+       - Previous crop N credit selection
+       - Nutrient recommendations table (N, P2O5, K2O)
+       - Product suggestions with costs
+       - Total cost display
+     - **Irrigation Tab:**
+       - System type selector (center pivot, drip, sprinkler, flood, furrow)
+       - Water applied, pumping depth inputs
+       - Water cost and electricity rate inputs
+       - Variable/Fixed/Total cost cards
+       - Efficiency and cost per acre-inch display
+       - Savings opportunities
+   - **Reusable Components:**
+     - CostSummaryCard: Displays total, per-acre, and breakdown
+   - **Files Created/Modified:**
+     - `frontend/models/cost_optimizer.py` - NEW
+     - `frontend/api/cost_optimizer_api.py` - NEW
+     - `frontend/ui/screens/cost_optimizer.py` (~650 lines) - NEW
+     - `frontend/models/__init__.py` - Updated exports
+     - `frontend/api/__init__.py` - Updated exports
+     - `frontend/ui/screens/__init__.py` - Updated exports
+     - `frontend/ui/main_window.py` - Integrated CostOptimizerScreen
+   - **To Test:**
+     ```bash
+     cd frontend
+     python main.py
+     # Click "Cost Analysis" from dashboard or sidebar
+     # Use tabs to explore Quick Estimate, Fertilizer, Irrigation
+     ```
+
+2. **PyQt6 Frontend - Phase 4: Spray Timing Screen** ✅ COMPLETE
    - Location: `frontend/ui/screens/spray_timing.py`
    - **Weather Input Panel:**
      - Temperature, wind speed, wind direction inputs
@@ -175,7 +227,7 @@
      - ~~Phase 2: API Client & Models~~ ✅ DONE
      - ~~Phase 3: Yield Response Screen~~ ✅ DONE
      - ~~Phase 4: Spray Timing Screen~~ ✅ DONE
-     - Phase 5: Cost Optimizer Screen (tabbed)
+     - ~~Phase 5: Cost Optimizer Screen~~ ✅ DONE
      - Phase 6: Pricing Screen
      - Phase 7: Pest/Disease ID Screens
      - Phase 8: Offline Mode & Local DB
@@ -348,7 +400,8 @@ AgTools v2.2.0
 │       ├── screens/
 │       │   ├── dashboard.py              # Home screen
 │       │   ├── yield_response.py         # Phase 3 - Interactive charts
-│       │   └── spray_timing.py           # Phase 4 - Weather evaluation
+│       │   ├── spray_timing.py           # Phase 4 - Weather evaluation
+│       │   └── cost_optimizer.py         # Phase 5 - Tabbed cost analysis
 │       └── widgets/                      # Reusable components
 ├── database/
 │   ├── schema.sql
