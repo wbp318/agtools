@@ -630,6 +630,164 @@ SUGGESTED PRODUCTS:
 
 ---
 
+## 🆕 YIELD RESPONSE & ECONOMIC OPTIMUM RATES (NEW in v2.2)
+
+These features help you find the **most profitable fertilizer rate** - not just the rate for maximum yield. This is important because the last 20-30 lb of nitrogen often costs more than it returns.
+
+### 📊 What's My Most Profitable N Rate?
+
+**When to use:** Before you apply fertilizer, find out the rate that maximizes profit.
+
+1. Find **"POST /api/v1/yield-response/economic-optimum"**
+2. Fill in:
+```json
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "previous_crop": "soybean",
+  "nutrient_cost_per_lb": 0.65,
+  "grain_price_per_bu": 4.50
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Economic optimum rate (EOR) - the most profitable rate
+- Maximum yield rate - what you'd need for absolute max yield
+- How much yield you sacrifice (usually only 1-3 bu)
+- How much money you SAVE by not over-applying
+- Net return per acre at each rate
+
+**Example output:**
+```
+ECONOMIC OPTIMUM RATE: 168 lb N/acre
+
+vs. Maximum Yield Rate: 195 lb N/acre
+
+What this means:
+- At 168 lb N: Yield = 197.2 bu, Net return = $778/acre
+- At 195 lb N: Yield = 198.5 bu, Net return = $764/acre
+
+YOU SAVE: $14.15/acre by applying 27 lb LESS nitrogen
+YIELD SACRIFICE: Only 1.3 bu/acre
+
+RECOMMENDATION: Apply 168 lb N/acre. The last 27 lb of N
+costs $17.55 but only returns $5.85 in grain. Not worth it.
+```
+
+---
+
+### 💵 Compare Different N Rates
+
+**When to use:** You're debating between different rates (like 150 vs 180 vs 200).
+
+1. Find **"POST /api/v1/yield-response/compare-rates"**
+2. Fill in:
+```json
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "rates_to_compare": [120, 150, 180, 210],
+  "nutrient_cost_per_lb": 0.65,
+  "grain_price_per_bu": 4.50
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Yield at each rate
+- Fertilizer cost at each rate
+- Net return at each rate
+- Ranking from most to least profitable
+
+**Example:** You'll see that 180 lb might give $774/acre net return while 210 lb only gives $761/acre - more fertilizer, LESS profit!
+
+---
+
+### 📈 How Do Prices Change My Optimal Rate?
+
+**When to use:** Fertilizer prices are different than last year and you want to know how to adjust.
+
+1. Find **"POST /api/v1/yield-response/price-sensitivity"**
+2. Fill in different price scenarios:
+```json
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "nutrient_cost_range": [0.45, 0.55, 0.65, 0.75, 0.85],
+  "grain_price_range": [4.00, 4.50, 5.00, 5.50]
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+A table showing optimal rate at every price combination:
+- Cheap N + high corn = apply more (190+ lb)
+- Expensive N + cheap corn = back off (150-160 lb)
+
+---
+
+### 🌽 Optimize N, P, and K Together
+
+**When to use:** You have a budget and want to allocate it optimally across all nutrients.
+
+1. Find **"POST /api/v1/yield-response/multi-nutrient"**
+2. Fill in:
+```json
+{
+  "crop": "corn",
+  "yield_potential": 200,
+  "soil_test_p_ppm": 18,
+  "soil_test_k_ppm": 145,
+  "previous_crop": "soybean",
+  "budget_per_acre": 150,
+  "nutrient_prices": {
+    "nitrogen": 0.65,
+    "phosphorus": 0.75,
+    "potassium": 0.45
+  },
+  "grain_price": 4.50
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Optimal lb/acre of N, P2O5, and K2O
+- Whether you're under/over budget
+- Expected yield and net return
+- Whether budget is limiting your yield
+
+---
+
+### 📋 Quick Reference: Price Ratio Guide
+
+**When to use:** You want a simple rule of thumb for adjusting rates.
+
+1. Find **"GET /api/v1/yield-response/price-ratio-guide"**
+2. Click **"Execute"**
+
+**What you get:**
+A printable table you can take to the field:
+
+| Price Ratio* | What to do |
+|--------------|-----------|
+| Under 0.10 | Apply max rate |
+| 0.10 - 0.15 | Reduce 5-15% |
+| 0.15 - 0.20 | Reduce 15-20% |
+| Over 0.20 | Reduce 25%+ |
+
+*Price Ratio = N cost per lb ÷ corn price per bu
+
+**Example:** N at $0.65/lb, corn at $4.50/bu = 0.144 ratio → reduce about 10% from max.
+
+---
+
 ## The Bottom Line
 
 **This system helps you answer the questions that cost you money:**
@@ -640,8 +798,10 @@ SUGGESTED PRODUCTS:
 4. Am I spending too much on fertilizer?
 5. Am I over-irrigating?
 6. Where are my biggest opportunities to save money?
-7. **Am I getting good prices from my supplier?** (NEW)
-8. **Is now a good time to spray?** (NEW)
+7. **Am I getting good prices from my supplier?** (v2.1)
+8. **Is now a good time to spray?** (v2.1)
+9. **What's my most profitable fertilizer rate?** (NEW v2.2)
+10. **How should I adjust rates when prices change?** (NEW v2.2)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 

@@ -14,6 +14,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 6. **Professional Recommendations**: Specific products, rates, timing, and economics
 7. **Real-Time Pricing (v2.1)**: Use your actual supplier quotes for accurate calculations
 8. **Weather-Smart Spray Timing (v2.1)**: Economic analysis of spray timing decisions
+9. **Yield Response & Economic Optimum Rates (v2.2)**: Calculate the most profitable fertilizer rate, not just max yield
 
 ---
 
@@ -27,7 +28,7 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application (v2.1 - 1480+ lines, 35+ endpoints)
+│   ├── main.py                             # FastAPI application (v2.2 - 1800+ lines, 42+ endpoints)
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
 │       ├── disease_identification.py       # Disease diagnosis
@@ -40,7 +41,8 @@ agtools/
 │       ├── irrigation_optimizer.py         # Irrigation optimization (v2.0)
 │       ├── input_cost_optimizer.py         # Unified cost analysis (v2.0)
 │       ├── pricing_service.py              # Real-time pricing (v2.1)
-│       └── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
+│       ├── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
+│       └── yield_response_optimizer.py     # Economic optimum rates (v2.2)
 │
 ├── CHANGELOG.md                            # Development changelog
 ├── PROFESSIONAL_SYSTEM_GUIDE.md            # Complete documentation
@@ -1212,6 +1214,314 @@ The system knows how long each product needs to dry:
 
 ---
 
+## 📈 YIELD RESPONSE & ECONOMIC OPTIMUM RATES (v2.2)
+
+Version 2.2 adds the ability to calculate the **most profitable fertilizer rate** - not just the rate for maximum yield. This is critical because fertilizer response follows the law of diminishing returns: the last 20 lb of nitrogen rarely pays for itself.
+
+### Why This Matters
+
+- **Maximum yield ≠ Maximum profit**: The rate that gives you maximum yield often costs more than it returns
+- **Price ratios change optimal rates**: When fertilizer is expensive or grain is cheap, you should back off rates
+- **Soil test levels affect response**: High-testing soils don't respond as much to additional fertilizer
+- **This is the math consultants do by hand** - now automated
+
+### Key Concepts
+
+#### Economic Optimum Rate (EOR)
+
+The EOR is the rate where **marginal cost equals marginal revenue** - the point where the last pound of fertilizer exactly pays for itself.
+
+- Below EOR: You're leaving profit in the field (under-applying)
+- Above EOR: You're spending more than you're getting back (over-applying)
+- At EOR: Maximum profit, not maximum yield
+
+#### Price Ratio
+
+The ratio of nutrient cost to grain value determines optimal rates:
+
+```
+Price Ratio = Cost per lb nutrient / Value per bushel grain
+```
+
+**Example:**
+- Nitrogen costs $0.65/lb
+- Corn is $4.50/bu
+- Price Ratio = 0.65 / 4.50 = 0.144
+
+Higher price ratios → Lower optimal rates
+Lower price ratios → Higher optimal rates
+
+### Key Features
+
+#### 1. Generate Yield Response Curve
+
+Visualize how yield responds to nutrient rates:
+
+```python
+POST /api/v1/yield-response/curve
+
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "previous_crop": "soybean",
+  "model_type": "quadratic_plateau"
+}
+```
+
+**Returns:**
+- Yield at each rate from 0-300 lb/acre
+- Maximum yield and rate to achieve it
+- Shape parameters for the response curve
+- Agronomic plateau point (where additional nutrient stops helping)
+
+#### 2. Calculate Economic Optimum Rate
+
+Find the most profitable rate based on current prices:
+
+```python
+POST /api/v1/yield-response/economic-optimum
+
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "previous_crop": "soybean",
+  "nutrient_cost_per_lb": 0.65,
+  "grain_price_per_bu": 4.50,
+  "model_type": "quadratic_plateau"
+}
+```
+
+**Returns:**
+```json
+{
+  "economic_optimum_rate": 168,
+  "max_yield_rate": 195,
+  "expected_yield_at_eor": 197.2,
+  "max_possible_yield": 198.5,
+  "yield_sacrifice": 1.3,
+  "price_ratio": 0.144,
+  "net_return_at_eor": 778.40,
+  "net_return_at_max_yield": 764.25,
+  "savings_vs_max_yield": 14.15,
+  "fertilizer_savings_lb": 27,
+  "recommendation": "Apply 168 lb N/acre. This rate maximizes profit, saving $14.15/acre vs. maximum yield rate while sacrificing only 1.3 bu/acre."
+}
+```
+
+**The math it does:**
+- Calculates yield at every rate using the response model
+- Finds where marginal yield × grain price = nutrient cost
+- Shows you exactly how much you save by not over-applying
+
+#### 3. Compare Different Application Rates
+
+See profitability across a range of rates:
+
+```python
+POST /api/v1/yield-response/compare-rates
+
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "rates_to_compare": [120, 150, 180, 210],
+  "nutrient_cost_per_lb": 0.65,
+  "grain_price_per_bu": 4.50
+}
+```
+
+**Returns:**
+- Yield at each rate
+- Gross revenue at each rate
+- Fertilizer cost at each rate
+- Net return at each rate
+- Ranking from most to least profitable
+
+**Example output:**
+| Rate | Yield | Revenue | Fert Cost | Net Return | Rank |
+|------|-------|---------|-----------|------------|------|
+| 150 | 192.5 | $866.25 | $97.50 | $768.75 | 2 |
+| 180 | 198.0 | $891.00 | $117.00 | $774.00 | 1 |
+| 120 | 182.0 | $819.00 | $78.00 | $741.00 | 3 |
+| 210 | 199.5 | $897.75 | $136.50 | $761.25 | 4 |
+
+This shows that 180 lb is more profitable than either 150 or 210!
+
+#### 4. Price Sensitivity Analysis
+
+How does the optimal rate change with prices?
+
+```python
+POST /api/v1/yield-response/price-sensitivity
+
+{
+  "crop": "corn",
+  "nutrient": "nitrogen",
+  "soil_test_level": "medium",
+  "yield_potential": 200,
+  "nutrient_cost_range": [0.45, 0.55, 0.65, 0.75, 0.85],
+  "grain_price_range": [4.00, 4.50, 5.00, 5.50]
+}
+```
+
+**Returns a matrix showing optimal rate at each price combination:**
+
+| N Cost | $4.00 Corn | $4.50 Corn | $5.00 Corn | $5.50 Corn |
+|--------|------------|------------|------------|------------|
+| $0.45/lb | 182 | 188 | 192 | 195 |
+| $0.55/lb | 175 | 180 | 185 | 189 |
+| $0.65/lb | 168 | 173 | 178 | 182 |
+| $0.75/lb | 161 | 166 | 171 | 175 |
+| $0.85/lb | 154 | 159 | 164 | 168 |
+
+**Use this when:**
+- Planning fertilizer purchases before prices are set
+- Deciding whether to adjust rates mid-season
+- Advising clients with different cost structures
+
+#### 5. Multi-Nutrient Optimization
+
+Optimize N, P, and K together within a budget:
+
+```python
+POST /api/v1/yield-response/multi-nutrient
+
+{
+  "crop": "corn",
+  "yield_potential": 200,
+  "soil_test_p_ppm": 18,
+  "soil_test_k_ppm": 145,
+  "previous_crop": "soybean",
+  "budget_per_acre": 150,
+  "nutrient_prices": {
+    "nitrogen": 0.65,
+    "phosphorus": 0.75,
+    "potassium": 0.45
+  },
+  "grain_price": 4.50
+}
+```
+
+**Returns:**
+```json
+{
+  "optimal_rates": {
+    "nitrogen": 165,
+    "p2o5": 55,
+    "k2o": 45
+  },
+  "total_cost_per_acre": 147.25,
+  "under_budget_by": 2.75,
+  "expected_yield": 195.8,
+  "expected_net_return": 733.85,
+  "limiting_factor": "budget",
+  "recommendations": [
+    "Budget is constraining N rate by 8 lb. Consider increasing budget $5.20/acre for $12.40 additional return.",
+    "P application is near maintenance level - soil building not occurring.",
+    "K level adequate - maintenance rate applied."
+  ]
+}
+```
+
+**The optimization logic:**
+- Allocates budget to get the highest marginal return per dollar
+- Considers soil test levels for P and K
+- Accounts for N credits from previous crop
+- Shows if budget is constraining yield
+
+#### 6. View Crop Parameters
+
+See the underlying agronomic data:
+
+```python
+GET /api/v1/yield-response/crop-parameters/corn
+```
+
+**Returns:**
+- Base response parameters for each nutrient
+- Soil test adjustment factors
+- Previous crop credits
+- Model coefficients for different response curves
+
+Useful for understanding how the system calculates recommendations.
+
+#### 7. Price Ratio Quick Reference
+
+Get a lookup table for field decisions:
+
+```python
+GET /api/v1/yield-response/price-ratio-guide
+```
+
+**Returns a printable reference table:**
+
+| Price Ratio | Suggested N Rate Adjustment |
+|-------------|----------------------------|
+| < 0.10 | Apply up to agronomic max |
+| 0.10 - 0.12 | Reduce 5% from max |
+| 0.12 - 0.15 | Reduce 10-15% from max |
+| 0.15 - 0.18 | Reduce 15-20% from max |
+| 0.18 - 0.22 | Reduce 20-25% from max |
+| > 0.22 | Reduce 25%+ - consider breakeven |
+
+**Take this to the field** - quick mental math when talking to clients.
+
+### Yield Response Models
+
+The system supports 5 different yield response models:
+
+| Model | Best For | Shape |
+|-------|----------|-------|
+| Quadratic | General use | Smooth curve with decline after peak |
+| Quadratic-Plateau | Most crops | Increases then plateaus (no decline) |
+| Linear-Plateau | P and K response | Linear increase to plateau |
+| Mitscherlich | Biological accuracy | Exponential approach to maximum |
+| Square Root | N response in some soils | Steep initial response, gradual plateau |
+
+**Quadratic-Plateau** is the default and most commonly used for nitrogen in corn.
+
+### Soil Test Level Adjustments
+
+Response varies by soil fertility level:
+
+| Soil Test Level | P Response | K Response | N Credit |
+|-----------------|------------|------------|----------|
+| Very Low | 150% | 140% | 0 |
+| Low | 125% | 120% | 0 |
+| Medium | 100% | 100% | 0 |
+| High | 50% | 60% | 15 lb |
+| Very High | 25% | 30% | 30 lb |
+
+High-testing soils give less response - the system accounts for this automatically.
+
+### Real-World Examples
+
+**Example 1: High Fertilizer Prices**
+- Situation: Nitrogen at $0.85/lb, corn at $4.50/bu
+- Traditional advice: 1.2 lb N per bu yield goal = 240 lb N for 200 bu goal
+- EOR calculation: 154 lb N
+- **Savings: 86 lb N × $0.85 = $73.10/acre**
+- Yield sacrifice: 3.2 bu ($14.40)
+- **Net gain: $58.70/acre**
+
+**Example 2: Cheap Fertilizer, High Corn**
+- Situation: Nitrogen at $0.45/lb, corn at $5.50/bu
+- EOR calculation: 195 lb N (near max)
+- At these prices, pushing for max yield makes sense
+
+**Example 3: Following Soybeans**
+- Situation: Corn after soybeans
+- N credit: 40 lb/acre
+- Adjusted EOR: 128 lb N (vs 168 lb after corn)
+- **Savings: 40 lb × $0.65 = $26/acre**
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -1224,6 +1534,7 @@ You now have a **professional-grade foundation** for a crop consulting business 
 - **Generate ROI analysis** justifying every recommendation
 - **Use your actual prices** for accurate cost calculations (v2.1)
 - **Make weather-smart spray decisions** with cost-of-waiting analysis (v2.1)
+- **Calculate economic optimum fertilizer rates** maximizing profit, not just yield (v2.2)
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -1236,6 +1547,7 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 1.0 | Nov 2025 | Core pest/disease ID, spray recommendations, economic thresholds |
 | 2.0 | Dec 2025 | Input cost optimization (labor, fertilizer, irrigation) |
 | 2.1 | Dec 2025 | Real-time pricing, weather-smart spray timing |
+| 2.2 | Dec 2025 | Yield response curves, economic optimum rate (EOR) calculator |
 
 ---
 
