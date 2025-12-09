@@ -6,5 +6,6 @@ Individual screens for each feature area of the application.
 
 from .dashboard import DashboardScreen
 from .yield_response import YieldResponseScreen
+from .spray_timing import SprayTimingScreen
 
-__all__ = ["DashboardScreen", "YieldResponseScreen"]
+__all__ = ["DashboardScreen", "YieldResponseScreen", "SprayTimingScreen"]

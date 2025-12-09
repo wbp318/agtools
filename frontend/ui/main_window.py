@@ -17,6 +17,7 @@ from .styles import COLORS, get_stylesheet
 from .sidebar import Sidebar
 from .screens.dashboard import DashboardScreen
 from .screens.yield_response import YieldResponseScreen
+from .screens.spray_timing import SprayTimingScreen
 
 
 class StatusIndicator(QFrame):
@@ -201,12 +202,15 @@ class MainWindow(QMainWindow):
         yield_screen = YieldResponseScreen()
         self._add_screen("yield", yield_screen)
 
+        # Spray Timing Screen (Phase 4)
+        spray_timing_screen = SprayTimingScreen()
+        self._add_screen("timing", spray_timing_screen)
+
         # Placeholder screens for other features
         placeholders = [
             ("pests", "Pest Identification"),
             ("diseases", "Disease Identification"),
             ("spray", "Spray Recommendations"),
-            ("timing", "Spray Timing"),
             ("costs", "Cost Optimizer"),
             ("pricing", "Price Manager"),
             ("settings", "Settings"),
