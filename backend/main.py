@@ -4,6 +4,12 @@ Main application entry point with Input Cost Optimization
 Version 2.2.0 - Added Yield Response & Economic Optimum Rate Calculator
 """
 
+import sys
+import os
+
+# Add parent directory to path so we can import from database/
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -1561,39 +1567,26 @@ async def generate_yield_response_curve(request: YieldResponseCurveRequest):
     Shows how yield changes with increasing nutrient rates
     Essential for understanding diminishing returns
     """
-    from services.yield_response_optimizer import (
-        get_yield_response_optimizer,
-        ResponseModel,
-        SoilTestLevel as STL
-    )
+    from services.yield_response_optimizer import get_yield_response_optimizer
 
     optimizer = get_yield_response_optimizer()
 
-    # Map enums
-    soil_map = {
-        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
-        SoilTestLevel.LOW: STL.LOW,
-        SoilTestLevel.MEDIUM: STL.MEDIUM,
-        SoilTestLevel.HIGH: STL.HIGH,
-        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
-    }
-    model_map = {
-        ResponseModelType.QUADRATIC: ResponseModel.QUADRATIC,
-        ResponseModelType.QUADRATIC_PLATEAU: ResponseModel.QUADRATIC_PLATEAU,
-        ResponseModelType.LINEAR_PLATEAU: ResponseModel.LINEAR_PLATEAU,
-        ResponseModelType.MITSCHERLICH: ResponseModel.MITSCHERLICH,
-        ResponseModelType.SQUARE_ROOT: ResponseModel.SQUARE_ROOT,
+    # Convert soil test level enum to approximate ppm value
+    soil_ppm_map = {
+        SoilTestLevel.VERY_LOW: 5,
+        SoilTestLevel.LOW: 10,
+        SoilTestLevel.MEDIUM: 20,
+        SoilTestLevel.HIGH: 40,
+        SoilTestLevel.VERY_HIGH: 80,
     }
 
     result = optimizer.generate_response_curve(
         crop=request.crop.value,
         nutrient=request.nutrient.value,
-        min_rate=request.min_rate,
-        max_rate=request.max_rate,
+        rate_range=(request.min_rate, request.max_rate),
         rate_step=request.rate_step,
-        soil_test_level=soil_map[request.soil_test_level],
-        previous_crop=request.previous_crop,
-        model=model_map[request.response_model]
+        soil_test_level=soil_ppm_map.get(request.soil_test_level),
+        previous_crop=request.previous_crop
     )
 
     return result
@@ -1606,42 +1599,44 @@ async def calculate_economic_optimum_rate(request: EconomicOptimumRequest):
     The rate where marginal cost equals marginal revenue
     Returns the rate that maximizes profit, not yield
     """
-    from services.yield_response_optimizer import (
-        get_yield_response_optimizer,
-        ResponseModel,
-        SoilTestLevel as STL
-    )
+    from services.yield_response_optimizer import get_yield_response_optimizer
 
     optimizer = get_yield_response_optimizer()
 
-    # Map enums
-    soil_map = {
-        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
-        SoilTestLevel.LOW: STL.LOW,
-        SoilTestLevel.MEDIUM: STL.MEDIUM,
-        SoilTestLevel.HIGH: STL.HIGH,
-        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
-    }
-    model_map = {
-        ResponseModelType.QUADRATIC: ResponseModel.QUADRATIC,
-        ResponseModelType.QUADRATIC_PLATEAU: ResponseModel.QUADRATIC_PLATEAU,
-        ResponseModelType.LINEAR_PLATEAU: ResponseModel.LINEAR_PLATEAU,
-        ResponseModelType.MITSCHERLICH: ResponseModel.MITSCHERLICH,
-        ResponseModelType.SQUARE_ROOT: ResponseModel.SQUARE_ROOT,
+    # Convert soil test level enum to approximate ppm value
+    soil_ppm_map = {
+        SoilTestLevel.VERY_LOW: 5,
+        SoilTestLevel.LOW: 10,
+        SoilTestLevel.MEDIUM: 20,
+        SoilTestLevel.HIGH: 40,
+        SoilTestLevel.VERY_HIGH: 80,
     }
 
     result = optimizer.calculate_economic_optimum(
         crop=request.crop.value,
         nutrient=request.nutrient.value,
-        nutrient_price_per_lb=request.nutrient_price_per_lb,
-        grain_price_per_bu=request.grain_price_per_bu,
-        soil_test_level=soil_map[request.soil_test_level],
-        previous_crop=request.previous_crop,
-        model=model_map[request.response_model],
-        acres=request.acres
+        nutrient_cost=request.nutrient_price_per_lb,
+        commodity_price=request.grain_price_per_bu,
+        soil_test_level=soil_ppm_map.get(request.soil_test_level),
+        previous_crop=request.previous_crop
     )
 
-    return result
+    # Convert dataclass to dict for JSON response
+    return {
+        "optimum_rate": result.optimum_rate,
+        "optimum_yield": result.optimum_yield,
+        "agronomic_max_rate": result.agronomic_max_rate,
+        "agronomic_max_yield": result.agronomic_max_yield,
+        "yield_at_optimum_vs_max": result.yield_at_optimum_vs_max,
+        "total_input_cost": result.total_input_cost,
+        "gross_revenue": result.gross_revenue,
+        "net_return": result.net_return,
+        "return_per_dollar": result.return_per_dollar,
+        "breakeven_rate": result.breakeven_rate,
+        "price_ratio": result.price_ratio,
+        "sensitivity": result.sensitivity,
+        "acres": request.acres
+    }
 
 
 @app.post("/api/v1/yield-response/compare-rates")
