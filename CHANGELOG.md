@@ -85,7 +85,7 @@
      python main.py
      ```
    - **Remaining Phases (planned for future sessions):**
-     - Phase 2: API Client & Models
+     - ~~Phase 2: API Client & Models~~ ✅ DONE
      - Phase 3: Yield Response Screen (interactive charts)
      - Phase 4: Spray Timing Screen
      - Phase 5: Cost Optimizer Screen (tabbed)
@@ -93,6 +93,40 @@
      - Phase 7: Pest/Disease ID Screens
      - Phase 8: Offline Mode & Local DB
      - Phase 9: Polish & Testing
+
+4. **PyQt6 Frontend - Phase 2: API Client & Models** ✅ COMPLETE
+   - Location: `frontend/api/` and `frontend/models/`
+   - **Base HTTP Client (`api/client.py`):**
+     - APIClient class with httpx for HTTP requests
+     - Connection state tracking (online/offline)
+     - Automatic error handling and mapping
+     - Retry support and timeout configuration
+     - APIResponse wrapper for consistent return types
+     - Custom exceptions (ConnectionError, ValidationError, etc.)
+     - Singleton pattern with get_api_client()
+   - **Data Models Created:**
+     - `models/yield_response.py` (~350 lines):
+       - Enums: Crop, Nutrient, SoilTestLevel, ResponseModel
+       - Request classes: YieldCurveRequest, EORRequest, CompareRatesRequest, etc.
+       - Response classes: YieldCurveResponse, EORResult, CompareRatesResponse, etc.
+       - All with to_dict() and from_dict() methods
+     - `models/spray.py` (~350 lines):
+       - Enums: SprayType, RiskLevel, DiseasePressure
+       - WeatherCondition dataclass for weather input
+       - SprayEvaluation, SprayWindow, CostOfWaitingResult
+       - DiseasePressureResponse, GrowthStageTimingResponse
+     - `models/pricing.py` (~400 lines):
+       - Enums: ProductCategory, Region, PriceTrend, BuyRecommendation
+       - ProductPrice, SetPriceRequest/Response
+       - BulkUpdateRequest/Response
+       - BuyRecommendationRequest/Response with PriceAnalysis
+       - InputCostRequest/Response
+       - PriceAlert, SupplierComparison classes
+   - **API Modules Created:**
+     - `api/yield_response_api.py` - All 7 yield response endpoints
+     - `api/spray_api.py` - All 5 spray timing endpoints
+     - `api/pricing_api.py` - All 9 pricing service endpoints
+   - **Total:** ~1,400 lines of API/model code
 
 ---
 
