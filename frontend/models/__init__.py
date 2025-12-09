@@ -89,6 +89,23 @@ from .cost_optimizer import (
     LaborScoutingResponse,
 )
 
+from .identification import (
+    CropType,
+    GrowthStage,
+    PestType,
+    PathogenType,
+    PEST_SYMPTOMS,
+    DISEASE_SYMPTOMS,
+    PestInfo,
+    DiseaseInfo,
+    PestIdentificationRequest,
+    DiseaseIdentificationRequest,
+    PestListItem,
+    DiseaseListItem,
+    PestListResponse,
+    DiseaseListResponse,
+)
+
 __all__ = [
     # Yield Response
     "Crop", "Nutrient", "SoilTestLevel", "ResponseModel",
@@ -121,4 +138,11 @@ __all__ = [
     "FertilizerRequest", "NutrientRecommendation", "FertilizerResponse",
     "IrrigationCostRequest", "IrrigationCostResponse",
     "LaborScoutingRequest", "LaborScoutingResponse",
+    # Identification
+    "CropType", "GrowthStage", "PestType", "PathogenType",
+    "PEST_SYMPTOMS", "DISEASE_SYMPTOMS",
+    "PestInfo", "DiseaseInfo",
+    "PestIdentificationRequest", "DiseaseIdentificationRequest",
+    "PestListItem", "DiseaseListItem",
+    "PestListResponse", "DiseaseListResponse",
 ]

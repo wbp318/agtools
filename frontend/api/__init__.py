@@ -19,6 +19,7 @@ from api.yield_response_api import YieldResponseAPI, get_yield_response_api
 from api.spray_api import SprayTimingAPI, get_spray_timing_api
 from api.pricing_api import PricingAPI, get_pricing_api
 from api.cost_optimizer_api import CostOptimizerAPI, get_cost_optimizer_api
+from api.identification_api import IdentificationAPI, get_identification_api
 
 __all__ = [
     # Base client
@@ -43,4 +44,7 @@ __all__ = [
     # Cost Optimizer
     "CostOptimizerAPI",
     "get_cost_optimizer_api",
+    # Identification
+    "IdentificationAPI",
+    "get_identification_api",
 ]
