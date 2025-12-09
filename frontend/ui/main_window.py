@@ -16,6 +16,7 @@ from ..config import APP_NAME, APP_VERSION, get_settings
 from .styles import COLORS, get_stylesheet
 from .sidebar import Sidebar
 from .screens.dashboard import DashboardScreen
+from .screens.yield_response import YieldResponseScreen
 
 
 class StatusIndicator(QFrame):
@@ -196,6 +197,10 @@ class MainWindow(QMainWindow):
         dashboard.navigate_to.connect(self._navigate_to)
         self._add_screen("dashboard", dashboard)
 
+        # Yield Response Calculator (Phase 3)
+        yield_screen = YieldResponseScreen()
+        self._add_screen("yield", yield_screen)
+
         # Placeholder screens for other features
         placeholders = [
             ("pests", "Pest Identification"),
@@ -204,7 +209,6 @@ class MainWindow(QMainWindow):
             ("timing", "Spray Timing"),
             ("costs", "Cost Optimizer"),
             ("pricing", "Price Manager"),
-            ("yield", "Yield Response Calculator"),
             ("settings", "Settings"),
         ]
 
