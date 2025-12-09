@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QFont
 
-from .styles import set_widget_class, COLORS
+from ui.styles import set_widget_class, COLORS
 
 
 class NavButton(QPushButton):
@@ -68,9 +68,9 @@ class Sidebar(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._setup_ui()
         self._nav_buttons: dict[str, NavButton] = {}
         self._current_nav: str = ""
+        self._setup_ui()
 
         set_widget_class(self, "sidebar")
 

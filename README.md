@@ -62,7 +62,7 @@ cd agtools
 2. Click green "Code" button → "Download ZIP"
 3. Extract and open the folder
 
-### Run the System
+### Run the Backend API
 
 ```bash
 # Install dependencies (one time)
@@ -70,12 +70,30 @@ cd backend
 pip install -r requirements.txt
 
 # Start the API server
-python main.py
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 # Visit http://localhost:8000/docs for interactive API
 ```
 
-See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide with screenshots.
+### Run the Desktop Application (NEW)
+
+```bash
+# Install frontend dependencies (one time)
+cd frontend
+pip install -r requirements.txt
+
+# Start the desktop app
+python main.py
+```
+
+The desktop app provides a professional PyQt6 interface with:
+- Dashboard with quick actions
+- Yield Response Calculator with interactive charts
+- Spray Timing Evaluator with weather conditions
+- Cost Optimizer with tabbed interface
+- Price Manager with supplier quotes and buy/wait analysis
+
+See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 
 ## 🎯 What This System Does
 

@@ -93,23 +93,46 @@ pip install -r requirements.txt
 
 This downloads all the pieces the system needs. **Only do this once** - unless you see errors later, then try running it again.
 
-### Step 4: Start the System
+### Step 4: Start the Backend API
 
 Every time you want to use AgTools, navigate to the backend folder and type:
 
 ```bash
-python main.py
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-You'll see a message that says the system is running. Leave this window open.
+You'll see a message that says "Uvicorn running". Leave this window open.
 
-### Step 5: Open the Tool in Your Browser
+### Step 5: Choose Your Interface
+
+You have TWO options for using AgTools:
+
+#### Option A: Web API (Browser-based)
 
 Open your web browser (Chrome, Edge, Firefox) and go to:
 
 **http://localhost:8000/docs**
 
-This opens the interactive tool where you can click buttons and fill in forms.
+This opens the interactive API where you can click buttons and fill in forms.
+
+#### Option B: Desktop Application (NEW - Recommended)
+
+Open a NEW command prompt (keep the API server running) and type:
+
+```bash
+cd frontend
+pip install -r requirements.txt  # One-time setup
+python main.py
+```
+
+This opens the **professional desktop application** with:
+- **Dashboard** - Quick access to all features
+- **Yield Calculator** - Interactive charts showing yield response curves
+- **Spray Timing** - Weather evaluation with spray/wait recommendations
+- **Cost Optimizer** - Tabbed interface for fertilizer, irrigation, labor analysis
+- **Price Manager** - Your supplier quotes, buy/wait analysis, alerts
+
+**Note:** The desktop app requires the backend API to be running for full functionality. If the API isn't running, the app will show "Offline" status and some features won't work.
 
 ---
 

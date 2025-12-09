@@ -29,6 +29,7 @@ agtools/
 │
 ├── backend/
 │   ├── main.py                             # FastAPI application (v2.2 - 1800+ lines, 42+ endpoints)
+│   ├── requirements.txt                    # Backend dependencies
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
 │       ├── disease_identification.py       # Disease diagnosis
@@ -43,6 +44,24 @@ agtools/
 │       ├── pricing_service.py              # Real-time pricing (v2.1)
 │       ├── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
 │       └── yield_response_optimizer.py     # Economic optimum rates (v2.2)
+│
+├── frontend/                               # PyQt6 Desktop Application (NEW)
+│   ├── main.py                             # Application entry point
+│   ├── app.py                              # QApplication setup
+│   ├── config.py                           # Settings management
+│   ├── requirements.txt                    # Frontend dependencies (PyQt6, httpx, pyqtgraph)
+│   ├── api/                                # API client modules
+│   ├── models/                             # Data classes
+│   └── ui/
+│       ├── styles.py                       # Professional QSS theme
+│       ├── sidebar.py                      # Navigation sidebar
+│       ├── main_window.py                  # Main window layout
+│       └── screens/
+│           ├── dashboard.py                # Home screen with quick actions
+│           ├── yield_response.py           # Interactive yield curves
+│           ├── spray_timing.py             # Weather evaluation
+│           ├── cost_optimizer.py           # Tabbed cost analysis
+│           └── pricing.py                  # Price management & alerts
 │
 ├── CHANGELOG.md                            # Development changelog
 ├── PROFESSIONAL_SYSTEM_GUIDE.md            # Complete documentation
@@ -167,39 +186,70 @@ This installs all necessary Python packages. You only need to do this once.
 
 The system uses these key packages (installed automatically):
 
+**Backend:**
 ```
-fastapi==0.104.1          # Web framework
-uvicorn==0.24.0           # ASGI server
-pydantic==2.4.2           # Data validation
-python-multipart==0.0.6   # File uploads
-tensorflow==2.14.0        # AI/ML (optional)
-pillow==10.1.0            # Image processing
-numpy==1.24.3             # Numerical computing
-pandas==2.1.3             # Data analysis
-scikit-learn==1.3.2       # Machine learning
-requests==2.31.0          # HTTP requests
+fastapi>=0.104.1          # Web framework
+uvicorn>=0.24.0           # ASGI server
+pydantic>=2.4.2           # Data validation
+python-multipart>=0.0.6   # File uploads
+tensorflow>=2.15.0        # AI/ML (optional)
+pillow>=10.1.0            # Image processing
+numpy>=1.24.3             # Numerical computing
+pandas>=2.1.3             # Data analysis
+scikit-learn>=1.3.2       # Machine learning
+requests>=2.31.0          # HTTP requests
+```
+
+**Frontend (Desktop App):**
+```
+PyQt6>=6.5.0              # Desktop GUI framework
+httpx>=0.25.0             # HTTP client for API calls
+pyqtgraph>=0.13.0         # Interactive charts
+numpy>=1.24.0             # Numerical computing
+python-dateutil>=2.8.0    # Date/time utilities
 ```
 
 ### Step 3: Run the API Server
 
 ```bash
-python main.py
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 You should see output like:
 ```
 INFO:     Started server process
-INFO:     Uvicorn running on http://0.0.0.0:8000
+INFO:     Uvicorn running on http://127.0.0.1:8000
 INFO:     Application startup complete.
 ```
 
 ### Step 4: Access the System
+
+You have two options:
+
+**Option A: Web API (Swagger UI)**
 
 Open your web browser and go to:
 
 - **Interactive API Docs:** http://localhost:8000/docs (Swagger UI)
 - **Alternative Docs:** http://localhost:8000/redoc (ReDoc format)
 - **API Health Check:** http://localhost:8000/
+
+**Option B: Desktop Application (Recommended)**
+
+Open a new terminal (keep API running) and run:
+
+```bash
+cd frontend
+pip install -r requirements.txt  # One-time setup
+python main.py
+```
+
+The desktop app provides a professional interface with:
+- **Dashboard** - Quick access to all features
+- **Yield Calculator** - Interactive yield response curves with pyqtgraph charts
+- **Spray Timing** - Weather evaluation with clear SPRAY/WAIT recommendations
+- **Cost Optimizer** - Tabbed interface (Quick Estimate, Fertilizer, Irrigation)
+- **Price Manager** - Supplier quotes, buy/wait analysis, alerts
 
 ### Troubleshooting
 

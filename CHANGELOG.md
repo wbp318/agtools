@@ -6,9 +6,37 @@
 
 ## Current Version: 2.2.0 (Released December 8, 2025)
 
-### Latest Session: December 9, 2025 @ 9:15 AM CST
+### Latest Session: December 9, 2025 @ 4:45 PM CST
 
-#### Features Completed This Session
+#### Bug Fixes & Improvements This Session
+
+1. **Fixed Backend Requirements** ✅
+   - Updated `backend/requirements.txt` to use flexible version constraints (>=) instead of pinned versions
+   - TensorFlow 2.14.0 was unavailable; now accepts TensorFlow >= 2.15.0
+   - Resolved pip installation failures on fresh systems
+
+2. **Fixed Frontend Import Issues** ✅
+   - Changed relative imports (`from ..config`) to absolute imports (`from config`)
+   - Fixed initialization order bug in `ui/sidebar.py` (`_nav_buttons` initialized before `_setup_ui()`)
+   - Files modified:
+     - `frontend/ui/main_window.py` - Absolute imports
+     - `frontend/ui/__init__.py` - Absolute imports
+     - `frontend/ui/sidebar.py` - Fixed init order, absolute imports
+     - `frontend/ui/screens/__init__.py` - Absolute imports
+     - `frontend/ui/screens/dashboard.py` - Absolute imports
+     - `frontend/api/__init__.py` - Absolute imports
+
+3. **Verified System Runs Successfully** ✅
+   - Backend: `cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 8000`
+   - Frontend: `cd frontend && python main.py`
+   - All 42+ API endpoints load correctly
+   - PyQt6 GUI starts without errors
+
+---
+
+### Previous Session: December 9, 2025 @ 9:15 AM CST
+
+#### Features Completed That Session
 
 1. **PyQt6 Frontend - Phase 6: Pricing Screen** ✅ COMPLETE
    - Location: `frontend/ui/screens/pricing.py`

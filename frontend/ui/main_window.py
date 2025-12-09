@@ -12,14 +12,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
-from ..config import APP_NAME, APP_VERSION, get_settings
-from .styles import COLORS, get_stylesheet
-from .sidebar import Sidebar
-from .screens.dashboard import DashboardScreen
-from .screens.yield_response import YieldResponseScreen
-from .screens.spray_timing import SprayTimingScreen
-from .screens.cost_optimizer import CostOptimizerScreen
-from .screens.pricing import PricingScreen
+from config import APP_NAME, APP_VERSION, get_settings
+from ui.styles import COLORS, get_stylesheet
+from ui.sidebar import Sidebar
+from ui.screens.dashboard import DashboardScreen
+from ui.screens.yield_response import YieldResponseScreen
+from ui.screens.spray_timing import SprayTimingScreen
+from ui.screens.cost_optimizer import CostOptimizerScreen
+from ui.screens.pricing import PricingScreen
 
 
 class StatusIndicator(QFrame):
