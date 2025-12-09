@@ -17,8 +17,9 @@ Think of AgTools as your **digital agronomist** that:
    - Fertilizer (are you putting on too much?)
    - Pesticides (is there a cheaper product that works just as well?)
    - Irrigation (are you pumping more water than you need?)
-4. **Uses YOUR Prices** (NEW v2.1) - Input your actual supplier quotes for accurate calculations
-5. **Tells You When to Spray** (NEW v2.1) - Weather-smart timing to avoid wasted applications
+4. **Uses YOUR Prices** (v2.1) - Input your actual supplier quotes for accurate calculations
+5. **Tells You When to Spray** (v2.1) - Weather-smart timing to avoid wasted applications
+6. **Calculates Economic Optimum Rates** (NEW v2.2) - Find the most PROFITABLE fertilizer rate, not just max yield
 
 ---
 

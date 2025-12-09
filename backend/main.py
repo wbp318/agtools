@@ -1,7 +1,7 @@
 """
 Professional Crop Consulting System - FastAPI Backend
 Main application entry point with Input Cost Optimization
-Version 2.1.0 - Added Real-Time Pricing & Weather-Smart Spray Timing
+Version 2.2.0 - Added Yield Response & Economic Optimum Rate Calculator
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -15,8 +15,8 @@ import uvicorn
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, and weather-smart spray timing",
-    version="2.1.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, and yield response economics",
+    version="2.2.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -408,6 +408,90 @@ class DiseasePressureRequest(BaseModel):
     weather_history: List[WeatherConditionInput]
     crop: CropType
     growth_stage: GrowthStage
+
+
+# ============================================================================
+# YIELD RESPONSE OPTIMIZER MODELS (v2.2)
+# ============================================================================
+
+class NutrientType(str, Enum):
+    NITROGEN = "nitrogen"
+    PHOSPHORUS = "phosphorus"
+    POTASSIUM = "potassium"
+    SULFUR = "sulfur"
+
+
+class ResponseModelType(str, Enum):
+    QUADRATIC = "quadratic"
+    QUADRATIC_PLATEAU = "quadratic_plateau"
+    LINEAR_PLATEAU = "linear_plateau"
+    MITSCHERLICH = "mitscherlich"
+    SQUARE_ROOT = "square_root"
+
+
+class SoilTestLevel(str, Enum):
+    VERY_LOW = "very_low"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+
+class YieldResponseCurveRequest(BaseModel):
+    crop: CropType
+    nutrient: NutrientType
+    min_rate: float = Field(default=0, ge=0, description="Minimum rate lb/acre")
+    max_rate: float = Field(default=250, ge=0, description="Maximum rate lb/acre")
+    rate_step: float = Field(default=10, ge=1, description="Rate increment")
+    soil_test_level: SoilTestLevel = SoilTestLevel.MEDIUM
+    previous_crop: Optional[str] = None
+    response_model: ResponseModelType = ResponseModelType.QUADRATIC_PLATEAU
+
+
+class EconomicOptimumRequest(BaseModel):
+    crop: CropType
+    nutrient: NutrientType
+    nutrient_price_per_lb: float = Field(..., ge=0, description="Price per lb of nutrient")
+    grain_price_per_bu: float = Field(..., ge=0, description="Grain price $/bu")
+    soil_test_level: SoilTestLevel = SoilTestLevel.MEDIUM
+    previous_crop: Optional[str] = None
+    response_model: ResponseModelType = ResponseModelType.QUADRATIC_PLATEAU
+    acres: float = Field(default=1.0, ge=0, description="Field acres for total calculations")
+
+
+class RateScenarioRequest(BaseModel):
+    crop: CropType
+    nutrient: NutrientType
+    rates: List[float] = Field(..., description="List of rates to compare (lb/acre)")
+    nutrient_price_per_lb: float = Field(..., ge=0)
+    grain_price_per_bu: float = Field(..., ge=0)
+    acres: float = Field(default=1.0, ge=0)
+    soil_test_level: SoilTestLevel = SoilTestLevel.MEDIUM
+
+
+class PriceSensitivityRequest(BaseModel):
+    crop: CropType
+    nutrient: NutrientType
+    base_nutrient_price: float = Field(..., ge=0)
+    base_grain_price: float = Field(..., ge=0)
+    nutrient_price_range_pct: float = Field(default=30, ge=0, le=100)
+    grain_price_range_pct: float = Field(default=30, ge=0, le=100)
+    soil_test_level: SoilTestLevel = SoilTestLevel.MEDIUM
+
+
+class MultiNutrientOptimizationRequest(BaseModel):
+    crop: CropType
+    acres: float = Field(..., ge=0)
+    budget: Optional[float] = Field(default=None, description="Optional budget constraint ($)")
+    nutrient_prices: Dict[str, float] = Field(
+        default={"nitrogen": 0.55, "phosphorus": 0.65, "potassium": 0.45},
+        description="Prices per lb nutrient"
+    )
+    grain_price: float = Field(..., ge=0)
+    soil_test_p_ppm: float = Field(default=25, ge=0)
+    soil_test_k_ppm: float = Field(default=150, ge=0)
+    previous_crop: Optional[str] = None
+    yield_goal: Optional[float] = None
 
 
 # ============================================================================
@@ -1461,6 +1545,230 @@ async def get_growth_stage_timing(
         crop=crop.value,
         growth_stage=growth_stage.value,
         spray_type=SprayType(spray_type.value)
+    )
+
+    return result
+
+
+# ============================================================================
+# YIELD RESPONSE OPTIMIZER ENDPOINTS (v2.2)
+# ============================================================================
+
+@app.post("/api/v1/yield-response/curve")
+async def generate_yield_response_curve(request: YieldResponseCurveRequest):
+    """
+    Generate a yield response curve for a nutrient
+    Shows how yield changes with increasing nutrient rates
+    Essential for understanding diminishing returns
+    """
+    from services.yield_response_optimizer import (
+        get_yield_response_optimizer,
+        ResponseModel,
+        SoilTestLevel as STL
+    )
+
+    optimizer = get_yield_response_optimizer()
+
+    # Map enums
+    soil_map = {
+        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
+        SoilTestLevel.LOW: STL.LOW,
+        SoilTestLevel.MEDIUM: STL.MEDIUM,
+        SoilTestLevel.HIGH: STL.HIGH,
+        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
+    }
+    model_map = {
+        ResponseModelType.QUADRATIC: ResponseModel.QUADRATIC,
+        ResponseModelType.QUADRATIC_PLATEAU: ResponseModel.QUADRATIC_PLATEAU,
+        ResponseModelType.LINEAR_PLATEAU: ResponseModel.LINEAR_PLATEAU,
+        ResponseModelType.MITSCHERLICH: ResponseModel.MITSCHERLICH,
+        ResponseModelType.SQUARE_ROOT: ResponseModel.SQUARE_ROOT,
+    }
+
+    result = optimizer.generate_response_curve(
+        crop=request.crop.value,
+        nutrient=request.nutrient.value,
+        min_rate=request.min_rate,
+        max_rate=request.max_rate,
+        rate_step=request.rate_step,
+        soil_test_level=soil_map[request.soil_test_level],
+        previous_crop=request.previous_crop,
+        model=model_map[request.response_model]
+    )
+
+    return result
+
+
+@app.post("/api/v1/yield-response/economic-optimum")
+async def calculate_economic_optimum_rate(request: EconomicOptimumRequest):
+    """
+    Calculate the Economic Optimum Rate (EOR) for a nutrient
+    The rate where marginal cost equals marginal revenue
+    Returns the rate that maximizes profit, not yield
+    """
+    from services.yield_response_optimizer import (
+        get_yield_response_optimizer,
+        ResponseModel,
+        SoilTestLevel as STL
+    )
+
+    optimizer = get_yield_response_optimizer()
+
+    # Map enums
+    soil_map = {
+        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
+        SoilTestLevel.LOW: STL.LOW,
+        SoilTestLevel.MEDIUM: STL.MEDIUM,
+        SoilTestLevel.HIGH: STL.HIGH,
+        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
+    }
+    model_map = {
+        ResponseModelType.QUADRATIC: ResponseModel.QUADRATIC,
+        ResponseModelType.QUADRATIC_PLATEAU: ResponseModel.QUADRATIC_PLATEAU,
+        ResponseModelType.LINEAR_PLATEAU: ResponseModel.LINEAR_PLATEAU,
+        ResponseModelType.MITSCHERLICH: ResponseModel.MITSCHERLICH,
+        ResponseModelType.SQUARE_ROOT: ResponseModel.SQUARE_ROOT,
+    }
+
+    result = optimizer.calculate_economic_optimum(
+        crop=request.crop.value,
+        nutrient=request.nutrient.value,
+        nutrient_price_per_lb=request.nutrient_price_per_lb,
+        grain_price_per_bu=request.grain_price_per_bu,
+        soil_test_level=soil_map[request.soil_test_level],
+        previous_crop=request.previous_crop,
+        model=model_map[request.response_model],
+        acres=request.acres
+    )
+
+    return result
+
+
+@app.post("/api/v1/yield-response/compare-rates")
+async def compare_rate_scenarios(request: RateScenarioRequest):
+    """
+    Compare profitability of different application rates
+    Useful for 'what-if' analysis and rate decisions
+    """
+    from services.yield_response_optimizer import (
+        get_yield_response_optimizer,
+        SoilTestLevel as STL
+    )
+
+    optimizer = get_yield_response_optimizer()
+
+    soil_map = {
+        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
+        SoilTestLevel.LOW: STL.LOW,
+        SoilTestLevel.MEDIUM: STL.MEDIUM,
+        SoilTestLevel.HIGH: STL.HIGH,
+        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
+    }
+
+    result = optimizer.compare_rate_scenarios(
+        crop=request.crop.value,
+        nutrient=request.nutrient.value,
+        rates=request.rates,
+        nutrient_price_per_lb=request.nutrient_price_per_lb,
+        grain_price_per_bu=request.grain_price_per_bu,
+        acres=request.acres,
+        soil_test_level=soil_map[request.soil_test_level]
+    )
+
+    return result
+
+
+@app.post("/api/v1/yield-response/price-sensitivity")
+async def analyze_price_sensitivity(request: PriceSensitivityRequest):
+    """
+    Analyze how economic optimum rate changes with prices
+    Shows rate recommendations at different nutrient:grain price ratios
+    Critical for forward planning with volatile markets
+    """
+    from services.yield_response_optimizer import (
+        get_yield_response_optimizer,
+        SoilTestLevel as STL
+    )
+
+    optimizer = get_yield_response_optimizer()
+
+    soil_map = {
+        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
+        SoilTestLevel.LOW: STL.LOW,
+        SoilTestLevel.MEDIUM: STL.MEDIUM,
+        SoilTestLevel.HIGH: STL.HIGH,
+        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
+    }
+
+    result = optimizer.analyze_price_sensitivity(
+        crop=request.crop.value,
+        nutrient=request.nutrient.value,
+        base_nutrient_price=request.base_nutrient_price,
+        base_grain_price=request.base_grain_price,
+        nutrient_price_range_pct=request.nutrient_price_range_pct,
+        grain_price_range_pct=request.grain_price_range_pct,
+        soil_test_level=soil_map[request.soil_test_level]
+    )
+
+    return result
+
+
+@app.post("/api/v1/yield-response/multi-nutrient")
+async def optimize_multi_nutrient(request: MultiNutrientOptimizationRequest):
+    """
+    Optimize rates across multiple nutrients simultaneously
+    Accounts for nutrient interactions and budget constraints
+    Returns complete fertilizer recommendation with economics
+    """
+    from services.yield_response_optimizer import get_yield_response_optimizer
+
+    optimizer = get_yield_response_optimizer()
+
+    result = optimizer.multi_nutrient_optimization(
+        crop=request.crop.value,
+        acres=request.acres,
+        budget=request.budget,
+        nutrient_prices=request.nutrient_prices,
+        grain_price=request.grain_price,
+        soil_test_p_ppm=request.soil_test_p_ppm,
+        soil_test_k_ppm=request.soil_test_k_ppm,
+        previous_crop=request.previous_crop,
+        yield_goal=request.yield_goal
+    )
+
+    return result
+
+
+@app.get("/api/v1/yield-response/crop-parameters/{crop}")
+async def get_crop_response_parameters(crop: CropType):
+    """
+    Get the yield response parameters for a crop
+    Shows the underlying agronomic data driving calculations
+    """
+    from services.yield_response_optimizer import get_yield_response_optimizer
+
+    optimizer = get_yield_response_optimizer()
+    result = optimizer.get_crop_parameters(crop=crop.value)
+
+    return result
+
+
+@app.get("/api/v1/yield-response/price-ratio-guide")
+async def get_price_ratio_guide(
+    crop: CropType = CropType.CORN,
+    nutrient: NutrientType = NutrientType.NITROGEN
+):
+    """
+    Get a quick reference guide for EOR based on price ratios
+    Lookup table for field decisions without detailed calculations
+    """
+    from services.yield_response_optimizer import get_yield_response_optimizer
+
+    optimizer = get_yield_response_optimizer()
+
+    result = optimizer.generate_price_ratio_guide(
+        crop=crop.value,
+        nutrient=nutrient.value
     )
 
     return result

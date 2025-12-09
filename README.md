@@ -33,7 +33,7 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
-**Version 2.1** adds **Real-Time Pricing Integration** and **Weather-Smart Spray Timing** - use your actual supplier quotes for accurate ROI calculations, and optimize spray timing with weather-based decision support.
+**Version 2.2** adds **Yield Response & Economic Optimum Rate (EOR) Calculator** - calculate the most profitable fertilizer rates based on yield response curves and real-time prices. Stop leaving money in the field by over-applying or sacrificing yield by under-applying.
 
 **This is not a hobby project** - it's a professional tool that provides genuine consulting value.
 
@@ -127,13 +127,22 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide 
    - **Price Alerts**: Notifications for expiring quotes and above-average prices
    - **60+ Products**: Fertilizers, pesticides, seeds, fuel, and custom application rates
 
-8. **Weather-Smart Spray Timing (NEW in v2.1)**
+8. **Weather-Smart Spray Timing (v2.1)**
    - **Condition Evaluation**: Real-time spray condition scoring (wind, temp, humidity, inversions)
    - **Spray Window Finder**: Scans forecasts to find optimal application windows
    - **Cost of Waiting Calculator**: Economic analysis of "spray today vs wait"
    - **Disease Pressure Forecasting**: Predicts disease risk from weather patterns
    - **Growth Stage Timing**: Crop and stage-specific spray recommendations
    - **Drift Risk Assessment**: Inversion detection and mitigation recommendations
+
+9. **Yield Response & Economic Optimum Rates (NEW in v2.2)**
+   - **Yield Response Curves**: Generate curves showing yield vs nutrient rate for N, P, K
+   - **Economic Optimum Rate (EOR)**: Calculate the most profitable rate, not just maximum yield
+   - **Price Sensitivity Analysis**: See how optimal rates change with nutrient/grain prices
+   - **Multi-Nutrient Optimization**: Optimize N, P, K together within a budget constraint
+   - **Rate Scenario Comparison**: Compare profitability of different application rates
+   - **5 Response Models**: Quadratic, quadratic-plateau, linear-plateau, Mitscherlich, square-root
+   - **Soil Test Adjustments**: Rates adjusted based on soil test levels (very low to very high)
 
 ## 💰 Business Value
 
@@ -171,7 +180,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.1 - 1480+ lines, 35+ endpoints)
+│   ├── main.py                       # FastAPI application (v2.2 - 1800+ lines, 42+ endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
@@ -184,8 +193,17 @@ agtools/
 │       ├── application_cost_optimizer.py  # Fertilizer/pesticide costs (v2.0)
 │       ├── irrigation_optimizer.py   # Irrigation optimization (v2.0)
 │       ├── input_cost_optimizer.py   # Unified cost analysis (v2.0)
-│       ├── pricing_service.py        # Real-time pricing (NEW v2.1)
-│       └── spray_timing_optimizer.py # Weather-smart spraying (NEW v2.1)
+│       ├── pricing_service.py        # Real-time pricing (v2.1)
+│       ├── spray_timing_optimizer.py # Weather-smart spraying (v2.1)
+│       └── yield_response_optimizer.py # Economic optimum rates (NEW v2.2)
+│
+├── frontend/ (planned)               # Future web application
+│   ├── src/
+│   │   ├── components/               # React components
+│   │   ├── pages/                    # Page layouts
+│   │   ├── services/                 # API client services
+│   │   └── utils/                    # Utility functions
+│   └── public/
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
@@ -256,14 +274,25 @@ agtools/
 | `GET /api/v1/pricing/alerts` | Expiring quotes & price alerts |
 | `GET /api/v1/pricing/budget-prices/{crop}` | Generate budget price list |
 
-### Weather-Smart Spray Timing (NEW in v2.1)
+### Weather-Smart Spray Timing (v2.1)
 | Endpoint | Purpose |
 |----------|---------|
 | `POST /api/v1/spray-timing/evaluate` | Evaluate current spray conditions |
 | `POST /api/v1/spray-timing/find-windows` | Find optimal windows in forecast |
-| `POST /api/v1/spray-timing/cost-of-waiting` | **Economic analysis of waiting** |
+| `POST /api/v1/spray-timing/cost-of-waiting` | Economic analysis of waiting |
 | `POST /api/v1/spray-timing/disease-pressure` | Assess disease risk from weather |
 | `GET /api/v1/spray-timing/growth-stage-timing/{crop}/{stage}` | Stage-specific guidance |
+
+### Yield Response & Economic Optimum (NEW in v2.2)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/yield-response/curve` | Generate yield response curve |
+| `POST /api/v1/yield-response/economic-optimum` | **Calculate Economic Optimum Rate (EOR)** |
+| `POST /api/v1/yield-response/compare-rates` | Compare profitability of different rates |
+| `POST /api/v1/yield-response/price-sensitivity` | Analyze EOR changes with prices |
+| `POST /api/v1/yield-response/multi-nutrient` | **Optimize N, P, K with budget** |
+| `GET /api/v1/yield-response/crop-parameters/{crop}` | View agronomic parameters |
+| `GET /api/v1/yield-response/price-ratio-guide` | Quick field reference table |
 
 Visit http://localhost:8000/docs for interactive documentation.
 
@@ -340,6 +369,8 @@ This system includes:
 - ✅ Weather-based decision support
 - ✅ Cost optimization
 - ✅ Regional pest/disease variations
+- ✅ Yield response economics (diminishing returns)
+- ✅ Economic Optimum Rate calculations (EOR)
 
 ## 📞 Support & Development
 

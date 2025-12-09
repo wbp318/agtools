@@ -4,21 +4,44 @@
 
 ---
 
-## Current Version: 2.1.0 (Released December 8, 2025)
+## Current Version: 2.2.0 (Released December 8, 2025)
 
 ### Latest Session: December 8, 2025
 
 #### Features Completed This Session
 
-1. **Removed Legacy Code** ✅ COMPLETE
-   - Deleted `src/agtools/` folder (legacy v0.1.0 FarmOptimizer)
-   - Analyzed code - no useful features to migrate
-   - Our v2.1 implementations are far superior:
-     - Spray analysis: 750+ lines vs 20 lines
-     - Fertilizer optimization: economical product selection vs simple deficit calc
-   - Updated README.md and PROFESSIONAL_SYSTEM_GUIDE.md architecture diagrams
+1. **Yield Response & Economic Optimum Rate Calculator** ✅ COMPLETE
+   - Location: `backend/services/yield_response_optimizer.py`
+   - **New API Endpoints (7 total):**
+     - `POST /api/v1/yield-response/curve` - Generate yield response curve for any nutrient
+     - `POST /api/v1/yield-response/economic-optimum` - Calculate Economic Optimum Rate (EOR)
+     - `POST /api/v1/yield-response/compare-rates` - Compare profitability of different rates
+     - `POST /api/v1/yield-response/price-sensitivity` - Analyze EOR changes with prices
+     - `POST /api/v1/yield-response/multi-nutrient` - Optimize N, P, K simultaneously
+     - `GET /api/v1/yield-response/crop-parameters/{crop}` - View underlying agronomic data
+     - `GET /api/v1/yield-response/price-ratio-guide` - Quick field reference lookup table
+   - **Capabilities:**
+     - 5 yield response models (quadratic, quadratic-plateau, linear-plateau, Mitscherlich, square-root)
+     - Economic Optimum Rate calculation using calculus-based approach
+     - Multi-nutrient optimization with budget constraints
+     - Price sensitivity analysis for volatile markets
+     - Soil test adjustments (5 levels: very low to very high)
+     - Previous crop nitrogen credits
+     - Crop-specific parameters for corn, soybean, wheat
+     - Price ratio lookup tables for field decisions
+   - **Key Economics Concept:**
+     - EOR = rate where marginal cost equals marginal revenue
+     - Maximizes profit, not yield (avoids over-application)
+     - Accounts for diminishing returns in fertilizer response
 
-2. **Real-Time/Custom Pricing Integration** ✅ COMPLETE
+---
+
+## Version History
+
+### v2.1.0 - Pricing & Spray Timing (December 2025)
+
+**Features Added:**
+1. **Real-Time/Custom Pricing Integration** ✅ COMPLETE
    - Location: `backend/services/pricing_service.py`
    - **New API Endpoints (9 total):**
      - `GET /api/v1/pricing/prices` - Get all prices with optional category filter
@@ -111,17 +134,25 @@
 ## Architecture Overview
 
 ```
-AgTools v2.1.0
+AgTools v2.2.0
 ├── backend/
-│   ├── main.py                           # FastAPI app (1480+ lines, 35+ endpoints)
+│   ├── main.py                           # FastAPI app (1800+ lines, 42+ endpoints)
 │   ├── services/
 │   │   ├── labor_optimizer.py            # Labor cost optimization
 │   │   ├── application_cost_optimizer.py # Fertilizer/pesticide costs
 │   │   ├── irrigation_optimizer.py       # Water/irrigation costs
 │   │   ├── input_cost_optimizer.py       # Master cost integration
 │   │   ├── pricing_service.py            # v2.1 - Dynamic pricing
-│   │   └── spray_timing_optimizer.py     # v2.1 - Weather-smart spraying
+│   │   ├── spray_timing_optimizer.py     # v2.1 - Weather-smart spraying
+│   │   └── yield_response_optimizer.py   # v2.2 - Economic optimum rates
 │   └── models/
+├── frontend/ (planned)                   # Future web application
+│   ├── src/
+│   │   ├── components/                   # React components
+│   │   ├── pages/                        # Page layouts
+│   │   ├── services/                     # API client services
+│   │   └── utils/                        # Utility functions
+│   └── public/
 ├── database/
 │   ├── schema.sql
 │   ├── chemical_database.py
@@ -139,12 +170,24 @@ AgTools v2.1.0
 | Pesticide/Fertilizer | `backend/services/application_cost_optimizer.py` | ~830 | 4 |
 | Irrigation | `backend/services/irrigation_optimizer.py` | ~600 | 5 |
 | Master Optimizer | `backend/services/input_cost_optimizer.py` | ~500 | 3 |
-| **Pricing Service** | `backend/services/pricing_service.py` | ~650 | 9 |
-| **Spray Timing** | `backend/services/spray_timing_optimizer.py` | ~750 | 5 |
-| API Endpoints | `backend/main.py` | ~1480 | 35+ |
+| Pricing Service | `backend/services/pricing_service.py` | ~650 | 9 |
+| Spray Timing | `backend/services/spray_timing_optimizer.py` | ~750 | 5 |
+| **Yield Response** | `backend/services/yield_response_optimizer.py` | ~850 | 7 |
+| API Endpoints | `backend/main.py` | ~1800 | 42+ |
 | Database Schema | `database/schema.sql` | - | - |
 
-### v2.1 New Endpoint Summary
+### v2.2 New Endpoint Summary
+
+**Yield Response (`/api/v1/yield-response/`):**
+- `POST /curve` - Generate yield response curve
+- `POST /economic-optimum` - Calculate Economic Optimum Rate (EOR)
+- `POST /compare-rates` - Compare profitability of different rates
+- `POST /price-sensitivity` - Analyze EOR changes with price ratios
+- `POST /multi-nutrient` - Optimize N, P, K together with budget constraint
+- `GET /crop-parameters/{crop}` - View agronomic parameters
+- `GET /price-ratio-guide` - Quick field reference table
+
+### v2.1 Endpoint Summary
 
 **Pricing Service (`/api/v1/pricing/`):**
 - `GET /prices` - All prices by category
@@ -169,10 +212,10 @@ AgTools v2.1.0
 ## Upcoming Features (Roadmap)
 
 - [ ] Field-level precision / zone management
-- [ ] Input-to-yield response curves (economic optimum rates)
+- [x] ~~Input-to-yield response curves (economic optimum rates)~~ **DONE v2.2**
 - [ ] Custom vs. hire equipment decision engine
 - [ ] Carbon credit / sustainability ROI calculator
-- [ ] Mobile app integration
+- [ ] Mobile app / frontend web interface
 - [ ] Precision ag platform imports (Climate, John Deere, etc.)
 
 ---
