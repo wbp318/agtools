@@ -221,7 +221,8 @@ agtools/
 │           ├── dashboard.py          # Home screen
 │           ├── yield_response.py     # Yield calculator with charts
 │           ├── spray_timing.py       # Weather evaluation
-│           └── cost_optimizer.py     # Tabbed cost analysis
+│           ├── cost_optimizer.py     # Tabbed cost analysis
+│           └── pricing.py            # Price management & alerts
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation

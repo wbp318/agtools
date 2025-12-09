@@ -19,6 +19,7 @@ from .screens.dashboard import DashboardScreen
 from .screens.yield_response import YieldResponseScreen
 from .screens.spray_timing import SprayTimingScreen
 from .screens.cost_optimizer import CostOptimizerScreen
+from .screens.pricing import PricingScreen
 
 
 class StatusIndicator(QFrame):
@@ -211,12 +212,15 @@ class MainWindow(QMainWindow):
         cost_optimizer_screen = CostOptimizerScreen()
         self._add_screen("costs", cost_optimizer_screen)
 
+        # Pricing Screen (Phase 6)
+        pricing_screen = PricingScreen()
+        self._add_screen("pricing", pricing_screen)
+
         # Placeholder screens for other features
         placeholders = [
             ("pests", "Pest Identification"),
             ("diseases", "Disease Identification"),
             ("spray", "Spray Recommendations"),
-            ("pricing", "Price Manager"),
             ("settings", "Settings"),
         ]
 

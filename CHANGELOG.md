@@ -6,11 +6,49 @@
 
 ## Current Version: 2.2.0 (Released December 8, 2025)
 
-### Latest Session: December 9, 2025 @ 8:50 AM CST
+### Latest Session: December 9, 2025 @ 9:15 AM CST
 
 #### Features Completed This Session
 
-1. **PyQt6 Frontend - Phase 5: Cost Optimizer Screen** ✅ COMPLETE
+1. **PyQt6 Frontend - Phase 6: Pricing Screen** ✅ COMPLETE
+   - Location: `frontend/ui/screens/pricing.py`
+   - **Tabbed Interface with 3 Tabs:**
+     - **Price List Tab:**
+       - Product table with all prices (60+ products)
+       - Category filter (Fertilizer, Pesticide, Seed, Fuel, Custom Application)
+       - Region selector (7 regions with price adjustments)
+       - Source indicator (default vs custom/supplier)
+       - "Set Price" button for each product
+       - SetPriceDialog: Enter supplier quote with expiration date
+     - **Buy/Wait Tab:**
+       - Product selector with common products
+       - Quantity and purchase deadline inputs
+       - Large recommendation display (BUY NOW / WAIT / SPLIT PURCHASE)
+       - Price analysis grid (current, total cost, trend, vs 90-day avg)
+       - Color-coded trend indicators
+       - Reasoning and suggested action display
+       - Potential savings calculation
+     - **Alerts Tab:**
+       - Price alerts list with auto-refresh
+       - Color-coded alert cards (warning, error, info)
+       - Expiring quote notifications
+       - Above-average price warnings
+       - Supplier and expiry info display
+   - **Reusable Components:**
+     - SetPriceDialog: Modal for entering supplier prices
+   - **Files Created/Modified:**
+     - `frontend/ui/screens/pricing.py` (~550 lines) - NEW
+     - `frontend/ui/screens/__init__.py` - Updated exports
+     - `frontend/ui/main_window.py` - Integrated PricingScreen
+   - **To Test:**
+     ```bash
+     cd frontend
+     python main.py
+     # Click "Price Manager" from dashboard or sidebar
+     # Use tabs: Price List, Buy/Wait, Alerts
+     ```
+
+2. **PyQt6 Frontend - Phase 5: Cost Optimizer Screen** ✅ COMPLETE
    - Location: `frontend/ui/screens/cost_optimizer.py`
    - **New API Client & Models Created:**
      - `frontend/models/cost_optimizer.py` (~350 lines):
@@ -228,7 +266,7 @@
      - ~~Phase 3: Yield Response Screen~~ ✅ DONE
      - ~~Phase 4: Spray Timing Screen~~ ✅ DONE
      - ~~Phase 5: Cost Optimizer Screen~~ ✅ DONE
-     - Phase 6: Pricing Screen
+     - ~~Phase 6: Pricing Screen~~ ✅ DONE
      - Phase 7: Pest/Disease ID Screens
      - Phase 8: Offline Mode & Local DB
      - Phase 9: Polish & Testing
@@ -401,7 +439,8 @@ AgTools v2.2.0
 │       │   ├── dashboard.py              # Home screen
 │       │   ├── yield_response.py         # Phase 3 - Interactive charts
 │       │   ├── spray_timing.py           # Phase 4 - Weather evaluation
-│       │   └── cost_optimizer.py         # Phase 5 - Tabbed cost analysis
+│       │   ├── cost_optimizer.py         # Phase 5 - Tabbed cost analysis
+│       │   └── pricing.py                # Phase 6 - Price management
 │       └── widgets/                      # Reusable components
 ├── database/
 │   ├── schema.sql
