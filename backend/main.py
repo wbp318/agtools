@@ -1,6 +1,7 @@
 """
 Professional Crop Consulting System - FastAPI Backend
 Main application entry point with Input Cost Optimization
+Version 2.1.0 - Added Real-Time Pricing & Weather-Smart Spray Timing
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -14,8 +15,8 @@ import uvicorn
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management and input cost optimization",
-    version="2.0.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, and weather-smart spray timing",
+    version="2.1.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -291,6 +292,123 @@ class QuickEstimateRequest(BaseModel):
     crop: CropType
     is_irrigated: bool = False
     yield_goal: Optional[float] = None
+
+
+# ============================================================================
+# PRICING SERVICE MODELS (v2.1)
+# ============================================================================
+
+class InputCategory(str, Enum):
+    FERTILIZER = "fertilizer"
+    PESTICIDE = "pesticide"
+    SEED = "seed"
+    FUEL = "fuel"
+    CUSTOM_APPLICATION = "custom_application"
+
+
+class Region(str, Enum):
+    MIDWEST_CORN_BELT = "midwest_corn_belt"
+    NORTHERN_PLAINS = "northern_plains"
+    SOUTHERN_PLAINS = "southern_plains"
+    DELTA = "delta"
+    SOUTHEAST = "southeast"
+    PACIFIC_NORTHWEST = "pacific_northwest"
+    MOUNTAIN = "mountain"
+
+
+class SetPriceRequest(BaseModel):
+    product_id: str = Field(..., description="Product identifier (e.g., 'urea_46', 'glyphosate_generic')")
+    price: float = Field(..., ge=0, description="Quoted price")
+    supplier: Optional[str] = None
+    valid_until: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class BulkPriceUpdateRequest(BaseModel):
+    price_updates: List[Dict[str, Any]]
+    supplier: Optional[str] = None
+
+
+class InputCostCalculationRequest(BaseModel):
+    crop: CropType
+    acres: float
+    yield_goal: float
+    inputs: List[Dict[str, Any]] = Field(..., description="List of {product_id, rate_per_acre} or {product_id, total_quantity}")
+
+
+class BuyRecommendationRequest(BaseModel):
+    product_id: str
+    quantity_needed: float
+    purchase_deadline: Optional[datetime] = None
+
+
+class SupplierComparisonRequest(BaseModel):
+    product_ids: List[str]
+    acres: float = 1.0
+
+
+# ============================================================================
+# SPRAY TIMING OPTIMIZER MODELS (v2.1)
+# ============================================================================
+
+class SprayTypeEnum(str, Enum):
+    HERBICIDE = "herbicide"
+    INSECTICIDE = "insecticide"
+    FUNGICIDE = "fungicide"
+    GROWTH_REGULATOR = "growth_regulator"
+    DESICCANT = "desiccant"
+
+
+class PressureLevel(str, Enum):
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+
+
+class WeatherConditionInput(BaseModel):
+    datetime: datetime
+    temp_f: float = Field(..., ge=-40, le=130)
+    humidity_pct: float = Field(..., ge=0, le=100)
+    wind_mph: float = Field(..., ge=0, le=100)
+    wind_direction: str = "N"
+    precip_chance_pct: float = Field(default=0, ge=0, le=100)
+    precip_amount_in: float = Field(default=0, ge=0)
+    cloud_cover_pct: float = Field(default=50, ge=0, le=100)
+    dew_point_f: float = Field(default=55, ge=-40, le=100)
+
+
+class EvaluateConditionsRequest(BaseModel):
+    weather: WeatherConditionInput
+    spray_type: SprayTypeEnum
+    product_name: Optional[str] = None
+
+
+class FindSprayWindowsRequest(BaseModel):
+    forecast: List[WeatherConditionInput]
+    spray_type: SprayTypeEnum
+    min_window_hours: float = Field(default=3.0, ge=1.0, le=12.0)
+    product_name: Optional[str] = None
+
+
+class CostOfWaitingRequest(BaseModel):
+    current_conditions: WeatherConditionInput
+    forecast: List[WeatherConditionInput]
+    spray_type: SprayTypeEnum
+    acres: float
+    product_cost_per_acre: float
+    application_cost_per_acre: float = 8.50
+    target_pest_or_disease: Optional[str] = None
+    current_pressure: PressureLevel = PressureLevel.MODERATE
+    crop: CropType = CropType.CORN
+    yield_goal: float = 200
+    grain_price: float = 4.50
+
+
+class DiseasePressureRequest(BaseModel):
+    weather_history: List[WeatherConditionInput]
+    crop: CropType
+    growth_stage: GrowthStage
+
 
 # ============================================================================
 # API ROUTES
@@ -929,6 +1047,420 @@ async def generate_budget_worksheet(request: CompleteFarmAnalysisRequest):
     result = optimizer.generate_budget_worksheet(
         farm_profile=farm_profile,
         include_scenarios=True
+    )
+
+    return result
+
+
+# ============================================================================
+# PRICING SERVICE ENDPOINTS (v2.1)
+# ============================================================================
+
+@app.get("/api/v1/pricing/prices")
+async def get_all_prices(
+    category: Optional[InputCategory] = None,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Get all current prices (custom + defaults)
+    Filter by category: fertilizer, pesticide, seed, fuel, custom_application
+    """
+    from services.pricing_service import get_pricing_service, InputCategory as IC
+
+    service = get_pricing_service(region=region.value)
+
+    category_map = {
+        InputCategory.FERTILIZER: IC.FERTILIZER,
+        InputCategory.PESTICIDE: IC.PESTICIDE,
+        InputCategory.SEED: IC.SEED,
+        InputCategory.FUEL: IC.FUEL,
+        InputCategory.CUSTOM_APPLICATION: IC.CUSTOM_APPLICATION,
+    }
+
+    cat = category_map.get(category) if category else None
+    prices = service.get_all_prices(category=cat)
+
+    return {
+        "region": region.value,
+        "category": category.value if category else "all",
+        "count": len(prices),
+        "prices": prices
+    }
+
+
+@app.get("/api/v1/pricing/price/{product_id}")
+async def get_price(
+    product_id: str,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """Get current price for a specific product"""
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+    price = service.get_price(product_id)
+
+    if not price:
+        raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
+
+    return {
+        "product_id": product_id,
+        "region": region.value,
+        **price
+    }
+
+
+@app.post("/api/v1/pricing/set-price")
+async def set_custom_price(
+    request: SetPriceRequest,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Set a custom price from a supplier quote
+    Updates the price used in all cost calculations
+    Returns comparison to default/average price
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+
+    result = service.set_custom_price(
+        product_id=request.product_id,
+        price=request.price,
+        supplier=request.supplier,
+        valid_until=request.valid_until,
+        notes=request.notes
+    )
+
+    return result
+
+
+@app.post("/api/v1/pricing/bulk-update")
+async def bulk_update_prices(
+    request: BulkPriceUpdateRequest,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Bulk update prices from a supplier quote sheet
+    Useful for importing an entire price list at once
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+
+    result = service.bulk_update_prices(
+        price_updates=request.price_updates,
+        supplier=request.supplier
+    )
+
+    return result
+
+
+@app.post("/api/v1/pricing/buy-recommendation")
+async def get_buy_recommendation(
+    request: BuyRecommendationRequest,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Get recommendation on whether to buy now or wait
+    Based on price trends and historical data
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+
+    result = service.get_buy_recommendation(
+        product_id=request.product_id,
+        quantity_needed=request.quantity_needed,
+        purchase_deadline=request.purchase_deadline
+    )
+
+    return result
+
+
+@app.post("/api/v1/pricing/calculate-input-costs")
+async def calculate_input_costs(
+    request: InputCostCalculationRequest,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Calculate total input costs using current (custom or default) prices
+    Returns line-item breakdown and summary
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+
+    result = service.calculate_input_costs(
+        crop=request.crop.value,
+        acres=request.acres,
+        yield_goal=request.yield_goal,
+        inputs=request.inputs
+    )
+
+    return result
+
+
+@app.post("/api/v1/pricing/compare-suppliers")
+async def compare_suppliers(
+    request: SupplierComparisonRequest,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Compare prices across suppliers for given products
+    Identifies cheapest supplier overall
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+
+    result = service.compare_suppliers(
+        product_ids=request.product_ids,
+        acres=request.acres
+    )
+
+    return result
+
+
+@app.get("/api/v1/pricing/alerts")
+async def get_price_alerts(region: Region = Region.MIDWEST_CORN_BELT):
+    """
+    Get alerts for expiring quotes and prices above average
+    Use for proactive price management
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+    alerts = service.get_price_alerts()
+
+    return {
+        "region": region.value,
+        "alert_count": len(alerts),
+        "alerts": alerts
+    }
+
+
+@app.get("/api/v1/pricing/budget-prices/{crop}")
+async def generate_budget_prices(
+    crop: CropType,
+    region: Region = Region.MIDWEST_CORN_BELT
+):
+    """
+    Generate complete price list for budget planning
+    Uses custom prices where available, defaults otherwise
+    """
+    from services.pricing_service import get_pricing_service
+
+    service = get_pricing_service(region=region.value)
+    result = service.generate_budget_prices(crop=crop.value)
+
+    return result
+
+
+# ============================================================================
+# SPRAY TIMING OPTIMIZER ENDPOINTS (v2.1)
+# ============================================================================
+
+@app.post("/api/v1/spray-timing/evaluate")
+async def evaluate_spray_conditions(request: EvaluateConditionsRequest):
+    """
+    Evaluate if current weather conditions are suitable for spraying
+    Returns risk level, score, and actionable recommendations
+    """
+    from services.spray_timing_optimizer import (
+        get_spray_timing_optimizer,
+        WeatherCondition,
+        SprayType
+    )
+
+    optimizer = get_spray_timing_optimizer()
+
+    # Convert request to WeatherCondition
+    weather = WeatherCondition(
+        datetime=request.weather.datetime,
+        temp_f=request.weather.temp_f,
+        humidity_pct=request.weather.humidity_pct,
+        wind_mph=request.weather.wind_mph,
+        wind_direction=request.weather.wind_direction,
+        precip_chance_pct=request.weather.precip_chance_pct,
+        precip_amount_in=request.weather.precip_amount_in,
+        cloud_cover_pct=request.weather.cloud_cover_pct,
+        dew_point_f=request.weather.dew_point_f
+    )
+
+    spray_type = SprayType(request.spray_type.value)
+
+    result = optimizer.evaluate_current_conditions(
+        weather=weather,
+        spray_type=spray_type,
+        product_name=request.product_name
+    )
+
+    return result
+
+
+@app.post("/api/v1/spray-timing/find-windows")
+async def find_spray_windows(request: FindSprayWindowsRequest):
+    """
+    Find optimal spray windows in a weather forecast
+    Returns list of windows with quality ratings
+    """
+    from services.spray_timing_optimizer import (
+        get_spray_timing_optimizer,
+        WeatherCondition,
+        SprayType
+    )
+
+    optimizer = get_spray_timing_optimizer()
+
+    # Convert forecast to WeatherCondition objects
+    forecast = [
+        WeatherCondition(
+            datetime=w.datetime,
+            temp_f=w.temp_f,
+            humidity_pct=w.humidity_pct,
+            wind_mph=w.wind_mph,
+            wind_direction=w.wind_direction,
+            precip_chance_pct=w.precip_chance_pct,
+            precip_amount_in=w.precip_amount_in,
+            cloud_cover_pct=w.cloud_cover_pct,
+            dew_point_f=w.dew_point_f
+        )
+        for w in request.forecast
+    ]
+
+    spray_type = SprayType(request.spray_type.value)
+
+    result = optimizer.find_spray_windows(
+        forecast=forecast,
+        spray_type=spray_type,
+        min_window_hours=request.min_window_hours,
+        product_name=request.product_name
+    )
+
+    return result
+
+
+@app.post("/api/v1/spray-timing/cost-of-waiting")
+async def calculate_cost_of_waiting(request: CostOfWaitingRequest):
+    """
+    Calculate the economic cost of waiting to spray vs. spraying now
+    Helps answer: 'Should I spray today in marginal conditions or wait?'
+    """
+    from services.spray_timing_optimizer import (
+        get_spray_timing_optimizer,
+        WeatherCondition,
+        SprayType
+    )
+
+    optimizer = get_spray_timing_optimizer()
+
+    # Convert current conditions
+    current = WeatherCondition(
+        datetime=request.current_conditions.datetime,
+        temp_f=request.current_conditions.temp_f,
+        humidity_pct=request.current_conditions.humidity_pct,
+        wind_mph=request.current_conditions.wind_mph,
+        wind_direction=request.current_conditions.wind_direction,
+        precip_chance_pct=request.current_conditions.precip_chance_pct,
+        precip_amount_in=request.current_conditions.precip_amount_in,
+        cloud_cover_pct=request.current_conditions.cloud_cover_pct,
+        dew_point_f=request.current_conditions.dew_point_f
+    )
+
+    # Convert forecast
+    forecast = [
+        WeatherCondition(
+            datetime=w.datetime,
+            temp_f=w.temp_f,
+            humidity_pct=w.humidity_pct,
+            wind_mph=w.wind_mph,
+            wind_direction=w.wind_direction,
+            precip_chance_pct=w.precip_chance_pct,
+            precip_amount_in=w.precip_amount_in,
+            cloud_cover_pct=w.cloud_cover_pct,
+            dew_point_f=w.dew_point_f
+        )
+        for w in request.forecast
+    ]
+
+    spray_type = SprayType(request.spray_type.value)
+
+    result = optimizer.calculate_cost_of_waiting(
+        current_conditions=current,
+        forecast=forecast,
+        spray_type=spray_type,
+        acres=request.acres,
+        product_cost_per_acre=request.product_cost_per_acre,
+        application_cost_per_acre=request.application_cost_per_acre,
+        target_pest_or_disease=request.target_pest_or_disease,
+        current_pressure=request.current_pressure.value,
+        crop=request.crop.value,
+        yield_goal=request.yield_goal,
+        grain_price=request.grain_price
+    )
+
+    return result
+
+
+@app.post("/api/v1/spray-timing/disease-pressure")
+async def assess_disease_pressure(request: DiseasePressureRequest):
+    """
+    Assess disease pressure based on recent weather conditions
+    Returns risk levels for relevant diseases and recommendations
+    """
+    from services.spray_timing_optimizer import (
+        get_spray_timing_optimizer,
+        WeatherCondition
+    )
+
+    optimizer = get_spray_timing_optimizer()
+
+    # Convert weather history
+    weather_history = [
+        WeatherCondition(
+            datetime=w.datetime,
+            temp_f=w.temp_f,
+            humidity_pct=w.humidity_pct,
+            wind_mph=w.wind_mph,
+            wind_direction=w.wind_direction,
+            precip_chance_pct=w.precip_chance_pct,
+            precip_amount_in=w.precip_amount_in,
+            cloud_cover_pct=w.cloud_cover_pct,
+            dew_point_f=w.dew_point_f
+        )
+        for w in request.weather_history
+    ]
+
+    result = optimizer.assess_disease_pressure(
+        weather_history=weather_history,
+        crop=request.crop.value,
+        growth_stage=request.growth_stage.value
+    )
+
+    return result
+
+
+@app.get("/api/v1/spray-timing/growth-stage-timing/{crop}/{growth_stage}")
+async def get_growth_stage_timing(
+    crop: CropType,
+    growth_stage: GrowthStage,
+    spray_type: SprayTypeEnum = SprayTypeEnum.FUNGICIDE
+):
+    """
+    Get optimal spray timing guidance by crop and growth stage
+    Returns timing recommendations and suggested products
+    """
+    from services.spray_timing_optimizer import (
+        get_spray_timing_optimizer,
+        SprayType
+    )
+
+    optimizer = get_spray_timing_optimizer()
+
+    result = optimizer.get_spray_timing_by_growth_stage(
+        crop=crop.value,
+        growth_stage=growth_stage.value,
+        spray_type=SprayType(spray_type.value)
     )
 
     return result

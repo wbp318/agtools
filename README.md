@@ -33,7 +33,7 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
-**Version 2.0** adds comprehensive **Input Cost Optimization** - helping farmers reduce labor costs, optimize fertilizer and pesticide applications, and manage irrigation efficiently.
+**Version 2.1** adds **Real-Time Pricing Integration** and **Weather-Smart Spray Timing** - use your actual supplier quotes for accurate ROI calculations, and optimize spray timing with weather-based decision support.
 
 **This is not a hobby project** - it's a professional tool that provides genuine consulting value.
 
@@ -112,12 +112,28 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide 
    - Resistance management documentation
    - Historical tracking
 
-6. **Input Cost Optimization (NEW in v2.0)**
+6. **Input Cost Optimization (v2.0)**
    - **Labor Cost Analysis**: Scouting routes, application labor, seasonal budgeting
    - **Fertilizer Optimization**: Soil test-based recommendations, economical nutrient sources
    - **Pesticide Cost Comparison**: Product comparison, generic alternatives, spray program ROI
    - **Irrigation Optimization**: Water need calculations, scheduling, system comparison
    - **Complete Farm Analysis**: Unified cost analysis with prioritized savings opportunities
+
+7. **Real-Time Pricing Service (NEW in v2.1)**
+   - **Custom Supplier Quotes**: Input your actual dealer prices for accurate calculations
+   - **Buy Now vs Wait Analysis**: Price trend tracking with purchase timing recommendations
+   - **Regional Price Adjustments**: 7 regions with automatic price multipliers
+   - **Supplier Comparison**: Compare quotes across multiple suppliers
+   - **Price Alerts**: Notifications for expiring quotes and above-average prices
+   - **60+ Products**: Fertilizers, pesticides, seeds, fuel, and custom application rates
+
+8. **Weather-Smart Spray Timing (NEW in v2.1)**
+   - **Condition Evaluation**: Real-time spray condition scoring (wind, temp, humidity, inversions)
+   - **Spray Window Finder**: Scans forecasts to find optimal application windows
+   - **Cost of Waiting Calculator**: Economic analysis of "spray today vs wait"
+   - **Disease Pressure Forecasting**: Predicts disease risk from weather patterns
+   - **Growth Stage Timing**: Crop and stage-specific spray recommendations
+   - **Drift Risk Assessment**: Inversion detection and mitigation recommendations
 
 ## 💰 Business Value
 
@@ -155,7 +171,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.0)
+│   ├── main.py                       # FastAPI application (v2.1 - 1480+ lines, 35+ endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
@@ -164,14 +180,17 @@ agtools/
 │       ├── threshold_calculator.py   # Economic analysis
 │       ├── weather_service.py        # Weather integration
 │       ├── ai_identification.py      # AI image recognition
-│       ├── labor_optimizer.py        # Labor cost optimization (NEW)
-│       ├── application_cost_optimizer.py  # Fertilizer/pesticide costs (NEW)
-│       ├── irrigation_optimizer.py   # Irrigation optimization (NEW)
-│       └── input_cost_optimizer.py   # Unified cost analysis (NEW)
+│       ├── labor_optimizer.py        # Labor cost optimization (v2.0)
+│       ├── application_cost_optimizer.py  # Fertilizer/pesticide costs (v2.0)
+│       ├── irrigation_optimizer.py   # Irrigation optimization (v2.0)
+│       ├── input_cost_optimizer.py   # Unified cost analysis (v2.0)
+│       ├── pricing_service.py        # Real-time pricing (NEW v2.1)
+│       └── spray_timing_optimizer.py # Weather-smart spraying (NEW v2.1)
 │
 ├── src/agtools/
 │   └── farm_optimizer.py             # Legacy optimizer (still functional)
 │
+├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
 ├── QUICKSTART.md                     # 5-minute setup guide
 └── README.md                         # This file
@@ -209,7 +228,7 @@ agtools/
 | `POST /api/v1/threshold/check` | Economic threshold analysis |
 | `GET /api/v1/weather/spray-window` | Spray timing forecast |
 
-### Input Cost Optimization (NEW in v2.0)
+### Input Cost Optimization (v2.0)
 | Endpoint | Purpose |
 |----------|---------|
 | `POST /api/v1/optimize/labor/scouting` | Calculate scouting labor costs |
@@ -227,10 +246,33 @@ agtools/
 | `POST /api/v1/optimize/quick-estimate` | Quick cost estimate |
 | `POST /api/v1/optimize/budget-worksheet` | Generate budget worksheet |
 
+### Real-Time Pricing Service (NEW in v2.1)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/pricing/prices` | Get all prices (filter by category) |
+| `GET /api/v1/pricing/price/{product_id}` | Get specific product price |
+| `POST /api/v1/pricing/set-price` | Set custom supplier quote |
+| `POST /api/v1/pricing/bulk-update` | Bulk import price list |
+| `POST /api/v1/pricing/buy-recommendation` | **Buy now vs wait analysis** |
+| `POST /api/v1/pricing/calculate-input-costs` | Calculate costs with custom prices |
+| `POST /api/v1/pricing/compare-suppliers` | Compare supplier pricing |
+| `GET /api/v1/pricing/alerts` | Expiring quotes & price alerts |
+| `GET /api/v1/pricing/budget-prices/{crop}` | Generate budget price list |
+
+### Weather-Smart Spray Timing (NEW in v2.1)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/spray-timing/evaluate` | Evaluate current spray conditions |
+| `POST /api/v1/spray-timing/find-windows` | Find optimal windows in forecast |
+| `POST /api/v1/spray-timing/cost-of-waiting` | **Economic analysis of waiting** |
+| `POST /api/v1/spray-timing/disease-pressure` | Assess disease risk from weather |
+| `GET /api/v1/spray-timing/growth-stage-timing/{crop}/{stage}` | Stage-specific guidance |
+
 Visit http://localhost:8000/docs for interactive documentation.
 
 ## 📖 Documentation
 
+- **CHANGELOG.md** - Development changelog (reference at start of new sessions)
 - **QUICKSTART.md** - Get running in 5 minutes
 - **PROFESSIONAL_SYSTEM_GUIDE.md** - Complete system documentation
 - **database/seed_data.py** - View pest/disease knowledge base

@@ -12,6 +12,8 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 4. **Weather Integration**: Spray window optimization and disease forecasting
 5. **Hybrid AI**: Combines image recognition with symptom-based diagnosis
 6. **Professional Recommendations**: Specific products, rates, timing, and economics
+7. **Real-Time Pricing (v2.1)**: Use your actual supplier quotes for accurate calculations
+8. **Weather-Smart Spray Timing (v2.1)**: Economic analysis of spray timing decisions
 
 ---
 
@@ -25,15 +27,22 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application
+│   ├── main.py                             # FastAPI application (v2.1 - 1480+ lines, 35+ endpoints)
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
 │       ├── disease_identification.py       # Disease diagnosis
 │       ├── spray_recommender.py            # Intelligent spray recommendations
 │       ├── threshold_calculator.py         # Economic threshold analysis
 │       ├── weather_service.py              # Weather API integration
-│       └── ai_identification.py            # AI image recognition
+│       ├── ai_identification.py            # AI image recognition
+│       ├── labor_optimizer.py              # Labor cost optimization (v2.0)
+│       ├── application_cost_optimizer.py   # Fertilizer/pesticide costs (v2.0)
+│       ├── irrigation_optimizer.py         # Irrigation optimization (v2.0)
+│       ├── input_cost_optimizer.py         # Unified cost analysis (v2.0)
+│       ├── pricing_service.py              # Real-time pricing (v2.1)
+│       └── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
 │
+├── CHANGELOG.md                            # Development changelog
 ├── frontend/                               # Web application (to be built)
 ├── desktop/                                # PyQt5 desktop app (to be built)
 └── docs/                                   # Documentation
@@ -865,6 +874,343 @@ POST /api/v1/optimize/budget-worksheet
 
 ---
 
+## 💲 REAL-TIME PRICING SERVICE (v2.1)
+
+Version 2.1 adds the ability to use your actual supplier prices instead of industry averages. This makes all cost calculations accurate to YOUR situation.
+
+### Why This Matters
+
+- Industry averages can be off by 10-20%
+- Your co-op may have better prices than a retailer
+- Early booking discounts change the math
+- Regional price differences are significant
+
+### Key Features
+
+#### 1. Custom Supplier Quotes
+
+Input your actual prices from supplier quotes:
+
+```python
+POST /api/v1/pricing/set-price
+
+{
+  "product_id": "urea_46",
+  "price": 0.48,
+  "supplier": "County Co-op",
+  "valid_until": "2025-03-01T00:00:00",
+  "notes": "Early booking discount"
+}
+```
+
+**Response shows:**
+- Comparison to default/average price
+- Savings percentage
+- Whether this is a good deal
+
+#### 2. Bulk Price Import
+
+Load an entire price list from your dealer:
+
+```python
+POST /api/v1/pricing/bulk-update
+
+{
+  "price_updates": [
+    {"product_id": "urea_46", "price": 0.48},
+    {"product_id": "anhydrous_ammonia_82", "price": 0.42},
+    {"product_id": "dap_18_46", "price": 0.58},
+    {"product_id": "glyphosate_generic", "price": 3.80}
+  ],
+  "supplier": "County Co-op"
+}
+```
+
+#### 3. Buy Now vs Wait Analysis
+
+Wondering if you should buy now or wait for prices to drop?
+
+```python
+POST /api/v1/pricing/buy-recommendation
+
+{
+  "product_id": "urea_46",
+  "quantity_needed": 50000,
+  "purchase_deadline": "2025-03-01T00:00:00"
+}
+```
+
+**Returns:**
+- Current price vs. 90-day average
+- Price trend (rising, falling, stable, volatile)
+- Clear recommendation: BUY NOW, WAIT, SPLIT PURCHASE, or FORWARD CONTRACT
+- Reasoning and suggested action
+
+#### 4. Supplier Comparison
+
+Compare quotes from multiple suppliers:
+
+```python
+POST /api/v1/pricing/compare-suppliers
+
+{
+  "product_ids": ["urea_46", "dap_18_46", "potash_60"],
+  "acres": 500
+}
+```
+
+**Returns:**
+- Price comparison by product
+- Total cost by supplier
+- Cheapest supplier recommendation
+- Potential savings
+
+#### 5. Price Alerts
+
+Get notified about expiring quotes and price changes:
+
+```python
+GET /api/v1/pricing/alerts
+```
+
+**Returns:**
+- Quotes expiring within 7 days
+- Products priced above 90-day average
+- Action recommendations
+
+### Regional Price Adjustments
+
+Prices automatically adjust based on your region:
+
+| Region | Adjustment |
+|--------|------------|
+| Midwest Corn Belt | Baseline |
+| Northern Plains | +5% |
+| Southern Plains | +8% |
+| Delta | +3% |
+| Southeast | +10% |
+| Pacific Northwest | +12% |
+| Mountain | +15% |
+
+### Product Categories Available
+
+**60+ products with default prices:**
+- **Fertilizers**: N sources (anhydrous, urea, UAN), P sources (DAP, MAP, TSP), K (potash), S, micronutrients
+- **Herbicides**: Glyphosate, dicamba, Liberty, atrazine, Dual, Warrant, Laudis
+- **Insecticides**: Pyrethroids (bifenthrin, lambda-cy), Prevathon, Hero, Lorsban
+- **Fungicides**: Headline AMP, Trivapro, Delaro, Priaxor, Miravis Neo, generics
+- **Seeds**: Corn (conventional through premium), soybeans (all trait packages)
+- **Fuel**: Diesel, gasoline, propane, electricity
+- **Custom Application**: Ground spray, aerial, fertilizer spreading, combining
+
+---
+
+## 🌤️ WEATHER-SMART SPRAY TIMING (v2.1)
+
+The spray timing optimizer helps you make better decisions about WHEN to spray. This prevents wasted applications and optimizes efficacy.
+
+### Why This Matters
+
+- **Wasted applications cost money**: A herbicide applied before heavy rain = wasted product
+- **Poor conditions reduce efficacy**: Hot, dry, windy = poor uptake and drift
+- **Waiting too long costs yield**: Disease/pest pressure builds while you wait
+- **The math is complicated**: This tool does it for you
+
+### Key Features
+
+#### 1. Current Conditions Evaluation
+
+Check if right now is a good time to spray:
+
+```python
+POST /api/v1/spray-timing/evaluate
+
+{
+  "weather": {
+    "datetime": "2025-06-15T10:00:00",
+    "temp_f": 78,
+    "humidity_pct": 55,
+    "wind_mph": 6,
+    "wind_direction": "SW",
+    "precip_chance_pct": 10,
+    "precip_amount_in": 0,
+    "cloud_cover_pct": 30,
+    "dew_point_f": 58
+  },
+  "spray_type": "herbicide",
+  "product_name": "glyphosate"
+}
+```
+
+**Returns:**
+- Risk level: EXCELLENT, GOOD, MARGINAL, POOR, DO NOT SPRAY
+- Score out of 100
+- Specific issues identified
+- Clear recommendation
+
+**Factors evaluated:**
+- Wind speed and direction (drift risk)
+- Temperature (volatilization, plant stress)
+- Humidity (drift, uptake)
+- Rain probability (washoff)
+- Inversion potential (drift)
+- Leaf wetness (herbicide efficacy)
+- Product-specific rainfastness requirements
+
+#### 2. Find Spray Windows in Forecast
+
+Scan a weather forecast to find the best times:
+
+```python
+POST /api/v1/spray-timing/find-windows
+
+{
+  "forecast": [/* array of hourly weather conditions */],
+  "spray_type": "fungicide",
+  "min_window_hours": 3.0,
+  "product_name": "trivapro"
+}
+```
+
+**Returns:**
+- List of spray windows with start/end times
+- Quality rating for each window
+- Duration in hours
+- Best window recommendation
+- Limiting factors for each window
+
+#### 3. Cost of Waiting Analysis
+
+The key question: "Should I spray today in marginal conditions, or wait?"
+
+```python
+POST /api/v1/spray-timing/cost-of-waiting
+
+{
+  "current_conditions": {/* current weather */},
+  "forecast": [/* upcoming weather */],
+  "spray_type": "fungicide",
+  "acres": 160,
+  "product_cost_per_acre": 22.00,
+  "application_cost_per_acre": 8.50,
+  "target_pest_or_disease": "gray_leaf_spot",
+  "current_pressure": "moderate",
+  "crop": "corn",
+  "yield_goal": 200,
+  "grain_price": 4.50
+}
+```
+
+**Returns:**
+
+```json
+{
+  "recommendation": "SPRAY NOW (with caution)",
+  "reasoning": "Yield loss risk ($2,340) outweighs efficacy risk",
+  "economic_analysis": {
+    "cost_to_spray_now": 5180,
+    "cost_to_wait": 2340,
+    "net_cost_of_waiting": -2840
+  },
+  "action_items": [
+    "Use drift reduction nozzles (AI, TTI)",
+    "Reduce spray pressure to 30-40 PSI",
+    "Increase carrier volume to 15+ GPA"
+  ]
+}
+```
+
+**The math it does:**
+- Estimates yield loss per day of delay (based on pest/disease and pressure)
+- Estimates efficacy reduction from poor conditions
+- Calculates dollar cost of each option
+- Makes clear recommendation with reasoning
+
+#### 4. Disease Pressure Forecasting
+
+Assess disease risk based on recent weather:
+
+```python
+POST /api/v1/spray-timing/disease-pressure
+
+{
+  "weather_history": [/* past 7-14 days of weather */],
+  "crop": "corn",
+  "growth_stage": "VT"
+}
+```
+
+**Returns risk assessment for relevant diseases:**
+- Gray Leaf Spot: HIGH (humidity + warm temps + extended leaf wetness)
+- Northern Corn Leaf Blight: MODERATE
+- Southern Rust: LOW
+
+**Diseases modeled:**
+- Gray Leaf Spot (corn)
+- Northern Corn Leaf Blight (corn)
+- Southern Rust (corn)
+- Frogeye Leaf Spot (soybean)
+- Sudden Death Syndrome (soybean)
+- White Mold (soybean)
+
+#### 5. Growth Stage Timing Guidance
+
+What should you be spraying at each growth stage?
+
+```python
+GET /api/v1/spray-timing/growth-stage-timing/corn/VT?spray_type=fungicide
+```
+
+**Returns:**
+- Timing recommendation for this stage
+- Key considerations
+- Suggested products
+
+**Example (corn at VT, fungicide):**
+```json
+{
+  "timing_recommendation": "OPTIMAL timing for fungicide ROI",
+  "considerations": [
+    "Apply at VT to R2",
+    "Protect ear leaf"
+  ],
+  "suggested_products": [
+    "Headline AMP",
+    "Trivapro",
+    "Miravis Neo"
+  ]
+}
+```
+
+### Spray Type Configurations
+
+Each spray type has different optimal conditions:
+
+| Factor | Herbicide | Insecticide | Fungicide |
+|--------|-----------|-------------|-----------|
+| Wind (mph) | 3-10 | 2-10 | 2-12 |
+| Temp (°F) | 45-85 | 50-90 | 50-85 |
+| Humidity (%) | 40-95 | 30-90 | 50-95 |
+| Rain-free hours | 4+ | 2+ | 2+ |
+| Inversion sensitive | Yes | Yes | Less |
+| Leaf wetness OK | No | Yes | Yes |
+
+### Product-Specific Rainfastness
+
+The system knows how long each product needs to dry:
+
+| Product | Hours Needed |
+|---------|--------------|
+| Glyphosate | 4 |
+| Dicamba | 4 |
+| 2,4-D | 6 |
+| Liberty | 4 |
+| Lambda-cyhalothrin | 1 |
+| Azoxystrobin | 2 |
+| Propiconazole | 1 |
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -875,10 +1221,20 @@ You now have a **professional-grade foundation** for a crop consulting business 
 - **Manage resistance** through intelligent product rotation
 - **Optimize spray timing** with weather integration
 - **Generate ROI analysis** justifying every recommendation
+- **Use your actual prices** for accurate cost calculations (v2.1)
+- **Make weather-smart spray decisions** with cost-of-waiting analysis (v2.1)
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
 **The value is real** - this represents years of extension research, product labels, and consulting experience codified into a professional decision support system.
+
+### Version History
+
+| Version | Date | Features |
+|---------|------|----------|
+| 1.0 | Nov 2025 | Core pest/disease ID, spray recommendations, economic thresholds |
+| 2.0 | Dec 2025 | Input cost optimization (labor, fertilizer, irrigation) |
+| 2.1 | Dec 2025 | Real-time pricing, weather-smart spray timing |
 
 ---
 

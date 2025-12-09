@@ -17,6 +17,8 @@ Think of AgTools as your **digital agronomist** that:
    - Fertilizer (are you putting on too much?)
    - Pesticides (is there a cheaper product that works just as well?)
    - Irrigation (are you pumping more water than you need?)
+4. **Uses YOUR Prices** (NEW v2.1) - Input your actual supplier quotes for accurate calculations
+5. **Tells You When to Spray** (NEW v2.1) - Weather-smart timing to avoid wasted applications
 
 ---
 
@@ -394,6 +396,239 @@ Use the quick estimate to see industry averages, then use the complete farm anal
 
 ---
 
+## 🆕 REAL-TIME PRICING (NEW in v2.1)
+
+These features let you use YOUR actual prices instead of averages, so your cost calculations are accurate.
+
+### 💲 Adding Your Supplier Quotes
+
+**When to use:** You got a quote from your co-op or dealer and want to use those real prices.
+
+1. Find **"POST /api/v1/pricing/set-price"**
+2. Fill in:
+```json
+{
+  "product_id": "urea_46",
+  "price": 0.48,
+  "supplier": "Local Co-op",
+  "notes": "Early booking discount"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Confirmation your price was saved
+- Comparison to default price - are you getting a good deal?
+- Savings percentage
+
+**Common product IDs:**
+- Fertilizers: `urea_46`, `anhydrous_ammonia_82`, `dap_18_46`, `potash_60`, `uan_32`
+- Herbicides: `glyphosate_generic`, `dicamba_xtendimax`, `liberty_280`
+- Insecticides: `bifenthrin_generic`, `warrior_ii`, `prevathon`
+- Fungicides: `headline_amp`, `trivapro`, `delaro_325`
+
+---
+
+### 🛒 Should I Buy Now or Wait?
+
+**When to use:** Prices are high and you're wondering if they'll come down.
+
+1. Find **"POST /api/v1/pricing/buy-recommendation"**
+2. Fill in:
+```json
+{
+  "product_id": "urea_46",
+  "quantity_needed": 50000,
+  "purchase_deadline": "2025-03-01T00:00:00"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Current price vs. 90-day average
+- Price trend (rising, falling, stable)
+- Clear recommendation: BUY NOW, WAIT, or SPLIT PURCHASE
+- Reasoning: "Prices trending down, currently 8% above average"
+
+---
+
+### 📋 Loading All Your Prices at Once
+
+**When to use:** Your dealer gave you a complete price list and you want to load it all.
+
+1. Find **"POST /api/v1/pricing/bulk-update"**
+2. Fill in:
+```json
+{
+  "price_updates": [
+    {"product_id": "urea_46", "price": 0.48},
+    {"product_id": "dap_18_46", "price": 0.58},
+    {"product_id": "potash_60", "price": 0.38},
+    {"product_id": "glyphosate_generic", "price": 3.80}
+  ],
+  "supplier": "County Co-op"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- All prices updated at once
+- Total potential savings across all products
+
+---
+
+## 🆕 WEATHER-SMART SPRAY TIMING (NEW in v2.1)
+
+These features help you spray at the right time and avoid wasted applications.
+
+### 🌤️ Can I Spray Right Now?
+
+**When to use:** You're ready to spray but want to check if conditions are good.
+
+1. Find **"POST /api/v1/spray-timing/evaluate"**
+2. Fill in current weather:
+```json
+{
+  "weather": {
+    "datetime": "2025-06-15T10:00:00",
+    "temp_f": 78,
+    "humidity_pct": 55,
+    "wind_mph": 6,
+    "wind_direction": "SW",
+    "precip_chance_pct": 10,
+    "precip_amount_in": 0,
+    "cloud_cover_pct": 30,
+    "dew_point_f": 58
+  },
+  "spray_type": "herbicide",
+  "product_name": "glyphosate"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Risk level: EXCELLENT, GOOD, MARGINAL, POOR, or DO NOT SPRAY
+- Score out of 100
+- Specific issues: "Wind approaching limit (8 mph)"
+- Clear recommendation: "Good conditions - proceed with application"
+
+---
+
+### ⏰ Should I Spray Today or Wait?
+
+**When to use:** Conditions aren't perfect but you're worried about yield loss from waiting.
+
+1. Find **"POST /api/v1/spray-timing/cost-of-waiting"**
+2. Fill in your situation:
+```json
+{
+  "current_conditions": {
+    "datetime": "2025-06-15T10:00:00",
+    "temp_f": 88,
+    "humidity_pct": 40,
+    "wind_mph": 12,
+    "wind_direction": "S",
+    "precip_chance_pct": 5,
+    "precip_amount_in": 0,
+    "cloud_cover_pct": 20,
+    "dew_point_f": 55
+  },
+  "forecast": [],
+  "spray_type": "fungicide",
+  "acres": 160,
+  "product_cost_per_acre": 22.00,
+  "application_cost_per_acre": 8.50,
+  "target_pest_or_disease": "gray_leaf_spot",
+  "current_pressure": "moderate",
+  "crop": "corn",
+  "yield_goal": 200,
+  "grain_price": 4.50
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Cost to spray now (including wasted product risk)
+- Cost to wait (yield loss estimate)
+- Clear recommendation: SPRAY NOW, WAIT, or SPRAY NOW WITH CAUTION
+- Reasoning: "Yield loss risk ($2,340) outweighs efficacy risk. Use drift reduction."
+- Action items: specific steps to take
+
+**Example output:**
+```
+RECOMMENDATION: SPRAY NOW (with caution)
+
+REASONING: Yield loss from waiting ($2,340) exceeds efficacy
+risk from current conditions. Use drift reduction measures.
+
+COST TO SPRAY NOW: $5,180 (including 15% efficacy risk)
+COST TO WAIT: $2,340 (yield loss over 48 hours)
+
+ACTION ITEMS:
+- Use drift reduction nozzles (AI, TTI)
+- Reduce spray pressure to 30-40 PSI
+- Increase carrier volume to 15+ GPA
+- Monitor radar closely
+```
+
+---
+
+### 🦠 Is Disease Pressure Building?
+
+**When to use:** You want to know if recent weather has created disease risk.
+
+1. Find **"POST /api/v1/spray-timing/disease-pressure"**
+2. Fill in recent weather (past 7-14 days):
+```json
+{
+  "weather_history": [
+    {"datetime": "2025-06-08T12:00:00", "temp_f": 78, "humidity_pct": 85, "wind_mph": 5, "precip_amount_in": 0.2, "dew_point_f": 68},
+    {"datetime": "2025-06-09T12:00:00", "temp_f": 80, "humidity_pct": 90, "wind_mph": 3, "precip_amount_in": 0.5, "dew_point_f": 72},
+    {"datetime": "2025-06-10T12:00:00", "temp_f": 82, "humidity_pct": 88, "wind_mph": 4, "precip_amount_in": 0, "dew_point_f": 70}
+  ],
+  "crop": "corn",
+  "growth_stage": "VT"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Risk level for each disease: HIGH, MODERATE, LOW, MINIMAL
+- Which weather factors triggered the risk
+- Clear recommendation: "High disease pressure for Gray Leaf Spot. Consider preventive fungicide."
+
+---
+
+### 🌱 When Should I Spray for This Growth Stage?
+
+**When to use:** You want to know the optimal timing for a spray at your crop's current stage.
+
+1. Find **"GET /api/v1/spray-timing/growth-stage-timing/{crop}/{growth_stage}"**
+2. Fill in:
+   - **crop**: `corn` or `soybean`
+   - **growth_stage**: Current stage like `VT`, `R3`, etc.
+   - **spray_type**: `fungicide`, `insecticide`, or `herbicide`
+3. Click **"Execute"**
+
+**What you get:**
+- Timing recommendation for this stage
+- Key considerations
+- Suggested products
+
+**Example for corn at VT with fungicide:**
+```
+TIMING: OPTIMAL timing for fungicide ROI
+CONSIDERATIONS:
+- Apply at VT to R2
+- Protect ear leaf
+SUGGESTED PRODUCTS:
+- Headline AMP
+- Trivapro
+- Miravis Neo
+```
+
+---
+
 ## The Bottom Line
 
 **This system helps you answer the questions that cost you money:**
@@ -404,6 +639,8 @@ Use the quick estimate to see industry averages, then use the complete farm anal
 4. Am I spending too much on fertilizer?
 5. Am I over-irrigating?
 6. Where are my biggest opportunities to save money?
+7. **Am I getting good prices from my supplier?** (NEW)
+8. **Is now a good time to spray?** (NEW)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 

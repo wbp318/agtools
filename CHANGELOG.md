@@ -1,0 +1,184 @@
+# AgTools Development Changelog
+
+> **Purpose:** This file tracks the latest development updates for AgTools. Reference this file at the start of new chat sessions to understand recent changes and current system capabilities.
+
+---
+
+## Current Version: 2.1.0 (Released December 8, 2025)
+
+### Latest Session: December 8, 2025
+
+#### Features Completed This Session
+
+1. **Real-Time/Custom Pricing Integration** ✅ COMPLETE
+   - Location: `backend/services/pricing_service.py`
+   - **New API Endpoints (9 total):**
+     - `GET /api/v1/pricing/prices` - Get all prices with optional category filter
+     - `GET /api/v1/pricing/price/{product_id}` - Get specific product price
+     - `POST /api/v1/pricing/set-price` - Set custom supplier quote
+     - `POST /api/v1/pricing/bulk-update` - Bulk import price list
+     - `POST /api/v1/pricing/buy-recommendation` - Buy now vs wait analysis
+     - `POST /api/v1/pricing/calculate-input-costs` - Calculate costs with custom prices
+     - `POST /api/v1/pricing/compare-suppliers` - Compare supplier pricing
+     - `GET /api/v1/pricing/alerts` - Expiring quotes and price alerts
+     - `GET /api/v1/pricing/budget-prices/{crop}` - Generate budget price list
+   - **Capabilities:**
+     - 7 regional price adjustments (Midwest, Northern Plains, Southern Plains, etc.)
+     - 60+ default products with prices (fertilizers, pesticides, seeds, fuel)
+     - Price history tracking with trend analysis
+     - Buy/wait recommendations based on price trends
+     - Supplier quote management with expiration tracking
+     - Savings calculations vs. default prices
+
+2. **Weather-Smart Spray Timing Optimizer** ✅ COMPLETE
+   - Location: `backend/services/spray_timing_optimizer.py`
+   - **New API Endpoints (5 total):**
+     - `POST /api/v1/spray-timing/evaluate` - Evaluate current spray conditions
+     - `POST /api/v1/spray-timing/find-windows` - Find optimal windows in forecast
+     - `POST /api/v1/spray-timing/cost-of-waiting` - Economic analysis of waiting
+     - `POST /api/v1/spray-timing/disease-pressure` - Assess disease risk from weather
+     - `GET /api/v1/spray-timing/growth-stage-timing/{crop}/{growth_stage}` - Stage-specific guidance
+   - **Capabilities:**
+     - Evaluates 7 weather factors (wind, temp, humidity, rain, inversion, leaf wetness, dew point)
+     - 5 spray types supported (herbicide, insecticide, fungicide, growth regulator, desiccant)
+     - Product-specific rainfastness requirements (20+ products)
+     - Disease pressure models for 6 major diseases
+     - Cost-of-waiting calculator with yield loss estimates
+     - Growth stage-specific timing recommendations
+     - Drift risk assessment and mitigation recommendations
+
+---
+
+## Version History
+
+### v2.0.0 - Input Cost Optimization Release (December 2025)
+
+**Major Features Added:**
+- Complete Labor Cost Optimizer (`backend/services/labor_optimizer.py`)
+  - Scouting cost analysis with field grouping
+  - Application labor optimization by equipment type
+  - Seasonal labor budgeting
+  - Custom vs. self-application comparison
+
+- Application Cost Optimizer (`backend/services/application_cost_optimizer.py`)
+  - Pesticide product comparison with efficacy ratings
+  - Spray program cost analysis with ROI
+  - Variable Rate Application (VRA) analysis
+  - Generic alternative suggestions
+  - Tank-mix optimization
+
+- Fertilizer Optimization (`backend/services/application_cost_optimizer.py`)
+  - Nutrient requirement calculations (N, P, K, S)
+  - Economical product selection by cost per lb nutrient
+  - Soil test-based recommendations
+  - Split application timing optimization
+
+- Irrigation Cost Optimizer (`backend/services/irrigation_optimizer.py`)
+  - Crop water need calculations (ET-based)
+  - System efficiency comparisons (7 irrigation types)
+  - Water savings strategy analysis
+  - Season irrigation scheduling
+  - Upgrade ROI calculations
+
+- Master Input Cost Optimizer (`backend/services/input_cost_optimizer.py`)
+  - Complete farm analysis integrating all domains
+  - Priority-based recommendations (cost, ROI, sustainability, risk)
+  - Quick estimate tool
+  - Budget worksheet generation
+  - Strategy comparison
+
+**API Endpoints Added:** 20+ endpoints under `/api/v1/optimize/`
+
+### v1.0.0 - Professional Crop Consulting System (November 2025)
+
+**Core Features:**
+- Professional pest/disease identification (46 pests/diseases)
+- Intelligent spray recommendation engine (40+ products)
+- Economic threshold calculators
+- Resistance management with MOA rotation
+- Complete pesticide database with label information
+
+---
+
+## Architecture Overview
+
+```
+AgTools v2.1.0
+├── backend/
+│   ├── main.py                           # FastAPI app (1480+ lines, 35+ endpoints)
+│   ├── services/
+│   │   ├── labor_optimizer.py            # Labor cost optimization
+│   │   ├── application_cost_optimizer.py # Fertilizer/pesticide costs
+│   │   ├── irrigation_optimizer.py       # Water/irrigation costs
+│   │   ├── input_cost_optimizer.py       # Master cost integration
+│   │   ├── pricing_service.py            # v2.1 - Dynamic pricing
+│   │   └── spray_timing_optimizer.py     # v2.1 - Weather-smart spraying
+│   └── models/
+├── database/
+│   ├── schema.sql
+│   ├── chemical_database.py
+│   └── seed_data.py
+└── docs/
+```
+
+---
+
+## Key Files Quick Reference
+
+| Feature | File Path | Lines | Endpoints |
+|---------|-----------|-------|-----------|
+| Labor Costs | `backend/services/labor_optimizer.py` | ~400 | 3 |
+| Pesticide/Fertilizer | `backend/services/application_cost_optimizer.py` | ~830 | 4 |
+| Irrigation | `backend/services/irrigation_optimizer.py` | ~600 | 5 |
+| Master Optimizer | `backend/services/input_cost_optimizer.py` | ~500 | 3 |
+| **Pricing Service** | `backend/services/pricing_service.py` | ~650 | 9 |
+| **Spray Timing** | `backend/services/spray_timing_optimizer.py` | ~750 | 5 |
+| API Endpoints | `backend/main.py` | ~1480 | 35+ |
+| Database Schema | `database/schema.sql` | - | - |
+
+### v2.1 New Endpoint Summary
+
+**Pricing Service (`/api/v1/pricing/`):**
+- `GET /prices` - All prices by category
+- `GET /price/{id}` - Single product price
+- `POST /set-price` - Add supplier quote
+- `POST /bulk-update` - Import price list
+- `POST /buy-recommendation` - Buy now vs wait
+- `POST /calculate-input-costs` - Cost calculator
+- `POST /compare-suppliers` - Supplier comparison
+- `GET /alerts` - Price alerts
+- `GET /budget-prices/{crop}` - Budget planning
+
+**Spray Timing (`/api/v1/spray-timing/`):**
+- `POST /evaluate` - Current conditions check
+- `POST /find-windows` - Find spray windows
+- `POST /cost-of-waiting` - Economic analysis
+- `POST /disease-pressure` - Disease risk assessment
+- `GET /growth-stage-timing/{crop}/{stage}` - Stage guidance
+
+---
+
+## Upcoming Features (Roadmap)
+
+- [ ] Field-level precision / zone management
+- [ ] Input-to-yield response curves (economic optimum rates)
+- [ ] Custom vs. hire equipment decision engine
+- [ ] Carbon credit / sustainability ROI calculator
+- [ ] Mobile app integration
+- [ ] Precision ag platform imports (Climate, John Deere, etc.)
+
+---
+
+## Notes for Future Sessions
+
+When starting a new chat, reference this file to understand:
+1. What features exist and where they're located
+2. What's currently being developed
+3. The overall architecture pattern (FastAPI + service layer + singletons)
+4. API endpoint structure (`/api/v1/optimize/...`)
+
+All cost optimizers follow the same pattern:
+- Enum classes for types
+- Constants dictionaries for pricing/rates
+- Main optimizer class with public analysis methods
+- Singleton getter function for FastAPI dependency injection
