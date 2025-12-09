@@ -1,0 +1,17 @@
+# AgTools Frontend Dependencies
+# PyQt6 Desktop Application
+
+# Core UI Framework
+PyQt6>=6.5.0
+
+# HTTP Client for API calls
+httpx>=0.25.0
+
+# Interactive Charts
+pyqtgraph>=0.13.0
+
+# Date/Time utilities
+python-dateutil>=2.8.0
+
+# NumPy (required by pyqtgraph)
+numpy>=1.24.0
