@@ -43,9 +43,10 @@ agtools/
 │       └── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
 │
 ├── CHANGELOG.md                            # Development changelog
-├── frontend/                               # Web application (to be built)
-├── desktop/                                # PyQt5 desktop app (to be built)
-└── docs/                                   # Documentation
+├── PROFESSIONAL_SYSTEM_GUIDE.md            # Complete documentation
+├── QUICKSTART.md                           # 5-minute setup guide
+├── README.md                               # Overview and quick start
+└── LICENSE                                 # Proprietary license
 ```
 
 ---

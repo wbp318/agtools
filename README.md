@@ -187,9 +187,6 @@ agtools/
 │       ├── pricing_service.py        # Real-time pricing (NEW v2.1)
 │       └── spray_timing_optimizer.py # Weather-smart spraying (NEW v2.1)
 │
-├── src/agtools/
-│   └── farm_optimizer.py             # Legacy optimizer (still functional)
-│
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
 ├── QUICKSTART.md                     # 5-minute setup guide

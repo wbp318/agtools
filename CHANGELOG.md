@@ -10,7 +10,15 @@
 
 #### Features Completed This Session
 
-1. **Real-Time/Custom Pricing Integration** ✅ COMPLETE
+1. **Removed Legacy Code** ✅ COMPLETE
+   - Deleted `src/agtools/` folder (legacy v0.1.0 FarmOptimizer)
+   - Analyzed code - no useful features to migrate
+   - Our v2.1 implementations are far superior:
+     - Spray analysis: 750+ lines vs 20 lines
+     - Fertilizer optimization: economical product selection vs simple deficit calc
+   - Updated README.md and PROFESSIONAL_SYSTEM_GUIDE.md architecture diagrams
+
+2. **Real-Time/Custom Pricing Integration** ✅ COMPLETE
    - Location: `backend/services/pricing_service.py`
    - **New API Endpoints (9 total):**
      - `GET /api/v1/pricing/prices` - Get all prices with optional category filter
