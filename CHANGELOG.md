@@ -4,11 +4,49 @@
 
 ---
 
-## Current Version: 2.2.0 (Released December 8, 2025)
+## Current Version: 2.2.1 (Released December 9, 2025)
 
-### Latest Session: December 9, 2025 @ 5:30 PM CST
+### Latest Session: December 9, 2025 @ 8:30 PM CST
 
-#### Features Completed This Session
+#### Bug Fixes Completed This Session
+
+1. **Fixed Critical Yield Response Optimizer Infinite Recursion Bug** ✅ CRITICAL FIX
+   - **Issue:** `calculate_economic_optimum()` called `_calculate_sensitivity()` which recursively called `calculate_economic_optimum()` again, causing infinite recursion and server crashes
+   - **Solution:** Added `_skip_sensitivity` parameter to prevent recursive sensitivity calculations
+   - **File Modified:** `backend/services/yield_response_optimizer.py`
+   - **Impact:** All yield-response API endpoints now work correctly
+
+2. **Added Missing Yield Response Optimizer Methods** ✅ COMPLETE
+   - Added `get_crop_parameters(crop)` method - returns agronomic parameters for a crop
+   - Added `generate_price_ratio_guide(crop, nutrient)` method - generates EOR lookup table
+   - **Endpoints now functional:**
+     - `GET /api/v1/yield-response/crop-parameters/{crop}`
+     - `GET /api/v1/yield-response/price-ratio-guide`
+
+#### Smoke Tests Completed This Session ✅ ALL PASSED
+
+1. **Backend API Tests:**
+   - Root endpoint (`/`) - OK
+   - Pricing API (`/api/v1/pricing/prices`) - OK (56 products)
+   - Yield Response economic-optimum - OK (EOR: 170.5 lb/acre for corn N)
+   - Yield Response crop-parameters - OK (corn: N, P, K, S parameters)
+   - Yield Response price-ratio-guide - OK (9 price ratio scenarios)
+   - Spray Timing growth-stage-timing - OK
+   - Cost Optimizer quick-estimate - OK
+   - Pest Identification - OK (European Corn Borer, Fall Armyworm)
+
+2. **Frontend Tests:**
+   - All UI screens import successfully
+   - MainWindow creates without errors
+   - All API client modules load correctly
+   - All model modules load correctly
+   - All screen classes instantiate properly
+
+---
+
+### Previous Session: December 9, 2025 @ 5:30 PM CST
+
+#### Features Completed That Session
 
 1. **PyQt6 Frontend - Phase 7: Pest/Disease Identification Screens** ✅ COMPLETE
    - **New Files Created:**

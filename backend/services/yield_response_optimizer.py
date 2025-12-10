@@ -443,7 +443,8 @@ class YieldResponseOptimizer:
         previous_crop: Optional[str] = None,
         commodity_price: Optional[float] = None,
         nutrient_cost: Optional[float] = None,
-        application_cost: Optional[float] = None
+        application_cost: Optional[float] = None,
+        _skip_sensitivity: bool = False
     ) -> EconomicOptimum:
         """
         Calculate the Economic Optimum Rate (EOR)
@@ -557,11 +558,14 @@ class YieldResponseOptimizer:
             grain_price, fert_cost, app_cost, base_revenue
         )
 
-        # Price sensitivity analysis
-        sensitivity = self._calculate_sensitivity(
-            crop, nutrient, soil_test_level, previous_crop,
-            grain_price, fert_cost
-        )
+        # Price sensitivity analysis (skip if called recursively to avoid infinite loop)
+        if _skip_sensitivity:
+            sensitivity = {}
+        else:
+            sensitivity = self._calculate_sensitivity(
+                crop, nutrient, soil_test_level, previous_crop,
+                grain_price, fert_cost
+            )
 
         return EconomicOptimum(
             optimum_rate=round(eor_rate, 1),
@@ -639,31 +643,31 @@ class YieldResponseOptimizer:
         base_fert_cost: float
     ) -> Dict[str, float]:
         """Calculate how EOR changes with price changes"""
-        # +/- 20% grain price
+        # +/- 20% grain price (pass _skip_sensitivity=True to avoid infinite recursion)
         eor_base = self.calculate_economic_optimum(
             crop, nutrient, soil_test_level, previous_crop,
-            base_grain_price, base_fert_cost
+            base_grain_price, base_fert_cost, _skip_sensitivity=True
         ).optimum_rate
 
         eor_high_grain = self.calculate_economic_optimum(
             crop, nutrient, soil_test_level, previous_crop,
-            base_grain_price * 1.2, base_fert_cost
+            base_grain_price * 1.2, base_fert_cost, _skip_sensitivity=True
         ).optimum_rate
 
         eor_low_grain = self.calculate_economic_optimum(
             crop, nutrient, soil_test_level, previous_crop,
-            base_grain_price * 0.8, base_fert_cost
+            base_grain_price * 0.8, base_fert_cost, _skip_sensitivity=True
         ).optimum_rate
 
         # +/- 20% fertilizer price
         eor_high_fert = self.calculate_economic_optimum(
             crop, nutrient, soil_test_level, previous_crop,
-            base_grain_price, base_fert_cost * 1.2
+            base_grain_price, base_fert_cost * 1.2, _skip_sensitivity=True
         ).optimum_rate
 
         eor_low_fert = self.calculate_economic_optimum(
             crop, nutrient, soil_test_level, previous_crop,
-            base_grain_price, base_fert_cost * 0.8
+            base_grain_price, base_fert_cost * 0.8, _skip_sensitivity=True
         ).optimum_rate
 
         return {
@@ -944,6 +948,86 @@ class YieldResponseOptimizer:
                 f"Total fertilizer investment: ${total_optimal_cost:,.0f} "
                 f"(${total_optimal_cost/acres:.0f}/acre)"
             )
+        }
+
+    def get_crop_parameters(self, crop: str) -> Dict[str, Any]:
+        """
+        Get the yield response parameters for a crop
+        Shows the underlying agronomic data driving calculations
+        """
+        crop_lower = crop.lower()
+        params = YIELD_RESPONSE_PARAMS.get(crop_lower, {})
+
+        if not params:
+            return {"error": f"No parameters found for crop: {crop}"}
+
+        result = {
+            "crop": crop_lower,
+            "nutrients": {}
+        }
+
+        for nutrient, data in params.items():
+            result["nutrients"][nutrient] = {
+                "model": data.get("model", "quadratic").value if hasattr(data.get("model"), "value") else data.get("model", "quadratic"),
+                "base_yield": data.get("base_yield"),
+                "linear_coefficient": data.get("linear_coefficient"),
+                "quadratic_coefficient": data.get("quadratic_coefficient"),
+                "plateau_yield": data.get("plateau_yield"),
+                "typical_range": data.get("typical_range"),
+                "critical_soil_test": data.get("critical_soil_test"),
+                "maintenance_rate": data.get("maintenance_rate"),
+                "notes": data.get("notes")
+            }
+
+            # Add N credit info for nitrogen
+            if nutrient == "nitrogen" and "soil_n_credit" in data:
+                result["nutrients"][nutrient]["previous_crop_n_credits"] = data["soil_n_credit"]
+
+        return result
+
+    def generate_price_ratio_guide(
+        self,
+        crop: str = "corn",
+        nutrient: str = "nitrogen"
+    ) -> Dict[str, Any]:
+        """
+        Generate a quick reference guide for EOR based on price ratios
+        Lookup table for field decisions without detailed calculations
+        """
+        # Price ratio = nutrient_price / grain_price
+        # Higher ratio = lower optimal rate (fertilizer expensive relative to grain)
+
+        price_ratios = [0.05, 0.08, 0.10, 0.12, 0.15, 0.18, 0.20, 0.25, 0.30]
+
+        guide_entries = []
+        for ratio in price_ratios:
+            # Calculate EOR for this price ratio
+            # Use representative prices: if ratio = N_price/grain_price
+            # Let grain_price = $5/bu, then N_price = ratio * 5
+            grain_price = 5.0
+            nutrient_price = ratio * grain_price
+
+            eor_result = self.calculate_economic_optimum(
+                crop=crop,
+                nutrient=nutrient,
+                commodity_price=grain_price,
+                nutrient_cost=nutrient_price,
+                _skip_sensitivity=True
+            )
+
+            guide_entries.append({
+                "price_ratio": ratio,
+                "example_prices": f"${nutrient_price:.2f}/lb N at ${grain_price:.2f}/bu grain",
+                "optimal_rate": eor_result.optimum_rate,
+                "expected_yield": eor_result.optimum_yield
+            })
+
+        return {
+            "crop": crop,
+            "nutrient": nutrient,
+            "description": "Price ratio = nutrient cost per lb / grain price per bu. Higher ratio means fertilizer is more expensive relative to grain, so optimal rate decreases.",
+            "guide": guide_entries,
+            "usage_note": "Find your price ratio, look up optimal rate. Adjust for soil test, previous crop, and field conditions."
         }
 
 
