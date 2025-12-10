@@ -33,7 +33,9 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
-**Version 2.2** adds **Yield Response & Economic Optimum Rate (EOR) Calculator** - calculate the most profitable fertilizer rates based on yield response curves and real-time prices. Stop leaving money in the field by over-applying or sacrificing yield by under-applying.
+**Version 2.2.1** adds **Pest & Disease Identification Screens** to the desktop application with professional UI for symptom-based identification, plus critical bug fixes for the yield response optimizer. The system now includes a complete PyQt6 desktop interface covering all major features.
+
+**Version 2.2** added **Yield Response & Economic Optimum Rate (EOR) Calculator** - calculate the most profitable fertilizer rates based on yield response curves and real-time prices. Stop leaving money in the field by over-applying or sacrificing yield by under-applying.
 
 **This is not a hobby project** - it's a professional tool that provides genuine consulting value.
 
@@ -92,6 +94,8 @@ The desktop app provides a professional PyQt6 interface with:
 - Spray Timing Evaluator with weather conditions
 - Cost Optimizer with tabbed interface
 - Price Manager with supplier quotes and buy/wait analysis
+- **Pest Identification** with symptom checklists and confidence scoring (NEW in v2.2.1)
+- **Disease Identification** with weather conditions and management recommendations (NEW in v2.2.1)
 
 See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 
@@ -225,12 +229,14 @@ agtools/
 │   │   ├── yield_response_api.py     # Yield response endpoints
 │   │   ├── spray_api.py              # Spray timing endpoints
 │   │   ├── pricing_api.py            # Pricing endpoints
-│   │   └── cost_optimizer_api.py     # Cost optimizer endpoints
+│   │   ├── cost_optimizer_api.py     # Cost optimizer endpoints
+│   │   └── identification_api.py     # Pest/disease identification (NEW v2.2.1)
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
 │   │   ├── pricing.py
-│   │   └── cost_optimizer.py
+│   │   ├── cost_optimizer.py
+│   │   └── identification.py         # Pest/disease models (NEW v2.2.1)
 │   └── ui/
 │       ├── styles.py                 # Professional QSS theme
 │       ├── sidebar.py                # Navigation sidebar
@@ -240,7 +246,9 @@ agtools/
 │           ├── yield_response.py     # Yield calculator with charts
 │           ├── spray_timing.py       # Weather evaluation
 │           ├── cost_optimizer.py     # Tabbed cost analysis
-│           └── pricing.py            # Price management & alerts
+│           ├── pricing.py            # Price management & alerts
+│           ├── pest_identification.py    # Pest ID screen (NEW v2.2.1)
+│           └── disease_identification.py # Disease ID screen (NEW v2.2.1)
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation

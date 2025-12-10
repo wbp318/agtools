@@ -11,6 +11,7 @@ This guide explains how to use AgTools to **lower your input costs** and **make 
 Think of AgTools as your **digital agronomist** that:
 
 1. **Identifies Bugs & Diseases** - Tell it what you see, it tells you what it is
+   - **Desktop App** (v2.2.1): Professional screens with symptom checklists and confidence scoring
 2. **Recommends Treatments** - Tells you WHAT to spray, HOW MUCH, and WHETHER it's worth the money
 3. **Optimizes Your Costs** - Helps you figure out where you're spending too much on:
    - Labor (scouting, spraying, etc.)
@@ -19,7 +20,8 @@ Think of AgTools as your **digital agronomist** that:
    - Irrigation (are you pumping more water than you need?)
 4. **Uses YOUR Prices** (v2.1) - Input your actual supplier quotes for accurate calculations
 5. **Tells You When to Spray** (v2.1) - Weather-smart timing to avoid wasted applications
-6. **Calculates Economic Optimum Rates** (NEW v2.2) - Find the most PROFITABLE fertilizer rate, not just max yield
+6. **Calculates Economic Optimum Rates** (v2.2) - Find the most PROFITABLE fertilizer rate, not just max yield
+7. **Professional Desktop Interface** (v2.2.1) - Full PyQt6 app with all features integrated
 
 ---
 
@@ -131,6 +133,8 @@ This opens the **professional desktop application** with:
 - **Spray Timing** - Weather evaluation with spray/wait recommendations
 - **Cost Optimizer** - Tabbed interface for fertilizer, irrigation, labor analysis
 - **Price Manager** - Your supplier quotes, buy/wait analysis, alerts
+- **Pest Identification** (NEW v2.2.1) - Symptom checklist with 20 pest symptoms, severity ratings, confidence scoring
+- **Disease Identification** (NEW v2.2.1) - Weather conditions input, management recommendations, detailed disease cards
 
 **Note:** The desktop app requires the backend API to be running for full functionality. If the API isn't running, the app will show "Offline" status and some features won't work.
 
@@ -138,7 +142,68 @@ This opens the **professional desktop application** with:
 
 ## How to Use Each Feature
 
-### 🐛 Identifying a Pest
+### 🐛 Identifying a Pest (Desktop App - NEW v2.2.1)
+
+**When to use:** You found bugs in your field and want to know what they are using the desktop app.
+
+1. Start the backend API and desktop app (see setup above)
+2. Click **"Pests"** from the sidebar navigation
+3. Fill in the identification form:
+   - **Crop**: Select corn or soybean
+   - **Growth Stage**: Select the current stage (V6, VT, R3, etc.)
+   - **Symptoms**: Check all symptoms you observe from the 20-symptom checklist
+   - **Severity**: Rate the infestation severity (1-10)
+   - **Location/Pattern**: Select where damage is occurring
+4. Click **"Identify"**
+
+**What you get:**
+- Confidence-ranked list of possible pests
+- Detailed pest cards showing:
+  - Common and scientific names
+  - Description and damage symptoms
+  - Identification features
+  - **Economic thresholds** (highlighted in green)
+  - Management notes
+
+**Example symptoms to look for:**
+- Curled leaves, yellowing, sticky residue → Aphids
+- Holes in leaves, frass (insect droppings) → Caterpillars
+- Stippling, bronzing, webbing → Spider mites
+- Root damage, lodging → Rootworms
+
+---
+
+### 🦠 Identifying a Disease (Desktop App - NEW v2.2.1)
+
+**When to use:** You see disease symptoms and want identification with management options.
+
+1. Click **"Diseases"** from the sidebar navigation
+2. Fill in the identification form:
+   - **Crop**: Select corn or soybean
+   - **Growth Stage**: Current stage
+   - **Symptoms**: Check symptoms from the 20-disease symptom checklist
+   - **Weather Conditions**: Select recent weather (warm/humid, cool/wet, etc.)
+   - **Severity**: Rate the infection severity (1-10)
+   - **Location Pattern**: Where symptoms appear (lower canopy, scattered, etc.)
+3. Click **"Identify"**
+
+**What you get:**
+- Confidence-ranked list of possible diseases
+- Detailed disease cards showing:
+  - Common and scientific names
+  - Description and symptoms
+  - **Favorable conditions** for disease development
+  - Management recommendations
+
+**Example symptoms to look for:**
+- Gray rectangular lesions → Gray Leaf Spot
+- Tan cigar-shaped lesions → Northern Corn Leaf Blight
+- White cottony mold at nodes → White Mold (soybeans)
+- Sudden wilting, interveinal chlorosis → SDS (soybeans)
+
+---
+
+### 🐛 Identifying a Pest (API Method)
 
 **When to use:** You found bugs in your field and want to know what they are.
 

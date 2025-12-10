@@ -15,6 +15,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 7. **Real-Time Pricing (v2.1)**: Use your actual supplier quotes for accurate calculations
 8. **Weather-Smart Spray Timing (v2.1)**: Economic analysis of spray timing decisions
 9. **Yield Response & Economic Optimum Rates (v2.2)**: Calculate the most profitable fertilizer rate, not just max yield
+10. **Professional Desktop Interface (v2.2.1)**: Complete PyQt6 application with pest/disease identification screens, interactive charts, and professional UI
 
 ---
 
@@ -45,13 +46,24 @@ agtools/
 │       ├── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
 │       └── yield_response_optimizer.py     # Economic optimum rates (v2.2)
 │
-├── frontend/                               # PyQt6 Desktop Application (NEW)
+├── frontend/                               # PyQt6 Desktop Application
 │   ├── main.py                             # Application entry point
 │   ├── app.py                              # QApplication setup
 │   ├── config.py                           # Settings management
 │   ├── requirements.txt                    # Frontend dependencies (PyQt6, httpx, pyqtgraph)
 │   ├── api/                                # API client modules
+│   │   ├── client.py                       # Base HTTP client
+│   │   ├── yield_response_api.py           # Yield response endpoints
+│   │   ├── spray_api.py                    # Spray timing endpoints
+│   │   ├── pricing_api.py                  # Pricing endpoints
+│   │   ├── cost_optimizer_api.py           # Cost optimizer endpoints
+│   │   └── identification_api.py           # Pest/disease ID (NEW v2.2.1)
 │   ├── models/                             # Data classes
+│   │   ├── yield_response.py
+│   │   ├── spray.py
+│   │   ├── pricing.py
+│   │   ├── cost_optimizer.py
+│   │   └── identification.py               # Pest/disease models (NEW v2.2.1)
 │   └── ui/
 │       ├── styles.py                       # Professional QSS theme
 │       ├── sidebar.py                      # Navigation sidebar
@@ -61,7 +73,9 @@ agtools/
 │           ├── yield_response.py           # Interactive yield curves
 │           ├── spray_timing.py             # Weather evaluation
 │           ├── cost_optimizer.py           # Tabbed cost analysis
-│           └── pricing.py                  # Price management & alerts
+│           ├── pricing.py                  # Price management & alerts
+│           ├── pest_identification.py      # Pest ID screen (NEW v2.2.1)
+│           └── disease_identification.py   # Disease ID screen (NEW v2.2.1)
 │
 ├── CHANGELOG.md                            # Development changelog
 ├── PROFESSIONAL_SYSTEM_GUIDE.md            # Complete documentation
@@ -250,6 +264,8 @@ The desktop app provides a professional interface with:
 - **Spray Timing** - Weather evaluation with clear SPRAY/WAIT recommendations
 - **Cost Optimizer** - Tabbed interface (Quick Estimate, Fertilizer, Irrigation)
 - **Price Manager** - Supplier quotes, buy/wait analysis, alerts
+- **Pest Identification** (NEW v2.2.1) - 20-symptom checklist, severity ratings, confidence scoring, detailed pest cards with economic thresholds
+- **Disease Identification** (NEW v2.2.1) - Weather conditions input, symptom selection, management recommendations, favorable conditions display
 
 ### Troubleshooting
 
@@ -1576,7 +1592,7 @@ High-testing soils give less response - the system accounts for this automatical
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
 
-- **Identify pests and diseases** with professional accuracy
+- **Identify pests and diseases** with professional accuracy (desktop UI v2.2.1)
 - **Recommend specific products** with rates, timing, and economics
 - **Calculate economic thresholds** showing when treatment pays
 - **Manage resistance** through intelligent product rotation
@@ -1585,6 +1601,7 @@ You now have a **professional-grade foundation** for a crop consulting business 
 - **Use your actual prices** for accurate cost calculations (v2.1)
 - **Make weather-smart spray decisions** with cost-of-waiting analysis (v2.1)
 - **Calculate economic optimum fertilizer rates** maximizing profit, not just yield (v2.2)
+- **Professional desktop interface** with complete PyQt6 application (v2.2.1)
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -1598,6 +1615,7 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.0 | Dec 2025 | Input cost optimization (labor, fertilizer, irrigation) |
 | 2.1 | Dec 2025 | Real-time pricing, weather-smart spray timing |
 | 2.2 | Dec 2025 | Yield response curves, economic optimum rate (EOR) calculator |
+| 2.2.1 | Dec 2025 | Pest/disease identification screens, yield response bug fixes, complete smoke tests |
 
 ---
 
