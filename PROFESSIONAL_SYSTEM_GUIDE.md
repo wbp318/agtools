@@ -1602,6 +1602,417 @@ High-testing soils give less response - the system accounts for this automatical
 
 ---
 
+## 📡 OFFLINE MODE & LOCAL DATABASE (v2.3.0)
+
+Version 2.3 adds complete offline capability to the desktop application. This enables field use without internet connectivity while maintaining full calculation functionality.
+
+### Why This Matters
+
+- **Field connectivity is unreliable**: Many farms have spotty or no cell coverage
+- **Don't lose work**: Queue changes offline and sync when back online
+- **Core calculations work anywhere**: EOR and spray timing don't need the server
+- **Cached data persists**: Previously fetched pest/disease data remains available
+
+### Architecture
+
+#### Local SQLite Database
+
+Location: `frontend/database/local_db.py` (~550 lines)
+
+The local database provides:
+- **Thread-safe connection management**: Safe for PyQt6's multi-threaded UI
+- **Automatic schema initialization**: Creates tables on first run
+- **8 core tables**:
+  - `cache` - General API response cache with TTL
+  - `products` - Product catalog with prices
+  - `custom_prices` - User-entered supplier quotes
+  - `pests` - Pest database cache
+  - `diseases` - Disease database cache
+  - `crop_parameters` - Agronomic parameters for calculations
+  - `calculation_history` - Log of all calculations performed
+  - `sync_queue` - Pending changes waiting to sync
+
+**Cache with TTL:**
+```python
+# Data automatically expires after configured hours
+cache_entry = {
+    "key": "api/v1/pests",
+    "data": {...},
+    "expires_at": datetime.now() + timedelta(hours=24)
+}
+```
+
+**Sync Queue:**
+```python
+# Changes made offline are queued
+sync_item = {
+    "id": 1,
+    "operation": "set_price",
+    "data": {"product_id": "urea_46", "price": 0.48},
+    "created_at": "2025-12-11T10:00:00"
+}
+```
+
+#### Sync Manager
+
+Location: `frontend/core/sync_manager.py` (~450 lines)
+
+The sync manager handles online/offline detection and data synchronization:
+
+**Features:**
+- **Qt signals for state changes**: UI updates reactively
+- **Periodic connection monitoring**: Checks every 30 seconds
+- **Automatic sync on reconnection**: Pushes pending changes
+- **Background threading**: Sync doesn't block UI
+- **Conflict resolution**: Server wins for conflicts
+
+**Connection States:**
+```python
+class ConnectionState(Enum):
+    ONLINE = "online"
+    OFFLINE = "offline"
+    SYNCING = "syncing"
+```
+
+**Signals emitted:**
+- `connection_changed(ConnectionState)` - Online/offline transitions
+- `sync_started()` - Sync operation beginning
+- `sync_progress(int, int)` - Progress updates (current, total)
+- `sync_completed(bool, str)` - Success/failure with message
+- `sync_item_completed(str)` - Individual item synced
+
+#### Offline Calculators
+
+The system includes full offline versions of key calculators:
+
+**Offline Yield Calculator** (`frontend/core/calculations/yield_response.py` ~450 lines):
+- Complete EOR (Economic Optimum Rate) calculation
+- 5 response models (quadratic plateau, quadratic, linear plateau, Mitscherlich, square root)
+- Crop parameters for corn, soybean, wheat
+- Soil test level adjustments
+- Previous crop N credits
+- Price ratio guide generation
+- Yield curve generation
+
+**Offline Spray Calculator** (`frontend/core/calculations/spray_timing.py` ~400 lines):
+- Delta T calculation (inversion risk)
+- Multi-factor condition assessment (wind, temp, humidity, rain, Delta T)
+- Risk level determination (excellent to do-not-spray)
+- Cost of waiting economic analysis
+- Spray type-specific thresholds
+
+### API Client Offline Support
+
+The API client (`frontend/api/client.py`) includes offline-aware methods:
+
+```python
+# GET with cache fallback
+response = await client.get_with_cache("/api/v1/pests")
+# Returns cached data if offline
+
+# POST with offline calculation fallback
+response = await client.post_with_offline_calc(
+    "/api/v1/yield-response/economic-optimum",
+    data=request_data,
+    offline_calculator=yield_calculator.calculate_eor
+)
+# Uses local calculator if offline
+
+# Queue changes for later sync
+client.queue_for_sync("set_price", {"product_id": "urea_46", "price": 0.48})
+# Stored in sync_queue table
+```
+
+**APIResponse includes cache indicator:**
+```python
+response.from_cache  # True if data came from local cache
+```
+
+### UI Integration
+
+The main window includes sync status display:
+
+**Sync Status Widget:**
+- Sync button with spinner during operation
+- Pending count indicator ("3 pending")
+- Color-coded status dot (green/yellow/red)
+
+**Status Bar:**
+- Last sync time display
+- Sync progress during operations
+- Connection state text
+
+### Usage Workflow
+
+**First run (online):**
+1. App connects to API
+2. Fetches and caches pest/disease databases
+3. Caches product prices
+4. Downloads crop parameters
+5. Ready for offline use
+
+**Working offline:**
+1. App detects API unavailable
+2. Switches to offline mode automatically
+3. Yield calculator uses local engine
+4. Spray timing uses local engine
+5. Pest/disease lookup uses cached data
+6. Price changes queued in sync_queue
+
+**Reconnecting:**
+1. App detects API available
+2. User clicks Sync (or auto-syncs)
+3. Pending changes pushed to server
+4. Fresh data pulled from server
+5. Local cache updated
+
+### Configuration
+
+Settings for offline mode (in Settings screen → General tab):
+- **Enable offline mode**: Toggle offline fallback
+- **Cache TTL (hours)**: How long cached data is valid
+- **Sync on startup**: Auto-sync when app launches
+- **Auto-fallback**: Automatically switch to offline when API fails
+
+---
+
+## ⚙️ SETTINGS & UI POLISH (v2.4.0)
+
+Version 2.4 completes the PyQt6 desktop application with a comprehensive settings screen, reusable widget library, and integration tests.
+
+### Settings Screen
+
+Location: `frontend/ui/screens/settings.py` (~500 lines)
+
+The settings screen provides 4 tabs for complete application configuration:
+
+#### General Tab
+
+**User Preferences:**
+- **Region Selection**: 7 agricultural regions (Midwest Corn Belt, Northern Plains, Southern Plains, Delta, Southeast, Pacific Northwest, Mountain)
+- **Default Crop**: Corn or Soybean preference
+- **Theme**: Light or Dark mode
+- **Sidebar Width**: Adjust navigation panel size (150-300px)
+
+**Offline Mode Settings:**
+- **Enable Offline Mode**: Toggle offline fallback capability
+- **Cache TTL**: Set data expiration time (1-168 hours)
+- **Sync on Startup**: Automatically sync when app launches
+- **Auto-Fallback**: Switch to offline when API is unreachable
+
+#### Connection Tab
+
+**API Configuration:**
+- **Server URL**: Configurable API endpoint (default: http://127.0.0.1:8000)
+- **Timeout**: Request timeout in seconds (5-120)
+- **Test Connection**: Button with live feedback showing connection status
+- **Connection Status**: Real-time display with refresh button
+
+**Test Connection Results:**
+- Success: Shows server version and response time
+- Failure: Shows error message and troubleshooting hints
+
+#### Data Tab
+
+**Cache Statistics:**
+- Total cache entries
+- Products cached
+- Pests cached
+- Diseases cached
+- Calculation history entries
+- Sync queue pending items
+
+**Cache Management:**
+- **Clear Expired**: Remove only stale entries (safe)
+- **Clear All**: Delete entire cache (requires re-caching)
+- **Optimize Database**: VACUUM operation to reclaim space
+
+**Data Export:**
+- **Export History**: Save calculation history to CSV
+- **Export Prices**: Save product prices to CSV
+
+**Database Info:**
+- Current SQLite file size
+- Database file path
+
+#### About Tab
+
+**Application Information:**
+- AgTools branding and version
+- Feature list highlighting capabilities
+- Data directory paths
+
+### Common Widgets Library
+
+Location: `frontend/ui/widgets/common.py` (~400 lines)
+
+Reusable UI components for consistent user experience:
+
+#### LoadingOverlay
+
+Semi-transparent overlay with progress spinner:
+```python
+overlay = LoadingOverlay(parent_widget)
+overlay.show_loading("Calculating...")
+# ... perform operation
+overlay.hide_loading()
+```
+
+Features:
+- Semi-transparent background
+- Centered spinner animation
+- Optional message text
+- Blocks interaction during loading
+
+#### LoadingButton
+
+Button with built-in loading state:
+```python
+button = LoadingButton("Calculate")
+button.set_loading(True, "Processing...")
+# ... perform operation
+button.set_loading(False)
+```
+
+Features:
+- Disables during loading
+- Shows spinner icon
+- Customizable loading text
+- Returns to original state
+
+#### StatusMessage
+
+Inline success/error/warning/info messages:
+```python
+message = StatusMessage()
+message.show_success("Calculation complete!")
+message.show_error("Connection failed")
+message.show_warning("Using cached data")
+message.show_info("Tip: Try adjusting the rate")
+```
+
+Features:
+- Color-coded by type (green/red/yellow/blue)
+- Icon indicators
+- Auto-hide option with timer
+- Dismissible with close button
+
+#### ValidatedLineEdit
+
+Text input with validation feedback:
+```python
+input_field = ValidatedLineEdit()
+input_field.set_validation(is_valid=False, message="Must be a number")
+input_field.clear_validation()
+```
+
+Features:
+- Red border when invalid
+- Tooltip shows error message
+- Clear method to reset state
+- Works with any QLineEdit validator
+
+#### ValidatedSpinBox
+
+Number input with warning range:
+```python
+spinbox = ValidatedSpinBox()
+spinbox.set_warning_range(min_val=100, max_val=200)
+# Shows yellow when value outside range but still valid
+```
+
+Features:
+- Warning state (yellow) vs error state (red)
+- Range-based warnings
+- Tooltip explains issue
+- Supports both int and double values
+
+#### ConfirmDialog
+
+Customizable confirmation dialogs:
+```python
+dialog = ConfirmDialog(
+    title="Clear Cache",
+    message="This will delete all cached data. Continue?",
+    confirm_text="Clear",
+    cancel_text="Cancel",
+    icon_type="warning"
+)
+if dialog.exec() == QDialog.Accepted:
+    # User confirmed
+```
+
+Features:
+- Customizable title, message, button text
+- Icon types: warning, question, info, error
+- Modal behavior
+- Returns confirmation result
+
+#### ToastNotification
+
+Auto-hiding toast notifications:
+```python
+toast = ToastNotification(parent)
+toast.show_toast("Settings saved!", duration=3000)
+```
+
+Features:
+- Appears at bottom of parent widget
+- Auto-hides after duration
+- Fade in/out animation
+- Multiple types (success, error, info)
+
+### Integration Tests
+
+Location: `frontend/tests/test_phase9.py` (~130 lines)
+
+Comprehensive tests verifying all Phase 9 features:
+
+**Test Suite:**
+1. **Settings screen import**: Verifies SettingsScreen class loads
+2. **Common widgets import**: Verifies all 7 widget classes load
+3. **All screens import**: Tests all 8 screens (Dashboard, YieldResponse, SprayTiming, CostOptimizer, Pricing, PestIdentification, DiseaseIdentification, Settings)
+4. **Offline integration**: Tests LocalDatabase and offline calculators
+5. **API client offline methods**: Verifies get_with_cache, post_with_offline_calc, queue_for_sync
+6. **Config and settings**: Tests AppConfig save/load functionality
+
+**Running Tests:**
+```bash
+cd frontend
+python tests/test_phase9.py
+```
+
+**Expected Output:**
+```
+Running Phase 9 Integration Tests
+==================================
+[PASS] Settings screen import
+[PASS] Common widgets import
+[PASS] All screens import (8 screens)
+[PASS] Offline integration
+[PASS] API client offline methods
+[PASS] Config and settings
+
+==================================
+Results: 6/6 tests passed
+All Phase 9 tests passed!
+```
+
+### Version 2.4.0 Files Summary
+
+**New Files Created:**
+- `frontend/ui/screens/settings.py` - Settings screen with 4 tabs
+- `frontend/ui/widgets/common.py` - 7 reusable UI widgets
+- `frontend/tests/test_phase9.py` - Integration test suite
+
+**Files Modified:**
+- `frontend/ui/screens/__init__.py` - Added SettingsScreen export
+- `frontend/ui/widgets/__init__.py` - Added common widget exports
+- `frontend/ui/main_window.py` - Integrated SettingsScreen in sidebar
+- `frontend/config.py` - Version bump to 2.4.0
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -1616,6 +2027,8 @@ You now have a **professional-grade foundation** for a crop consulting business 
 - **Make weather-smart spray decisions** with cost-of-waiting analysis (v2.1)
 - **Calculate economic optimum fertilizer rates** maximizing profit, not just yield (v2.2)
 - **Professional desktop interface** with complete PyQt6 application (v2.2.1)
+- **Work offline** with full calculation capability and automatic sync (v2.3.0)
+- **Configure everything** with comprehensive settings screen (v2.4.0)
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -1630,6 +2043,8 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.1 | Dec 2025 | Real-time pricing, weather-smart spray timing |
 | 2.2 | Dec 2025 | Yield response curves, economic optimum rate (EOR) calculator |
 | 2.2.1 | Dec 2025 | Pest/disease identification screens, yield response bug fixes, complete smoke tests |
+| 2.3.0 | Dec 2025 | Offline mode with SQLite caching, sync manager, offline calculators |
+| 2.4.0 | Dec 2025 | Settings screen (4 tabs), common widget library (7 widgets), integration tests |
 
 ---
 

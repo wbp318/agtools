@@ -143,6 +143,41 @@ This opens the **professional desktop application** with:
 
 ---
 
+## Running Tests (NEW v2.4.0)
+
+Before using the system in production, you can run the integration tests to verify everything is working:
+
+```bash
+cd frontend
+python tests/test_phase9.py
+```
+
+**What the tests verify:**
+- Settings screen imports correctly
+- Common widgets (loading overlays, validation) work
+- All 8 screens import and initialize
+- Offline mode components (database, calculators) function
+- API client offline methods are available
+- Configuration saves and loads properly
+
+**Expected output:**
+```
+Running Phase 9 Integration Tests
+==================================
+[PASS] Settings screen import
+[PASS] Common widgets import
+[PASS] All screens import (8 screens)
+[PASS] Offline integration
+[PASS] API client offline methods
+[PASS] Config and settings
+
+==================================
+Results: 6/6 tests passed
+All Phase 9 tests passed!
+```
+
+---
+
 ## How to Use Each Feature
 
 ### 🐛 Identifying a Pest (Desktop App - NEW v2.2.1)
@@ -203,6 +238,112 @@ This opens the **professional desktop application** with:
 - Tan cigar-shaped lesions → Northern Corn Leaf Blight
 - White cottony mold at nodes → White Mold (soybeans)
 - Sudden wilting, interveinal chlorosis → SDS (soybeans)
+
+---
+
+### ⚙️ Configuring Settings (Desktop App - NEW v2.4.0)
+
+**When to use:** Customize the app behavior, configure API connection, or manage your local data.
+
+1. Click **"Settings"** from the sidebar navigation (bottom section)
+2. Navigate between the **4 tabs**:
+
+**General Tab - Your Preferences:**
+- **Region**: Select your agricultural region (affects default prices)
+  - Midwest Corn Belt, Northern Plains, Southern Plains, Delta, Southeast, Pacific Northwest, Mountain
+- **Default Crop**: Set your primary crop (corn or soybean)
+- **Theme**: Choose Light or Dark mode
+- **Sidebar Width**: Adjust navigation panel size
+- **Offline Mode Settings**:
+  - Enable/disable offline fallback
+  - Set cache TTL (time-to-live) in hours
+  - Enable sync on startup
+  - Enable auto-fallback when API unavailable
+
+**Connection Tab - API Configuration:**
+- **API Server URL**: Default is `http://127.0.0.1:8000`
+- **Timeout**: How long to wait for API responses (default 30 seconds)
+- **Test Connection**: Click to verify the backend is reachable
+- **Connection Status**: Shows current online/offline state with refresh button
+
+**Data Tab - Cache Management:**
+- **Cache Statistics**: View entries, products, pests, diseases, calculations stored locally
+- **Cache Management**:
+  - **Clear Expired**: Remove only stale cache entries
+  - **Clear All**: Delete entire local cache
+  - **Optimize**: Compact the SQLite database
+- **Data Export**:
+  - Export calculation history to CSV
+  - Export product prices to CSV
+- **Database Size**: Shows current SQLite file size
+
+**About Tab - Application Info:**
+- AgTools version and branding
+- Complete feature list
+- Data directory paths (where settings and cache are stored)
+
+---
+
+### 🔄 Using Offline Mode (NEW v2.3.0)
+
+**When to use:** When you're in the field without internet, or the backend API is unavailable.
+
+**How it works:**
+1. The app automatically detects when the API is unreachable
+2. Status bar shows "Offline" indicator
+3. Core features continue working with local calculations:
+   - Yield Response Calculator (full EOR calculations)
+   - Spray Timing Evaluator (weather condition assessment)
+   - Previously cached pest/disease data
+   - Previously cached product prices
+4. Changes you make (like custom prices) are queued for sync
+5. When connection restores, click **"Sync"** button to push pending changes
+
+**Sync Status Indicators:**
+- **Green dot**: Online and synced
+- **Yellow dot**: Online with pending changes
+- **Red dot**: Offline mode active
+- **"X pending"**: Shows number of queued changes
+
+**To manually sync:**
+1. Ensure the backend API is running
+2. Click the **Sync** button in the top toolbar
+3. Watch the status bar for sync progress
+4. Pending count resets to 0 when complete
+
+**Offline Mode Tips:**
+- The first time you run online, let data cache before going offline
+- Yield calculations and spray timing work fully offline
+- Pest/disease identification requires cached data or API connection
+- Custom prices are queued and sync when back online
+
+---
+
+### 🔧 Troubleshooting Offline Mode
+
+**Problem: "Offline" shows even when backend is running**
+1. Check the API URL in Settings → Connection tab
+2. Ensure it matches where the backend is running (default: `http://127.0.0.1:8000`)
+3. Click "Test Connection" to diagnose
+4. Make sure the backend terminal shows "Uvicorn running"
+
+**Problem: Data not syncing when back online**
+1. Check the pending count in the toolbar
+2. Click the Sync button manually
+3. If sync fails, check Settings → Connection for errors
+4. Verify backend is running and accessible
+
+**Problem: Old data showing in offline mode**
+1. Go to Settings → Data tab
+2. Click "Clear Expired" to remove stale cache
+3. Reconnect to API to refresh data
+4. Or "Clear All" to start fresh (will need to recache)
+
+**Problem: Database getting too large**
+1. Go to Settings → Data tab
+2. View current database size
+3. Click "Optimize" to compact the database
+4. Consider "Clear Expired" to remove old entries
 
 ---
 
