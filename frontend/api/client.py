@@ -6,11 +6,10 @@ Handles connection management, error handling, and offline fallback.
 """
 
 import httpx
-from typing import Any, Optional, TypeVar, Generic
+from typing import Any, Optional, Callable
 from dataclasses import dataclass
-from enum import Enum
-import asyncio
 from datetime import datetime
+import json
 
 import sys
 import os
@@ -54,24 +53,30 @@ class APIResponse:
     data: Any
     status_code: int
     error_message: Optional[str] = None
+    from_cache: bool = False
 
     @classmethod
-    def ok(cls, data: Any, status_code: int = 200) -> "APIResponse":
-        return cls(success=True, data=data, status_code=status_code)
+    def ok(cls, data: Any, status_code: int = 200, from_cache: bool = False) -> "APIResponse":
+        return cls(success=True, data=data, status_code=status_code, from_cache=from_cache)
 
     @classmethod
     def error(cls, message: str, status_code: int, data: Any = None) -> "APIResponse":
         return cls(success=False, data=data, status_code=status_code, error_message=message)
 
+    @classmethod
+    def offline_error(cls, message: str = "Offline - no cached data available") -> "APIResponse":
+        return cls(success=False, data=None, status_code=0, error_message=message)
+
 
 class APIClient:
     """
-    HTTP client for the AgTools API.
+    HTTP client for the AgTools API with offline support.
 
     Features:
     - Automatic retry on transient failures
     - Connection state tracking
     - Proper error handling and mapping
+    - Offline fallback to local cache
     - Synchronous interface (uses httpx sync client)
 
     Usage:
@@ -80,6 +85,9 @@ class APIClient:
             response = client.get("/crops")
             if response.success:
                 crops = response.data
+        else:
+            # Will automatically use cache if available
+            response = client.get_with_cache("/pricing/prices", "prices", "all")
     """
 
     def __init__(self, settings: Optional[AppSettings] = None):
@@ -87,6 +95,14 @@ class APIClient:
         self._client: Optional[httpx.Client] = None
         self._is_connected = False
         self._last_check: Optional[datetime] = None
+        self._db = None  # Lazy loaded
+
+    def _get_db(self):
+        """Lazy load the local database."""
+        if self._db is None:
+            from database.local_db import get_local_db
+            self._db = get_local_db()
+        return self._db
 
     @property
     def base_url(self) -> str:
@@ -221,6 +237,157 @@ class APIClient:
             return self._handle_response(response)
         except Exception as e:
             return self._handle_exception(e)
+
+    # -------------------------------------------------------------------------
+    # Offline-Capable Methods
+    # -------------------------------------------------------------------------
+
+    def get_with_cache(self, endpoint: str, cache_category: str, cache_key: str,
+                       params: Optional[dict] = None, ttl_hours: int = 24) -> APIResponse:
+        """
+        Make a GET request with cache fallback.
+
+        If online, fetches from API and caches the result.
+        If offline, returns cached data if available.
+
+        Args:
+            endpoint: API endpoint
+            cache_category: Category for cache storage (e.g., "prices", "pests")
+            cache_key: Unique key within category
+            params: Optional query parameters
+            ttl_hours: Cache TTL in hours
+
+        Returns:
+            APIResponse (check from_cache attribute)
+        """
+        db = self._get_db()
+
+        # Try API first if connected
+        if self._is_connected or self.check_connection():
+            response = self.get(endpoint, params)
+
+            if response.success:
+                # Cache the successful response
+                db.cache_set(cache_category, cache_key, response.data, ttl_hours)
+                return response
+            elif response.status_code == 0:
+                # Connection lost mid-request, try cache
+                pass
+            else:
+                # Server returned an error, don't use cache
+                return response
+
+        # Try cache
+        cached_data = db.cache_get(cache_category, cache_key)
+        if cached_data is not None:
+            return APIResponse.ok(cached_data, 200, from_cache=True)
+
+        return APIResponse.offline_error()
+
+    def post_with_cache(self, endpoint: str, data: Optional[dict],
+                        cache_category: str, cache_key: str,
+                        params: Optional[dict] = None, ttl_hours: int = 24) -> APIResponse:
+        """
+        Make a POST request with cache fallback.
+
+        For calculation endpoints that can be cached based on input parameters.
+
+        Args:
+            endpoint: API endpoint
+            data: Request body
+            cache_category: Category for cache storage
+            cache_key: Unique key (should be derived from input data)
+            params: Optional query parameters
+            ttl_hours: Cache TTL in hours
+
+        Returns:
+            APIResponse (check from_cache attribute)
+        """
+        db = self._get_db()
+
+        # Try API first if connected
+        if self._is_connected or self.check_connection():
+            response = self.post(endpoint, data, params)
+
+            if response.success:
+                # Cache the successful response
+                db.cache_set(cache_category, cache_key, response.data, ttl_hours)
+                return response
+            elif response.status_code == 0:
+                # Connection lost, try cache
+                pass
+            else:
+                return response
+
+        # Try cache
+        cached_data = db.cache_get(cache_category, cache_key)
+        if cached_data is not None:
+            return APIResponse.ok(cached_data, 200, from_cache=True)
+
+        return APIResponse.offline_error()
+
+    def post_with_offline_calc(self, endpoint: str, data: Optional[dict],
+                               offline_calculator: Callable[[dict], Any],
+                               cache_category: str = None, cache_key: str = None,
+                               params: Optional[dict] = None) -> APIResponse:
+        """
+        Make a POST request with offline calculation fallback.
+
+        If online, fetches from API.
+        If offline, uses the provided offline calculator function.
+
+        Args:
+            endpoint: API endpoint
+            data: Request body
+            offline_calculator: Function that takes request data and returns result
+            cache_category: Optional category for caching API response
+            cache_key: Optional key for caching
+            params: Optional query parameters
+
+        Returns:
+            APIResponse
+        """
+        db = self._get_db()
+
+        # Try API first if connected
+        if self._is_connected or self.check_connection():
+            response = self.post(endpoint, data, params)
+
+            if response.success:
+                # Optionally cache
+                if cache_category and cache_key:
+                    db.cache_set(cache_category, cache_key, response.data, 24)
+                return response
+            elif response.status_code == 0:
+                # Connection lost, use offline calculator
+                pass
+            else:
+                return response
+
+        # Use offline calculator
+        try:
+            result = offline_calculator(data or {})
+            return APIResponse.ok(result, 200, from_cache=True)
+        except Exception as e:
+            return APIResponse.error(f"Offline calculation error: {str(e)}", 0)
+
+    def queue_for_sync(self, action: str, endpoint: str, payload: dict = None) -> int:
+        """
+        Queue a write operation for later sync.
+
+        Use this when offline to queue changes that will be
+        synchronized when connection is restored.
+
+        Args:
+            action: HTTP method (POST, PUT, DELETE)
+            endpoint: API endpoint
+            payload: Request payload
+
+        Returns:
+            Queue ID
+        """
+        db = self._get_db()
+        return db.queue_sync_action(action, endpoint, payload)
 
 
 # Singleton instance

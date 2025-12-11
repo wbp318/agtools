@@ -13,7 +13,7 @@ import json
 
 # Application Info
 APP_NAME = "AgTools Professional"
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 APP_ORGANIZATION = "New Generation Farms"
 
 

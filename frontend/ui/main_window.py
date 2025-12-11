@@ -2,14 +2,16 @@
 AgTools Main Window
 
 Primary application window with sidebar navigation and content area.
+Includes offline mode support with sync manager integration.
 """
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QStackedWidget, QLabel, QFrame, QStatusBar,
-    QSplitter, QSizePolicy
+    QSplitter, QSizePolicy, QPushButton, QProgressBar,
+    QMessageBox
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QFont
 
 from config import APP_NAME, APP_VERSION, get_settings
@@ -22,6 +24,76 @@ from ui.screens.cost_optimizer import CostOptimizerScreen
 from ui.screens.pricing import PricingScreen
 from ui.screens.pest_identification import PestIdentificationScreen
 from ui.screens.disease_identification import DiseaseIdentificationScreen
+from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
+
+
+class SyncStatusWidget(QFrame):
+    """Widget showing sync status with sync button."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pending_count = 0
+        self._setup_ui()
+
+    def _setup_ui(self) -> None:
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(8)
+
+        # Pending sync indicator
+        self._pending_label = QLabel("")
+        self._pending_label.setStyleSheet(f"""
+            color: {COLORS['warning']};
+            font-size: 9pt;
+            padding: 2px 6px;
+            background-color: {COLORS['warning']}20;
+            border-radius: 3px;
+        """)
+        self._pending_label.hide()
+        layout.addWidget(self._pending_label)
+
+        # Sync button
+        self._sync_btn = QPushButton("\u21BB Sync")  # Refresh symbol
+        self._sync_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['primary']};
+                color: white;
+                border: none;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 9pt;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['primary_dark']};
+            }}
+            QPushButton:disabled {{
+                background-color: {COLORS['text_disabled']};
+            }}
+        """)
+        self._sync_btn.setFixedWidth(70)
+        layout.addWidget(self._sync_btn)
+
+    def set_pending_count(self, count: int) -> None:
+        """Update the pending sync count display."""
+        self._pending_count = count
+        if count > 0:
+            self._pending_label.setText(f"{count} pending")
+            self._pending_label.show()
+        else:
+            self._pending_label.hide()
+
+    def set_syncing(self, syncing: bool) -> None:
+        """Set the syncing state."""
+        if syncing:
+            self._sync_btn.setText("\u21BB...")
+            self._sync_btn.setEnabled(False)
+        else:
+            self._sync_btn.setText("\u21BB Sync")
+            self._sync_btn.setEnabled(True)
+
+    @property
+    def sync_button(self) -> QPushButton:
+        return self._sync_btn
 
 
 class StatusIndicator(QFrame):
@@ -57,6 +129,12 @@ class StatusIndicator(QFrame):
         self._dot.setStyleSheet(f"color: {COLORS['offline']}; font-size: 10pt;")
         self._text.setText("Offline")
         self._text.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 10pt;")
+
+    def set_syncing(self) -> None:
+        """Set status to syncing."""
+        self._dot.setStyleSheet(f"color: {COLORS['warning']}; font-size: 10pt;")
+        self._text.setText("Syncing...")
+        self._text.setStyleSheet(f"color: {COLORS['warning']}; font-size: 10pt;")
 
     def set_error(self, message: str = "Error") -> None:
         """Set status to error."""
@@ -96,7 +174,8 @@ class MainWindow(QMainWindow):
     """
     Main application window.
 
-    Contains sidebar navigation and stacked content area.
+    Contains sidebar navigation, stacked content area, and sync management.
+    Integrates with SyncManager for offline mode support.
     """
 
     def __init__(self):
@@ -104,13 +183,15 @@ class MainWindow(QMainWindow):
         self._settings = get_settings()
         self._is_online = False
         self._screens: dict[str, QWidget] = {}
+        self._sync_manager = get_sync_manager()
 
         self._setup_window()
         self._setup_ui()
         self._setup_connections()
+        self._setup_sync_manager()
 
-        # Check API connection on startup
-        QTimer.singleShot(500, self._check_connection)
+        # Start connection monitoring
+        QTimer.singleShot(500, self._start_monitoring)
 
     def _setup_window(self) -> None:
         """Configure window properties."""
@@ -169,6 +250,11 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self._page_title)
 
         top_layout.addStretch()
+
+        # Sync status widget
+        self._sync_status = SyncStatusWidget()
+        self._sync_status.sync_button.clicked.connect(self._on_sync_clicked)
+        top_layout.addWidget(self._sync_status)
 
         # Status indicator
         self._status_indicator = StatusIndicator()
@@ -242,12 +328,17 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(screen)
 
     def _setup_status_bar(self) -> None:
-        """Setup the status bar."""
+        """Setup the status bar with sync info."""
         status_bar = QStatusBar()
         self.setStatusBar(status_bar)
 
         # Ready message
         status_bar.showMessage("Ready")
+
+        # Last sync time
+        self._last_sync_label = QLabel("Last sync: Never")
+        self._last_sync_label.setStyleSheet(f"color: {COLORS['text_secondary']}; margin-right: 16px;")
+        status_bar.addPermanentWidget(self._last_sync_label)
 
         # Version info on right
         version_label = QLabel(f"v{APP_VERSION}")
@@ -257,6 +348,23 @@ class MainWindow(QMainWindow):
     def _setup_connections(self) -> None:
         """Setup signal connections."""
         self._sidebar.navigation_clicked.connect(self._navigate_to)
+
+    def _setup_sync_manager(self) -> None:
+        """Setup sync manager signal connections."""
+        self._sync_manager.connection_changed.connect(self._on_connection_changed)
+        self._sync_manager.sync_started.connect(self._on_sync_started)
+        self._sync_manager.sync_completed.connect(self._on_sync_completed)
+        self._sync_manager.sync_progress.connect(self._on_sync_progress)
+
+    def _start_monitoring(self) -> None:
+        """Start the sync manager's connection monitoring."""
+        self._sync_manager.start_monitoring()
+        self._update_pending_count()
+
+        # Setup periodic pending count update
+        self._pending_timer = QTimer()
+        self._pending_timer.timeout.connect(self._update_pending_count)
+        self._pending_timer.start(10000)  # Every 10 seconds
 
     def _navigate_to(self, nav_id: str) -> None:
         """Navigate to a screen by ID."""
@@ -278,41 +386,98 @@ class MainWindow(QMainWindow):
             }
             self._page_title.setText(titles.get(nav_id, nav_id.title()))
 
-    def _check_connection(self) -> None:
-        """Check API connection status."""
-        # For now, just simulate - actual API check will be added later
-        import httpx
+    @pyqtSlot(ConnectionState)
+    def _on_connection_changed(self, state: ConnectionState) -> None:
+        """Handle connection state changes from sync manager."""
+        self._is_online = state == ConnectionState.ONLINE
 
-        try:
-            settings = get_settings()
-            response = httpx.get(
-                f"{settings.api.base_url}/",
-                timeout=5.0
-            )
-            if response.status_code == 200:
-                self._set_online(True)
-            else:
-                self._set_online(False)
-        except Exception:
-            self._set_online(False)
-
-    def _set_online(self, online: bool) -> None:
-        """Update online/offline status."""
-        self._is_online = online
-
-        if online:
+        if state == ConnectionState.ONLINE:
             self._status_indicator.set_online()
             self.statusBar().showMessage("Connected to API")
-        else:
+        elif state == ConnectionState.OFFLINE:
             self._status_indicator.set_offline()
             self.statusBar().showMessage("Offline mode - using cached data")
+        elif state == ConnectionState.SYNCING:
+            self._status_indicator.set_syncing()
+            self.statusBar().showMessage("Syncing data...")
+        else:
+            self._status_indicator.set_error()
+            self.statusBar().showMessage("Connection error")
 
         # Update dashboard
         if "dashboard" in self._screens:
             dashboard = self._screens["dashboard"]
             if hasattr(dashboard, "set_connection_status"):
-                dashboard.set_connection_status(online)
+                dashboard.set_connection_status(self._is_online)
+
+    @pyqtSlot()
+    def _on_sync_started(self) -> None:
+        """Handle sync started event."""
+        self._sync_status.set_syncing(True)
+        self._status_indicator.set_syncing()
+        self.statusBar().showMessage("Syncing data with server...")
+
+    @pyqtSlot(object)
+    def _on_sync_completed(self, result) -> None:
+        """Handle sync completed event."""
+        self._sync_status.set_syncing(False)
+        self._update_pending_count()
+
+        # Update last sync time
+        if result.status in [SyncStatus.SUCCESS, SyncStatus.PARTIAL]:
+            from datetime import datetime
+            self._last_sync_label.setText(f"Last sync: {datetime.now().strftime('%H:%M')}")
+
+            if result.status == SyncStatus.SUCCESS:
+                self.statusBar().showMessage(f"Sync complete: {result.synced_items} items synced")
+            else:
+                self.statusBar().showMessage(
+                    f"Sync partial: {result.synced_items} synced, {result.failed_items} failed"
+                )
+        else:
+            self.statusBar().showMessage("Sync failed - will retry later")
+
+        # Restore connection indicator
+        if self._sync_manager.is_online:
+            self._status_indicator.set_online()
+        else:
+            self._status_indicator.set_offline()
+
+    @pyqtSlot(int, int)
+    def _on_sync_progress(self, current: int, total: int) -> None:
+        """Handle sync progress updates."""
+        self.statusBar().showMessage(f"Syncing... ({current}/{total})")
+
+    def _on_sync_clicked(self) -> None:
+        """Handle sync button click."""
+        if not self._sync_manager.is_online:
+            QMessageBox.warning(
+                self,
+                "Offline",
+                "Cannot sync while offline. Data will be synced when connection is restored."
+            )
+            return
+
+        # Start sync in background
+        import threading
+        threading.Thread(target=self._sync_manager.sync_all, daemon=True).start()
+
+    def _update_pending_count(self) -> None:
+        """Update the pending sync count display."""
+        count = self._sync_manager.pending_sync_count
+        self._sync_status.set_pending_count(count)
 
     def is_online(self) -> bool:
         """Check if currently online."""
         return self._is_online
+
+    def closeEvent(self, event) -> None:
+        """Handle window close event."""
+        # Stop sync manager monitoring
+        self._sync_manager.stop_monitoring()
+
+        # Stop pending timer
+        if hasattr(self, '_pending_timer'):
+            self._pending_timer.stop()
+
+        super().closeEvent(event)
