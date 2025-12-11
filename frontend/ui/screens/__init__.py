@@ -11,6 +11,7 @@ from ui.screens.cost_optimizer import CostOptimizerScreen
 from ui.screens.pricing import PricingScreen
 from ui.screens.pest_identification import PestIdentificationScreen
 from ui.screens.disease_identification import DiseaseIdentificationScreen
+from ui.screens.settings import SettingsScreen
 
 __all__ = [
     "DashboardScreen",
@@ -20,4 +21,5 @@ __all__ = [
     "PricingScreen",
     "PestIdentificationScreen",
     "DiseaseIdentificationScreen",
+    "SettingsScreen",
 ]

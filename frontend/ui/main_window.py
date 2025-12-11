@@ -24,6 +24,7 @@ from ui.screens.cost_optimizer import CostOptimizerScreen
 from ui.screens.pricing import PricingScreen
 from ui.screens.pest_identification import PestIdentificationScreen
 from ui.screens.disease_identification import DiseaseIdentificationScreen
+from ui.screens.settings import SettingsScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 
 
@@ -312,10 +313,13 @@ class MainWindow(QMainWindow):
         disease_screen = DiseaseIdentificationScreen()
         self._add_screen("diseases", disease_screen)
 
+        # Settings Screen (Phase 9)
+        settings_screen = SettingsScreen()
+        self._add_screen("settings", settings_screen)
+
         # Placeholder screens for other features
         placeholders = [
             ("spray", "Spray Recommendations"),
-            ("settings", "Settings"),
         ]
 
         for nav_id, title in placeholders:
