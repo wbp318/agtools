@@ -16,6 +16,8 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 8. **Weather-Smart Spray Timing (v2.1)**: Economic analysis of spray timing decisions
 9. **Yield Response & Economic Optimum Rates (v2.2)**: Calculate the most profitable fertilizer rate, not just max yield
 10. **Professional Desktop Interface (v2.2.1)**: Complete PyQt6 application with pest/disease identification screens, interactive charts, and professional UI
+11. **Offline Mode & Local Database (v2.3.0)**: Full offline operation with SQLite caching, automatic online/offline detection, and background sync
+12. **Settings & UI Polish (v2.4.0)**: Comprehensive settings screen, reusable widget library, loading states, toast notifications, and validation feedback
 
 ---
 
@@ -49,33 +51,45 @@ agtools/
 ├── frontend/                               # PyQt6 Desktop Application
 │   ├── main.py                             # Application entry point
 │   ├── app.py                              # QApplication setup
-│   ├── config.py                           # Settings management
+│   ├── config.py                           # Settings management (v2.4.0)
 │   ├── requirements.txt                    # Frontend dependencies (PyQt6, httpx, pyqtgraph)
 │   ├── api/                                # API client modules
-│   │   ├── client.py                       # Base HTTP client
+│   │   ├── client.py                       # Base HTTP client with offline support
 │   │   ├── yield_response_api.py           # Yield response endpoints
 │   │   ├── spray_api.py                    # Spray timing endpoints
 │   │   ├── pricing_api.py                  # Pricing endpoints
 │   │   ├── cost_optimizer_api.py           # Cost optimizer endpoints
-│   │   └── identification_api.py           # Pest/disease ID (NEW v2.2.1)
+│   │   └── identification_api.py           # Pest/disease ID
+│   ├── database/                           # Local database (NEW v2.3.0)
+│   │   └── local_db.py                     # SQLite caching for offline mode
+│   ├── core/                               # Core logic (NEW v2.3.0)
+│   │   ├── sync_manager.py                 # Online/offline detection & sync
+│   │   └── calculations/                   # Offline calculators
+│   │       ├── yield_response.py           # Offline EOR calculator
+│   │       └── spray_timing.py             # Offline spray evaluator
 │   ├── models/                             # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
 │   │   ├── pricing.py
 │   │   ├── cost_optimizer.py
-│   │   └── identification.py               # Pest/disease models (NEW v2.2.1)
+│   │   └── identification.py               # Pest/disease models
+│   ├── tests/                              # Frontend tests (NEW v2.4.0)
+│   │   └── test_phase9.py                  # Integration tests
 │   └── ui/
 │       ├── styles.py                       # Professional QSS theme
 │       ├── sidebar.py                      # Navigation sidebar
-│       ├── main_window.py                  # Main window layout
+│       ├── main_window.py                  # Main window with sync UI
+│       ├── widgets/                        # Reusable widgets (NEW v2.4.0)
+│       │   └── common.py                   # LoadingOverlay, StatusMessage, etc.
 │       └── screens/
 │           ├── dashboard.py                # Home screen with quick actions
 │           ├── yield_response.py           # Interactive yield curves
 │           ├── spray_timing.py             # Weather evaluation
 │           ├── cost_optimizer.py           # Tabbed cost analysis
 │           ├── pricing.py                  # Price management & alerts
-│           ├── pest_identification.py      # Pest ID screen (NEW v2.2.1)
-│           └── disease_identification.py   # Disease ID screen (NEW v2.2.1)
+│           ├── pest_identification.py      # Pest ID screen
+│           ├── disease_identification.py   # Disease ID screen
+│           └── settings.py                 # Settings screen (NEW v2.4.0)
 │
 ├── CHANGELOG.md                            # Development changelog
 ├── PROFESSIONAL_SYSTEM_GUIDE.md            # Complete documentation

@@ -33,7 +33,11 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
-**Version 2.2.1** adds **Pest & Disease Identification Screens** to the desktop application with professional UI for symptom-based identification, plus critical bug fixes for the yield response optimizer. The system now includes a complete PyQt6 desktop interface covering all major features.
+**Version 2.4.0** adds **Settings Screen & UI Polish** with comprehensive configuration options, reusable widget library, and offline mode support. The desktop application now includes 8 complete screens with professional loading states, validation feedback, and toast notifications.
+
+**Version 2.3.0** added **Offline Mode & Local Database** enabling full offline operation with SQLite caching, automatic online/offline detection, and background sync.
+
+**Version 2.2.1** added **Pest & Disease Identification Screens** to the desktop application with professional UI for symptom-based identification, plus critical bug fixes for the yield response optimizer.
 
 **Version 2.2** added **Yield Response & Economic Optimum Rate (EOR) Calculator** - calculate the most profitable fertilizer rates based on yield response curves and real-time prices. Stop leaving money in the field by over-applying or sacrificing yield by under-applying.
 
@@ -94,8 +98,10 @@ The desktop app provides a professional PyQt6 interface with:
 - Spray Timing Evaluator with weather conditions
 - Cost Optimizer with tabbed interface
 - Price Manager with supplier quotes and buy/wait analysis
-- **Pest Identification** with symptom checklists and confidence scoring (NEW in v2.2.1)
-- **Disease Identification** with weather conditions and management recommendations (NEW in v2.2.1)
+- **Pest Identification** with symptom checklists and confidence scoring
+- **Disease Identification** with weather conditions and management recommendations
+- **Settings** with 4 tabs: General preferences, API connection, data management, app info (NEW in v2.4.0)
+- **Offline Mode** with automatic fallback when API unavailable (NEW in v2.3.0)
 
 See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 
@@ -222,33 +228,45 @@ agtools/
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
 │   ├── app.py                        # QApplication setup
-│   ├── config.py                     # Settings management
+│   ├── config.py                     # Settings management (v2.4.0)
 │   ├── requirements.txt              # PyQt6, httpx, pyqtgraph
 │   ├── api/                          # API client modules
-│   │   ├── client.py                 # Base HTTP client
+│   │   ├── client.py                 # Base HTTP client with offline support
 │   │   ├── yield_response_api.py     # Yield response endpoints
 │   │   ├── spray_api.py              # Spray timing endpoints
 │   │   ├── pricing_api.py            # Pricing endpoints
 │   │   ├── cost_optimizer_api.py     # Cost optimizer endpoints
-│   │   └── identification_api.py     # Pest/disease identification (NEW v2.2.1)
+│   │   └── identification_api.py     # Pest/disease identification
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
 │   │   ├── pricing.py
 │   │   ├── cost_optimizer.py
-│   │   └── identification.py         # Pest/disease models (NEW v2.2.1)
+│   │   └── identification.py         # Pest/disease models
+│   ├── database/                     # Local database (NEW v2.3.0)
+│   │   └── local_db.py               # SQLite caching for offline mode
+│   ├── core/                         # Core logic (NEW v2.3.0)
+│   │   ├── sync_manager.py           # Online/offline detection & sync
+│   │   └── calculations/             # Offline calculators
+│   │       ├── yield_response.py     # Offline EOR calculator
+│   │       └── spray_timing.py       # Offline spray evaluator
+│   ├── tests/                        # Frontend tests (NEW v2.4.0)
+│   │   └── test_phase9.py            # Integration tests
 │   └── ui/
 │       ├── styles.py                 # Professional QSS theme
 │       ├── sidebar.py                # Navigation sidebar
-│       ├── main_window.py            # Main window layout
+│       ├── main_window.py            # Main window with sync UI
+│       ├── widgets/                  # Reusable widgets (NEW v2.4.0)
+│       │   └── common.py             # LoadingOverlay, StatusMessage, etc.
 │       └── screens/
 │           ├── dashboard.py          # Home screen
 │           ├── yield_response.py     # Yield calculator with charts
 │           ├── spray_timing.py       # Weather evaluation
 │           ├── cost_optimizer.py     # Tabbed cost analysis
 │           ├── pricing.py            # Price management & alerts
-│           ├── pest_identification.py    # Pest ID screen (NEW v2.2.1)
-│           └── disease_identification.py # Disease ID screen (NEW v2.2.1)
+│           ├── pest_identification.py    # Pest ID screen
+│           ├── disease_identification.py # Disease ID screen
+│           └── settings.py           # Settings screen (NEW v2.4.0)
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation

@@ -22,6 +22,8 @@ Think of AgTools as your **digital agronomist** that:
 5. **Tells You When to Spray** (v2.1) - Weather-smart timing to avoid wasted applications
 6. **Calculates Economic Optimum Rates** (v2.2) - Find the most PROFITABLE fertilizer rate, not just max yield
 7. **Professional Desktop Interface** (v2.2.1) - Full PyQt6 app with all features integrated
+8. **Works Offline** (v2.3.0) - Automatic fallback to local database when API unavailable
+9. **Configurable Settings** (v2.4.0) - Full settings screen with preferences, API config, and data management
 
 ---
 
@@ -133,10 +135,11 @@ This opens the **professional desktop application** with:
 - **Spray Timing** - Weather evaluation with spray/wait recommendations
 - **Cost Optimizer** - Tabbed interface for fertilizer, irrigation, labor analysis
 - **Price Manager** - Your supplier quotes, buy/wait analysis, alerts
-- **Pest Identification** (NEW v2.2.1) - Symptom checklist with 20 pest symptoms, severity ratings, confidence scoring
-- **Disease Identification** (NEW v2.2.1) - Weather conditions input, management recommendations, detailed disease cards
+- **Pest Identification** - Symptom checklist with 20 pest symptoms, severity ratings, confidence scoring
+- **Disease Identification** - Weather conditions input, management recommendations, detailed disease cards
+- **Settings** (NEW v2.4.0) - 4-tab configuration: General preferences, API connection, data management, about
 
-**Note:** The desktop app requires the backend API to be running for full functionality. If the API isn't running, the app will show "Offline" status and some features won't work.
+**Offline Mode (NEW v2.3.0):** The desktop app now works offline! If the API isn't running, the app automatically switches to offline mode using local SQLite cache. You'll see "Offline" status in the toolbar, and features like yield calculations and spray timing still work. Data syncs automatically when connection is restored.
 
 ---
 
