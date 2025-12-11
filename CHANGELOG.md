@@ -6,9 +6,69 @@
 
 ## Current Version: 2.4.0 (Released December 11, 2025)
 
-### Latest Session: December 11, 2025 @ 8:05 AM CST
+### Latest Session: December 11, 2025 @ 12:30 PM CST
 
-#### Features Completed This Session
+#### Next Up: v2.5.0 - John Deere Operations Center Integration
+
+**Status:** 🔄 PLANNING COMPLETE - Ready for implementation
+
+**Overview:** Import field data, yield maps, and application history from John Deere Operations Center API to eliminate manual data entry and enable precision zone-based recommendations.
+
+**Implementation Phases:**
+
+1. **Phase 1: JD API Client & Authentication** (4-6 hours)
+   - Create `backend/services/john_deere_service.py` - OAuth 2.0 client
+   - Token management with secure storage
+   - Connection testing and error handling
+   - Add JD tab to Settings screen for auth configuration
+
+2. **Phase 2: Field Boundary Sync** (4-6 hours)
+   - Import field boundaries (GeoJSON) from JD Ops Center
+   - Auto-populate farm/field hierarchy
+   - Add `jd_field_id`, `jd_org_id`, `last_jd_sync` columns to database
+   - Sync status indicators in UI
+
+3. **Phase 3: Yield/Harvest Data Import** (8-10 hours)
+   - Import historical yield maps from harvest operations
+   - Create `harvest_data` table with zone-level yields
+   - Calibrate yield response models with actual field outcomes
+   - Enable variable rate recommendations by yield zone
+
+4. **Phase 4: Application History Tracking** (6-8 hours)
+   - Import spray/fertilizer application records
+   - Link to AgTools recommendations for ROI validation
+   - Compliance audit trail (products, rates, dates, areas)
+   - Resistance management verification
+
+**Key JD API Endpoints:**
+- `GET /organizations/{id}/fields` - Farm/field hierarchy
+- `GET /fields/{id}/boundaries` - Field geometry (GeoJSON)
+- `GET /fields/{id}/operations` - Applications, harvest, tillage
+- Equipment APIs for machine hours and efficiency
+
+**Database Changes Required:**
+- Add to `fields` table: `jd_field_id`, `jd_org_id`, `last_jd_sync`
+- New table: `harvest_data` (field_id, zone_geometry, yield, moisture, harvest_date)
+- New table: `application_history` (field_id, jd_operation_id, product, rate, date, area)
+- New table: `jd_auth_tokens` (user_id, access_token, refresh_token, expires_at)
+
+**Value Delivered:**
+- Eliminate manual field/boundary entry
+- Real historical yield data for model calibration
+- Zone-specific recommendations (vs field-average)
+- Application compliance audit trail
+- ROI validation (recommended vs actual outcomes)
+
+**Prerequisites:**
+- John Deere Developer Account (https://developer.deere.com)
+- API credentials (client_id, client_secret)
+- User connects their JD Ops Center account via OAuth
+
+---
+
+### Previous Session: December 11, 2025 @ 8:05 AM CST
+
+#### Features Completed That Session
 
 1. **PyQt6 Frontend - Phase 9: Polish & Testing** ✅ COMPLETE
    - **New Files Created:**
@@ -789,14 +849,19 @@ AgTools v2.3.0
 
 ## Upcoming Features (Roadmap)
 
-- [ ] Field-level precision / zone management
+- [ ] **John Deere Operations Center Integration** ← **UP NEXT (v2.5)**
+  - [ ] Phase 1: JD API Client & OAuth Authentication
+  - [ ] Phase 2: Field Boundary Sync
+  - [ ] Phase 3: Yield/Harvest Data Import
+  - [ ] Phase 4: Application History Tracking
+- [ ] Field-level precision / zone management (enabled by JD yield zones)
 - [x] ~~Input-to-yield response curves (economic optimum rates)~~ **DONE v2.2**
 - [x] ~~Offline mode & local database~~ **DONE v2.3**
 - [x] ~~Phase 9: Polish & Testing~~ **DONE v2.4** (PyQt6 frontend complete!)
 - [ ] Custom vs. hire equipment decision engine
 - [ ] Carbon credit / sustainability ROI calculator
 - [ ] Mobile app / frontend web interface
-- [ ] Precision ag platform imports (Climate, John Deere, etc.)
+- [ ] Climate FieldView integration (future)
 
 ---
 
