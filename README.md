@@ -33,6 +33,8 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
+**Version 2.5.0** (Coming Soon) will add **John Deere Operations Center Integration** - import field boundaries, yield maps, and application history directly from JD Ops Center for precision zone-based recommendations.
+
 **Version 2.4.0** adds **Settings Screen & UI Polish** with comprehensive configuration options, reusable widget library, and offline mode support. The desktop application now includes 8 complete screens with professional loading states, validation feedback, and toast notifications.
 
 **Version 2.3.0** added **Offline Mode & Local Database** enabling full offline operation with SQLite caching, automatic online/offline detection, and background sync.
@@ -171,6 +173,13 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
    - **Rate Scenario Comparison**: Compare profitability of different application rates
    - **5 Response Models**: Quadratic, quadratic-plateau, linear-plateau, Mitscherlich, square-root
    - **Soil Test Adjustments**: Rates adjusted based on soil test levels (very low to very high)
+
+10. **John Deere Operations Center Integration (COMING in v2.5)**
+    - **Field Boundary Import**: Auto-populate fields from JD Ops Center account
+    - **Yield Map Integration**: Historical yield data by zone for precision recommendations
+    - **Application History**: Track what was actually applied for compliance & ROI validation
+    - **Zone-Specific Recommendations**: Variable rate suggestions based on yield zones
+    - **OAuth Authentication**: Secure connection to your JD account
 
 ## 💰 Business Value
 

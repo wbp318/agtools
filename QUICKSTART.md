@@ -24,6 +24,7 @@ Think of AgTools as your **digital agronomist** that:
 7. **Professional Desktop Interface** (v2.2.1) - Full PyQt6 app with all features integrated
 8. **Works Offline** (v2.3.0) - Automatic fallback to local database when API unavailable
 9. **Configurable Settings** (v2.4.0) - Full settings screen with preferences, API config, and data management
+10. **John Deere Ops Center Integration** (v2.5.0 - Coming Soon) - Import fields, yield maps, and application history from JD
 
 ---
 
@@ -1032,10 +1033,31 @@ A printable table you can take to the field:
 6. Where are my biggest opportunities to save money?
 7. **Am I getting good prices from my supplier?** (v2.1)
 8. **Is now a good time to spray?** (v2.1)
-9. **What's my most profitable fertilizer rate?** (NEW v2.2)
-10. **How should I adjust rates when prices change?** (NEW v2.2)
+9. **What's my most profitable fertilizer rate?** (v2.2)
+10. **How should I adjust rates when prices change?** (v2.2)
+11. **What did my fields actually yield last year?** (v2.5 - Coming Soon)
+12. **What was actually applied vs. recommended?** (v2.5 - Coming Soon)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
+
+---
+
+## 🚜 John Deere Operations Center Integration (Coming in v2.5)
+
+If you use John Deere Operations Center, v2.5 will let you:
+
+- **Import your fields automatically** - No more manual boundary entry
+- **See actual yield maps** - Historical yield data by zone
+- **Track what was applied** - Compare recommendations to actual applications
+- **Get zone-specific recommendations** - Variable rate suggestions based on yield history
+- **Validate ROI** - See if recommendations actually improved outcomes
+
+**Prerequisites for v2.5:**
+1. John Deere Developer Account (free) - https://developer.deere.com
+2. API credentials (client_id, client_secret)
+3. Your JD Ops Center account with field data
+
+Stay tuned - this feature is in active development!
 
 ---
 

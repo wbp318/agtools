@@ -18,6 +18,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 10. **Professional Desktop Interface (v2.2.1)**: Complete PyQt6 application with pest/disease identification screens, interactive charts, and professional UI
 11. **Offline Mode & Local Database (v2.3.0)**: Full offline operation with SQLite caching, automatic online/offline detection, and background sync
 12. **Settings & UI Polish (v2.4.0)**: Comprehensive settings screen, reusable widget library, loading states, toast notifications, and validation feedback
+13. **John Deere Operations Center Integration (v2.5.0 - Coming Soon)**: Import field boundaries, yield maps, and application history from JD Ops Center for precision zone-based recommendations
 
 ---
 
@@ -2045,6 +2046,7 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.2.1 | Dec 2025 | Pest/disease identification screens, yield response bug fixes, complete smoke tests |
 | 2.3.0 | Dec 2025 | Offline mode with SQLite caching, sync manager, offline calculators |
 | 2.4.0 | Dec 2025 | Settings screen (4 tabs), common widget library (7 widgets), integration tests |
+| 2.5.0 | Coming | John Deere Ops Center integration (field boundaries, yield maps, application history) |
 
 ---
 
