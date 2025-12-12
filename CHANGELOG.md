@@ -4,9 +4,22 @@
 
 ---
 
-## Current Version: 2.5.0 (In Development - December 11, 2025)
+## Current Version: 2.5.0 (In Development - December 12, 2025)
 
-### Latest Session: December 11, 2025 @ Evening
+### Latest Session: December 12, 2025
+
+#### v2.5.0 - Farm Operations Manager: Continuing Development
+
+**Status:** Phase 1 Complete, Phase 2 Planning
+
+**Session Goals:**
+- [ ] Review and plan Phase 2: Task Management Core
+- [ ] Define task data models and database schema
+- [ ] Create task management endpoints
+
+---
+
+### Previous Session: December 11, 2025 @ Evening
 
 #### v2.5.0 - Farm Operations Manager: Phase 1 Complete
 
@@ -842,9 +855,9 @@ python main.py
 ## Architecture Overview
 
 ```
-AgTools v2.3.0
+AgTools v2.5.0
 ├── backend/
-│   ├── main.py                           # FastAPI app (1800+ lines, 42+ endpoints)
+│   ├── main.py                           # FastAPI app (1800+ lines, 59+ endpoints)
 │   ├── services/
 │   │   ├── labor_optimizer.py            # Labor cost optimization
 │   │   ├── application_cost_optimizer.py # Fertilizer/pesticide costs
@@ -852,15 +865,22 @@ AgTools v2.3.0
 │   │   ├── input_cost_optimizer.py       # Master cost integration
 │   │   ├── pricing_service.py            # v2.1 - Dynamic pricing
 │   │   ├── spray_timing_optimizer.py     # v2.1 - Weather-smart spraying
-│   │   └── yield_response_optimizer.py   # v2.2 - Economic optimum rates
+│   │   ├── yield_response_optimizer.py   # v2.2 - Economic optimum rates
+│   │   ├── auth_service.py               # v2.5 - JWT authentication
+│   │   └── user_service.py               # v2.5 - User & crew management
+│   ├── middleware/
+│   │   └── auth_middleware.py            # v2.5 - Auth middleware
 │   └── models/
 ├── frontend/                             # PyQt6 Desktop Application
 │   ├── main.py                           # Entry point
-│   ├── app.py                            # QApplication setup
+│   ├── app.py                            # QApplication setup (with login flow)
 │   ├── config.py                         # Settings management
 │   ├── requirements.txt                  # PyQt6, httpx, pyqtgraph
 │   ├── api/                              # API client modules (with offline support)
-│   │   └── client.py                     # v2.3 - Cache/offline fallback
+│   │   ├── client.py                     # v2.3 - Cache/offline fallback
+│   │   ├── auth_api.py                   # v2.5 - Authentication API
+│   │   ├── user_api.py                   # v2.5 - User management API
+│   │   └── crew_api.py                   # v2.5 - Crew management API
 │   ├── models/                           # Data classes
 │   ├── database/                         # v2.3 - Local SQLite cache
 │   │   └── local_db.py                   # SQLite database manager
@@ -881,7 +901,10 @@ AgTools v2.3.0
 │       │   ├── pricing.py                # Phase 6 - Price management
 │       │   ├── pest_identification.py    # Phase 7 - Pest ID
 │       │   ├── disease_identification.py # Phase 7 - Disease ID
-│       │   └── settings.py               # Phase 9 - Settings & preferences
+│       │   ├── settings.py               # Phase 9 - Settings & preferences
+│       │   ├── login.py                  # v2.5 - Login screen
+│       │   ├── user_management.py        # v2.5 - Admin user management
+│       │   └── crew_management.py        # v2.5 - Crew/team management
 │       ├── widgets/                      # Reusable components
 │       │   └── common.py                 # Phase 9 - Loading, validation, toasts
 │       └── tests/
@@ -889,7 +912,9 @@ AgTools v2.3.0
 ├── database/
 │   ├── schema.sql
 │   ├── chemical_database.py
-│   └── seed_data.py
+│   ├── seed_data.py
+│   └── migrations/
+│       └── 001_auth_system.sql           # v2.5 - Auth tables
 └── docs/
 ```
 
@@ -907,19 +932,54 @@ AgTools v2.3.0
 | Pricing Service | `backend/services/pricing_service.py` | ~650 | 9 |
 | Spray Timing | `backend/services/spray_timing_optimizer.py` | ~750 | 5 |
 | Yield Response | `backend/services/yield_response_optimizer.py` | ~850 | 7 |
-| API Endpoints | `backend/main.py` | ~1800 | 42+ |
+| **Auth Service** | `backend/services/auth_service.py` | ~350 | 6 |
+| **User Service** | `backend/services/user_service.py` | ~1050 | 11 |
+| API Endpoints | `backend/main.py` | ~2000 | 59+ |
 
-### Frontend (v2.4 - Complete)
+### Frontend (v2.5)
 | Feature | File Path | Lines |
 |---------|-----------|-------|
-| **Local Database** | `frontend/database/local_db.py` | ~550 |
-| **Sync Manager** | `frontend/core/sync_manager.py` | ~450 |
-| **Offline Yield Calc** | `frontend/core/calculations/yield_response.py` | ~450 |
-| **Offline Spray Calc** | `frontend/core/calculations/spray_timing.py` | ~400 |
-| **Settings Screen** | `frontend/ui/screens/settings.py` | ~500 |
-| **Common Widgets** | `frontend/ui/widgets/common.py` | ~400 |
+| **Login Screen** | `frontend/ui/screens/login.py` | ~280 |
+| **User Management** | `frontend/ui/screens/user_management.py` | ~400 |
+| **Crew Management** | `frontend/ui/screens/crew_management.py` | ~420 |
+| **Auth API** | `frontend/api/auth_api.py` | ~220 |
+| **User API** | `frontend/api/user_api.py` | ~140 |
+| **Crew API** | `frontend/api/crew_api.py` | ~170 |
+| Local Database | `frontend/database/local_db.py` | ~550 |
+| Sync Manager | `frontend/core/sync_manager.py` | ~450 |
+| Offline Yield Calc | `frontend/core/calculations/yield_response.py` | ~450 |
+| Offline Spray Calc | `frontend/core/calculations/spray_timing.py` | ~400 |
+| Settings Screen | `frontend/ui/screens/settings.py` | ~500 |
+| Common Widgets | `frontend/ui/widgets/common.py` | ~400 |
 | API Client | `frontend/api/client.py` | ~410 |
 | Main Window | `frontend/ui/main_window.py` | ~490 |
+
+### v2.5 New Endpoint Summary
+
+**Authentication (`/api/v1/auth/`):**
+- `POST /login` - Login and get tokens
+- `POST /logout` - Logout and invalidate session
+- `POST /refresh` - Refresh access token
+- `GET /me` - Get current user info
+- `PUT /me` - Update own profile
+- `POST /change-password` - Change own password
+
+**User Management (`/api/v1/users/`):**
+- `GET /` - List users with filters
+- `POST /` - Create user (admin only)
+- `GET /{id}` - Get user details
+- `PUT /{id}` - Update user (admin only)
+- `DELETE /{id}` - Deactivate user (admin only)
+
+**Crew Management (`/api/v1/crews/`):**
+- `GET /` - List crews
+- `POST /` - Create crew (admin only)
+- `GET /{id}` - Get crew details
+- `PUT /{id}` - Update crew (admin only)
+- `GET /{id}/members` - Get crew members
+- `POST /{id}/members/{user_id}` - Add member
+- `DELETE /{id}/members/{user_id}` - Remove member
+- `GET /users/{id}/crews` - Get user's crews
 
 ### v2.2 New Endpoint Summary
 
@@ -956,11 +1016,17 @@ AgTools v2.3.0
 
 ## Upcoming Features (Roadmap)
 
-- [ ] **John Deere Operations Center Integration** ← **UP NEXT (v2.5)**
-  - [ ] Phase 1: JD API Client & OAuth Authentication
-  - [ ] Phase 2: Field Boundary Sync
-  - [ ] Phase 3: Yield/Harvest Data Import
-  - [ ] Phase 4: Application History Tracking
+- [ ] **Farm Operations Manager (v2.5)** ← **IN PROGRESS**
+  - [x] Phase 1: Multi-User Authentication System **DONE**
+  - [ ] Phase 2: Task Management Core ← **UP NEXT**
+  - [ ] Phase 3: Field Operations & Logging
+  - [ ] Phase 4: Equipment & Inventory Tracking
+  - [ ] Phase 5: Reporting & Analytics Dashboard
+- [ ] **John Deere Operations Center Integration** (v2.6 - requires JD Developer Account approval)
+  - [ ] JD API Client & OAuth Authentication
+  - [ ] Field Boundary Sync
+  - [ ] Yield/Harvest Data Import
+  - [ ] Application History Tracking
 - [ ] Field-level precision / zone management (enabled by JD yield zones)
 - [x] ~~Input-to-yield response curves (economic optimum rates)~~ **DONE v2.2**
 - [x] ~~Offline mode & local database~~ **DONE v2.3**
