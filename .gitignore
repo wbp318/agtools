@@ -128,6 +128,9 @@ test_*.csv
 .Trashes
 ehthumbs.db
 Thumbs.db
+nul
+NUL
+desktop.ini
 
 # API keys and sensitive information
 config.ini
@@ -143,6 +146,7 @@ secrets.yaml
 *.db
 *.sqlite
 *.sqlite3
+agtools.db
 
 # Temporary files
 *.tmp
@@ -158,3 +162,7 @@ package-lock.json
 output/
 reports/
 exports/
+
+# Frontend settings/cache
+frontend/agtools_settings.json
+frontend/*.db

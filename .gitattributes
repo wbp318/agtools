@@ -79,10 +79,16 @@ LICENSE linguist-documentation
 database/* linguist-vendored=false
 backend/* linguist-vendored=false
 backend/services/* linguist-vendored=false
+backend/middleware/* linguist-vendored=false
+frontend/* linguist-vendored=false
+frontend/ui/* linguist-vendored=false
+frontend/api/* linguist-vendored=false
 src/* linguist-vendored=false
 
 # Python is the primary language
 *.py linguist-detectable=true
 
-# Ensure service modules are counted
+# Ensure service and middleware modules are counted
 backend/services/*.py linguist-detectable=true
+backend/middleware/*.py linguist-detectable=true
+frontend/**/*.py linguist-detectable=true
