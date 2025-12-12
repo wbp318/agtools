@@ -21,6 +21,7 @@ from api.pricing_api import PricingAPI, get_pricing_api
 from api.cost_optimizer_api import CostOptimizerAPI, get_cost_optimizer_api
 from api.identification_api import IdentificationAPI, get_identification_api
 from api.auth_api import AuthAPI, get_auth_api, AuthToken, UserInfo, LoginResult
+from api.task_api import TaskAPI, TaskInfo, get_task_api
 
 __all__ = [
     # Base client
@@ -54,4 +55,8 @@ __all__ = [
     "AuthToken",
     "UserInfo",
     "LoginResult",
+    # Task Management
+    "TaskAPI",
+    "TaskInfo",
+    "get_task_api",
 ]

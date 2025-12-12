@@ -15,6 +15,7 @@ from ui.screens.settings import SettingsScreen
 from ui.screens.login import LoginScreen
 from ui.screens.user_management import UserManagementScreen
 from ui.screens.crew_management import CrewManagementScreen
+from ui.screens.task_management import TaskManagementScreen
 
 __all__ = [
     "DashboardScreen",
@@ -28,4 +29,5 @@ __all__ = [
     "LoginScreen",
     "UserManagementScreen",
     "CrewManagementScreen",
+    "TaskManagementScreen",
 ]

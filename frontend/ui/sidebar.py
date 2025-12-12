@@ -117,6 +117,10 @@ class Sidebar(QFrame):
         # Dashboard
         self._add_nav_item(nav_layout, "Dashboard", icon="\u2302")  # House icon
 
+        # Operations Section (Phase 2.5)
+        nav_layout.addWidget(SectionHeader("Operations"))
+        self._add_nav_item(nav_layout, "Tasks", icon="\u2611")  # Checkbox
+
         # Identify Section
         nav_layout.addWidget(SectionHeader("Identify"))
         self._add_nav_item(nav_layout, "Pests", icon="\u2618")  # Bug-like
@@ -146,7 +150,7 @@ class Sidebar(QFrame):
         layout.addWidget(scroll, 1)
 
         # Version info at bottom
-        version_label = QLabel("v2.2.0")
+        version_label = QLabel("v2.5.0")
         version_label.setStyleSheet(f"""
             color: {COLORS['text_disabled']};
             padding: 8px 16px;

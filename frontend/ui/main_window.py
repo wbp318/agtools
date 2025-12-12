@@ -27,6 +27,7 @@ from ui.screens.disease_identification import DiseaseIdentificationScreen
 from ui.screens.settings import SettingsScreen
 from ui.screens.user_management import UserManagementScreen
 from ui.screens.crew_management import CrewManagementScreen
+from ui.screens.task_management import TaskManagementScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -410,6 +411,10 @@ class MainWindow(QMainWindow):
         settings_screen = SettingsScreen()
         self._add_screen("settings", settings_screen)
 
+        # Task Management Screen (Phase 2.5) - All users
+        task_mgmt_screen = TaskManagementScreen(current_user=self._current_user)
+        self._add_screen("tasks", task_mgmt_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -483,6 +488,7 @@ class MainWindow(QMainWindow):
             # Update page title
             titles = {
                 "dashboard": "Dashboard",
+                "tasks": "Task Management",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",
