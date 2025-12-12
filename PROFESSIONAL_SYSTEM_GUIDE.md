@@ -18,7 +18,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 10. **Professional Desktop Interface (v2.2.1)**: Complete PyQt6 application with pest/disease identification screens, interactive charts, and professional UI
 11. **Offline Mode & Local Database (v2.3.0)**: Full offline operation with SQLite caching, automatic online/offline detection, and background sync
 12. **Settings & UI Polish (v2.4.0)**: Comprehensive settings screen, reusable widget library, loading states, toast notifications, and validation feedback
-13. **John Deere Operations Center Integration (v2.5.0 - Coming Soon)**: Import field boundaries, yield maps, and application history from JD Ops Center for precision zone-based recommendations
+13. **Farm Operations Manager (v2.5.0)**: Multi-user authentication with role-based access control (admin, manager, crew), user management, and crew/team organization - the foundation for task management and irrigation scheduling
 
 ---
 
@@ -47,7 +47,11 @@ agtools/
 │       ├── input_cost_optimizer.py         # Unified cost analysis (v2.0)
 │       ├── pricing_service.py              # Real-time pricing (v2.1)
 │       ├── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
-│       └── yield_response_optimizer.py     # Economic optimum rates (v2.2)
+│       ├── yield_response_optimizer.py     # Economic optimum rates (v2.2)
+│       ├── auth_service.py                 # JWT authentication (v2.5)
+│       └── user_service.py                 # User & crew management (v2.5)
+│   └── middleware/
+│       └── auth_middleware.py              # Protected routes (v2.5)
 │
 ├── frontend/                               # PyQt6 Desktop Application
 │   ├── main.py                             # Application entry point

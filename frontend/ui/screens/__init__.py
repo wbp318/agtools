@@ -12,6 +12,9 @@ from ui.screens.pricing import PricingScreen
 from ui.screens.pest_identification import PestIdentificationScreen
 from ui.screens.disease_identification import DiseaseIdentificationScreen
 from ui.screens.settings import SettingsScreen
+from ui.screens.login import LoginScreen
+from ui.screens.user_management import UserManagementScreen
+from ui.screens.crew_management import CrewManagementScreen
 
 __all__ = [
     "DashboardScreen",
@@ -22,4 +25,7 @@ __all__ = [
     "PestIdentificationScreen",
     "DiseaseIdentificationScreen",
     "SettingsScreen",
+    "LoginScreen",
+    "UserManagementScreen",
+    "CrewManagementScreen",
 ]

@@ -4,13 +4,120 @@
 
 ---
 
-## Current Version: 2.4.0 (Released December 11, 2025)
+## Current Version: 2.5.0 (In Development - December 11, 2025)
 
-### Latest Session: December 11, 2025 @ 12:30 PM CST
+### Latest Session: December 11, 2025 @ Evening
 
-#### Next Up: v2.5.0 - John Deere Operations Center Integration
+#### v2.5.0 - Farm Operations Manager: Phase 1 Complete
 
-**Status:** 🔄 PLANNING COMPLETE - Ready for implementation
+**Status:** ✅ Phase 1 (User & Auth System) COMPLETE
+
+**What Was Built:**
+
+1. **Multi-User Authentication System** ✅ COMPLETE
+   - JWT-based authentication with 24-hour access tokens
+   - Bcrypt password hashing (secure, Python 3.13 compatible)
+   - Role-based access control (admin, manager, crew)
+   - Session management with token storage
+   - Audit logging for security events
+
+2. **User Management** ✅ COMPLETE
+   - Create, edit, deactivate users (admin only)
+   - User listing with role and status filters
+   - Password management (change own password)
+   - Profile updates
+
+3. **Crew/Team Management** ✅ COMPLETE
+   - Create and manage crews/teams
+   - Assign managers to crews
+   - Add/remove crew members
+   - View crew membership
+
+4. **Backend Changes:**
+   - **New Files:**
+     - `backend/services/auth_service.py` (~350 lines)
+     - `backend/services/user_service.py` (~1050 lines)
+     - `backend/middleware/auth_middleware.py` (~170 lines)
+     - `database/migrations/001_auth_system.sql`
+   - **Modified:**
+     - `backend/main.py` - Added 17 new endpoints
+     - `backend/requirements.txt` - Added auth dependencies
+
+5. **Frontend Changes:**
+   - **New Files:**
+     - `frontend/ui/screens/login.py` (~280 lines) - Login screen
+     - `frontend/ui/screens/user_management.py` (~400 lines) - Admin user mgmt
+     - `frontend/ui/screens/crew_management.py` (~420 lines) - Crew mgmt
+     - `frontend/api/auth_api.py` (~220 lines)
+     - `frontend/api/user_api.py` (~140 lines)
+     - `frontend/api/crew_api.py` (~170 lines)
+   - **Modified:**
+     - `frontend/app.py` - Login flow integration
+     - `frontend/main.py` - Uses new start() method
+     - `frontend/ui/main_window.py` - User menu, logout, admin screens
+     - `frontend/api/client.py` - Auth token support
+     - `frontend/api/__init__.py` - New exports
+     - `frontend/ui/screens/__init__.py` - New screen exports
+
+**New API Endpoints (17 total):**
+```
+Authentication:
+  POST /api/v1/auth/login          - Login and get tokens
+  POST /api/v1/auth/logout         - Logout and invalidate session
+  POST /api/v1/auth/refresh        - Refresh access token
+  GET  /api/v1/auth/me             - Get current user info
+  PUT  /api/v1/auth/me             - Update own profile
+  POST /api/v1/auth/change-password - Change own password
+
+User Management (admin/manager):
+  GET  /api/v1/users               - List users with filters
+  POST /api/v1/users               - Create user (admin)
+  GET  /api/v1/users/{id}          - Get user details
+  PUT  /api/v1/users/{id}          - Update user (admin)
+  DELETE /api/v1/users/{id}        - Deactivate user (admin)
+
+Crew Management:
+  GET  /api/v1/crews               - List crews
+  POST /api/v1/crews               - Create crew (admin)
+  GET  /api/v1/crews/{id}          - Get crew details
+  PUT  /api/v1/crews/{id}          - Update crew (admin)
+  GET  /api/v1/crews/{id}/members  - Get crew members
+  POST /api/v1/crews/{id}/members/{user_id} - Add member
+  DELETE /api/v1/crews/{id}/members/{user_id} - Remove member
+  GET  /api/v1/users/{id}/crews    - Get user's crews
+```
+
+**Default Admin Account:**
+- Username: `admin`
+- Password: `admin123`
+- **IMPORTANT:** Change this password immediately after first login!
+
+**To Test:**
+```bash
+# Start backend
+cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+
+# Start frontend (in another terminal)
+cd frontend
+python main.py
+# Login with admin / admin123
+```
+
+**Next Up: Phase 2 - Task Management Core**
+- Projects and task creation
+- Task assignments and dependencies
+- Status workflows
+- Time tracking
+
+---
+
+### Previous Session: December 11, 2025 @ 12:30 PM CST
+
+#### Pivoted from John Deere Integration to Farm Operations Manager
+
+**Reason:** John Deere Developer Account requires business application/approval process
 
 **Overview:** Import field data, yield maps, and application history from John Deere Operations Center API to eliminate manual data entry and enable precision zone-based recommendations.
 

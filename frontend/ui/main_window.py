@@ -25,7 +25,10 @@ from ui.screens.pricing import PricingScreen
 from ui.screens.pest_identification import PestIdentificationScreen
 from ui.screens.disease_identification import DiseaseIdentificationScreen
 from ui.screens.settings import SettingsScreen
+from ui.screens.user_management import UserManagementScreen
+from ui.screens.crew_management import CrewManagementScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
+from api.auth_api import UserInfo
 
 
 class SyncStatusWidget(QFrame):
@@ -171,6 +174,88 @@ class PlaceholderScreen(QWidget):
         layout.addWidget(coming_soon)
 
 
+class UserMenuWidget(QFrame):
+    """Widget showing current user and logout button."""
+
+    logout_clicked = None  # Will be set externally
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._user: UserInfo = None
+        self._setup_ui()
+
+    def _setup_ui(self) -> None:
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(8)
+
+        # User icon
+        self._user_icon = QLabel("\u263A")  # Smiley face
+        self._user_icon.setStyleSheet(f"font-size: 14pt; color: {COLORS['primary']};")
+        layout.addWidget(self._user_icon)
+
+        # Username
+        self._username_label = QLabel("")
+        self._username_label.setStyleSheet(f"color: {COLORS['text_primary']}; font-size: 10pt;")
+        layout.addWidget(self._username_label)
+
+        # Role badge
+        self._role_label = QLabel("")
+        self._role_label.setStyleSheet(f"""
+            color: white;
+            font-size: 8pt;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background-color: {COLORS['primary']};
+        """)
+        layout.addWidget(self._role_label)
+
+        # Logout button
+        self._logout_btn = QPushButton("Logout")
+        self._logout_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {COLORS['text_secondary']};
+                border: 1px solid {COLORS['border']};
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 9pt;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['error']}20;
+                color: {COLORS['error']};
+                border-color: {COLORS['error']};
+            }}
+        """)
+        layout.addWidget(self._logout_btn)
+
+    def set_user(self, user: UserInfo) -> None:
+        """Set the current user."""
+        self._user = user
+        if user:
+            self._username_label.setText(user.full_name)
+            self._role_label.setText(user.role.upper())
+
+            # Color code by role
+            role_colors = {
+                "admin": COLORS['error'],
+                "manager": "#1976d2",
+                "crew": COLORS['primary']
+            }
+            color = role_colors.get(user.role, COLORS['primary'])
+            self._role_label.setStyleSheet(f"""
+                color: white;
+                font-size: 8pt;
+                padding: 2px 6px;
+                border-radius: 3px;
+                background-color: {color};
+            """)
+
+    @property
+    def logout_button(self) -> QPushButton:
+        return self._logout_btn
+
+
 class MainWindow(QMainWindow):
     """
     Main application window.
@@ -179,12 +264,13 @@ class MainWindow(QMainWindow):
     Integrates with SyncManager for offline mode support.
     """
 
-    def __init__(self):
+    def __init__(self, current_user: UserInfo = None):
         super().__init__()
         self._settings = get_settings()
         self._is_online = False
         self._screens: dict[str, QWidget] = {}
         self._sync_manager = get_sync_manager()
+        self._current_user = current_user
 
         self._setup_window()
         self._setup_ui()
@@ -261,6 +347,13 @@ class MainWindow(QMainWindow):
         self._status_indicator = StatusIndicator()
         top_layout.addWidget(self._status_indicator)
 
+        # User menu
+        self._user_menu = UserMenuWidget()
+        if self._current_user:
+            self._user_menu.set_user(self._current_user)
+        self._user_menu.logout_button.clicked.connect(self._on_logout_clicked)
+        top_layout.addWidget(self._user_menu)
+
         content_layout.addWidget(top_bar)
 
         # Stacked widget for screens
@@ -316,6 +409,17 @@ class MainWindow(QMainWindow):
         # Settings Screen (Phase 9)
         settings_screen = SettingsScreen()
         self._add_screen("settings", settings_screen)
+
+        # Admin Screens (only show for admin/manager)
+        if self._current_user and self._current_user.role in ["admin", "manager"]:
+            # User Management (admin only)
+            if self._current_user.role == "admin":
+                user_mgmt_screen = UserManagementScreen()
+                self._add_screen("users", user_mgmt_screen)
+
+            # Crew Management
+            crew_mgmt_screen = CrewManagementScreen()
+            self._add_screen("crews", crew_mgmt_screen)
 
         # Placeholder screens for other features
         placeholders = [
@@ -387,6 +491,8 @@ class MainWindow(QMainWindow):
                 "pricing": "Price Manager",
                 "yield": "Yield Response Calculator",
                 "settings": "Settings",
+                "users": "User Management",
+                "crews": "Crew Management",
             }
             self._page_title.setText(titles.get(nav_id, nav_id.title()))
 
@@ -474,6 +580,37 @@ class MainWindow(QMainWindow):
     def is_online(self) -> bool:
         """Check if currently online."""
         return self._is_online
+
+    def _on_logout_clicked(self) -> None:
+        """Handle logout button click."""
+        reply = QMessageBox.question(
+            self,
+            "Confirm Logout",
+            "Are you sure you want to logout?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            # Clear auth token
+            from api.auth_api import get_auth_api
+            from api.client import get_api_client
+
+            auth_api = get_auth_api()
+            auth_api.logout()
+
+            # Clear settings
+            self._settings.set("auth_token", "")
+            self._settings.set("refresh_token", "")
+            self._settings.save()
+
+            # Close this window - app.py will show login again
+            self.close()
+
+    def set_current_user(self, user: UserInfo) -> None:
+        """Set the current logged in user."""
+        self._current_user = user
+        if hasattr(self, '_user_menu'):
+            self._user_menu.set_user(user)
 
     def closeEvent(self, event) -> None:
         """Handle window close event."""

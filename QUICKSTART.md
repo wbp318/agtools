@@ -24,7 +24,7 @@ Think of AgTools as your **digital agronomist** that:
 7. **Professional Desktop Interface** (v2.2.1) - Full PyQt6 app with all features integrated
 8. **Works Offline** (v2.3.0) - Automatic fallback to local database when API unavailable
 9. **Configurable Settings** (v2.4.0) - Full settings screen with preferences, API config, and data management
-10. **John Deere Ops Center Integration** (v2.5.0 - Coming Soon) - Import fields, yield maps, and application history from JD
+10. **Multi-User Farm Operations** (v2.5.0) - Login system with roles (admin, manager, crew), user management, and team/crew organization
 
 ---
 

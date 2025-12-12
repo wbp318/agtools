@@ -20,6 +20,7 @@ from api.spray_api import SprayTimingAPI, get_spray_timing_api
 from api.pricing_api import PricingAPI, get_pricing_api
 from api.cost_optimizer_api import CostOptimizerAPI, get_cost_optimizer_api
 from api.identification_api import IdentificationAPI, get_identification_api
+from api.auth_api import AuthAPI, get_auth_api, AuthToken, UserInfo, LoginResult
 
 __all__ = [
     # Base client
@@ -47,4 +48,10 @@ __all__ = [
     # Identification
     "IdentificationAPI",
     "get_identification_api",
+    # Authentication
+    "AuthAPI",
+    "get_auth_api",
+    "AuthToken",
+    "UserInfo",
+    "LoginResult",
 ]

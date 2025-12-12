@@ -33,7 +33,7 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
-**Version 2.5.0** (Coming Soon) will add **John Deere Operations Center Integration** - import field boundaries, yield maps, and application history directly from JD Ops Center for precision zone-based recommendations.
+**Version 2.5.0** adds **Farm Operations Manager** - a multi-user system with authentication, role-based access control (admin, manager, crew), user management, and crew/team organization. This is the foundation for the upcoming task management and irrigation scheduling features.
 
 **Version 2.4.0** adds **Settings Screen & UI Polish** with comprehensive configuration options, reusable widget library, and offline mode support. The desktop application now includes 8 complete screens with professional loading states, validation feedback, and toast notifications.
 

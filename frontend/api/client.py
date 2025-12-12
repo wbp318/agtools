@@ -96,6 +96,7 @@ class APIClient:
         self._is_connected = False
         self._last_check: Optional[datetime] = None
         self._db = None  # Lazy loaded
+        self._auth_token: Optional[str] = None  # JWT access token
 
     def _get_db(self):
         """Lazy load the local database."""
@@ -115,15 +116,39 @@ class APIClient:
     def _get_client(self) -> httpx.Client:
         """Get or create the HTTP client."""
         if self._client is None:
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+            if self._auth_token:
+                headers["Authorization"] = f"Bearer {self._auth_token}"
+
             self._client = httpx.Client(
                 base_url=self.base_url,
                 timeout=self._settings.api.timeout_seconds,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                }
+                headers=headers
             )
         return self._client
+
+    def set_auth_token(self, token: str) -> None:
+        """Set the authentication token for API requests."""
+        self._auth_token = token
+        # Force client recreation to update headers
+        if self._client:
+            self._client.close()
+            self._client = None
+
+    def clear_auth_token(self) -> None:
+        """Clear the authentication token."""
+        self._auth_token = None
+        if self._client:
+            self._client.close()
+            self._client = None
+
+    @property
+    def has_auth_token(self) -> bool:
+        """Check if an auth token is set."""
+        return self._auth_token is not None
 
     def close(self) -> None:
         """Close the HTTP client."""

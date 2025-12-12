@@ -32,12 +32,8 @@ def main() -> int:
     # Create the application
     app = create_application()
 
-    # Create and show the main window
-    window = app.create_main_window()
-    window.show()
-
-    # Run the event loop
-    return app.exec()
+    # Start with login flow
+    return app.start()
 
 
 if __name__ == "__main__":
