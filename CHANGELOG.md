@@ -8,14 +8,58 @@
 
 ### Latest Session: December 12, 2025
 
-#### v2.5.0 - Farm Operations Manager: Continuing Development
+#### v2.5.0 - Farm Operations Manager: Phase 2 Complete
 
-**Status:** Phase 1 Complete, Phase 2 Planning
+**Status:** ✅ Phase 1 (Auth) COMPLETE | ✅ Phase 2 (Tasks) COMPLETE
 
-**Session Goals:**
-- [ ] Review and plan Phase 2: Task Management Core
-- [ ] Define task data models and database schema
-- [ ] Create task management endpoints
+**What Was Built:**
+
+1. **Task Management Core** ✅ COMPLETE
+   - Full CRUD operations for tasks
+   - Role-based access control (admin sees all, manager sees crew tasks, crew sees own)
+   - Status workflow: todo → in_progress → completed/cancelled
+   - Priority levels: low, medium, high, urgent
+   - Assignment to users or crews
+   - Due date tracking with overdue detection
+
+2. **Backend Changes:**
+   - **New Files:**
+     - `backend/services/task_service.py` (~500 lines) - Task service with CRUD
+     - `database/migrations/002_task_management.sql` - Tasks table
+   - **Modified:**
+     - `backend/main.py` - Added 6 task endpoints (78 total routes)
+
+3. **Frontend Changes:**
+   - **New Files:**
+     - `frontend/api/task_api.py` (~270 lines) - Task API client
+     - `frontend/ui/screens/task_management.py` (~520 lines) - Task screen
+   - **Modified:**
+     - `frontend/ui/main_window.py` - Added TaskManagementScreen
+     - `frontend/ui/sidebar.py` - Added "Operations > Tasks" nav, v2.5.0
+     - `frontend/api/__init__.py` - Task API exports
+     - `frontend/ui/screens/__init__.py` - Screen exports
+
+4. **New API Endpoints (6 total):**
+   ```
+   Task Management:
+     GET    /api/v1/tasks              - List tasks (filtered by role)
+     POST   /api/v1/tasks              - Create task
+     GET    /api/v1/tasks/{id}         - Get task details
+     PUT    /api/v1/tasks/{id}         - Update task
+     DELETE /api/v1/tasks/{id}         - Delete task (manager+)
+     POST   /api/v1/tasks/{id}/status  - Change task status
+   ```
+
+5. **UI Features:**
+   - Task list table with color-coded status/priority badges
+   - Create/Edit dialogs with user/crew assignment dropdowns
+   - Date picker for due dates
+   - Filter by: status, priority, "My Tasks" toggle
+   - Quick status buttons (Start, Complete)
+   - Overdue task highlighting (red text)
+   - Delete button for managers/admins only
+
+**Total New Code:** ~1,300 lines
 
 ---
 
@@ -1018,8 +1062,8 @@ AgTools v2.5.0
 
 - [ ] **Farm Operations Manager (v2.5)** ← **IN PROGRESS**
   - [x] Phase 1: Multi-User Authentication System **DONE**
-  - [ ] Phase 2: Task Management Core ← **UP NEXT**
-  - [ ] Phase 3: Field Operations & Logging
+  - [x] Phase 2: Task Management Core **DONE**
+  - [ ] Phase 3: Field Operations & Logging ← **UP NEXT**
   - [ ] Phase 4: Equipment & Inventory Tracking
   - [ ] Phase 5: Reporting & Analytics Dashboard
 - [ ] **John Deere Operations Center Integration** (v2.6 - requires JD Developer Account approval)
