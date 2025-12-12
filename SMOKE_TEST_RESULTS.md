@@ -1,0 +1,164 @@
+# AgTools v2.5.0 Phase 1 - Smoke Test Results
+
+**Date:** December 11, 2025
+**Version:** 2.5.0 (Farm Operations Manager - Phase 1: User & Auth System)
+**Python Version:** 3.13.3
+**Platform:** Windows 11
+
+---
+
+## Summary
+
+| Category | Tests | Passed | Failed |
+|----------|-------|--------|--------|
+| Database Migration | 1 | 1 | 0 |
+| Auth Service | 5 | 5 | 0 |
+| User Service | 7 | 7 | 0 |
+| Crew Service | 7 | 7 | 0 |
+| Frontend Imports | 8 | 8 | 0 |
+| **TOTAL** | **28** | **28** | **0** |
+
+**Overall Status:** ALL TESTS PASSED
+
+---
+
+## Detailed Results
+
+### 1. Database Migration
+
+Tests the `database/migrations/001_auth_system.sql` migration script.
+
+| Test | Status |
+|------|--------|
+| Creates all auth tables (users, sessions, crews, crew_members, password_reset_tokens, audit_log) | PASS |
+
+**Tables Verified:**
+- `users` - User accounts with roles
+- `sessions` - JWT session tracking
+- `crews` - Crew/team definitions
+- `crew_members` - User-to-crew assignments
+- `password_reset_tokens` - Password reset workflow
+- `audit_log` - Security audit trail
+
+---
+
+### 2. Auth Service (`backend/services/auth_service.py`)
+
+Tests JWT authentication and password hashing.
+
+| Test | Status | Notes |
+|------|--------|-------|
+| Password hashing | PASS | bcrypt, 60-char hash |
+| Password verification | PASS | Correct password accepted |
+| JWT token creation | PASS | 189-char access token |
+| Access token validation | PASS | user_id correctly extracted |
+| Refresh token validation | PASS | Returns user_id |
+
+**Security Notes:**
+- Uses bcrypt with 12 rounds (Python 3.13 compatible)
+- JWT tokens expire in 24 hours (access) / 7 days (refresh)
+- Passwords truncated to 72 bytes per bcrypt spec
+
+---
+
+### 3. User Service (`backend/services/user_service.py`)
+
+Tests user CRUD operations and authentication.
+
+| Test | Status | Notes |
+|------|--------|-------|
+| Default admin creation | PASS | Auto-creates admin/admin123 |
+| Create user | PASS | Returns UserResponse with id |
+| Get user by ID | PASS | Fetches correct user |
+| Get user by username | PASS | Fetches correct user |
+| User authentication | PASS | Returns Token + UserResponse |
+| Wrong password rejection | PASS | Returns "Invalid username or password" |
+| List users | PASS | Returns 2 users (admin + test) |
+| Update user | PASS | Updates first_name, last_name |
+
+**API Signatures Verified:**
+- `create_user(UserCreate) -> (UserResponse, error)`
+- `authenticate(username, password) -> (Token, UserResponse, error)`
+- `update_user(id, UserUpdate) -> (UserResponse, error)`
+
+---
+
+### 4. Crew Service (within `backend/services/user_service.py`)
+
+Tests crew/team management operations.
+
+| Test | Status | Notes |
+|------|--------|-------|
+| Create crew | PASS | Returns CrewResponse with id |
+| Get crew by ID | PASS | Fetches correct crew |
+| List crews | PASS | Returns 1 crew |
+| Update crew | PASS | Updates name, description |
+| Add crew member | PASS | Links user to crew |
+| Get crew members | PASS | Returns 1 member |
+| Remove crew member | PASS | Unlinks user from crew |
+
+---
+
+### 5. Frontend Imports
+
+Tests that all new frontend modules import without errors.
+
+| Module | Status |
+|--------|--------|
+| `frontend.api.client.APIClient` | PASS |
+| `frontend.api.auth_api.AuthAPI` | PASS |
+| `frontend.api.user_api.UserAPI` | PASS |
+| `frontend.api.crew_api.CrewAPI` | PASS |
+| `frontend.ui.screens.login.LoginScreen` | PASS |
+| `frontend.ui.screens.user_management.UserManagementScreen` | PASS |
+| `frontend.ui.screens.crew_management.CrewManagementScreen` | PASS |
+| `frontend.app.AgToolsApp` | PASS |
+
+**Dependencies Verified:**
+- PyQt6 available
+- All relative imports resolve correctly
+
+---
+
+## Issues Found & Fixed During Testing
+
+### 1. Middleware Import Path (Fixed)
+**Issue:** `backend/middleware/auth_middleware.py` used `from services.auth_service` which failed when running from project root.
+**Fix:** Changed to `from backend.services.auth_service`
+
+### 2. bcrypt Python 3.13 Compatibility (Previously Fixed)
+**Issue:** passlib's bcrypt wrapper incompatible with Python 3.13
+**Fix:** Direct bcrypt usage with manual password encoding
+
+---
+
+## Files Tested
+
+### Backend
+- `database/migrations/001_auth_system.sql`
+- `backend/services/auth_service.py`
+- `backend/services/user_service.py`
+- `backend/middleware/auth_middleware.py`
+
+### Frontend
+- `frontend/api/client.py`
+- `frontend/api/auth_api.py`
+- `frontend/api/user_api.py`
+- `frontend/api/crew_api.py`
+- `frontend/ui/screens/login.py`
+- `frontend/ui/screens/user_management.py`
+- `frontend/ui/screens/crew_management.py`
+- `frontend/app.py`
+- `frontend/ui/main_window.py`
+
+---
+
+## Next Steps
+
+1. **Manual Testing:** Launch full application and test login flow
+2. **Phase 2:** Begin Task Management Core implementation
+3. **Integration Testing:** Test API endpoints via FastAPI
+
+---
+
+*Generated by Claude Code smoke test run*
