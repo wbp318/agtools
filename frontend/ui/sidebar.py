@@ -117,8 +117,10 @@ class Sidebar(QFrame):
         # Dashboard
         self._add_nav_item(nav_layout, "Dashboard", icon="\u2302")  # House icon
 
-        # Operations Section (Phase 2.5)
+        # Operations Section (Phase 2.5 & 3)
         nav_layout.addWidget(SectionHeader("Operations"))
+        self._add_nav_item(nav_layout, "Fields", icon="\u25A3")  # Field/square
+        self._add_nav_item(nav_layout, "Operations", icon="\u2699")  # Gear/log
         self._add_nav_item(nav_layout, "Tasks", icon="\u2611")  # Checkbox
 
         # Identify Section

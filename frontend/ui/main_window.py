@@ -28,6 +28,8 @@ from ui.screens.settings import SettingsScreen
 from ui.screens.user_management import UserManagementScreen
 from ui.screens.crew_management import CrewManagementScreen
 from ui.screens.task_management import TaskManagementScreen
+from ui.screens.field_management import FieldManagementScreen
+from ui.screens.operations_log import OperationsLogScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -415,6 +417,14 @@ class MainWindow(QMainWindow):
         task_mgmt_screen = TaskManagementScreen(current_user=self._current_user)
         self._add_screen("tasks", task_mgmt_screen)
 
+        # Field Management Screen (Phase 3) - All users
+        field_mgmt_screen = FieldManagementScreen(current_user=self._current_user)
+        self._add_screen("fields", field_mgmt_screen)
+
+        # Operations Log Screen (Phase 3) - All users
+        ops_log_screen = OperationsLogScreen(current_user=self._current_user)
+        self._add_screen("operations", ops_log_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -488,6 +498,8 @@ class MainWindow(QMainWindow):
             # Update page title
             titles = {
                 "dashboard": "Dashboard",
+                "fields": "Field Management",
+                "operations": "Operations Log",
                 "tasks": "Task Management",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",

@@ -1,9 +1,9 @@
 # Farm Operations Manager - Development Plan
 
 > **Version:** 2.5.0
-> **Status:** 🔄 IN PROGRESS - Phase 1 Complete, Ready for Phase 2
+> **Status:** 🔄 IN PROGRESS - Phases 1-3 Complete, Ready for Phase 4
 > **Started:** December 11, 2025
-> **Last Updated:** December 11, 2025
+> **Last Updated:** December 15, 2025
 
 ---
 
@@ -25,10 +25,10 @@ A comprehensive farm operations management system combining irrigation schedulin
 | Phase | Description | Status | Est. Effort |
 |-------|-------------|--------|-------------|
 | Phase 1 | User & Auth System | ✅ COMPLETE | 6-8 hours |
-| Phase 2 | Task Management Core | ⏳ Pending | 8-10 hours |
-| Phase 3 | Field & Equipment Resources | ⏳ Pending | 6-8 hours |
-| Phase 4 | Irrigation Scheduler | ⏳ Pending | 8-10 hours |
-| Phase 5 | AgTools Integration | ⏳ Pending | 4-6 hours |
+| Phase 2 | Task Management Core | ✅ COMPLETE | 8-10 hours |
+| Phase 3 | Field Operations & Logging | ✅ COMPLETE | 6-8 hours |
+| Phase 4 | Equipment & Inventory Tracking | ⏳ Pending | 6-8 hours |
+| Phase 5 | Reporting & Analytics Dashboard | ⏳ Pending | 8-10 hours |
 | Phase 6 | Mobile/Crew Interface | ⏳ Pending | 6-8 hours |
 
 ---
@@ -204,7 +204,30 @@ DELETE /api/v1/crews/{id}/members/{user_id} - Remove member
 
 **Goal:** Create the core task and project management system.
 
-### Database Schema (Preview)
+**Status:** ✅ COMPLETE (December 12, 2025)
+
+### What Was Built
+
+**Backend:**
+- `backend/services/task_service.py` (~500 lines) - Task CRUD, status workflow, role-based access
+- `database/migrations/002_task_management.sql` - Tasks table schema
+- 6 new API endpoints for task management
+
+**Frontend:**
+- `frontend/api/task_api.py` (~270 lines) - Task API client
+- `frontend/ui/screens/task_management.py` (~520 lines) - Task management screen
+
+**Features:**
+- Task CRUD operations (create, read, update, delete)
+- Status workflow: todo → in_progress → completed/cancelled
+- Priority levels: low, medium, high, urgent
+- Assignment to users or crews
+- Due date tracking with overdue detection
+- Role-based access (admin sees all, manager sees crew, crew sees own)
+- Filter by status, priority, "My Tasks"
+- Quick status change buttons
+
+### Database Schema
 
 ```sql
 -- Projects (grouping of related tasks)
@@ -290,50 +313,122 @@ CREATE TABLE time_entries (
 
 ---
 
-## Phase 3: Field & Equipment Resources
+## Phase 3: Field Operations & Logging
 
-**Goal:** Link tasks to physical resources (fields, equipment) for scheduling.
+**Goal:** Enable tracking of farm fields and all field operations.
+
+**Status:** ✅ COMPLETE (December 15, 2025)
+
+### What Was Built
+
+**Backend:**
+- `backend/services/field_service.py` (~450 lines) - Field CRUD with enums
+- `backend/services/field_operations_service.py` (~550 lines) - Operations logging
+- `database/migrations/003_field_operations.sql` - Fields & operations tables
+- 14 new API endpoints (92 total now)
+
+**Frontend:**
+- `frontend/api/field_api.py` (~290 lines) - Field API client
+- `frontend/api/operations_api.py` (~380 lines) - Operations API client
+- `frontend/ui/screens/field_management.py` (~500 lines) - Field management screen
+- `frontend/ui/screens/operations_log.py` (~550 lines) - Operations log screen
+
+**Features:**
+- **Field Management:**
+  - CRUD for farm fields
+  - Attributes: name, farm, acreage, crop, soil, irrigation
+  - GPS coordinates and GeoJSON boundary support
+  - Summary statistics by crop and farm
+  - Search and filtering
+
+- **Operations Logging:**
+  - Log all operation types: spray, fertilizer, planting, harvest, tillage, scouting, irrigation
+  - Product/material tracking with rates and quantities
+  - Cost tracking (product + application costs)
+  - Harvest data (yield, moisture)
+  - Weather conditions recording
+  - Operation history per field
+  - Summary statistics with cost breakdown
+
+### Database Schema
+
+```sql
+-- Fields table
+CREATE TABLE fields (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    farm_name VARCHAR(100),
+    acreage DECIMAL(10, 2) NOT NULL,
+    current_crop VARCHAR(50),
+    soil_type VARCHAR(50),
+    irrigation_type VARCHAR(50),
+    location_lat DECIMAL(10, 7),
+    location_lng DECIMAL(10, 7),
+    boundary TEXT,  -- GeoJSON
+    notes TEXT,
+    created_by_user_id INTEGER,
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+-- Field operations table
+CREATE TABLE field_operations (
+    id INTEGER PRIMARY KEY,
+    field_id INTEGER NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    operation_date DATE NOT NULL,
+    product_name VARCHAR(200),
+    rate DECIMAL(10, 3),
+    rate_unit VARCHAR(50),
+    quantity DECIMAL(10, 3),
+    quantity_unit VARCHAR(50),
+    acres_covered DECIMAL(10, 2),
+    product_cost DECIMAL(10, 2),
+    application_cost DECIMAL(10, 2),
+    total_cost DECIMAL(10, 2),
+    yield_amount DECIMAL(10, 2),
+    yield_unit VARCHAR(20),
+    moisture_percent DECIMAL(5, 2),
+    weather_temp DECIMAL(5, 1),
+    weather_wind DECIMAL(5, 1),
+    weather_humidity DECIMAL(5, 1),
+    weather_notes TEXT,
+    operator_id INTEGER,
+    task_id INTEGER,  -- Link to task if from task
+    notes TEXT,
+    created_by_user_id INTEGER,
+    is_active BOOLEAN DEFAULT 1
+);
+```
+
+---
+
+## Phase 4: Equipment & Inventory Tracking
+
+**Goal:** Track equipment and inventory for farm operations.
 
 ### Features (Preview)
-- Field registry with boundaries
-- Equipment inventory
+- Equipment registry (tractors, sprayers, planters, combines)
 - Equipment availability calendar
+- Maintenance scheduling
 - Resource conflict detection
-- Maintenance scheduling for equipment
+- Inventory tracking for supplies and parts
+- Equipment cost tracking (fuel, maintenance)
 
 ---
 
-## Phase 4: Irrigation Scheduler
+## Phase 5: Reporting & Analytics Dashboard
 
-**Goal:** Optimize irrigation scheduling for water and energy efficiency.
+**Goal:** Provide insights and reports across all farm operations.
 
 ### Features (Preview)
-- ET-based water demand calculation per field
-- Weather forecast integration (skip before rain)
-- Pump runtime scheduling
-- Energy usage tracking (kWh per field)
-- Cost tracking and reporting
-- Historical comparison
-- Auto-generate irrigation tasks
-
-### Energy Tracking (Entergy Louisiana context)
-- Track kWh usage per irrigation run
-- Monthly/seasonal cost reports
-- Baseline establishment for future rate comparisons
-- Efficiency metrics (kWh per acre-inch)
-
----
-
-## Phase 5: AgTools Integration
-
-**Goal:** Connect existing AgTools features to task generation.
-
-### Integration Points
-- **Pest ID** → Generate "Scout for [pest]" or "Spray for [pest]" task
-- **Disease ID** → Generate treatment task with product recommendations
-- **Spray Timing** → Schedule spray task for optimal weather window
-- **Scouting** → Regular scouting tasks auto-generated
-- **Cost Optimizer** → Link task costs to budget tracking
+- Operations summary reports (by field, by type, by date range)
+- Cost analysis reports
+- Yield vs. input analysis
+- Labor tracking and reporting
+- Export to CSV/PDF
+- Custom report builder
 
 ---
 
@@ -367,8 +462,24 @@ CREATE TABLE time_entries (
 
 ## Changelog
 
+### December 15, 2025
+- **Phase 3 COMPLETE**: Field Operations & Logging
+- Added field management (CRUD, attributes, stats)
+- Added operations logging (10 operation types, costs, yields, weather)
+- 14 new API endpoints (92 total)
+- ~2,700 new lines of code
+
+### December 12, 2025
+- **Phase 2 COMPLETE**: Task Management Core
+- Added task CRUD with status workflow
+- Role-based access control for tasks
+- 6 new API endpoints
+- ~1,300 new lines of code
+
 ### December 11, 2025
+- **Phase 1 COMPLETE**: User & Auth System
 - Initial plan created
-- Phase 1 detailed design complete
-- Phases 2-6 outlined
+- Phase 1 detailed design and implementation
+- JWT authentication, user/crew management
+- 17 new API endpoints
 

@@ -25,6 +25,9 @@ Think of AgTools as your **digital agronomist** that:
 8. **Works Offline** (v2.3.0) - Automatic fallback to local database when API unavailable
 9. **Configurable Settings** (v2.4.0) - Full settings screen with preferences, API config, and data management
 10. **Multi-User Farm Operations** (v2.5.0) - Login system with roles (admin, manager, crew), user management, and team/crew organization
+11. **Field Management** (v2.5.0) - Track all your farm fields with acreage, crop type, soil, and irrigation
+12. **Operations Logging** (v2.5.0) - Record sprays, fertilizer, planting, harvest with costs and yields
+13. **Task Management** (v2.5.0) - Create, assign, and track tasks with due dates and priorities
 
 ---
 
@@ -627,6 +630,88 @@ Use the irrigation water-need calculator before every watering. It uses actual c
 
 ### "How do I know if my costs are reasonable?"
 Use the quick estimate to see industry averages, then use the complete farm analysis to see how your actual costs compare. Anything more than 10% above average deserves a closer look.
+
+---
+
+## 🆕 FARM OPERATIONS MANAGER (NEW in v2.5)
+
+These features help you manage your farm fields, track operations, and coordinate tasks across your team.
+
+### 🌾 Managing Your Fields
+
+**When to use:** Set up your farm fields to track what's planted where and log all operations.
+
+1. Click **"Fields"** from the sidebar navigation
+2. Click **"+ Add Field"** to create a new field
+3. Fill in the field details:
+   - **Field Name**: e.g., "North 40", "Home Quarter"
+   - **Farm**: Group fields by farm name (optional)
+   - **Acreage**: Field size in acres
+   - **Current Crop**: Select corn, soybean, wheat, etc.
+   - **Soil Type**: Clay, loam, sandy, etc.
+   - **Irrigation**: None, center pivot, drip, etc.
+4. Click **"Add Field"**
+
+**What you get:**
+- Summary cards showing total fields and acres
+- Breakdown by crop type and farm
+- Filter by farm, crop, or search by name
+- Quick access to field operation history
+
+---
+
+### 📋 Logging Field Operations
+
+**When to use:** Record spray applications, fertilizer, planting, harvest, tillage, and other field activities.
+
+1. Click **"Operations"** from the sidebar navigation
+2. Click **"+ Log Operation"**
+3. Fill in the operation details:
+   - **Field**: Select which field this operation is for
+   - **Operation Type**: Spray, fertilizer, planting, harvest, tillage, scouting, etc.
+   - **Date**: When the operation occurred
+   - **Product Info**: Product name, rate, quantity (for sprays/fertilizer)
+   - **Cost Info**: Product cost, application cost (optional)
+   - **Weather**: Temperature, wind, humidity at time of application (optional)
+   - **Harvest Data**: Yield and moisture (for harvest operations)
+4. Click **"Log Operation"**
+
+**What you get:**
+- Complete operation history for compliance/audit trails
+- Cost tracking with summary statistics
+- Filter by field, operation type, date range
+- Summary cards showing total operations and costs
+
+**Operation types:**
+- **Spray**: Herbicide, insecticide, fungicide applications
+- **Fertilizer**: Nitrogen, P&K, micronutrients
+- **Planting**: Seed and seeding rate
+- **Harvest**: Yield and moisture data
+- **Tillage**: Field prep, disking, plowing
+- **Scouting**: Field checks and observations
+- **Irrigation**: Water applications
+
+---
+
+### ✅ Managing Tasks (v2.5)
+
+**When to use:** Assign work to crew members, track progress, and manage priorities.
+
+1. Click **"Tasks"** from the sidebar navigation
+2. Click **"+ New Task"** to create a task
+3. Fill in:
+   - **Title**: Brief description of the work
+   - **Description**: Detailed instructions (optional)
+   - **Priority**: Low, medium, high, urgent
+   - **Assign To**: User or crew
+   - **Due Date**: When it needs to be done
+4. Click **"Create Task"**
+
+**Task workflow:**
+- **To Do** → **Start** → **In Progress** → **Complete**
+- Quick status buttons let crew update with one click
+- Overdue tasks highlighted in red
+- Filter by status, priority, or "My Tasks"
 
 ---
 

@@ -53,6 +53,25 @@ from services.task_service import (
     TaskPriority,
     StatusChangeRequest
 )
+from services.field_service import (
+    get_field_service,
+    FieldCreate,
+    FieldUpdate,
+    FieldResponse,
+    FieldSummary,
+    CropType as FieldCropType,
+    SoilType,
+    IrrigationType as FieldIrrigationType
+)
+from services.field_operations_service import (
+    get_field_operations_service,
+    OperationCreate,
+    OperationUpdate,
+    OperationResponse,
+    OperationsSummary,
+    FieldOperationHistory,
+    OperationType
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -2328,6 +2347,302 @@ async def change_task_status(
         raise HTTPException(status_code=404, detail="Task not found")
 
     return task
+
+
+# ============================================================================
+# FIELD MANAGEMENT ENDPOINTS (v2.5 Phase 3)
+# ============================================================================
+
+class FieldListResponse(BaseModel):
+    """Response for field list endpoint"""
+    count: int
+    fields: List[FieldResponse]
+
+
+@app.get("/api/v1/fields", response_model=FieldListResponse, tags=["Fields"])
+async def list_fields(
+    farm_name: Optional[str] = None,
+    current_crop: Optional[str] = None,
+    soil_type: Optional[str] = None,
+    irrigation_type: Optional[str] = None,
+    search: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    List all fields with optional filters.
+
+    Filters:
+    - farm_name: Filter by farm grouping
+    - current_crop: Filter by crop type (corn, soybean, wheat, etc.)
+    - soil_type: Filter by soil type (clay, loam, sandy, etc.)
+    - irrigation_type: Filter by irrigation (none, center_pivot, drip, etc.)
+    - search: Search by field or farm name
+    """
+    field_service = get_field_service()
+
+    # Convert string filters to enums if provided
+    crop_enum = FieldCropType(current_crop) if current_crop else None
+    soil_enum = SoilType(soil_type) if soil_type else None
+    irrig_enum = FieldIrrigationType(irrigation_type) if irrigation_type else None
+
+    fields = field_service.list_fields(
+        farm_name=farm_name,
+        current_crop=crop_enum,
+        soil_type=soil_enum,
+        irrigation_type=irrig_enum,
+        search=search
+    )
+
+    return FieldListResponse(count=len(fields), fields=fields)
+
+
+@app.post("/api/v1/fields", response_model=FieldResponse, tags=["Fields"])
+async def create_field(
+    field_data: FieldCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new field."""
+    field_service = get_field_service()
+
+    field, error = field_service.create_field(field_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return field
+
+
+@app.get("/api/v1/fields/summary", response_model=FieldSummary, tags=["Fields"])
+async def get_field_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary statistics for all fields."""
+    field_service = get_field_service()
+    return field_service.get_field_summary()
+
+
+@app.get("/api/v1/fields/farms", tags=["Fields"])
+async def get_farm_names(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of unique farm names for filtering."""
+    field_service = get_field_service()
+    return {"farms": field_service.get_farm_names()}
+
+
+@app.get("/api/v1/fields/{field_id}", response_model=FieldResponse, tags=["Fields"])
+async def get_field(
+    field_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get field by ID."""
+    field_service = get_field_service()
+    field = field_service.get_field_by_id(field_id)
+
+    if not field:
+        raise HTTPException(status_code=404, detail="Field not found")
+
+    return field
+
+
+@app.put("/api/v1/fields/{field_id}", response_model=FieldResponse, tags=["Fields"])
+async def update_field(
+    field_id: int,
+    field_data: FieldUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a field."""
+    field_service = get_field_service()
+
+    field, error = field_service.update_field(field_id, field_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    if not field:
+        raise HTTPException(status_code=404, detail="Field not found")
+
+    return field
+
+
+@app.delete("/api/v1/fields/{field_id}", tags=["Fields"])
+async def delete_field(
+    field_id: int,
+    user: AuthenticatedUser = Depends(require_manager)
+):
+    """Delete a field (soft delete). Manager/admin only."""
+    field_service = get_field_service()
+
+    success, error = field_service.delete_field(field_id, user.id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail=error or "Failed to delete field")
+
+    return {"message": "Field deleted successfully"}
+
+
+# ============================================================================
+# FIELD OPERATIONS ENDPOINTS (v2.5 Phase 3)
+# ============================================================================
+
+class OperationListResponse(BaseModel):
+    """Response for operation list endpoint"""
+    count: int
+    operations: List[OperationResponse]
+
+
+@app.get("/api/v1/operations", response_model=OperationListResponse, tags=["Operations"])
+async def list_operations(
+    field_id: Optional[int] = None,
+    operation_type: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    operator_id: Optional[int] = None,
+    farm_name: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    List field operations with optional filters.
+
+    Filters:
+    - field_id: Filter by specific field
+    - operation_type: spray, fertilizer, planting, harvest, tillage, scouting, irrigation, other
+    - date_from/date_to: Date range filter
+    - operator_id: Filter by who performed the operation
+    - farm_name: Filter by farm
+    - limit/offset: Pagination
+    """
+    ops_service = get_field_operations_service()
+
+    # Convert operation_type string to enum if provided
+    op_type_enum = OperationType(operation_type) if operation_type else None
+
+    operations = ops_service.list_operations(
+        field_id=field_id,
+        operation_type=op_type_enum,
+        date_from=date_from,
+        date_to=date_to,
+        operator_id=operator_id,
+        farm_name=farm_name,
+        limit=limit,
+        offset=offset
+    )
+
+    return OperationListResponse(count=len(operations), operations=operations)
+
+
+@app.post("/api/v1/operations", response_model=OperationResponse, tags=["Operations"])
+async def create_operation(
+    op_data: OperationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Log a new field operation.
+
+    Operation types: spray, fertilizer, planting, harvest, tillage, scouting, irrigation, seed_treatment, cover_crop, other
+    """
+    ops_service = get_field_operations_service()
+
+    operation, error = ops_service.create_operation(op_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return operation
+
+
+@app.get("/api/v1/operations/summary", response_model=OperationsSummary, tags=["Operations"])
+async def get_operations_summary(
+    field_id: Optional[int] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get summary statistics for operations.
+
+    Returns total operations, operations by type, and cost summaries.
+    """
+    ops_service = get_field_operations_service()
+
+    return ops_service.get_operations_summary(
+        field_id=field_id,
+        date_from=date_from,
+        date_to=date_to
+    )
+
+
+@app.get("/api/v1/operations/{operation_id}", response_model=OperationResponse, tags=["Operations"])
+async def get_operation(
+    operation_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get operation by ID."""
+    ops_service = get_field_operations_service()
+    operation = ops_service.get_operation_by_id(operation_id)
+
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+
+    return operation
+
+
+@app.put("/api/v1/operations/{operation_id}", response_model=OperationResponse, tags=["Operations"])
+async def update_operation(
+    operation_id: int,
+    op_data: OperationUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update an operation."""
+    ops_service = get_field_operations_service()
+
+    operation, error = ops_service.update_operation(operation_id, op_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+
+    return operation
+
+
+@app.delete("/api/v1/operations/{operation_id}", tags=["Operations"])
+async def delete_operation(
+    operation_id: int,
+    user: AuthenticatedUser = Depends(require_manager)
+):
+    """Delete an operation (soft delete). Manager/admin only."""
+    ops_service = get_field_operations_service()
+
+    success, error = ops_service.delete_operation(operation_id, user.id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail=error or "Failed to delete operation")
+
+    return {"message": "Operation deleted successfully"}
+
+
+@app.get("/api/v1/fields/{field_id}/operations", response_model=FieldOperationHistory, tags=["Operations"])
+async def get_field_operation_history(
+    field_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get complete operation history for a specific field.
+
+    Returns field info, all operations, and summary statistics.
+    """
+    ops_service = get_field_operations_service()
+
+    history = ops_service.get_field_operation_history(field_id)
+
+    if not history:
+        raise HTTPException(status_code=404, detail="Field not found")
+
+    return history
 
 
 # ============================================================================

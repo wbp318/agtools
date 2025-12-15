@@ -33,7 +33,11 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
-**Version 2.5.0** adds **Farm Operations Manager** - a multi-user system with authentication, role-based access control (admin, manager, crew), user management, and crew/team organization. This is the foundation for the upcoming task management and irrigation scheduling features.
+**Version 2.5.0** adds **Farm Operations Manager** - a complete farm management system including:
+- **Multi-user authentication** with role-based access control (admin, manager, crew)
+- **Task management** with assignments, priorities, due dates, and status workflows
+- **Field management** to track all your farm fields with acreage, crop types, and locations
+- **Operations logging** to record all field operations (sprays, fertilizer, planting, harvest) with costs and yields
 
 **Version 2.4.0** adds **Settings Screen & UI Polish** with comprehensive configuration options, reusable widget library, and offline mode support. The desktop application now includes 8 complete screens with professional loading states, validation feedback, and toast notifications.
 
@@ -96,14 +100,17 @@ python main.py
 
 The desktop app provides a professional PyQt6 interface with:
 - Dashboard with quick actions
+- **Field Management** - Create and manage farm fields with acreage, crop, soil, irrigation (NEW in v2.5.0)
+- **Operations Log** - Record all field operations with costs and yields (NEW in v2.5.0)
+- **Task Management** - Assign and track tasks with priorities and due dates (NEW in v2.5.0)
 - Yield Response Calculator with interactive charts
 - Spray Timing Evaluator with weather conditions
 - Cost Optimizer with tabbed interface
 - Price Manager with supplier quotes and buy/wait analysis
 - **Pest Identification** with symptom checklists and confidence scoring
 - **Disease Identification** with weather conditions and management recommendations
-- **Settings** with 4 tabs: General preferences, API connection, data management, app info (NEW in v2.4.0)
-- **Offline Mode** with automatic fallback when API unavailable (NEW in v2.3.0)
+- **Settings** with 4 tabs: General preferences, API connection, data management, app info
+- **Offline Mode** with automatic fallback when API unavailable
 
 See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 
@@ -217,7 +224,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.2 - 1800+ lines, 42+ endpoints)
+│   ├── main.py                       # FastAPI application (v2.5 - 2650+ lines, 92 endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
@@ -232,7 +239,12 @@ agtools/
 │       ├── input_cost_optimizer.py   # Unified cost analysis (v2.0)
 │       ├── pricing_service.py        # Real-time pricing (v2.1)
 │       ├── spray_timing_optimizer.py # Weather-smart spraying (v2.1)
-│       └── yield_response_optimizer.py # Economic optimum rates (NEW v2.2)
+│       ├── yield_response_optimizer.py # Economic optimum rates (v2.2)
+│       ├── auth_service.py           # JWT authentication (v2.5)
+│       ├── user_service.py           # User & crew management (v2.5)
+│       ├── task_service.py           # Task management (v2.5)
+│       ├── field_service.py          # Field management (v2.5)
+│       └── field_operations_service.py # Operations logging (v2.5)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -245,7 +257,13 @@ agtools/
 │   │   ├── spray_api.py              # Spray timing endpoints
 │   │   ├── pricing_api.py            # Pricing endpoints
 │   │   ├── cost_optimizer_api.py     # Cost optimizer endpoints
-│   │   └── identification_api.py     # Pest/disease identification
+│   │   ├── identification_api.py     # Pest/disease identification
+│   │   ├── auth_api.py               # Authentication (v2.5)
+│   │   ├── user_api.py               # User management (v2.5)
+│   │   ├── crew_api.py               # Crew management (v2.5)
+│   │   ├── task_api.py               # Task management (v2.5)
+│   │   ├── field_api.py              # Field management (v2.5)
+│   │   └── operations_api.py         # Operations logging (v2.5)
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
@@ -269,13 +287,19 @@ agtools/
 │       │   └── common.py             # LoadingOverlay, StatusMessage, etc.
 │       └── screens/
 │           ├── dashboard.py          # Home screen
+│           ├── login.py              # Login screen (v2.5)
+│           ├── field_management.py   # Field CRUD (v2.5)
+│           ├── operations_log.py     # Operations logging (v2.5)
+│           ├── task_management.py    # Task management (v2.5)
+│           ├── user_management.py    # User admin (v2.5)
+│           ├── crew_management.py    # Crew management (v2.5)
 │           ├── yield_response.py     # Yield calculator with charts
 │           ├── spray_timing.py       # Weather evaluation
 │           ├── cost_optimizer.py     # Tabbed cost analysis
 │           ├── pricing.py            # Price management & alerts
 │           ├── pest_identification.py    # Pest ID screen
 │           ├── disease_identification.py # Disease ID screen
-│           └── settings.py           # Settings screen (NEW v2.4.0)
+│           └── settings.py           # Settings screen
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
@@ -355,7 +379,7 @@ agtools/
 | `POST /api/v1/spray-timing/disease-pressure` | Assess disease risk from weather |
 | `GET /api/v1/spray-timing/growth-stage-timing/{crop}/{stage}` | Stage-specific guidance |
 
-### Yield Response & Economic Optimum (NEW in v2.2)
+### Yield Response & Economic Optimum (v2.2)
 | Endpoint | Purpose |
 |----------|---------|
 | `POST /api/v1/yield-response/curve` | Generate yield response curve |
@@ -365,6 +389,25 @@ agtools/
 | `POST /api/v1/yield-response/multi-nutrient` | **Optimize N, P, K with budget** |
 | `GET /api/v1/yield-response/crop-parameters/{crop}` | View agronomic parameters |
 | `GET /api/v1/yield-response/price-ratio-guide` | Quick field reference table |
+
+### Farm Operations Manager (NEW in v2.5)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/auth/login` | Login, returns JWT token |
+| `GET /api/v1/auth/me` | Get current user info |
+| `GET /api/v1/users` | List all users (admin/manager) |
+| `GET /api/v1/crews` | List crews/teams |
+| `GET /api/v1/tasks` | **List tasks (filtered by role)** |
+| `POST /api/v1/tasks` | Create new task |
+| `PUT /api/v1/tasks/{id}` | Update task |
+| `POST /api/v1/tasks/{id}/status` | Change task status |
+| `GET /api/v1/fields` | **List all farm fields** |
+| `POST /api/v1/fields` | Create new field |
+| `GET /api/v1/fields/summary` | Field statistics |
+| `GET /api/v1/operations` | **List field operations** |
+| `POST /api/v1/operations` | Log new operation |
+| `GET /api/v1/operations/summary` | Operations statistics |
+| `GET /api/v1/fields/{id}/operations` | Field operation history |
 
 Visit http://localhost:8000/docs for interactive documentation.
 

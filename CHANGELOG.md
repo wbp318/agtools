@@ -4,9 +4,99 @@
 
 ---
 
-## Current Version: 2.5.0 (In Development - December 12, 2025)
+## Current Version: 2.5.0 (In Development - December 15, 2025)
 
-### Latest Session: December 12, 2025
+### Latest Session: December 15, 2025
+
+#### v2.5.0 - Farm Operations Manager: Phase 3 Complete
+
+**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Operations) COMPLETE
+
+**What Was Built:**
+
+1. **Field Management System** ✅ COMPLETE
+   - Full CRUD operations for farm fields
+   - Field attributes: name, farm grouping, acreage, crop, soil type, irrigation
+   - GPS coordinate support (lat/lng)
+   - GeoJSON boundary support for precision agriculture
+   - Operation statistics per field
+   - Summary dashboard with total fields/acres by crop/farm
+
+2. **Operations Logging System** ✅ COMPLETE
+   - Log all field operations: spray, fertilizer, planting, harvest, tillage, scouting, irrigation
+   - Product tracking with rates and quantities
+   - Cost tracking (product cost, application cost, total)
+   - Harvest-specific fields (yield, moisture)
+   - Weather conditions recording (temp, wind, humidity)
+   - Operation history per field
+   - Summary statistics with cost breakdowns
+
+3. **Backend Changes:**
+   - **New Files:**
+     - `backend/services/field_service.py` (~450 lines) - Field CRUD with enums
+     - `backend/services/field_operations_service.py` (~550 lines) - Operations logging
+     - `database/migrations/003_field_operations.sql` - Fields & operations tables
+   - **Modified:**
+     - `backend/main.py` - Added 14 new endpoints (92 total routes now)
+
+4. **Frontend Changes:**
+   - **New Files:**
+     - `frontend/api/field_api.py` (~290 lines) - Field API client
+     - `frontend/api/operations_api.py` (~380 lines) - Operations API client
+     - `frontend/ui/screens/field_management.py` (~500 lines) - Field management screen
+     - `frontend/ui/screens/operations_log.py` (~550 lines) - Operations log screen
+   - **Modified:**
+     - `frontend/ui/main_window.py` - Added new screens
+     - `frontend/ui/sidebar.py` - Added "Operations > Fields" and "Operations > Operations" nav
+     - `frontend/api/__init__.py` - New API exports
+
+5. **New API Endpoints (14 total):**
+   ```
+   Field Management:
+     GET    /api/v1/fields              - List fields (with filters)
+     POST   /api/v1/fields              - Create field
+     GET    /api/v1/fields/summary      - Field statistics
+     GET    /api/v1/fields/farms        - List farm names
+     GET    /api/v1/fields/{id}         - Get field details
+     PUT    /api/v1/fields/{id}         - Update field
+     DELETE /api/v1/fields/{id}         - Delete field (manager+)
+
+   Operations Log:
+     GET    /api/v1/operations              - List operations
+     POST   /api/v1/operations              - Create operation
+     GET    /api/v1/operations/summary      - Operations statistics
+     GET    /api/v1/operations/{id}         - Get operation details
+     PUT    /api/v1/operations/{id}         - Update operation
+     DELETE /api/v1/operations/{id}         - Delete operation (manager+)
+     GET    /api/v1/fields/{id}/operations  - Field operation history
+   ```
+
+6. **Database Schema:**
+   - `fields` table: id, name, farm_name, acreage, current_crop, soil_type, irrigation_type, location_lat, location_lng, boundary (GeoJSON), notes
+   - `field_operations` table: id, field_id, operation_type, operation_date, product_name, rate, rate_unit, quantity, quantity_unit, acres_covered, costs, yield data, weather, operator_id, task_id link
+
+7. **UI Features:**
+   - **Field Management:**
+     - Summary cards (total fields, total acres, crops)
+     - Filter by farm, crop, search
+     - Create/Edit dialogs with dropdowns for crop/soil/irrigation
+     - Color-coded crop badges
+     - View history button linking to operations
+     - Delete for managers/admins
+   - **Operations Log:**
+     - Summary cards (total operations, total cost, breakdown by type)
+     - Filter by field, operation type, date range
+     - Log operation dialog with dynamic fields (harvest shows yield/moisture)
+     - Cost tracking fields
+     - Weather condition recording
+     - Color-coded operation type badges
+     - View details, delete for managers
+
+**Total New Code:** ~2,700 lines
+
+---
+
+### Previous Session: December 12, 2025
 
 #### v2.5.0 - Farm Operations Manager: Phase 2 Complete
 
@@ -1063,8 +1153,8 @@ AgTools v2.5.0
 - [ ] **Farm Operations Manager (v2.5)** ← **IN PROGRESS**
   - [x] Phase 1: Multi-User Authentication System **DONE**
   - [x] Phase 2: Task Management Core **DONE**
-  - [ ] Phase 3: Field Operations & Logging ← **UP NEXT**
-  - [ ] Phase 4: Equipment & Inventory Tracking
+  - [x] Phase 3: Field Operations & Logging **DONE**
+  - [ ] Phase 4: Equipment & Inventory Tracking ← **UP NEXT**
   - [ ] Phase 5: Reporting & Analytics Dashboard
 - [ ] **John Deere Operations Center Integration** (v2.6 - requires JD Developer Account approval)
   - [ ] JD API Client & OAuth Authentication
