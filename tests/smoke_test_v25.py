@@ -5,6 +5,7 @@ Tests all major API endpoints across all phases
 """
 
 import json
+import os
 import sys
 from datetime import datetime
 
@@ -16,7 +17,9 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx", "-q"])
     import httpx
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("AGTOOLS_TEST_URL", "http://127.0.0.1:8000")
+TEST_USERNAME = os.environ.get("AGTOOLS_TEST_USERNAME", "admin")
+TEST_PASSWORD = os.environ.get("AGTOOLS_TEST_PASSWORD", "admin123")  # nosec B105
 RESULTS = []
 TOKEN = None
 
@@ -53,7 +56,7 @@ def test_authentication():
     # Login (token is nested: data["tokens"]["access_token"])
     try:
         r = httpx.post(f"{BASE_URL}/api/v1/auth/login",
-                       json={"username": "admin", "password": "admin123"},
+                       json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
                        timeout=10)
         if r.status_code == 200:
             data = r.json()
