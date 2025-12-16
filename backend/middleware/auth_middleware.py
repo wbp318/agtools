@@ -12,13 +12,13 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
-from backend.services.auth_service import (
+from services.auth_service import (
     AuthService,
     TokenData,
     UserRole,
     get_auth_service
 )
-from backend.services.user_service import UserService, UserResponse, get_user_service
+from services.user_service import UserService, UserResponse, get_user_service
 
 
 # ============================================================================

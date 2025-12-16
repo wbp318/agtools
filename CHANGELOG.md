@@ -4,9 +4,50 @@
 
 ---
 
-## Current Version: 2.5.0 (In Development - December 15, 2025)
+## Current Version: 2.5.0 (In Development - December 16, 2025)
 
-### Latest Session: December 15, 2025
+### Latest Session: December 16, 2025
+
+#### v2.5.0 - Smoke Tests & Bug Fixes
+
+**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Operations) COMPLETE
+
+**What Was Done:**
+
+1. **Comprehensive Smoke Tests** ✅ COMPLETE
+   - Created `tests/smoke_test_v25.py` - Full API test suite
+   - Created `tests/SMOKE_TEST_RESULTS_v2.5.0.md` - Detailed test report
+   - **Results:** 96.6% overall pass rate (56/58 tests)
+     - Backend API: 95.2% (20/21)
+     - Frontend Imports: 95.5% (21/22)
+     - Frontend UI Screens: 100% (15/15)
+
+2. **Critical Bug Fix: JWT Token Validation** ✅ FIXED
+   - **Issue:** Tokens generated on login were immediately rejected as "Invalid or expired token"
+   - **Root Cause:** Import path mismatch caused different SECRET_KEYs
+     - `main.py` used: `from services.auth_service import ...`
+     - `middleware/auth_middleware.py` used: `from backend.services.auth_service import ...`
+   - **Fix:** Standardized import paths in `backend/middleware/auth_middleware.py`
+   - **Impact:** All authenticated endpoints now work correctly
+
+3. **Bug Fix: F-String Syntax Errors** ✅ FIXED
+   - **File:** `frontend/ui/screens/operations_log.py`
+   - **Issue:** Malformed f-strings causing import failures
+   - **Lines Fixed:** 729, 730, 738, 744, 745, 746
+
+4. **Files Modified:**
+   - `backend/middleware/auth_middleware.py` - Fixed import paths
+   - `frontend/ui/screens/operations_log.py` - Fixed f-string syntax
+   - `tests/smoke_test_v25.py` - NEW: Comprehensive test suite
+   - `tests/SMOKE_TEST_RESULTS_v2.5.0.md` - NEW: Test report
+
+5. **Known Issue (Non-blocking):**
+   - GET /fields returns 500 on fresh database (migration not run)
+   - **Resolution:** Run `database/migrations/003_field_operations.sql`
+
+---
+
+### Previous Session: December 15, 2025
 
 #### v2.5.0 - Farm Operations Manager: Phase 3 Complete
 

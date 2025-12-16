@@ -1,0 +1,194 @@
+{
+  "timestamp": "2025-12-16T13:11:17.727892",
+  "version": "2.5.0",
+  "total": 21,
+  "passed": 20,
+  "failed": 1,
+  "pass_rate": "95.2%",
+  "results": [
+    {
+      "category": "Root",
+      "test": "GET /",
+      "passed": true,
+      "details": "AgTools Professional Crop Consulting API - operational"
+    },
+    {
+      "category": "Auth",
+      "test": "POST /auth/login",
+      "passed": true,
+      "details": "User: admin (admin)"
+    },
+    {
+      "category": "Auth",
+      "test": "GET /auth/me",
+      "passed": true,
+      "details": "User: admin (admin)"
+    },
+    {
+      "category": "Users",
+      "test": "GET /users",
+      "passed": true,
+      "details": "1 users"
+    },
+    {
+      "category": "Crews",
+      "test": "GET /crews",
+      "passed": true,
+      "details": "0 crews"
+    },
+    {
+      "category": "Tasks",
+      "test": "GET /tasks",
+      "passed": true,
+      "details": "0 tasks"
+    },
+    {
+      "category": "Fields",
+      "test": "GET /fields",
+      "passed": false,
+      "details": "Status: 500"
+    },
+    {
+      "category": "Fields",
+      "test": "GET /fields/summary",
+      "passed": true,
+      "details": "Total acres: 0"
+    },
+    {
+      "category": "Operations",
+      "test": "GET /operations",
+      "passed": true,
+      "details": "0 operations"
+    },
+    {
+      "category": "Operations",
+      "test": "GET /operations/summary",
+      "passed": true,
+      "details": "Total cost: $0.00"
+    },
+    {
+      "category": "Pricing",
+      "test": "GET /pricing/prices",
+      "passed": true,
+      "details": "0 products"
+    },
+    {
+      "category": "Pricing",
+      "test": "POST /pricing/buy-recommendation",
+      "passed": true,
+      "details": "Rec: buy_now"
+    },
+    {
+      "category": "YieldResponse",
+      "test": "POST /yield-response/economic-optimum",
+      "passed": true,
+      "details": "EOR: 0.0 lb/acre"
+    },
+    {
+      "category": "YieldResponse",
+      "test": "GET /yield-response/crop-parameters/corn",
+      "passed": true,
+      "details": "Nutrients: crop, nutrients"
+    },
+    {
+      "category": "SprayTiming",
+      "test": "POST /spray-timing/evaluate",
+      "passed": true,
+      "details": "Risk: unknown, Score: 0"
+    },
+    {
+      "category": "SprayTiming",
+      "test": "GET /spray-timing/growth-stage-timing/corn/V6",
+      "passed": true,
+      "details": "Stage: V6"
+    },
+    {
+      "category": "CostOptimizer",
+      "test": "POST /optimize/quick-estimate",
+      "passed": true,
+      "details": "Total: $197,500.00"
+    },
+    {
+      "category": "PestID",
+      "test": "POST /identify/pest",
+      "passed": true,
+      "details": "Top: European Corn Borer (25%)"
+    },
+    {
+      "category": "DiseaseID",
+      "test": "POST /identify/disease",
+      "passed": true,
+      "details": "Top: Eyespot (68%)"
+    },
+    {
+      "category": "Docs",
+      "test": "GET /docs (Swagger UI)",
+      "passed": true,
+      "details": "Status: 200"
+    },
+    {
+      "category": "Docs",
+      "test": "GET /openapi.json",
+      "passed": true,
+      "details": "72 endpoints documented"
+    }
+  ],
+  "by_category": {
+    "Root": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Auth": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Users": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Crews": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Tasks": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Fields": {
+      "passed": 1,
+      "failed": 1
+    },
+    "Operations": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Pricing": {
+      "passed": 2,
+      "failed": 0
+    },
+    "YieldResponse": {
+      "passed": 2,
+      "failed": 0
+    },
+    "SprayTiming": {
+      "passed": 2,
+      "failed": 0
+    },
+    "CostOptimizer": {
+      "passed": 1,
+      "failed": 0
+    },
+    "PestID": {
+      "passed": 1,
+      "failed": 0
+    },
+    "DiseaseID": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Docs": {
+      "passed": 2,
+      "failed": 0
+    }
+  }
+}

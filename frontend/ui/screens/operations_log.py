@@ -726,8 +726,8 @@ Rate: {op.rate_display}
 Acres: {op.acres_covered or 'Field default'}
 
 Costs:
-  Product: ${op.product_cost:,.2f if op.product_cost else 'N/A'}
-  Application: ${op.application_cost:,.2f if op.application_cost else 'N/A'}
+  Product: {f'${op.product_cost:,.2f}' if op.product_cost else 'N/A'}
+  Application: {f'${op.application_cost:,.2f}' if op.application_cost else 'N/A'}
   Total: {op.cost_display}
 """
 
@@ -735,15 +735,15 @@ Costs:
             details += f"""
 Harvest Results:
   Yield: {op.yield_display}
-  Moisture: {op.moisture_percent}% if {op.moisture_percent else 'N/A'}
+  Moisture: {f'{op.moisture_percent}%' if op.moisture_percent else 'N/A'}
 """
 
         if op.weather_temp or op.weather_wind or op.weather_humidity:
             details += f"""
 Weather:
-  Temperature: {op.weather_temp}F if {op.weather_temp else 'N/A'}
-  Wind: {op.weather_wind} mph if {op.weather_wind else 'N/A'}
-  Humidity: {op.weather_humidity}% if {op.weather_humidity else 'N/A'}
+  Temperature: {f'{op.weather_temp}F' if op.weather_temp else 'N/A'}
+  Wind: {f'{op.weather_wind} mph' if op.weather_wind else 'N/A'}
+  Humidity: {f'{op.weather_humidity}%' if op.weather_humidity else 'N/A'}
 """
 
         if op.notes:
