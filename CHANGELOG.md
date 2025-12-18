@@ -80,6 +80,20 @@
 - `frontend/ui/screens/inventory_management.py` (~550 lines)
 - `frontend/ui/screens/maintenance_schedule.py` (~450 lines)
 
+**Next Session TODO List:**
+1. ✅ Create database migration (004_equipment_inventory.sql)
+2. ✅ Create equipment_service.py backend service
+3. ✅ Create inventory_service.py backend service
+4. ✅ Add equipment & inventory endpoints to main.py
+5. ✅ Create frontend equipment_api.py
+6. ⬜ Create frontend inventory_api.py
+7. ⬜ Create EquipmentManagementScreen
+8. ⬜ Create InventoryManagementScreen
+9. ⬜ Create MaintenanceScheduleScreen
+10. ⬜ Integrate new screens into main_window and sidebar
+11. ⬜ Modify operations_log.py for equipment/inventory selection
+12. ⬜ Test and update CHANGELOG.md
+
 **New API Endpoints (24 planned):**
 - Equipment: 8 endpoints (CRUD + hours + types + summary)
 - Maintenance: 4 endpoints (CRUD + alerts + history)
