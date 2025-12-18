@@ -21,6 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from api.operations_api import get_operations_api, OperationsAPI, OperationInfo
 from api.field_api import get_field_api, FieldInfo
+from api.equipment_api import get_equipment_api, EquipmentInfo
+from api.inventory_api import get_inventory_api, InventoryItem
 from api.auth_api import UserInfo
 
 
@@ -42,10 +44,13 @@ OPERATION_COLORS = {
 class LogOperationDialog(QDialog):
     """Dialog for logging a new field operation."""
 
-    def __init__(self, fields: list = None, users: list = None, parent=None):
+    def __init__(self, fields: list = None, users: list = None,
+                 equipment: list = None, inventory: list = None, parent=None):
         super().__init__(parent)
         self.fields = fields or []
         self.users = users or []
+        self.equipment = equipment or []
+        self.inventory = inventory or []
         self.setWindowTitle("Log Field Operation")
         self.setMinimumWidth(550)
         self._setup_ui()
@@ -85,10 +90,47 @@ class LogOperationDialog(QDialog):
         basic_group.setLayout(basic_layout)
         layout.addWidget(basic_group)
 
+        # Equipment Selection Group (Phase 4)
+        equipment_group = QGroupBox("Equipment Used (Optional)")
+        equipment_layout = QFormLayout()
+        equipment_layout.setSpacing(10)
+
+        # Equipment selection
+        self._equipment_combo = QComboBox()
+        self._equipment_combo.addItem("No equipment selected", None)
+        for equip in self.equipment:
+            if equip.status == "available" or equip.status == "in_use":
+                display = f"{equip.name} ({equip.type_display})"
+                if equip.make and equip.model:
+                    display += f" - {equip.make} {equip.model}"
+                self._equipment_combo.addItem(display, equip.id)
+        equipment_layout.addRow("Equipment:", self._equipment_combo)
+
+        # Hours used
+        self._hours_used_input = QDoubleSpinBox()
+        self._hours_used_input.setRange(0, 100)
+        self._hours_used_input.setDecimals(1)
+        self._hours_used_input.setSuffix(" hrs")
+        self._hours_used_input.setSpecialValueText("N/A")
+        equipment_layout.addRow("Hours Used:", self._hours_used_input)
+
+        equipment_group.setLayout(equipment_layout)
+        layout.addWidget(equipment_group)
+
         # Product Info Group
         self._product_group = QGroupBox("Product Information")
         product_layout = QFormLayout()
         product_layout.setSpacing(10)
+
+        # Inventory item selection (Phase 4)
+        self._inventory_combo = QComboBox()
+        self._inventory_combo.addItem("Enter manually / Not in inventory", None)
+        for item in self.inventory:
+            if item.quantity > 0:
+                display = f"{item.name} ({item.quantity:.2f} {item.unit} available)"
+                self._inventory_combo.addItem(display, item.id)
+        self._inventory_combo.currentIndexChanged.connect(self._on_inventory_selected)
+        product_layout.addRow("From Inventory:", self._inventory_combo)
 
         # Product name
         self._product_input = QLineEdit()
@@ -265,6 +307,22 @@ class LogOperationDialog(QDialog):
             self._harvest_group.hide()
             self._product_group.show()
 
+    def _on_inventory_selected(self, index):
+        """Handle inventory item selection."""
+        inventory_id = self._inventory_combo.currentData()
+        if inventory_id:
+            # Find the selected inventory item and populate product field
+            for item in self.inventory:
+                if item.id == inventory_id:
+                    self._product_input.setText(item.name)
+                    # Set unit in the quantity unit combo
+                    unit_idx = self._qty_unit_combo.findText(item.unit)
+                    if unit_idx >= 0:
+                        self._qty_unit_combo.setCurrentIndex(unit_idx)
+                    else:
+                        self._qty_unit_combo.setCurrentText(item.unit)
+                    break
+
     def _create_operation(self):
         """Validate and prepare operation data."""
         field_id = self._field_combo.currentData()
@@ -281,6 +339,13 @@ class LogOperationDialog(QDialog):
             "operation_date": self._date_edit.date().toString("yyyy-MM-dd"),
         }
 
+        # Add equipment info (Phase 4)
+        equipment_id = self._equipment_combo.currentData()
+        if equipment_id:
+            self.operation_data["equipment_id"] = equipment_id
+            if self._hours_used_input.value() > 0:
+                self.operation_data["hours_used"] = self._hours_used_input.value()
+
         # Add product info
         if self._product_input.text().strip():
             self.operation_data["product_name"] = self._product_input.text().strip()
@@ -290,6 +355,11 @@ class LogOperationDialog(QDialog):
         if self._qty_input.value() > 0:
             self.operation_data["quantity"] = self._qty_input.value()
             self.operation_data["quantity_unit"] = self._qty_unit_combo.currentText()
+
+        # Add inventory item reference (Phase 4)
+        inventory_item_id = self._inventory_combo.currentData()
+        if inventory_item_id:
+            self.operation_data["inventory_item_id"] = inventory_item_id
 
         # Add harvest info
         if op_type == "harvest":
@@ -339,8 +409,12 @@ class OperationsLogScreen(QWidget):
         self._current_user = current_user
         self._ops_api = get_operations_api()
         self._field_api = get_field_api()
+        self._equipment_api = get_equipment_api()
+        self._inventory_api = get_inventory_api()
         self._operations: list[OperationInfo] = []
         self._fields: list[FieldInfo] = []
+        self._equipment: list[EquipmentInfo] = []
+        self._inventory: list[InventoryItem] = []
         self._setup_ui()
         self._load_data()
 
@@ -521,10 +595,19 @@ class OperationsLogScreen(QWidget):
         return card
 
     def _load_data(self):
-        """Load fields and operations."""
+        """Load fields, equipment, inventory and operations."""
         # Load fields for filter and dialog
         fields, _ = self._field_api.list_fields()
         self._fields = fields
+
+        # Load equipment for dialog (Phase 4)
+        equipment, _ = self._equipment_api.list_equipment(status="available")
+        equipment_in_use, _ = self._equipment_api.list_equipment(status="in_use")
+        self._equipment = equipment + equipment_in_use
+
+        # Load inventory for dialog (Phase 4)
+        inventory, _ = self._inventory_api.list_items()
+        self._inventory = [item for item in inventory if item.quantity > 0]
 
         # Update field filter
         current_field = self._field_filter.currentData()
@@ -697,6 +780,8 @@ class OperationsLogScreen(QWidget):
 
         dialog = LogOperationDialog(
             fields=self._fields,
+            equipment=self._equipment,
+            inventory=self._inventory,
             parent=self
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
