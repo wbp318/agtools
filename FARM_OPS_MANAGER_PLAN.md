@@ -1,9 +1,9 @@
 # Farm Operations Manager - Development Plan
 
 > **Version:** 2.5.0
-> **Status:** 🔄 IN PROGRESS - Phases 1-3 Complete, Ready for Phase 4
+> **Status:** 🔄 IN PROGRESS - Phases 1-4 Complete, Ready for Phase 5
 > **Started:** December 11, 2025
-> **Last Updated:** December 15, 2025
+> **Last Updated:** December 18, 2025
 
 ---
 
@@ -27,7 +27,7 @@ A comprehensive farm operations management system combining irrigation schedulin
 | Phase 1 | User & Auth System | ✅ COMPLETE | 6-8 hours |
 | Phase 2 | Task Management Core | ✅ COMPLETE | 8-10 hours |
 | Phase 3 | Field Operations & Logging | ✅ COMPLETE | 6-8 hours |
-| Phase 4 | Equipment & Inventory Tracking | ⏳ Pending | 6-8 hours |
+| Phase 4 | Equipment & Inventory Tracking | ✅ COMPLETE | 6-8 hours |
 | Phase 5 | Reporting & Analytics Dashboard | ⏳ Pending | 8-10 hours |
 | Phase 6 | Mobile/Crew Interface | ⏳ Pending | 6-8 hours |
 
@@ -408,13 +408,200 @@ CREATE TABLE field_operations (
 
 **Goal:** Track equipment and inventory for farm operations.
 
-### Features (Preview)
-- Equipment registry (tractors, sprayers, planters, combines)
-- Equipment availability calendar
-- Maintenance scheduling
-- Resource conflict detection
-- Inventory tracking for supplies and parts
-- Equipment cost tracking (fuel, maintenance)
+**Status:** ✅ COMPLETE (December 18, 2025)
+
+### What Was Built
+
+**Backend:**
+- `backend/services/equipment_service.py` (~700 lines) - Equipment CRUD, maintenance, hours tracking
+- `backend/services/inventory_service.py` (~650 lines) - Inventory CRUD, transactions, alerts
+- `database/migrations/004_equipment_inventory.sql` - 5 tables + field_operations mod
+- 24 new API endpoints (Equipment: 8, Maintenance: 4, Inventory: 8, Transactions: 4)
+
+**Frontend API Clients:**
+- `frontend/api/equipment_api.py` (~500 lines) - Equipment API client
+- `frontend/api/inventory_api.py` (~600 lines) - Inventory API client
+
+**Frontend UI Screens:**
+- `frontend/ui/screens/equipment_management.py` (~1040 lines)
+  - CreateEquipmentDialog, EditEquipmentDialog
+  - UpdateHoursDialog, LogMaintenanceDialog
+  - Equipment table with type/status filtering
+  - Summary cards: total equipment, fleet value, hours, in maintenance
+- `frontend/ui/screens/inventory_management.py` (~1100 lines)
+  - CreateItemDialog, EditItemDialog
+  - QuickPurchaseDialog, AdjustQuantityDialog
+  - Inventory table with category/location filtering
+  - Summary cards: total items, value, low stock, expiring
+- `frontend/ui/screens/maintenance_schedule.py` (~560 lines)
+  - MaintenanceAlertCard with urgency-based styling
+  - Alerts tab with scrollable card grid
+  - History tab with equipment/type filters
+  - Summary cards: overdue, due soon, upcoming, total equipment
+
+**Navigation Integration:**
+- `frontend/ui/screens/__init__.py` - Added new screen exports
+- `frontend/ui/sidebar.py` - Added Equipment section nav
+- `frontend/ui/main_window.py` - Integrated new screens
+
+**Operations Log Enhancement:**
+- `frontend/ui/screens/operations_log.py` - Equipment & inventory integration
+  - Equipment selection with hours used tracking
+  - Inventory item selection for product tracking
+  - Auto-populate product name/unit from inventory
+
+### Features Delivered
+
+1. **Equipment Fleet Management**
+   - Track all equipment: tractors, combines, sprayers, planters, tillage, trucks, ATVs, grain carts
+   - Equipment registry with make, model, year, serial number, purchase info
+   - Hour meter tracking and usage logging
+   - Status tracking: available, in_use, maintenance, retired
+   - Hourly operating cost tracking
+
+2. **Maintenance Scheduling**
+   - Service history logging with maintenance type, cost, vendor, parts
+   - Schedule next service by date or hours
+   - Maintenance alerts for upcoming/overdue service (urgency-based cards)
+   - Alerts view: overdue (red), due soon (orange), upcoming (blue)
+
+3. **Inventory Management**
+   - Track all inputs: seed, fertilizer, chemicals, fuel, parts, supplies
+   - Quantity and unit tracking with reorder points (low stock alerts)
+   - Storage location and batch/lot numbers
+   - Expiration date tracking for chemicals (expiring soon alerts)
+   - Cost per unit and total value tracking
+
+4. **Inventory Transactions**
+   - Purchase recording with vendor and invoice tracking
+   - Usage tracking linked to field operations
+   - Inventory adjustments with reason tracking
+   - Transaction history per item
+
+5. **Operations Integration**
+   - Equipment selection when logging operations
+   - Hours used tracking per operation
+   - Inventory item selection for products
+   - Auto-populate product name and unit from inventory
+
+### New Sidebar Navigation
+
+```
+Equipment Section:
+├── Equipment (fleet management)
+├── Inventory (inputs tracking)
+└── Maintenance (schedule & alerts)
+```
+
+### Database Schema
+
+```sql
+-- Equipment table
+CREATE TABLE equipment (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    equipment_type VARCHAR(50) NOT NULL,
+    make VARCHAR(100),
+    model VARCHAR(100),
+    year INTEGER,
+    serial_number VARCHAR(100),
+    purchase_date DATE,
+    purchase_price DECIMAL(12, 2),
+    current_hours DECIMAL(10, 1),
+    hourly_cost DECIMAL(8, 2),
+    status VARCHAR(20) DEFAULT 'available',
+    notes TEXT,
+    is_active BOOLEAN DEFAULT 1
+);
+
+-- Maintenance records
+CREATE TABLE maintenance_records (
+    id INTEGER PRIMARY KEY,
+    equipment_id INTEGER NOT NULL,
+    maintenance_type VARCHAR(50),
+    maintenance_date DATE NOT NULL,
+    hours_at_service DECIMAL(10, 1),
+    cost DECIMAL(10, 2),
+    vendor VARCHAR(100),
+    parts_used TEXT,
+    notes TEXT,
+    next_service_date DATE,
+    next_service_hours DECIMAL(10, 1),
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id)
+);
+
+-- Inventory items
+CREATE TABLE inventory_items (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    quantity DECIMAL(12, 3) DEFAULT 0,
+    unit VARCHAR(50),
+    reorder_point DECIMAL(12, 3),
+    storage_location VARCHAR(100),
+    batch_lot_number VARCHAR(100),
+    expiration_date DATE,
+    cost_per_unit DECIMAL(10, 4),
+    notes TEXT,
+    is_active BOOLEAN DEFAULT 1
+);
+
+-- Inventory transactions
+CREATE TABLE inventory_transactions (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL,
+    transaction_type VARCHAR(20) NOT NULL,
+    quantity DECIMAL(12, 3) NOT NULL,
+    unit_cost DECIMAL(10, 4),
+    total_cost DECIMAL(12, 2),
+    vendor VARCHAR(100),
+    invoice_number VARCHAR(100),
+    field_operation_id INTEGER,
+    notes TEXT,
+    transaction_date TIMESTAMP,
+    FOREIGN KEY (item_id) REFERENCES inventory_items(id)
+);
+
+-- Equipment usage per operation (added to field_operations)
+ALTER TABLE field_operations ADD COLUMN equipment_id INTEGER;
+ALTER TABLE field_operations ADD COLUMN equipment_hours_used DECIMAL(6, 1);
+ALTER TABLE field_operations ADD COLUMN inventory_item_id INTEGER;
+```
+
+### API Endpoints (24 total)
+
+**Equipment Management:**
+- `GET /api/v1/equipment` - List equipment with filters
+- `POST /api/v1/equipment` - Create equipment
+- `GET /api/v1/equipment/summary` - Fleet summary stats
+- `GET /api/v1/equipment/types` - List equipment types
+- `GET /api/v1/equipment/{id}` - Get equipment details
+- `PUT /api/v1/equipment/{id}` - Update equipment
+- `DELETE /api/v1/equipment/{id}` - Deactivate equipment
+- `POST /api/v1/equipment/{id}/hours` - Update hour meter
+
+**Maintenance:**
+- `POST /api/v1/equipment/{id}/maintenance` - Log maintenance
+- `GET /api/v1/maintenance/alerts` - Get maintenance alerts
+- `GET /api/v1/maintenance/history` - Get maintenance history
+
+**Inventory:**
+- `GET /api/v1/inventory` - List inventory items
+- `POST /api/v1/inventory` - Create item
+- `GET /api/v1/inventory/summary` - Inventory summary stats
+- `GET /api/v1/inventory/categories` - List categories
+- `GET /api/v1/inventory/alerts` - Low stock & expiration alerts
+- `GET /api/v1/inventory/{id}` - Get item details
+- `PUT /api/v1/inventory/{id}` - Update item
+- `DELETE /api/v1/inventory/{id}` - Deactivate item
+
+**Transactions:**
+- `POST /api/v1/inventory/{id}/purchase` - Record purchase
+- `POST /api/v1/inventory/{id}/adjust` - Adjust quantity
+- `POST /api/v1/inventory/{id}/use` - Record usage
+- `GET /api/v1/inventory/{id}/transactions` - Transaction history
+
+**Total New Code:** ~4,600 lines
 
 ---
 
@@ -461,6 +648,16 @@ CREATE TABLE field_operations (
 ---
 
 ## Changelog
+
+### December 18, 2025
+- **Phase 4 COMPLETE**: Equipment & Inventory Tracking
+- Added equipment fleet management (tractors, sprayers, planters, combines, etc.)
+- Added maintenance scheduling with alerts (overdue, due soon, upcoming)
+- Added inventory tracking for all farm inputs (seed, fertilizer, chemicals, fuel, parts)
+- Added inventory transactions (purchases, usage, adjustments)
+- Integrated equipment and inventory into operations log
+- 24 new API endpoints
+- ~4,600 new lines of code
 
 ### December 15, 2025
 - **Phase 3 COMPLETE**: Field Operations & Logging

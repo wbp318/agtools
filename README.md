@@ -227,7 +227,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.5 - 2650+ lines, 92 endpoints)
+│   ├── main.py                       # FastAPI application (v2.5 - 3000+ lines, 116 endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
@@ -247,7 +247,9 @@ agtools/
 │       ├── user_service.py           # User & crew management (v2.5)
 │       ├── task_service.py           # Task management (v2.5)
 │       ├── field_service.py          # Field management (v2.5)
-│       └── field_operations_service.py # Operations logging (v2.5)
+│       ├── field_operations_service.py # Operations logging (v2.5)
+│       ├── equipment_service.py      # Equipment fleet management (v2.5)
+│       └── inventory_service.py      # Inventory tracking (v2.5)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -266,7 +268,9 @@ agtools/
 │   │   ├── crew_api.py               # Crew management (v2.5)
 │   │   ├── task_api.py               # Task management (v2.5)
 │   │   ├── field_api.py              # Field management (v2.5)
-│   │   └── operations_api.py         # Operations logging (v2.5)
+│   │   ├── operations_api.py         # Operations logging (v2.5)
+│   │   ├── equipment_api.py          # Equipment management (v2.5)
+│   │   └── inventory_api.py          # Inventory management (v2.5)
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
@@ -296,6 +300,9 @@ agtools/
 │           ├── task_management.py    # Task management (v2.5)
 │           ├── user_management.py    # User admin (v2.5)
 │           ├── crew_management.py    # Crew management (v2.5)
+│           ├── equipment_management.py # Equipment fleet (v2.5)
+│           ├── inventory_management.py # Inventory tracking (v2.5)
+│           ├── maintenance_schedule.py # Maintenance alerts (v2.5)
 │           ├── yield_response.py     # Yield calculator with charts
 │           ├── spray_timing.py       # Weather evaluation
 │           ├── cost_optimizer.py     # Tabbed cost analysis
@@ -411,6 +418,24 @@ agtools/
 | `POST /api/v1/operations` | Log new operation |
 | `GET /api/v1/operations/summary` | Operations statistics |
 | `GET /api/v1/fields/{id}/operations` | Field operation history |
+
+### Equipment & Inventory (NEW in v2.5)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/equipment` | **List equipment fleet** |
+| `POST /api/v1/equipment` | Add equipment |
+| `GET /api/v1/equipment/summary` | Fleet summary stats |
+| `POST /api/v1/equipment/{id}/hours` | Update hour meter |
+| `POST /api/v1/equipment/{id}/maintenance` | Log maintenance |
+| `GET /api/v1/maintenance/alerts` | **Maintenance alerts (overdue/upcoming)** |
+| `GET /api/v1/maintenance/history` | Maintenance history |
+| `GET /api/v1/inventory` | **List inventory items** |
+| `POST /api/v1/inventory` | Add inventory item |
+| `GET /api/v1/inventory/summary` | Inventory value stats |
+| `GET /api/v1/inventory/alerts` | **Low stock & expiration alerts** |
+| `POST /api/v1/inventory/{id}/purchase` | Record purchase |
+| `POST /api/v1/inventory/{id}/adjust` | Adjust quantity |
+| `GET /api/v1/inventory/{id}/transactions` | Transaction history |
 
 Visit http://localhost:8000/docs for interactive documentation.
 
