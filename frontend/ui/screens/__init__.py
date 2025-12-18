@@ -16,6 +16,11 @@ from ui.screens.login import LoginScreen
 from ui.screens.user_management import UserManagementScreen
 from ui.screens.crew_management import CrewManagementScreen
 from ui.screens.task_management import TaskManagementScreen
+from ui.screens.field_management import FieldManagementScreen
+from ui.screens.operations_log import OperationsLogScreen
+from ui.screens.equipment_management import EquipmentManagementScreen
+from ui.screens.inventory_management import InventoryManagementScreen
+from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
 
 __all__ = [
     "DashboardScreen",
@@ -30,4 +35,9 @@ __all__ = [
     "UserManagementScreen",
     "CrewManagementScreen",
     "TaskManagementScreen",
+    "FieldManagementScreen",
+    "OperationsLogScreen",
+    "EquipmentManagementScreen",
+    "InventoryManagementScreen",
+    "MaintenanceScheduleScreen",
 ]

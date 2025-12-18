@@ -30,6 +30,9 @@ from ui.screens.crew_management import CrewManagementScreen
 from ui.screens.task_management import TaskManagementScreen
 from ui.screens.field_management import FieldManagementScreen
 from ui.screens.operations_log import OperationsLogScreen
+from ui.screens.equipment_management import EquipmentManagementScreen
+from ui.screens.inventory_management import InventoryManagementScreen
+from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -425,6 +428,18 @@ class MainWindow(QMainWindow):
         ops_log_screen = OperationsLogScreen(current_user=self._current_user)
         self._add_screen("operations", ops_log_screen)
 
+        # Equipment Management Screen (Phase 4) - All users
+        equipment_screen = EquipmentManagementScreen(current_user=self._current_user)
+        self._add_screen("equipment", equipment_screen)
+
+        # Inventory Management Screen (Phase 4) - All users
+        inventory_screen = InventoryManagementScreen(current_user=self._current_user)
+        self._add_screen("inventory", inventory_screen)
+
+        # Maintenance Schedule Screen (Phase 4) - All users
+        maintenance_screen = MaintenanceScheduleScreen(current_user=self._current_user)
+        self._add_screen("maintenance", maintenance_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -501,6 +516,9 @@ class MainWindow(QMainWindow):
                 "fields": "Field Management",
                 "operations": "Operations Log",
                 "tasks": "Task Management",
+                "equipment": "Equipment Management",
+                "inventory": "Inventory Management",
+                "maintenance": "Maintenance Schedule",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",

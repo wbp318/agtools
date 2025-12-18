@@ -123,6 +123,12 @@ class Sidebar(QFrame):
         self._add_nav_item(nav_layout, "Operations", icon="\u2699")  # Gear/log
         self._add_nav_item(nav_layout, "Tasks", icon="\u2611")  # Checkbox
 
+        # Equipment & Inventory Section (Phase 4)
+        nav_layout.addWidget(SectionHeader("Equipment"))
+        self._add_nav_item(nav_layout, "Equipment", icon="\u2692")  # Hammer/tools
+        self._add_nav_item(nav_layout, "Inventory", icon="\u2630")  # Box/inventory
+        self._add_nav_item(nav_layout, "Maintenance", icon="\u2694")  # Wrench
+
         # Identify Section
         nav_layout.addWidget(SectionHeader("Identify"))
         self._add_nav_item(nav_layout, "Pests", icon="\u2618")  # Bug-like
