@@ -61,11 +61,20 @@
   - `inventory_items` table - Inventory registry
   - `inventory_transactions` table - Transaction log
   - Added `equipment_id` column to `field_operations`
+- `backend/services/equipment_service.py` (~700 lines) ✅ COMPLETE
+  - EquipmentType, EquipmentStatus, MaintenanceType enums
+  - Full CRUD for equipment, maintenance, usage
+  - Summary statistics and maintenance alerts
+- `backend/services/inventory_service.py` (~650 lines) ✅ COMPLETE
+  - InventoryCategory, TransactionType enums
+  - Full CRUD for items and transactions
+  - Low stock and expiration alerts
+- `backend/main.py` - Added 24 new API endpoints ✅ COMPLETE
+- `frontend/api/equipment_api.py` (~500 lines) ✅ COMPLETE
+  - EquipmentInfo, MaintenanceInfo, EquipmentUsage dataclasses
+  - Full API client for equipment management
 
-**Planned Files (Not Yet Created):**
-- `backend/services/equipment_service.py` (~550 lines)
-- `backend/services/inventory_service.py` (~500 lines)
-- `frontend/api/equipment_api.py` (~300 lines)
+**Remaining Files (To Be Created):**
 - `frontend/api/inventory_api.py` (~300 lines)
 - `frontend/ui/screens/equipment_management.py` (~550 lines)
 - `frontend/ui/screens/inventory_management.py` (~550 lines)
