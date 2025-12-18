@@ -4,9 +4,82 @@
 
 ---
 
-## Current Version: 2.5.0 (In Development - December 16, 2025)
+## Current Version: 2.5.0 (In Development - December 17, 2025)
 
-### Latest Session: December 16, 2025
+### Latest Session: December 17, 2025
+
+#### v2.5.0 - Phase 4: Equipment & Inventory Tracking (IN PROGRESS)
+
+**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Ops) | 🔄 Phase 4 (Equipment & Inventory) IN PROGRESS
+
+**Planning Decisions Made:**
+- **Equipment Scope:** Full fleet tracking (tractors, combines, sprayers, planters, tillage, trucks, ATVs, grain carts)
+- **Inventory Scope:** All inputs (seed, fertilizer, herbicide, fungicide, insecticide, fuel, parts, supplies)
+- **Integration:** Full integration with field operations - select equipment when logging operations, auto-track hours
+- **Maintenance:** Full scheduling with alerts - track service history, schedule by date or hours, get upcoming alerts
+
+**What's Being Built:**
+
+1. **Equipment Fleet Management** 🔄 IN PROGRESS
+   - Track all equipment: tractors, combines, sprayers, planters, tillage, trucks, ATVs, grain carts
+   - Equipment registry with make, model, year, serial number, purchase info
+   - Hour meter tracking and usage logging
+   - Status tracking: available, in_use, maintenance, retired
+   - Hourly operating cost tracking
+
+2. **Maintenance Scheduling** 🔄 IN PROGRESS
+   - Service history logging
+   - Schedule next service by date or hours
+   - Maintenance alerts for upcoming service
+   - Cost tracking per maintenance event
+   - Vendor and parts tracking
+
+3. **Inventory Management** 🔄 IN PROGRESS
+   - Track all inputs: seed, fertilizer, chemicals (herbicide, fungicide, insecticide), fuel, parts, supplies
+   - Quantity and unit tracking with reorder points
+   - Storage location and batch/lot numbers
+   - Expiration date tracking for chemicals
+   - Cost per unit and total value
+
+4. **Inventory Transactions** 🔄 IN PROGRESS
+   - Purchase recording
+   - Usage tracking linked to field operations
+   - Inventory adjustments
+   - Transaction history per item
+
+5. **Operations Integration** 🔄 IN PROGRESS
+   - Link equipment to field operations
+   - Auto-track equipment hours per operation
+   - Link inventory usage to operations
+   - Auto-deduct inventory when products applied
+
+**Files Created So Far:**
+- `database/migrations/004_equipment_inventory.sql` - NEW: 5 tables + field_operations mod
+  - `equipment` table - Equipment registry
+  - `equipment_maintenance` table - Service history
+  - `equipment_usage` table - Usage log linked to operations
+  - `inventory_items` table - Inventory registry
+  - `inventory_transactions` table - Transaction log
+  - Added `equipment_id` column to `field_operations`
+
+**Planned Files (Not Yet Created):**
+- `backend/services/equipment_service.py` (~550 lines)
+- `backend/services/inventory_service.py` (~500 lines)
+- `frontend/api/equipment_api.py` (~300 lines)
+- `frontend/api/inventory_api.py` (~300 lines)
+- `frontend/ui/screens/equipment_management.py` (~550 lines)
+- `frontend/ui/screens/inventory_management.py` (~550 lines)
+- `frontend/ui/screens/maintenance_schedule.py` (~450 lines)
+
+**New API Endpoints (24 planned):**
+- Equipment: 8 endpoints (CRUD + hours + types + summary)
+- Maintenance: 4 endpoints (CRUD + alerts + history)
+- Inventory: 8 endpoints (CRUD + summary + categories + alerts)
+- Transactions: 4 endpoints (record + history + purchase + adjust)
+
+---
+
+### Previous Session: December 16, 2025
 
 #### v2.5.0 - Smoke Tests & Bug Fixes
 
