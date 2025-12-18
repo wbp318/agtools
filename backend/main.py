@@ -72,6 +72,36 @@ from services.field_operations_service import (
     FieldOperationHistory,
     OperationType
 )
+from services.equipment_service import (
+    get_equipment_service,
+    EquipmentCreate,
+    EquipmentUpdate,
+    EquipmentResponse,
+    EquipmentSummary,
+    EquipmentType,
+    EquipmentStatus,
+    MaintenanceCreate,
+    MaintenanceUpdate,
+    MaintenanceResponse,
+    MaintenanceType,
+    MaintenanceAlert,
+    EquipmentUsageCreate,
+    EquipmentUsageResponse
+)
+from services.inventory_service import (
+    get_inventory_service,
+    InventoryItemCreate,
+    InventoryItemUpdate,
+    InventoryItemResponse,
+    InventorySummary,
+    InventoryCategory,
+    TransactionCreate,
+    TransactionResponse,
+    TransactionType,
+    InventoryAlert,
+    QuickPurchaseRequest,
+    AdjustQuantityRequest
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -2643,6 +2673,478 @@ async def get_field_operation_history(
         raise HTTPException(status_code=404, detail="Field not found")
 
     return history
+
+
+# ============================================================================
+# EQUIPMENT MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/equipment", response_model=List[EquipmentResponse], tags=["Equipment"])
+async def list_equipment(
+    equipment_type: Optional[EquipmentType] = None,
+    status: Optional[EquipmentStatus] = None,
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    List all equipment with optional filters.
+
+    - **equipment_type**: Filter by type (tractor, combine, sprayer, etc.)
+    - **status**: Filter by status (available, in_use, maintenance, retired)
+    - **search**: Search by name, make, model, or serial number
+    """
+    equip_service = get_equipment_service()
+    return equip_service.list_equipment(
+        equipment_type=equipment_type,
+        status=status,
+        search=search,
+        limit=limit,
+        offset=offset
+    )
+
+
+@app.post("/api/v1/equipment", response_model=EquipmentResponse, tags=["Equipment"])
+async def create_equipment(
+    equip_data: EquipmentCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new equipment record."""
+    equip_service = get_equipment_service()
+    equipment, error = equip_service.create_equipment(equip_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return equipment
+
+
+@app.get("/api/v1/equipment/summary", response_model=EquipmentSummary, tags=["Equipment"])
+async def get_equipment_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary statistics for equipment fleet."""
+    equip_service = get_equipment_service()
+    return equip_service.get_equipment_summary()
+
+
+@app.get("/api/v1/equipment/types", tags=["Equipment"])
+async def get_equipment_types(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of equipment types for dropdowns."""
+    equip_service = get_equipment_service()
+    return equip_service.get_equipment_types()
+
+
+@app.get("/api/v1/equipment/statuses", tags=["Equipment"])
+async def get_equipment_statuses(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of equipment statuses for dropdowns."""
+    equip_service = get_equipment_service()
+    return equip_service.get_equipment_statuses()
+
+
+@app.get("/api/v1/equipment/{equipment_id}", response_model=EquipmentResponse, tags=["Equipment"])
+async def get_equipment(
+    equipment_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get equipment by ID."""
+    equip_service = get_equipment_service()
+    equipment = equip_service.get_equipment_by_id(equipment_id)
+
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    return equipment
+
+
+@app.put("/api/v1/equipment/{equipment_id}", response_model=EquipmentResponse, tags=["Equipment"])
+async def update_equipment(
+    equipment_id: int,
+    equip_data: EquipmentUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update equipment."""
+    equip_service = get_equipment_service()
+    equipment, error = equip_service.update_equipment(equipment_id, equip_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    return equipment
+
+
+@app.delete("/api/v1/equipment/{equipment_id}", tags=["Equipment"])
+async def delete_equipment(
+    equipment_id: int,
+    user: AuthenticatedUser = Depends(require_manager)
+):
+    """Retire equipment (soft delete). Manager/admin only."""
+    equip_service = get_equipment_service()
+    success, error = equip_service.delete_equipment(equipment_id, user.id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail=error or "Failed to delete equipment")
+
+    return {"message": "Equipment retired successfully"}
+
+
+@app.post("/api/v1/equipment/{equipment_id}/hours", response_model=EquipmentResponse, tags=["Equipment"])
+async def update_equipment_hours(
+    equipment_id: int,
+    new_hours: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update equipment hour meter reading."""
+    equip_service = get_equipment_service()
+    equipment, error = equip_service.update_hours(equipment_id, new_hours, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    if not equipment:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    return equipment
+
+
+# ============================================================================
+# MAINTENANCE ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/maintenance", response_model=List[MaintenanceResponse], tags=["Maintenance"])
+async def list_maintenance(
+    equipment_id: Optional[int] = None,
+    maintenance_type: Optional[MaintenanceType] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    limit: int = 100,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List maintenance records with optional filters."""
+    equip_service = get_equipment_service()
+    return equip_service.list_maintenance(
+        equipment_id=equipment_id,
+        maintenance_type=maintenance_type,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset
+    )
+
+
+@app.post("/api/v1/maintenance", response_model=MaintenanceResponse, tags=["Maintenance"])
+async def create_maintenance(
+    maint_data: MaintenanceCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Log a maintenance record."""
+    equip_service = get_equipment_service()
+    maintenance, error = equip_service.create_maintenance(maint_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return maintenance
+
+
+@app.get("/api/v1/maintenance/alerts", response_model=List[MaintenanceAlert], tags=["Maintenance"])
+async def get_maintenance_alerts(
+    days_ahead: int = 30,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get upcoming maintenance alerts.
+
+    Returns equipment that has maintenance due within the specified number of days,
+    or is overdue for service.
+    """
+    equip_service = get_equipment_service()
+    return equip_service.get_maintenance_alerts(days_ahead=days_ahead)
+
+
+@app.get("/api/v1/maintenance/types", tags=["Maintenance"])
+async def get_maintenance_types(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of maintenance types for dropdowns."""
+    equip_service = get_equipment_service()
+    return equip_service.get_maintenance_types()
+
+
+@app.get("/api/v1/equipment/{equipment_id}/maintenance", response_model=List[MaintenanceResponse], tags=["Maintenance"])
+async def get_equipment_maintenance_history(
+    equipment_id: int,
+    limit: int = 50,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get maintenance history for specific equipment."""
+    equip_service = get_equipment_service()
+    return equip_service.get_equipment_maintenance_history(equipment_id, limit=limit)
+
+
+@app.get("/api/v1/equipment/{equipment_id}/usage", response_model=List[EquipmentUsageResponse], tags=["Equipment"])
+async def get_equipment_usage_history(
+    equipment_id: int,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    limit: int = 100,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get usage history for specific equipment."""
+    equip_service = get_equipment_service()
+    return equip_service.get_equipment_usage_history(
+        equipment_id,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit
+    )
+
+
+@app.post("/api/v1/equipment/usage", response_model=EquipmentUsageResponse, tags=["Equipment"])
+async def log_equipment_usage(
+    usage_data: EquipmentUsageCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Log equipment usage (hours, fuel, operator)."""
+    equip_service = get_equipment_service()
+    usage, error = equip_service.log_usage(usage_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return usage
+
+
+# ============================================================================
+# INVENTORY MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/inventory", response_model=List[InventoryItemResponse], tags=["Inventory"])
+async def list_inventory(
+    category: Optional[InventoryCategory] = None,
+    search: Optional[str] = None,
+    storage_location: Optional[str] = None,
+    low_stock_only: bool = False,
+    expiring_only: bool = False,
+    limit: int = 100,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    List inventory items with optional filters.
+
+    - **category**: Filter by category (seed, fertilizer, herbicide, etc.)
+    - **search**: Search by name, manufacturer, or product code
+    - **storage_location**: Filter by storage location
+    - **low_stock_only**: Only show items below minimum quantity
+    - **expiring_only**: Only show items expiring within 30 days
+    """
+    inv_service = get_inventory_service()
+    return inv_service.list_items(
+        category=category,
+        search=search,
+        storage_location=storage_location,
+        low_stock_only=low_stock_only,
+        expiring_only=expiring_only,
+        limit=limit,
+        offset=offset
+    )
+
+
+@app.post("/api/v1/inventory", response_model=InventoryItemResponse, tags=["Inventory"])
+async def create_inventory_item(
+    item_data: InventoryItemCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new inventory item."""
+    inv_service = get_inventory_service()
+    item, error = inv_service.create_item(item_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return item
+
+
+@app.get("/api/v1/inventory/summary", response_model=InventorySummary, tags=["Inventory"])
+async def get_inventory_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary statistics for inventory."""
+    inv_service = get_inventory_service()
+    return inv_service.get_inventory_summary()
+
+
+@app.get("/api/v1/inventory/categories", tags=["Inventory"])
+async def get_inventory_categories(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of inventory categories for dropdowns."""
+    inv_service = get_inventory_service()
+    return inv_service.get_categories()
+
+
+@app.get("/api/v1/inventory/locations", tags=["Inventory"])
+async def get_storage_locations(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of unique storage locations."""
+    inv_service = get_inventory_service()
+    return inv_service.get_storage_locations()
+
+
+@app.get("/api/v1/inventory/alerts", response_model=List[InventoryAlert], tags=["Inventory"])
+async def get_inventory_alerts(
+    expiry_days: int = 30,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get inventory alerts (low stock and expiring items).
+
+    Returns items that are below minimum quantity or expiring within the specified days.
+    """
+    inv_service = get_inventory_service()
+    return inv_service.get_alerts(expiry_days=expiry_days)
+
+
+@app.get("/api/v1/inventory/{item_id}", response_model=InventoryItemResponse, tags=["Inventory"])
+async def get_inventory_item(
+    item_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get inventory item by ID."""
+    inv_service = get_inventory_service()
+    item = inv_service.get_item_by_id(item_id)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    return item
+
+
+@app.put("/api/v1/inventory/{item_id}", response_model=InventoryItemResponse, tags=["Inventory"])
+async def update_inventory_item(
+    item_id: int,
+    item_data: InventoryItemUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update inventory item."""
+    inv_service = get_inventory_service()
+    item, error = inv_service.update_item(item_id, item_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    return item
+
+
+@app.delete("/api/v1/inventory/{item_id}", tags=["Inventory"])
+async def delete_inventory_item(
+    item_id: int,
+    user: AuthenticatedUser = Depends(require_manager)
+):
+    """Delete inventory item (soft delete). Manager/admin only."""
+    inv_service = get_inventory_service()
+    success, error = inv_service.delete_item(item_id, user.id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail=error or "Failed to delete item")
+
+    return {"message": "Inventory item deleted successfully"}
+
+
+# ============================================================================
+# INVENTORY TRANSACTION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/inventory/transaction", response_model=TransactionResponse, tags=["Inventory"])
+async def record_inventory_transaction(
+    trans_data: TransactionCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record an inventory transaction.
+
+    Use positive quantity for additions (purchase, return, adjustment up).
+    Use negative quantity for deductions (usage, waste, adjustment down).
+    """
+    inv_service = get_inventory_service()
+    transaction, error = inv_service.record_transaction(trans_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return transaction
+
+
+@app.get("/api/v1/inventory/{item_id}/transactions", response_model=List[TransactionResponse], tags=["Inventory"])
+async def get_item_transactions(
+    item_id: int,
+    transaction_type: Optional[TransactionType] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    limit: int = 100,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get transaction history for an inventory item."""
+    inv_service = get_inventory_service()
+    return inv_service.get_item_transactions(
+        item_id,
+        transaction_type=transaction_type,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit
+    )
+
+
+@app.post("/api/v1/inventory/purchase", response_model=InventoryItemResponse, tags=["Inventory"])
+async def quick_purchase(
+    purchase_data: QuickPurchaseRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Quick purchase entry.
+
+    Adds quantity to inventory and records a purchase transaction.
+    """
+    inv_service = get_inventory_service()
+    item, error = inv_service.quick_purchase(purchase_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return item
+
+
+@app.post("/api/v1/inventory/adjust", response_model=InventoryItemResponse, tags=["Inventory"])
+async def adjust_quantity(
+    adjust_data: AdjustQuantityRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Adjust inventory quantity (for counts, corrections).
+
+    Sets the quantity to the new value and records an adjustment transaction.
+    """
+    inv_service = get_inventory_service()
+    item, error = inv_service.adjust_quantity(adjust_data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return item
 
 
 # ============================================================================
