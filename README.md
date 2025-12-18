@@ -38,6 +38,9 @@ We offer commercial licensing options:
 - **Task management** with assignments, priorities, due dates, and status workflows
 - **Field management** to track all your farm fields with acreage, crop types, and locations
 - **Operations logging** to record all field operations (sprays, fertilizer, planting, harvest) with costs and yields
+- **Equipment management** to track your fleet (tractors, combines, sprayers) with hours, maintenance, and costs
+- **Inventory tracking** for seeds, fertilizers, chemicals, fuel, and parts with low stock and expiration alerts
+- **Maintenance scheduling** with overdue/upcoming service alerts and full history tracking
 
 **Version 2.4.0** adds **Settings Screen & UI Polish** with comprehensive configuration options, reusable widget library, and offline mode support. The desktop application now includes 8 complete screens with professional loading states, validation feedback, and toast notifications.
 
