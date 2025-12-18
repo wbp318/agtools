@@ -8,6 +8,37 @@
 
 ### Latest Session: December 18, 2025
 
+#### v2.5.0 - Phase 5: Reporting & Analytics Dashboard 🔄 IN PROGRESS
+
+**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Ops) | ✅ Phase 4 (Equipment & Inventory) | 🔄 Phase 5 (Reports) IN PROGRESS
+
+**Phase 5 Implementation Checklist:**
+
+**Backend:**
+- [ ] Create `backend/services/reporting_service.py` (~600 lines)
+  - [ ] get_operations_report(date_from, date_to, field_id)
+  - [ ] get_financial_report(date_from, date_to)
+  - [ ] get_equipment_report(date_from, date_to)
+  - [ ] get_inventory_report()
+  - [ ] get_field_performance_report(date_from, date_to)
+  - [ ] export_report_csv(report_type, date_from, date_to)
+- [ ] Add 7 reporting endpoints to `backend/main.py`
+
+**Frontend:**
+- [ ] Create `frontend/api/reports_api.py` (~300 lines)
+- [ ] Create `frontend/ui/screens/reports_dashboard.py` (~1200 lines)
+  - [ ] Tab 1: Operations Overview (cards + charts + table)
+  - [ ] Tab 2: Financial Analysis (cards + charts + table)
+  - [ ] Tab 3: Equipment & Inventory (cards + charts + tables)
+  - [ ] Tab 4: Field Performance (cards + chart + table)
+
+**Integration:**
+- [ ] Update sidebar.py - Add Reports nav
+- [ ] Update main_window.py - Integrate screen
+- [ ] Update __init__.py files - Exports
+
+---
+
 #### v2.5.0 - Phase 4: Equipment & Inventory Tracking ✅ COMPLETE
 
 **Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Ops) | ✅ Phase 4 (Equipment & Inventory) COMPLETE

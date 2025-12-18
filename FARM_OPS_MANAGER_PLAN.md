@@ -609,13 +609,99 @@ ALTER TABLE field_operations ADD COLUMN inventory_item_id INTEGER;
 
 **Goal:** Provide insights and reports across all farm operations.
 
-### Features (Preview)
-- Operations summary reports (by field, by type, by date range)
-- Cost analysis reports
-- Yield vs. input analysis
-- Labor tracking and reporting
-- Export to CSV/PDF
-- Custom report builder
+**Status:** 🔄 IN PROGRESS (December 18, 2025)
+
+### Architecture
+
+**Approach:** New ReportingService that aggregates from existing services:
+- Leverages existing summary methods (get_operations_summary, get_equipment_summary, etc.)
+- Adds date-range filtering and cross-functional aggregations
+- Uses pyqtgraph for charts (already available)
+- CSV export capability
+
+### Report Tabs
+
+**Tab 1: Operations Overview**
+- Summary Cards: Total operations, Total cost, Avg cost/acre, Top operation type
+- Bar chart: Operations by type
+- Line chart: Costs over time (monthly)
+- Table: Recent operations with filters
+
+**Tab 2: Financial Analysis**
+- Summary Cards: Total input costs, Equipment costs, Revenue (harvest), Net profit
+- Pie chart: Cost breakdown by category
+- Bar chart: Profit/loss by field
+- Table: Cost details by field
+
+**Tab 3: Equipment & Inventory**
+- Summary Cards: Fleet value, Total hours, Items in stock, Low stock count
+- Bar chart: Equipment utilization (hours)
+- Bar chart: Inventory value by category
+- Tables: Maintenance alerts, Low stock items
+
+**Tab 4: Field Performance**
+- Summary Cards: Total fields, Total acres, Avg yield, Best field
+- Bar chart: Yield by field
+- Table: Field summary with operations, costs, yields
+
+### Implementation Checklist
+
+**Backend:**
+- [ ] Create `backend/services/reporting_service.py` (~600 lines)
+  - [ ] get_operations_report(date_from, date_to, field_id)
+  - [ ] get_financial_report(date_from, date_to)
+  - [ ] get_equipment_report(date_from, date_to)
+  - [ ] get_inventory_report()
+  - [ ] get_field_performance_report(date_from, date_to)
+  - [ ] export_report_csv(report_type, date_from, date_to)
+
+- [ ] Add reporting endpoints to `backend/main.py` (7 endpoints)
+  - [ ] GET /api/v1/reports/operations
+  - [ ] GET /api/v1/reports/financial
+  - [ ] GET /api/v1/reports/equipment
+  - [ ] GET /api/v1/reports/inventory
+  - [ ] GET /api/v1/reports/fields
+  - [ ] GET /api/v1/reports/dashboard
+  - [ ] POST /api/v1/reports/export/csv
+
+**Frontend:**
+- [ ] Create `frontend/api/reports_api.py` (~300 lines)
+  - [ ] ReportsAPI class with methods for each endpoint
+  - [ ] Dataclasses: OperationsReport, FinancialReport, etc.
+
+- [ ] Create `frontend/ui/screens/reports_dashboard.py` (~1200 lines)
+  - [ ] Date range selector (From/To)
+  - [ ] Export CSV button
+  - [ ] Tab 1: Operations Overview (cards + charts + table)
+  - [ ] Tab 2: Financial Analysis (cards + charts + table)
+  - [ ] Tab 3: Equipment & Inventory (cards + charts + tables)
+  - [ ] Tab 4: Field Performance (cards + chart + table)
+
+**Integration:**
+- [ ] Update `frontend/ui/screens/__init__.py`
+- [ ] Update `frontend/ui/sidebar.py` - Add Reports nav
+- [ ] Update `frontend/ui/main_window.py` - Integrate screen
+- [ ] Update `frontend/api/__init__.py`
+
+### Files to Create/Modify
+
+**New Files (3):**
+1. `backend/services/reporting_service.py` (~600 lines)
+2. `frontend/api/reports_api.py` (~300 lines)
+3. `frontend/ui/screens/reports_dashboard.py` (~1200 lines)
+
+**Modified Files (4):**
+1. `backend/main.py` - Add 7 endpoints
+2. `frontend/ui/screens/__init__.py` - Export screen
+3. `frontend/ui/sidebar.py` - Add nav item
+4. `frontend/ui/main_window.py` - Integrate screen
+
+### Estimated Scope
+- Backend: ~600 lines
+- Frontend API: ~300 lines
+- Frontend UI: ~1200 lines
+- Integration: ~50 lines
+- **Total: ~2,150 lines**
 
 ---
 
