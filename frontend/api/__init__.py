@@ -24,6 +24,14 @@ from api.auth_api import AuthAPI, get_auth_api, AuthToken, UserInfo, LoginResult
 from api.task_api import TaskAPI, TaskInfo, get_task_api
 from api.field_api import FieldAPI, FieldInfo, FieldSummary, get_field_api
 from api.operations_api import OperationsAPI, OperationInfo, OperationsSummary, FieldOperationHistory, get_operations_api
+from api.equipment_api import (
+    EquipmentAPI, EquipmentInfo, MaintenanceInfo, MaintenanceAlert,
+    EquipmentUsage, EquipmentSummary, get_equipment_api
+)
+from api.inventory_api import (
+    InventoryAPI, InventoryItem, InventoryTransaction, InventoryAlert,
+    InventorySummary, get_inventory_api
+)
 
 __all__ = [
     # Base client
@@ -72,4 +80,19 @@ __all__ = [
     "OperationsSummary",
     "FieldOperationHistory",
     "get_operations_api",
+    # Equipment Management
+    "EquipmentAPI",
+    "EquipmentInfo",
+    "MaintenanceInfo",
+    "MaintenanceAlert",
+    "EquipmentUsage",
+    "EquipmentSummary",
+    "get_equipment_api",
+    # Inventory Management
+    "InventoryAPI",
+    "InventoryItem",
+    "InventoryTransaction",
+    "InventoryAlert",
+    "InventorySummary",
+    "get_inventory_api",
 ]
