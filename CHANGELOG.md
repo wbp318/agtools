@@ -6,99 +6,123 @@
 
 ## Current Version: 2.5.0 (In Development - December 17, 2025)
 
-### Latest Session: December 17, 2025
+### Latest Session: December 18, 2025
 
-#### v2.5.0 - Phase 4: Equipment & Inventory Tracking (IN PROGRESS)
+#### v2.5.0 - Phase 4: Equipment & Inventory Tracking ✅ COMPLETE
 
-**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Ops) | 🔄 Phase 4 (Equipment & Inventory) IN PROGRESS
+**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Ops) | ✅ Phase 4 (Equipment & Inventory) COMPLETE
 
-**Planning Decisions Made:**
-- **Equipment Scope:** Full fleet tracking (tractors, combines, sprayers, planters, tillage, trucks, ATVs, grain carts)
-- **Inventory Scope:** All inputs (seed, fertilizer, herbicide, fungicide, insecticide, fuel, parts, supplies)
-- **Integration:** Full integration with field operations - select equipment when logging operations, auto-track hours
-- **Maintenance:** Full scheduling with alerts - track service history, schedule by date or hours, get upcoming alerts
+**What Was Built:**
 
-**What's Being Built:**
-
-1. **Equipment Fleet Management** 🔄 IN PROGRESS
+1. **Equipment Fleet Management** ✅ COMPLETE
    - Track all equipment: tractors, combines, sprayers, planters, tillage, trucks, ATVs, grain carts
    - Equipment registry with make, model, year, serial number, purchase info
    - Hour meter tracking and usage logging
    - Status tracking: available, in_use, maintenance, retired
    - Hourly operating cost tracking
+   - Full CRUD UI with summary cards, filters, and table view
 
-2. **Maintenance Scheduling** 🔄 IN PROGRESS
-   - Service history logging
+2. **Maintenance Scheduling** ✅ COMPLETE
+   - Service history logging with maintenance type, cost, vendor, parts
    - Schedule next service by date or hours
-   - Maintenance alerts for upcoming service
-   - Cost tracking per maintenance event
-   - Vendor and parts tracking
+   - Maintenance alerts for upcoming/overdue service (urgency-based cards)
+   - Alerts view: overdue (red), due soon (orange), upcoming (blue)
+   - History table with equipment, type, and date range filters
 
-3. **Inventory Management** 🔄 IN PROGRESS
-   - Track all inputs: seed, fertilizer, chemicals (herbicide, fungicide, insecticide), fuel, parts, supplies
-   - Quantity and unit tracking with reorder points
+3. **Inventory Management** ✅ COMPLETE
+   - Track all inputs: seed, fertilizer, chemicals, fuel, parts, supplies
+   - Quantity and unit tracking with reorder points (low stock alerts)
    - Storage location and batch/lot numbers
-   - Expiration date tracking for chemicals
-   - Cost per unit and total value
+   - Expiration date tracking for chemicals (expiring soon alerts)
+   - Cost per unit and total value tracking
+   - Quick purchase and quantity adjustment dialogs
 
-4. **Inventory Transactions** 🔄 IN PROGRESS
-   - Purchase recording
+4. **Inventory Transactions** ✅ COMPLETE
+   - Purchase recording with vendor and invoice tracking
    - Usage tracking linked to field operations
-   - Inventory adjustments
+   - Inventory adjustments with reason tracking
    - Transaction history per item
 
-5. **Operations Integration** 🔄 IN PROGRESS
-   - Link equipment to field operations
-   - Auto-track equipment hours per operation
-   - Link inventory usage to operations
-   - Auto-deduct inventory when products applied
+5. **Operations Integration** ✅ COMPLETE
+   - Equipment selection when logging operations
+   - Hours used tracking per operation
+   - Inventory item selection for products
+   - Auto-populate product name and unit from inventory
 
-**Files Created So Far:**
-- `database/migrations/004_equipment_inventory.sql` - NEW: 5 tables + field_operations mod
-  - `equipment` table - Equipment registry
-  - `equipment_maintenance` table - Service history
-  - `equipment_usage` table - Usage log linked to operations
-  - `inventory_items` table - Inventory registry
-  - `inventory_transactions` table - Transaction log
-  - Added `equipment_id` column to `field_operations`
-- `backend/services/equipment_service.py` (~700 lines) ✅ COMPLETE
-  - EquipmentType, EquipmentStatus, MaintenanceType enums
-  - Full CRUD for equipment, maintenance, usage
-  - Summary statistics and maintenance alerts
-- `backend/services/inventory_service.py` (~650 lines) ✅ COMPLETE
-  - InventoryCategory, TransactionType enums
-  - Full CRUD for items and transactions
-  - Low stock and expiration alerts
-- `backend/main.py` - Added 24 new API endpoints ✅ COMPLETE
-- `frontend/api/equipment_api.py` (~500 lines) ✅ COMPLETE
-  - EquipmentInfo, MaintenanceInfo, EquipmentUsage dataclasses
-  - Full API client for equipment management
+**Files Created/Modified:**
 
-**Remaining Files (To Be Created):**
-- `frontend/api/inventory_api.py` (~300 lines)
-- `frontend/ui/screens/equipment_management.py` (~550 lines)
-- `frontend/ui/screens/inventory_management.py` (~550 lines)
-- `frontend/ui/screens/maintenance_schedule.py` (~450 lines)
+**Backend (Previous Session):**
+- `database/migrations/004_equipment_inventory.sql` ✅ (5 tables + field_operations mod)
+- `backend/services/equipment_service.py` (~700 lines) ✅
+- `backend/services/inventory_service.py` (~650 lines) ✅
+- `backend/main.py` - 24 new API endpoints ✅
 
-**Next Session TODO List:**
-1. ✅ Create database migration (004_equipment_inventory.sql)
-2. ✅ Create equipment_service.py backend service
-3. ✅ Create inventory_service.py backend service
-4. ✅ Add equipment & inventory endpoints to main.py
-5. ✅ Create frontend equipment_api.py
-6. ⬜ Create frontend inventory_api.py
-7. ⬜ Create EquipmentManagementScreen
-8. ⬜ Create InventoryManagementScreen
-9. ⬜ Create MaintenanceScheduleScreen
-10. ⬜ Integrate new screens into main_window and sidebar
-11. ⬜ Modify operations_log.py for equipment/inventory selection
-12. ⬜ Test and update CHANGELOG.md
+**Frontend API Clients:**
+- `frontend/api/equipment_api.py` (~500 lines) ✅
+- `frontend/api/inventory_api.py` (~600 lines) ✅ NEW
+- `frontend/api/__init__.py` - Updated exports ✅
 
-**New API Endpoints (24 planned):**
+**Frontend UI Screens:**
+- `frontend/ui/screens/equipment_management.py` (~1040 lines) ✅ NEW
+  - CreateEquipmentDialog, EditEquipmentDialog
+  - UpdateHoursDialog, LogMaintenanceDialog
+  - Equipment table with type/status filtering
+  - Summary cards: total equipment, fleet value, hours, in maintenance
+- `frontend/ui/screens/inventory_management.py` (~1100 lines) ✅ NEW
+  - CreateItemDialog, EditItemDialog
+  - QuickPurchaseDialog, AdjustQuantityDialog
+  - Inventory table with category/location filtering
+  - Summary cards: total items, value, low stock, expiring
+- `frontend/ui/screens/maintenance_schedule.py` (~560 lines) ✅ NEW
+  - MaintenanceAlertCard with urgency-based styling
+  - Alerts tab with scrollable card grid
+  - History tab with equipment/type filters
+  - Summary cards: overdue, due soon, upcoming, total equipment
+
+**Navigation Integration:**
+- `frontend/ui/screens/__init__.py` - Added new screen exports ✅
+- `frontend/ui/sidebar.py` - Added Equipment section nav ✅
+- `frontend/ui/main_window.py` - Integrated new screens ✅
+
+**Operations Log Enhancement:**
+- `frontend/ui/screens/operations_log.py` - Equipment & inventory integration ✅
+  - Equipment selection with hours used tracking
+  - Inventory item selection for product tracking
+  - Auto-populate product name/unit from inventory
+
+**New Sidebar Navigation:**
+```
+Equipment Section:
+├── Equipment (fleet management)
+├── Inventory (inputs tracking)
+└── Maintenance (schedule & alerts)
+```
+
+**API Endpoints (24 total):**
 - Equipment: 8 endpoints (CRUD + hours + types + summary)
 - Maintenance: 4 endpoints (CRUD + alerts + history)
 - Inventory: 8 endpoints (CRUD + summary + categories + alerts)
 - Transactions: 4 endpoints (record + history + purchase + adjust)
+
+---
+
+### Previous Session: December 17, 2025
+
+#### v2.5.0 - Phase 4: Equipment & Inventory Backend Complete
+
+**Status:** ✅ Phase 1 (Auth) | ✅ Phase 2 (Tasks) | ✅ Phase 3 (Fields & Ops) | 🔄 Phase 4 Backend COMPLETE
+
+**What Was Done:**
+- Database migration for equipment and inventory tables
+- Backend services for equipment and inventory management
+- 24 new API endpoints
+- Frontend equipment API client
+
+**Files Created:**
+- `database/migrations/004_equipment_inventory.sql`
+- `backend/services/equipment_service.py`
+- `backend/services/inventory_service.py`
+- `frontend/api/equipment_api.py`
 
 ---
 
