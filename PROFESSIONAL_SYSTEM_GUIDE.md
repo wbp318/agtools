@@ -18,7 +18,15 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 10. **Professional Desktop Interface (v2.2.1)**: Complete PyQt6 application with pest/disease identification screens, interactive charts, and professional UI
 11. **Offline Mode & Local Database (v2.3.0)**: Full offline operation with SQLite caching, automatic online/offline detection, and background sync
 12. **Settings & UI Polish (v2.4.0)**: Comprehensive settings screen, reusable widget library, loading states, toast notifications, and validation feedback
-13. **Farm Operations Manager (v2.5.0)**: Multi-user authentication with role-based access control (admin, manager, crew), user management, and crew/team organization - the foundation for task management and irrigation scheduling
+13. **Farm Operations Manager (v2.5.0)**: Complete farm management platform with:
+    - **Multi-user Authentication**: Role-based access control (admin, manager, crew)
+    - **Task Management**: Create, assign, and track tasks with due dates and priorities
+    - **Field Management**: Track all farm fields with acreage, crops, soil types
+    - **Operations Logging**: Record all field operations with costs and yields
+    - **Equipment Fleet Management**: Track tractors, combines, sprayers with hours and maintenance
+    - **Inventory Tracking**: Manage seeds, fertilizers, chemicals, fuel with low stock alerts
+    - **Maintenance Scheduling**: Service reminders with overdue/upcoming alerts
+    - **Reporting & Analytics Dashboard**: 4-tab reporting with charts and CSV export
 
 ---
 
@@ -32,7 +40,7 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application (v2.2 - 1800+ lines, 42+ endpoints)
+│   ├── main.py                             # FastAPI application (v2.5 - 3400+ lines, 101 endpoints)
 │   ├── requirements.txt                    # Backend dependencies
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
@@ -49,7 +57,13 @@ agtools/
 │       ├── spray_timing_optimizer.py       # Weather-smart spraying (v2.1)
 │       ├── yield_response_optimizer.py     # Economic optimum rates (v2.2)
 │       ├── auth_service.py                 # JWT authentication (v2.5)
-│       └── user_service.py                 # User & crew management (v2.5)
+│       ├── user_service.py                 # User & crew management (v2.5)
+│       ├── task_service.py                 # Task management (v2.5)
+│       ├── field_service.py                # Field management (v2.5)
+│       ├── field_operations_service.py     # Operations logging (v2.5)
+│       ├── equipment_service.py            # Equipment fleet management (v2.5)
+│       ├── inventory_service.py            # Inventory tracking (v2.5)
+│       └── reporting_service.py            # Reports & analytics (v2.5)
 │   └── middleware/
 │       └── auth_middleware.py              # Protected routes (v2.5)
 │
@@ -58,13 +72,20 @@ agtools/
 │   ├── app.py                              # QApplication setup
 │   ├── config.py                           # Settings management (v2.4.0)
 │   ├── requirements.txt                    # Frontend dependencies (PyQt6, httpx, pyqtgraph)
-│   ├── api/                                # API client modules
+│   ├── api/                                # API client modules (13 modules)
 │   │   ├── client.py                       # Base HTTP client with offline support
+│   │   ├── auth_api.py                     # Authentication endpoints (v2.5)
 │   │   ├── yield_response_api.py           # Yield response endpoints
 │   │   ├── spray_api.py                    # Spray timing endpoints
 │   │   ├── pricing_api.py                  # Pricing endpoints
 │   │   ├── cost_optimizer_api.py           # Cost optimizer endpoints
-│   │   └── identification_api.py           # Pest/disease ID
+│   │   ├── identification_api.py           # Pest/disease ID
+│   │   ├── task_api.py                     # Task management (v2.5)
+│   │   ├── field_api.py                    # Field management (v2.5)
+│   │   ├── operations_api.py               # Operations logging (v2.5)
+│   │   ├── equipment_api.py                # Equipment management (v2.5)
+│   │   ├── inventory_api.py                # Inventory management (v2.5)
+│   │   └── reports_api.py                  # Reports & analytics (v2.5)
 │   ├── database/                           # Local database (NEW v2.3.0)
 │   │   └── local_db.py                     # SQLite caching for offline mode
 │   ├── core/                               # Core logic (NEW v2.3.0)
@@ -82,11 +103,11 @@ agtools/
 │   │   └── test_phase9.py                  # Integration tests
 │   └── ui/
 │       ├── styles.py                       # Professional QSS theme
-│       ├── sidebar.py                      # Navigation sidebar
+│       ├── sidebar.py                      # Navigation sidebar (18 items)
 │       ├── main_window.py                  # Main window with sync UI
 │       ├── widgets/                        # Reusable widgets (NEW v2.4.0)
 │       │   └── common.py                   # LoadingOverlay, StatusMessage, etc.
-│       └── screens/
+│       └── screens/                        # 18 UI screens
 │           ├── dashboard.py                # Home screen with quick actions
 │           ├── yield_response.py           # Interactive yield curves
 │           ├── spray_timing.py             # Weather evaluation
@@ -94,7 +115,17 @@ agtools/
 │           ├── pricing.py                  # Price management & alerts
 │           ├── pest_identification.py      # Pest ID screen
 │           ├── disease_identification.py   # Disease ID screen
-│           └── settings.py                 # Settings screen (NEW v2.4.0)
+│           ├── settings.py                 # Settings screen (NEW v2.4.0)
+│           ├── login.py                    # User authentication (v2.5)
+│           ├── user_management.py          # User administration (v2.5)
+│           ├── crew_management.py          # Crew management (v2.5)
+│           ├── task_management.py          # Task tracking (v2.5)
+│           ├── field_management.py         # Field management (v2.5)
+│           ├── operations_log.py           # Operations logging (v2.5)
+│           ├── equipment_management.py     # Equipment fleet (v2.5)
+│           ├── inventory_management.py     # Inventory tracking (v2.5)
+│           ├── maintenance_schedule.py     # Maintenance alerts (v2.5)
+│           └── reports_dashboard.py        # Reports & analytics (v2.5)
 │
 ├── CHANGELOG.md                            # Development changelog
 ├── PROFESSIONAL_SYSTEM_GUIDE.md            # Complete documentation
@@ -2018,6 +2049,1059 @@ All Phase 9 tests passed!
 
 ---
 
+## 🚜 FARM OPERATIONS MANAGER (v2.5.0)
+
+Version 2.5.0 transforms AgTools from a crop consulting tool into a **complete farm management platform**. The Farm Operations Manager adds 5 major feature phases covering authentication, task management, field operations, equipment/inventory tracking, and reporting.
+
+### Why This Matters
+
+- **Single source of truth**: All farm data in one system
+- **Operational visibility**: Know what's happening across all fields
+- **Cost tracking**: Track every dollar spent on inputs and operations
+- **Equipment management**: Prevent costly breakdowns with maintenance scheduling
+- **Inventory control**: Never run out of critical inputs mid-season
+- **Decision support**: Reports that help you make better business decisions
+
+### Architecture Overview
+
+The Farm Operations Manager uses a layered architecture:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (PyQt6)                      │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │
+│  │    Login    │ │  Task Mgmt  │ │   Field Operations  │ │
+│  ├─────────────┤ ├─────────────┤ ├─────────────────────┤ │
+│  │    Users    │ │   Fields    │ │     Equipment       │ │
+│  ├─────────────┤ ├─────────────┤ ├─────────────────────┤ │
+│  │    Crews    │ │ Operations  │ │     Inventory       │ │
+│  ├─────────────┤ ├─────────────┤ ├─────────────────────┤ │
+│  │   Reports   │ │ Maintenance │ │    Reports Dash     │ │
+│  └─────────────┴─┴─────────────┴─┴─────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│                   API Clients (13 modules)               │
+├─────────────────────────────────────────────────────────┤
+│               Backend API (101 endpoints)                │
+├─────────────────────────────────────────────────────────┤
+│                  Services Layer (12 services)            │
+├─────────────────────────────────────────────────────────┤
+│                  SQLite Database                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Phase 1: Multi-User Authentication
+
+Location: `backend/services/auth_service.py`, `frontend/ui/screens/login.py`
+
+The authentication system provides secure access control with role-based permissions.
+
+#### User Roles
+
+| Role | Permissions |
+|------|-------------|
+| **admin** | Full system access, user management, all operations |
+| **manager** | View/create/edit most data, cannot manage users |
+| **crew** | Limited view access, can log own operations |
+
+#### Authentication Flow
+
+```
+1. User enters username/password in Login screen
+2. Frontend sends POST /api/v1/auth/login
+3. Backend validates credentials against bcrypt hash
+4. JWT token returned with user info
+5. Token stored for subsequent API calls
+6. All protected endpoints require valid token
+```
+
+#### API Endpoints
+
+```python
+# Login
+POST /api/v1/auth/login
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+# Response
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "role": "admin",
+    "email": "admin@example.com"
+  }
+}
+
+# Get current user
+GET /api/v1/auth/me
+Authorization: Bearer <token>
+
+# User management (admin only)
+GET /api/v1/users              # List all users
+POST /api/v1/users             # Create user
+PUT /api/v1/users/{id}         # Update user
+DELETE /api/v1/users/{id}      # Delete user
+```
+
+#### Default Admin Account
+
+```
+Username: admin
+Password: admin123
+Role: admin
+```
+
+**Important:** Change this password in production!
+
+#### Frontend Screens
+
+**Login Screen** (`frontend/ui/screens/login.py`):
+- Username and password fields
+- Login button with loading state
+- Error message display
+- Session persistence
+
+**User Management Screen** (`frontend/ui/screens/user_management.py`):
+- User list with role indicators
+- Add/Edit user dialogs
+- Password reset functionality
+- Role assignment (admin only)
+
+---
+
+### Phase 2: Task Management
+
+Location: `backend/services/task_service.py`, `frontend/ui/screens/task_management.py`
+
+Create, assign, and track farm tasks with priorities and due dates.
+
+#### Task Model
+
+```python
+{
+  "id": 1,
+  "title": "Scout North 80 for aphids",
+  "description": "Check soybean fields for aphid population levels",
+  "status": "pending",        # pending, in_progress, completed, cancelled
+  "priority": "high",         # low, medium, high, urgent
+  "assigned_to": 2,           # User ID
+  "assigned_to_name": "John Smith",
+  "due_date": "2025-06-15",
+  "field_id": 5,              # Optional field association
+  "field_name": "North 80",
+  "created_by": 1,
+  "created_at": "2025-06-10T08:00:00",
+  "completed_at": null
+}
+```
+
+#### API Endpoints
+
+```python
+# List tasks with filters
+GET /api/v1/tasks?status=pending&priority=high&assigned_to=2
+
+# Create task
+POST /api/v1/tasks
+{
+  "title": "Apply fungicide to South 160",
+  "priority": "urgent",
+  "assigned_to": 3,
+  "due_date": "2025-06-20",
+  "field_id": 8
+}
+
+# Update task status
+PUT /api/v1/tasks/{id}
+{
+  "status": "completed"
+}
+
+# Delete task
+DELETE /api/v1/tasks/{id}
+```
+
+#### Frontend Features
+
+**Task Management Screen** (`frontend/ui/screens/task_management.py`):
+- Task list with status color coding
+- Filter by status, priority, assignee
+- Quick status update buttons
+- Due date highlighting (overdue in red)
+- Create/Edit task dialogs
+- Field association dropdown
+
+---
+
+### Phase 3: Field Management & Operations Logging
+
+#### Field Management
+
+Location: `backend/services/field_service.py`, `frontend/ui/screens/field_management.py`
+
+Track all farm fields with detailed agronomic information.
+
+##### Field Model
+
+```python
+{
+  "id": 1,
+  "name": "North 80",
+  "farm_name": "Home Farm",
+  "acres": 80.5,
+  "crop": "soybeans",
+  "variety": "Pioneer P22A91X",
+  "soil_type": "silty_clay_loam",
+  "tillage_practice": "no_till",
+  "irrigation": false,
+  "notes": "Good drainage, high organic matter",
+  "latitude": 41.8781,
+  "longitude": -93.0977,
+  "created_at": "2025-03-15T10:00:00"
+}
+```
+
+##### Soil Types Supported
+
+- Sandy Loam
+- Loam
+- Silty Loam
+- Silty Clay Loam
+- Clay Loam
+- Clay
+- Sandy Clay
+- Muck/Peat
+
+##### Tillage Practices
+
+- Conventional
+- Reduced Till
+- No-Till
+- Strip-Till
+
+##### API Endpoints
+
+```python
+# List fields with filters
+GET /api/v1/fields?crop=corn&farm_name=Home%20Farm
+
+# Get field summary
+GET /api/v1/fields/summary
+# Returns: total_fields, total_acres, acres_by_crop, acres_by_farm
+
+# Create field
+POST /api/v1/fields
+{
+  "name": "River Bottom",
+  "farm_name": "Home Farm",
+  "acres": 120,
+  "crop": "corn",
+  "soil_type": "silty_clay_loam"
+}
+
+# Update field
+PUT /api/v1/fields/{id}
+
+# Delete field
+DELETE /api/v1/fields/{id}
+```
+
+#### Operations Logging
+
+Location: `backend/services/field_operations_service.py`, `frontend/ui/screens/operations_log.py`
+
+Record every field operation with costs, products, and outcomes.
+
+##### Operation Model
+
+```python
+{
+  "id": 1,
+  "field_id": 5,
+  "field_name": "North 80",
+  "operation_type": "spray",
+  "operation_date": "2025-06-15",
+  "products_used": "Roundup PowerMax @ 32 oz/acre + AMS @ 2.5%",
+  "rate": "32 oz/acre",
+  "cost_per_acre": 12.50,
+  "total_cost": 1006.25,
+  "equipment_used": "John Deere 4940 Sprayer",
+  "equipment_id": 3,
+  "operator": "Mike Johnson",
+  "weather_conditions": "75°F, 5 mph S wind, 60% humidity",
+  "notes": "Good spray conditions, minimal drift",
+  "yield_bu_per_acre": null,
+  "created_by": 1,
+  "created_at": "2025-06-15T14:30:00"
+}
+```
+
+##### Operation Types
+
+| Type | Description |
+|------|-------------|
+| tillage | Primary/secondary tillage |
+| planting | Seeding operations |
+| spray | Herbicide, insecticide, fungicide |
+| fertilizer | Dry/liquid fertilizer application |
+| harvest | Grain harvest operations |
+| irrigation | Water application |
+| scouting | Field scouting activities |
+| soil_sampling | Soil sample collection |
+| other | Miscellaneous operations |
+
+##### API Endpoints
+
+```python
+# List operations with filters
+GET /api/v1/operations?field_id=5&operation_type=spray&date_from=2025-06-01
+
+# Get operations summary
+GET /api/v1/operations/summary
+# Returns: total_operations, total_cost, cost_by_type, cost_by_field
+
+# Get field operation history
+GET /api/v1/operations/field/{field_id}/history
+# Returns chronological list of all operations for a field
+
+# Create operation
+POST /api/v1/operations
+{
+  "field_id": 5,
+  "operation_type": "spray",
+  "operation_date": "2025-06-15",
+  "products_used": "Roundup PowerMax @ 32 oz/acre",
+  "cost_per_acre": 12.50,
+  "equipment_id": 3
+}
+
+# Update operation
+PUT /api/v1/operations/{id}
+
+# Delete operation
+DELETE /api/v1/operations/{id}
+```
+
+##### Frontend Features
+
+**Operations Log Screen** (`frontend/ui/screens/operations_log.py`):
+- Operation list with type icons
+- Date range filtering
+- Field and operation type filters
+- Cost summary cards
+- Equipment auto-population
+- Yield entry for harvest operations
+- Bulk operations (coming soon)
+
+---
+
+### Phase 4: Equipment & Inventory Management
+
+#### Equipment Fleet Management
+
+Location: `backend/services/equipment_service.py`, `frontend/ui/screens/equipment_management.py`
+
+Track all farm equipment with hours, maintenance, and utilization.
+
+##### Equipment Model
+
+```python
+{
+  "id": 1,
+  "name": "John Deere 8R 410",
+  "equipment_type": "tractor",
+  "make": "John Deere",
+  "model": "8R 410",
+  "year": 2022,
+  "serial_number": "1RW8410TVND123456",
+  "purchase_date": "2022-03-15",
+  "purchase_price": 425000.00,
+  "current_hours": 1247.5,
+  "status": "available",      # available, in_use, maintenance, retired
+  "notes": "Primary row crop tractor",
+  "created_at": "2022-03-15T10:00:00"
+}
+```
+
+##### Equipment Types
+
+| Type | Examples |
+|------|----------|
+| tractor | Row crop tractors, utility tractors |
+| combine | Grain combines |
+| sprayer | Self-propelled sprayers, pull-type |
+| planter | Row planters, drills |
+| tillage | Disks, field cultivators, rippers |
+| grain_cart | Grain carts, auger wagons |
+| truck | Semi trucks, grain trucks |
+| trailer | Equipment trailers, grain trailers |
+| other | ATVs, pickups, misc |
+
+##### Maintenance Tracking
+
+```python
+{
+  "id": 1,
+  "equipment_id": 1,
+  "maintenance_type": "oil_change",
+  "description": "Engine oil and filter change",
+  "date_performed": "2025-05-15",
+  "hours_at_service": 1200,
+  "cost": 450.00,
+  "parts_used": "15W-40 oil (6 gal), OEM filter",
+  "performed_by": "Mike Johnson",
+  "next_due_hours": 1700,
+  "next_due_date": "2025-09-15",
+  "notes": "Changed hydraulic filter as well"
+}
+```
+
+##### Maintenance Types
+
+- Oil Change
+- Filter Replacement
+- Tire Service
+- Annual Service
+- Repair
+- Inspection
+- Calibration
+- Winterization
+- Other
+
+##### API Endpoints
+
+```python
+# Equipment Management
+GET /api/v1/equipment                  # List all equipment
+GET /api/v1/equipment/summary          # Fleet statistics
+GET /api/v1/equipment/{id}             # Get equipment details
+POST /api/v1/equipment                 # Add equipment
+PUT /api/v1/equipment/{id}             # Update equipment
+DELETE /api/v1/equipment/{id}          # Remove equipment
+PUT /api/v1/equipment/{id}/hours       # Update hours
+
+# Maintenance Management
+GET /api/v1/maintenance                # List maintenance records
+GET /api/v1/maintenance/alerts         # Get overdue/upcoming maintenance
+GET /api/v1/equipment/{id}/maintenance # Equipment maintenance history
+POST /api/v1/maintenance               # Log maintenance
+PUT /api/v1/maintenance/{id}           # Update maintenance record
+```
+
+##### Equipment Summary Response
+
+```json
+{
+  "total_equipment": 12,
+  "total_value": 1250000.00,
+  "total_hours": 15680,
+  "by_type": {
+    "tractor": {"count": 3, "value": 850000, "hours": 4500},
+    "combine": {"count": 1, "value": 350000, "hours": 1200},
+    "sprayer": {"count": 1, "value": 180000, "hours": 800}
+  },
+  "maintenance_due": 3,
+  "maintenance_overdue": 1
+}
+```
+
+##### Frontend Features
+
+**Equipment Management Screen** (`frontend/ui/screens/equipment_management.py`):
+- Equipment grid with status indicators
+- Quick hour update
+- Detailed equipment cards
+- Add/Edit equipment dialogs
+- Maintenance history per equipment
+- Fleet value summary
+
+**Maintenance Schedule Screen** (`frontend/ui/screens/maintenance_schedule.py`):
+- Upcoming maintenance list
+- Overdue items highlighted in red
+- Due soon items in yellow
+- Quick log maintenance action
+- Filter by equipment type
+- Calendar view (future)
+
+#### Inventory Management
+
+Location: `backend/services/inventory_service.py`, `frontend/ui/screens/inventory_management.py`
+
+Track seeds, fertilizers, chemicals, fuel, and other farm inputs.
+
+##### Inventory Item Model
+
+```python
+{
+  "id": 1,
+  "name": "Roundup PowerMax",
+  "category": "chemical",
+  "subcategory": "herbicide",
+  "unit": "gallons",
+  "quantity": 250,
+  "min_quantity": 50,          # Low stock alert threshold
+  "unit_cost": 32.50,
+  "total_value": 8125.00,
+  "location": "Chemical Building",
+  "supplier": "Helena Chemical",
+  "lot_number": "LOT-2025-0456",
+  "expiration_date": "2027-06-30",
+  "notes": "Pre-order for 2026 at current price",
+  "created_at": "2025-03-01T10:00:00"
+}
+```
+
+##### Inventory Categories
+
+| Category | Subcategories |
+|----------|---------------|
+| seed | corn, soybean, wheat, other |
+| fertilizer | nitrogen, phosphorus, potassium, micronutrient, starter |
+| chemical | herbicide, insecticide, fungicide, adjuvant |
+| fuel | diesel, gasoline, propane, def |
+| parts | filters, belts, bearings, hydraulic |
+| other | misc |
+
+##### Inventory Transactions
+
+Track every movement of inventory:
+
+```python
+{
+  "id": 1,
+  "item_id": 1,
+  "transaction_type": "use",   # purchase, use, adjustment, transfer
+  "quantity": -25,             # Negative for usage
+  "date": "2025-06-15",
+  "field_id": 5,               # Optional field association
+  "operation_id": 12,          # Optional operation association
+  "notes": "Applied to North 80",
+  "created_by": 1
+}
+```
+
+##### API Endpoints
+
+```python
+# Inventory Management
+GET /api/v1/inventory                  # List all inventory
+GET /api/v1/inventory/summary          # Inventory statistics
+GET /api/v1/inventory/alerts           # Low stock and expiring items
+GET /api/v1/inventory/{id}             # Get item details
+POST /api/v1/inventory                 # Add inventory item
+PUT /api/v1/inventory/{id}             # Update item
+DELETE /api/v1/inventory/{id}          # Remove item
+
+# Transactions
+GET /api/v1/inventory/{id}/transactions  # Item transaction history
+POST /api/v1/inventory/{id}/transaction  # Log transaction
+```
+
+##### Inventory Summary Response
+
+```json
+{
+  "total_items": 45,
+  "total_value": 125000.00,
+  "low_stock_count": 3,
+  "expiring_soon_count": 2,
+  "by_category": {
+    "seed": {"count": 8, "value": 45000},
+    "fertilizer": {"count": 12, "value": 35000},
+    "chemical": {"count": 15, "value": 28000},
+    "fuel": {"count": 5, "value": 12000},
+    "parts": {"count": 5, "value": 5000}
+  }
+}
+```
+
+##### Inventory Alerts
+
+```python
+GET /api/v1/inventory/alerts
+
+# Returns:
+[
+  {
+    "item_id": 1,
+    "item_name": "Roundup PowerMax",
+    "alert_type": "low_stock",
+    "current_quantity": 35,
+    "min_quantity": 50,
+    "urgency": "medium"
+  },
+  {
+    "item_id": 15,
+    "item_name": "Sencor 75DF",
+    "alert_type": "expiring_soon",
+    "expiration_date": "2025-07-15",
+    "days_until_expiration": 30,
+    "urgency": "low"
+  }
+]
+```
+
+##### Frontend Features
+
+**Inventory Management Screen** (`frontend/ui/screens/inventory_management.py`):
+- Inventory table with category tabs
+- Low stock highlighting (red background)
+- Expiration date warnings
+- Quick add/remove quantity
+- Search and filter
+- Value summary by category
+- Transaction history per item
+
+---
+
+### Phase 5: Reporting & Analytics Dashboard
+
+Location: `backend/services/reporting_service.py`, `frontend/ui/screens/reports_dashboard.py`
+
+Comprehensive reporting across all farm operations with charts and export.
+
+#### Report Types
+
+The reporting system provides 6 major report types:
+
+##### 1. Operations Report
+
+Aggregates all field operations with cost analysis.
+
+```python
+GET /api/v1/reports/operations?date_from=2025-01-01&date_to=2025-12-31
+
+# Response
+{
+  "total_operations": 156,
+  "total_cost": 245000.00,
+  "total_acres_treated": 4800,
+  "avg_cost_per_acre": 51.04,
+  "by_type": {
+    "spray": {"count": 48, "cost": 85000, "acres": 3200},
+    "fertilizer": {"count": 24, "cost": 95000, "acres": 2400},
+    "planting": {"count": 16, "cost": 32000, "acres": 1600},
+    "harvest": {"count": 16, "cost": 28000, "acres": 1600}
+  },
+  "by_month": [
+    {"month": "2025-04", "count": 24, "cost": 65000},
+    {"month": "2025-05", "count": 32, "cost": 55000},
+    {"month": "2025-06", "count": 28, "cost": 42000}
+  ]
+}
+```
+
+##### 2. Financial Report
+
+Complete cost breakdown and profitability analysis.
+
+```python
+GET /api/v1/reports/financial?date_from=2025-01-01&date_to=2025-12-31
+
+# Response
+{
+  "total_costs": 385000.00,
+  "cost_breakdown": {
+    "seed": 45000,
+    "fertilizer": 95000,
+    "chemical": 85000,
+    "fuel": 35000,
+    "equipment_maintenance": 25000,
+    "custom_application": 18000,
+    "other": 12000
+  },
+  "revenue": {
+    "corn": {"acres": 800, "yield": 180, "price": 4.50, "total": 648000},
+    "soybean": {"acres": 800, "yield": 55, "price": 12.50, "total": 550000}
+  },
+  "total_revenue": 1198000,
+  "net_profit": 813000,
+  "profit_per_acre": 508.13,
+  "by_field": [
+    {"field": "North 80", "cost": 24000, "revenue": 72000, "profit": 48000},
+    {"field": "South 160", "cost": 48000, "revenue": 144000, "profit": 96000}
+  ]
+}
+```
+
+##### 3. Equipment Report
+
+Equipment utilization and maintenance costs.
+
+```python
+GET /api/v1/reports/equipment?date_from=2025-01-01&date_to=2025-12-31
+
+# Response
+{
+  "fleet_summary": {
+    "total_equipment": 12,
+    "total_value": 1250000,
+    "total_hours_period": 2400,
+    "avg_utilization": 0.65
+  },
+  "by_equipment": [
+    {
+      "id": 1,
+      "name": "John Deere 8R 410",
+      "hours_used": 450,
+      "fuel_consumed": 1800,
+      "maintenance_cost": 2500,
+      "operations_count": 45
+    }
+  ],
+  "maintenance_summary": {
+    "total_cost": 25000,
+    "by_type": {
+      "oil_change": 4500,
+      "repair": 12000,
+      "annual_service": 8500
+    }
+  }
+}
+```
+
+##### 4. Inventory Report
+
+Current stock status and usage trends.
+
+```python
+GET /api/v1/reports/inventory
+
+# Response
+{
+  "current_value": 125000,
+  "low_stock_items": 3,
+  "expiring_items": 2,
+  "by_category": {
+    "seed": {"items": 8, "value": 45000, "pct": 36},
+    "fertilizer": {"items": 12, "value": 35000, "pct": 28},
+    "chemical": {"items": 15, "value": 28000, "pct": 22}
+  },
+  "recent_transactions": [
+    {"date": "2025-06-15", "item": "Roundup", "type": "use", "quantity": -25},
+    {"date": "2025-06-14", "item": "Diesel", "type": "purchase", "quantity": 500}
+  ]
+}
+```
+
+##### 5. Field Performance Report
+
+Yield and profitability by field.
+
+```python
+GET /api/v1/reports/fields?date_from=2025-01-01&date_to=2025-12-31
+
+# Response
+{
+  "total_fields": 10,
+  "total_acres": 1600,
+  "by_field": [
+    {
+      "id": 1,
+      "name": "North 80",
+      "acres": 80,
+      "crop": "corn",
+      "yield": 195,
+      "operations_count": 12,
+      "total_cost": 24000,
+      "cost_per_acre": 300,
+      "revenue": 70200,
+      "profit_per_acre": 577.50
+    }
+  ],
+  "top_performers": ["North 80", "River Bottom"],
+  "needs_attention": ["South 40"]
+}
+```
+
+##### 6. Dashboard Summary
+
+Combined overview for quick status check.
+
+```python
+GET /api/v1/reports/dashboard
+
+# Response
+{
+  "total_operations": 156,
+  "total_cost": 245000,
+  "total_acres": 1600,
+  "equipment_count": 12,
+  "equipment_value": 1250000,
+  "inventory_value": 125000,
+  "low_stock_count": 3,
+  "maintenance_due": 4,
+  "tasks_pending": 8,
+  "recent_activity": [
+    {"type": "operation", "description": "Sprayed North 80", "date": "2025-06-15"},
+    {"type": "maintenance", "description": "Oil change on JD 8R", "date": "2025-06-14"}
+  ],
+  "net_profit": 813000
+}
+```
+
+#### CSV Export
+
+Export any report to CSV for Excel/accounting software.
+
+```python
+POST /api/v1/reports/export/csv
+{
+  "report_type": "operations",   # operations, financial, equipment, inventory, fields
+  "date_from": "2025-01-01",
+  "date_to": "2025-12-31"
+}
+
+# Response: CSV file download
+```
+
+#### Frontend Reports Dashboard
+
+**Reports Dashboard Screen** (`frontend/ui/screens/reports_dashboard.py`):
+
+4-tab interface with comprehensive visualization:
+
+##### Tab 1: Operations Overview
+- **Summary Cards**: Total operations, total cost, avg cost/acre, operations this month
+- **Bar Chart**: Operations by type (pyqtgraph)
+- **Line Chart**: Costs over time by month
+- **Operations Table**: Filterable list of operations
+
+##### Tab 2: Financial Analysis
+- **Summary Cards**: Total costs, revenue, net profit, profit/acre
+- **Pie Chart**: Cost breakdown by category
+- **Bar Chart**: Profit by field
+- **Financial Table**: Detailed cost/revenue breakdown
+
+##### Tab 3: Equipment & Inventory
+- **Summary Cards**: Fleet value, total hours, inventory value, low stock items
+- **Bar Chart**: Equipment utilization by machine
+- **Bar Chart**: Inventory value by category
+- **Maintenance Table**: Upcoming/overdue maintenance
+- **Low Stock Table**: Items needing reorder
+
+##### Tab 4: Field Performance
+- **Summary Cards**: Total fields, total acres, avg yield, best performer
+- **Bar Chart**: Yield by field
+- **Bar Chart**: Profit by field
+- **Field Table**: All fields with performance metrics
+
+##### Features
+- **Date Range Picker**: Filter all reports by date range
+- **Refresh Button**: Update all data
+- **Export Button**: CSV export for current tab
+- **Auto-refresh**: Optional periodic updates
+
+---
+
+### Farm Operations Manager API Summary
+
+| Endpoint Category | Endpoints | Description |
+|-------------------|-----------|-------------|
+| Authentication | 4 | Login, logout, me, token refresh |
+| Users | 5 | CRUD operations for users |
+| Crews | 5 | Crew management |
+| Tasks | 5 | Task CRUD with filters |
+| Fields | 6 | Field management with summary |
+| Operations | 7 | Operations logging with history |
+| Equipment | 8 | Equipment fleet management |
+| Maintenance | 5 | Maintenance tracking and alerts |
+| Inventory | 8 | Inventory with transactions |
+| Reports | 7 | All report types plus export |
+| **Total** | **60** | Farm Operations endpoints |
+
+Combined with existing endpoints (pest ID, spray recommendations, pricing, etc.), the system now has **101 documented API endpoints**.
+
+---
+
+### Database Schema (Farm Operations)
+
+```sql
+-- Users & Authentication
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    email TEXT,
+    role TEXT DEFAULT 'crew',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Crews
+CREATE TABLE crews (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tasks
+CREATE TABLE tasks (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'pending',
+    priority TEXT DEFAULT 'medium',
+    assigned_to INTEGER REFERENCES users(id),
+    field_id INTEGER REFERENCES fields(id),
+    due_date DATE,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- Fields
+CREATE TABLE fields (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    farm_name TEXT,
+    acres REAL NOT NULL,
+    crop TEXT,
+    variety TEXT,
+    soil_type TEXT,
+    tillage_practice TEXT,
+    irrigation BOOLEAN DEFAULT FALSE,
+    latitude REAL,
+    longitude REAL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Operations
+CREATE TABLE operations (
+    id INTEGER PRIMARY KEY,
+    field_id INTEGER REFERENCES fields(id),
+    operation_type TEXT NOT NULL,
+    operation_date DATE NOT NULL,
+    products_used TEXT,
+    rate TEXT,
+    cost_per_acre REAL,
+    total_cost REAL,
+    equipment_id INTEGER REFERENCES equipment(id),
+    operator TEXT,
+    weather_conditions TEXT,
+    yield_bu_per_acre REAL,
+    notes TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Equipment
+CREATE TABLE equipment (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    equipment_type TEXT NOT NULL,
+    make TEXT,
+    model TEXT,
+    year INTEGER,
+    serial_number TEXT,
+    purchase_date DATE,
+    purchase_price REAL,
+    current_hours REAL DEFAULT 0,
+    status TEXT DEFAULT 'available',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Maintenance
+CREATE TABLE maintenance (
+    id INTEGER PRIMARY KEY,
+    equipment_id INTEGER REFERENCES equipment(id),
+    maintenance_type TEXT NOT NULL,
+    description TEXT,
+    date_performed DATE,
+    hours_at_service REAL,
+    cost REAL,
+    parts_used TEXT,
+    performed_by TEXT,
+    next_due_hours REAL,
+    next_due_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Inventory
+CREATE TABLE inventory (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    subcategory TEXT,
+    unit TEXT NOT NULL,
+    quantity REAL DEFAULT 0,
+    min_quantity REAL DEFAULT 0,
+    unit_cost REAL,
+    location TEXT,
+    supplier TEXT,
+    lot_number TEXT,
+    expiration_date DATE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Inventory Transactions
+CREATE TABLE inventory_transactions (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER REFERENCES inventory(id),
+    transaction_type TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    date DATE NOT NULL,
+    field_id INTEGER REFERENCES fields(id),
+    operation_id INTEGER REFERENCES operations(id),
+    notes TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+---
+
+### Version 2.5.0 Files Summary
+
+**New Backend Files:**
+- `backend/services/auth_service.py` - JWT authentication
+- `backend/services/user_service.py` - User/crew management
+- `backend/services/task_service.py` - Task management
+- `backend/services/field_service.py` - Field management
+- `backend/services/field_operations_service.py` - Operations logging
+- `backend/services/equipment_service.py` - Equipment fleet
+- `backend/services/inventory_service.py` - Inventory tracking
+- `backend/services/reporting_service.py` - Reports aggregation
+
+**New Frontend Screens:**
+- `frontend/ui/screens/login.py` - Authentication
+- `frontend/ui/screens/user_management.py` - User admin
+- `frontend/ui/screens/crew_management.py` - Crew management
+- `frontend/ui/screens/task_management.py` - Task tracking
+- `frontend/ui/screens/field_management.py` - Field management
+- `frontend/ui/screens/operations_log.py` - Operations logging
+- `frontend/ui/screens/equipment_management.py` - Equipment fleet
+- `frontend/ui/screens/inventory_management.py` - Inventory tracking
+- `frontend/ui/screens/maintenance_schedule.py` - Maintenance alerts
+- `frontend/ui/screens/reports_dashboard.py` - Reports dashboard
+
+**New Frontend API Modules:**
+- `frontend/api/auth_api.py`
+- `frontend/api/task_api.py`
+- `frontend/api/field_api.py`
+- `frontend/api/operations_api.py`
+- `frontend/api/equipment_api.py`
+- `frontend/api/inventory_api.py`
+- `frontend/api/reports_api.py`
+
+**Lines of Code Added:**
+- Backend services: ~3,500 lines
+- Frontend screens: ~5,500 lines
+- Frontend API clients: ~1,500 lines
+- **Total: ~10,500 lines of new code**
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -2034,6 +3118,15 @@ You now have a **professional-grade foundation** for a crop consulting business 
 - **Professional desktop interface** with complete PyQt6 application (v2.2.1)
 - **Work offline** with full calculation capability and automatic sync (v2.3.0)
 - **Configure everything** with comprehensive settings screen (v2.4.0)
+- **Manage your entire farm operation** with the Farm Operations Manager (v2.5.0):
+  - Multi-user authentication with role-based access control
+  - Task management with priorities and assignments
+  - Field management with crop and soil tracking
+  - Operations logging with cost and yield tracking
+  - Equipment fleet management with hours and maintenance
+  - Inventory tracking with low stock alerts
+  - Maintenance scheduling with overdue alerts
+  - Comprehensive reporting dashboard with charts and CSV export
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -2050,7 +3143,8 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.2.1 | Dec 2025 | Pest/disease identification screens, yield response bug fixes, complete smoke tests |
 | 2.3.0 | Dec 2025 | Offline mode with SQLite caching, sync manager, offline calculators |
 | 2.4.0 | Dec 2025 | Settings screen (4 tabs), common widget library (7 widgets), integration tests |
-| 2.5.0 | Coming | John Deere Ops Center integration (field boundaries, yield maps, application history) |
+| 2.5.0 | Dec 2025 | **Farm Operations Manager** - Multi-user auth, task/field/equipment/inventory management, operations logging, maintenance scheduling, reporting dashboard with 101 API endpoints |
+| 2.6.0 | Coming | John Deere Ops Center integration (field boundaries, yield maps, application history) |
 
 ---
 
