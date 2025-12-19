@@ -145,6 +145,10 @@ class Sidebar(QFrame):
         self._add_nav_item(nav_layout, "Pricing", icon="\u2696")  # Scale
         self._add_nav_item(nav_layout, "Yield", icon="\u2191")  # Up arrow
 
+        # Analytics Section (Phase 5)
+        nav_layout.addWidget(SectionHeader("Analytics"))
+        self._add_nav_item(nav_layout, "Reports", icon="\u2637")  # Chart/analytics
+
         # Spacer
         nav_layout.addSpacerItem(
             QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)

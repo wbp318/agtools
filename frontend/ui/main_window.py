@@ -33,6 +33,7 @@ from ui.screens.operations_log import OperationsLogScreen
 from ui.screens.equipment_management import EquipmentManagementScreen
 from ui.screens.inventory_management import InventoryManagementScreen
 from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
+from ui.screens.reports_dashboard import ReportsDashboardScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -440,6 +441,10 @@ class MainWindow(QMainWindow):
         maintenance_screen = MaintenanceScheduleScreen(current_user=self._current_user)
         self._add_screen("maintenance", maintenance_screen)
 
+        # Reports Dashboard Screen (Phase 5) - All users
+        reports_screen = ReportsDashboardScreen(current_user=self._current_user)
+        self._add_screen("reports", reports_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -519,6 +524,7 @@ class MainWindow(QMainWindow):
                 "equipment": "Equipment Management",
                 "inventory": "Inventory Management",
                 "maintenance": "Maintenance Schedule",
+                "reports": "Reports & Analytics",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",

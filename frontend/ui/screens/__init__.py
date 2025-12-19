@@ -21,6 +21,7 @@ from ui.screens.operations_log import OperationsLogScreen
 from ui.screens.equipment_management import EquipmentManagementScreen
 from ui.screens.inventory_management import InventoryManagementScreen
 from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
+from ui.screens.reports_dashboard import ReportsDashboardScreen
 
 __all__ = [
     "DashboardScreen",
@@ -40,4 +41,5 @@ __all__ = [
     "EquipmentManagementScreen",
     "InventoryManagementScreen",
     "MaintenanceScheduleScreen",
+    "ReportsDashboardScreen",
 ]

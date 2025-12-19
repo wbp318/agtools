@@ -32,6 +32,10 @@ from api.inventory_api import (
     InventoryAPI, InventoryItem, InventoryTransaction, InventoryAlert,
     InventorySummary, get_inventory_api
 )
+from api.reports_api import (
+    ReportsAPI, OperationsReport, FinancialReport, EquipmentReport,
+    InventoryReport, FieldPerformanceReport, DashboardSummary, get_reports_api
+)
 
 __all__ = [
     # Base client
@@ -95,4 +99,13 @@ __all__ = [
     "InventoryAlert",
     "InventorySummary",
     "get_inventory_api",
+    # Reports
+    "ReportsAPI",
+    "OperationsReport",
+    "FinancialReport",
+    "EquipmentReport",
+    "InventoryReport",
+    "FieldPerformanceReport",
+    "DashboardSummary",
+    "get_reports_api",
 ]

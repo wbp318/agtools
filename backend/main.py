@@ -102,6 +102,16 @@ from services.inventory_service import (
     QuickPurchaseRequest,
     AdjustQuantityRequest
 )
+from services.reporting_service import (
+    get_reporting_service,
+    ReportType,
+    OperationsReport,
+    FinancialReport,
+    EquipmentReport,
+    InventoryReport,
+    FieldPerformanceReport,
+    DashboardSummary
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -3145,6 +3155,132 @@ async def adjust_quantity(
         raise HTTPException(status_code=400, detail=error)
 
     return item
+
+
+# ============================================================================
+# REPORTING ENDPOINTS (Phase 5)
+# ============================================================================
+
+@app.get("/api/v1/reports/operations", response_model=OperationsReport, tags=["Reports"])
+async def get_operations_report(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get operations report with aggregations.
+
+    Returns total operations, costs, breakdowns by type, and monthly trends.
+    """
+    report_service = get_reporting_service()
+    return report_service.get_operations_report(date_from, date_to, field_id)
+
+
+@app.get("/api/v1/reports/financial", response_model=FinancialReport, tags=["Reports"])
+async def get_financial_report(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get financial analysis report.
+
+    Returns costs, revenue, profit/loss by field, and cost breakdowns.
+    """
+    report_service = get_reporting_service()
+    return report_service.get_financial_report(date_from, date_to)
+
+
+@app.get("/api/v1/reports/equipment", response_model=EquipmentReport, tags=["Reports"])
+async def get_equipment_report(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get equipment utilization report.
+
+    Returns fleet stats, equipment usage, hours by type, and maintenance alerts.
+    """
+    report_service = get_reporting_service()
+    return report_service.get_equipment_report(date_from, date_to)
+
+
+@app.get("/api/v1/reports/inventory", response_model=InventoryReport, tags=["Reports"])
+async def get_inventory_report(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get inventory status report.
+
+    Returns stock levels, values by category, and low stock/expiring alerts.
+    """
+    report_service = get_reporting_service()
+    return report_service.get_inventory_report()
+
+
+@app.get("/api/v1/reports/fields", response_model=FieldPerformanceReport, tags=["Reports"])
+async def get_field_performance_report(
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get field performance report.
+
+    Returns per-field metrics including costs, yields, and operations count.
+    """
+    report_service = get_reporting_service()
+    return report_service.get_field_performance_report(date_from, date_to)
+
+
+@app.get("/api/v1/reports/dashboard", response_model=DashboardSummary, tags=["Reports"])
+async def get_dashboard_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get combined dashboard summary.
+
+    Returns key metrics from all areas: operations, fields, equipment, inventory.
+    """
+    report_service = get_reporting_service()
+    return report_service.get_dashboard_summary()
+
+
+class CSVExportRequest(BaseModel):
+    """Request for CSV export"""
+    report_type: ReportType
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+
+
+@app.post("/api/v1/reports/export/csv", tags=["Reports"])
+async def export_report_csv(
+    request: CSVExportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export report data to CSV format.
+
+    Returns CSV content as text.
+    """
+    from fastapi.responses import Response
+
+    report_service = get_reporting_service()
+    csv_content = report_service.export_to_csv(
+        request.report_type,
+        request.date_from,
+        request.date_to
+    )
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={request.report_type.value}_report.csv"
+        }
+    )
 
 
 # ============================================================================
