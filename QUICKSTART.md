@@ -28,6 +28,10 @@ Think of AgTools as your **digital agronomist** that:
 11. **Field Management** (v2.5.0) - Track all your farm fields with acreage, crop type, soil, and irrigation
 12. **Operations Logging** (v2.5.0) - Record sprays, fertilizer, planting, harvest with costs and yields
 13. **Task Management** (v2.5.0) - Create, assign, and track tasks with due dates and priorities
+14. **Equipment Management** (v2.5.0) - Track tractors, combines, sprayers with hours and maintenance schedules
+15. **Inventory Tracking** (v2.5.0) - Manage seeds, fertilizers, chemicals, fuel with low stock and expiration alerts
+16. **Maintenance Scheduling** (v2.5.0) - Service reminders with overdue, due soon, and upcoming alerts
+17. **Reports & Analytics** (v2.5.0) - 4-tab dashboard with charts and CSV export for operations, financials, equipment, and field performance
 
 ---
 
@@ -715,6 +719,120 @@ These features help you manage your farm fields, track operations, and coordinat
 
 ---
 
+### 🚜 Managing Equipment (v2.5)
+
+**When to use:** Track your tractors, combines, sprayers, and other equipment with hours and maintenance schedules.
+
+1. Click **"Equipment"** from the sidebar navigation (Equipment section)
+2. Click **"+ Add Equipment"** to add a machine
+3. Fill in:
+   - **Name**: e.g., "John Deere 8370R", "Case 7150 Combine"
+   - **Type**: Tractor, combine, sprayer, planter, tillage, truck, ATV, grain cart
+   - **Make/Model/Year**: Equipment details
+   - **Serial Number**: For records
+   - **Purchase Date & Price**: For depreciation tracking
+   - **Current Hours**: Hour meter reading
+   - **Hourly Cost**: Operating cost per hour
+4. Click **"Add Equipment"**
+
+**What you get:**
+- Fleet summary cards (total equipment, fleet value, total hours)
+- Equipment table with status filtering (available, in use, maintenance, retired)
+- Update hours button to track usage
+- Log maintenance button for service records
+
+---
+
+### 📦 Managing Inventory (v2.5)
+
+**When to use:** Track seeds, fertilizers, chemicals, fuel, parts, and other inputs with quantities and alerts.
+
+1. Click **"Inventory"** from the sidebar navigation
+2. Click **"+ Add Item"** to add an inventory item
+3. Fill in:
+   - **Name**: e.g., "Pioneer P1197", "Roundup PowerMax", "Diesel Fuel"
+   - **Category**: Seed, fertilizer, chemical, fuel, parts, supplies
+   - **Quantity & Unit**: Current stock (e.g., 50 bags, 200 gallons)
+   - **Reorder Point**: Get alerts when stock drops below this level
+   - **Storage Location**: Where it's stored
+   - **Batch/Lot Number**: For chemicals and seed
+   - **Expiration Date**: For chemicals (get expiring soon alerts)
+   - **Cost Per Unit**: For value tracking
+4. Click **"Add Item"**
+
+**Quick Actions:**
+- **Quick Purchase**: Record a purchase with vendor and invoice info
+- **Adjust Quantity**: Correct inventory counts with reason tracking
+- **View Transactions**: See purchase and usage history
+
+**Alerts:**
+- **Low Stock**: Items below reorder point (yellow warning)
+- **Expiring Soon**: Chemicals expiring within 30 days (red warning)
+
+---
+
+### 🔧 Maintenance Scheduling (v2.5)
+
+**When to use:** Track equipment service schedules and get alerts for overdue or upcoming maintenance.
+
+1. Click **"Maintenance"** from the sidebar navigation
+2. View the **Alerts Tab** to see:
+   - **Overdue** (red): Maintenance past due date or hours
+   - **Due Soon** (orange): Coming up within 7 days or 50 hours
+   - **Upcoming** (blue): Scheduled in the next 30 days
+3. View the **History Tab** to see past maintenance records
+4. Filter by equipment or maintenance type
+
+**Logging Maintenance:**
+1. Go to Equipment screen
+2. Click **"Log Maintenance"** on any equipment
+3. Fill in:
+   - **Maintenance Type**: Oil change, filter, tires, repairs, inspection, etc.
+   - **Date**: When service was performed
+   - **Hours at Service**: Current hour meter
+   - **Cost**: Total service cost
+   - **Vendor**: Who did the work
+   - **Parts Used**: List of parts
+   - **Next Service**: Date or hours for next service
+4. Click **"Log Maintenance"**
+
+---
+
+### 📊 Reports & Analytics Dashboard (v2.5)
+
+**When to use:** Get insights across all your farm operations with charts and exportable reports.
+
+1. Click **"Reports"** from the sidebar navigation (Analytics section)
+2. Set the **Date Range** using From/To date pickers
+3. Navigate between the **4 tabs**:
+
+**Tab 1: Operations Overview**
+- Summary cards: Total operations, total cost, average cost/acre
+- Bar chart: Operations by type (spray, fertilizer, planting, etc.)
+- Operations table with details
+
+**Tab 2: Financial Analysis**
+- Summary cards: Total input costs, equipment costs, revenue, net profit
+- Cost breakdown chart by category
+- Profit/loss by field
+
+**Tab 3: Equipment & Inventory**
+- Fleet statistics: Value, hours logged, items in stock
+- Equipment utilization chart
+- Maintenance alerts and low stock items tables
+
+**Tab 4: Field Performance**
+- Summary cards: Total fields, acres, average yield
+- Field comparison chart
+- Field summary table with yields and costs
+
+**Export to CSV:**
+- Click **"Export CSV"** button
+- Select report type (operations, financial, equipment, inventory, fields)
+- Save file for spreadsheet analysis
+
+---
+
 ## 🆕 REAL-TIME PRICING (NEW in v2.1)
 
 These features let you use YOUR actual prices instead of averages, so your cost calculations are accurate.
@@ -1120,16 +1238,18 @@ A printable table you can take to the field:
 8. **Is now a good time to spray?** (v2.1)
 9. **What's my most profitable fertilizer rate?** (v2.2)
 10. **How should I adjust rates when prices change?** (v2.2)
-11. **What did my fields actually yield last year?** (v2.5 - Coming Soon)
-12. **What was actually applied vs. recommended?** (v2.5 - Coming Soon)
+11. **What did my fields actually yield last year?** (v2.6 - JD Integration)
+12. **What was actually applied vs. recommended?** (v2.6 - JD Integration)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 
 ---
 
-## 🚜 John Deere Operations Center Integration (Coming in v2.5)
+## 🚜 John Deere Operations Center Integration (Planned for v2.6)
 
-If you use John Deere Operations Center, v2.5 will let you:
+**Note:** This feature has been deferred to v2.6 as John Deere Developer Account requires a business application/approval process.
+
+If you use John Deere Operations Center, v2.6 will let you:
 
 - **Import your fields automatically** - No more manual boundary entry
 - **See actual yield maps** - Historical yield data by zone
@@ -1137,12 +1257,12 @@ If you use John Deere Operations Center, v2.5 will let you:
 - **Get zone-specific recommendations** - Variable rate suggestions based on yield history
 - **Validate ROI** - See if recommendations actually improved outcomes
 
-**Prerequisites for v2.5:**
-1. John Deere Developer Account (free) - https://developer.deere.com
+**Prerequisites for v2.6:**
+1. John Deere Developer Account - https://developer.deere.com (requires business application)
 2. API credentials (client_id, client_secret)
 3. Your JD Ops Center account with field data
 
-Stay tuned - this feature is in active development!
+This feature is planned for future development once JD Developer Account approval is obtained.
 
 ---
 

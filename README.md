@@ -184,12 +184,13 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
    - **5 Response Models**: Quadratic, quadratic-plateau, linear-plateau, Mitscherlich, square-root
    - **Soil Test Adjustments**: Rates adjusted based on soil test levels (very low to very high)
 
-10. **John Deere Operations Center Integration (COMING in v2.5)**
+10. **John Deere Operations Center Integration (Planned for v2.6)**
     - **Field Boundary Import**: Auto-populate fields from JD Ops Center account
     - **Yield Map Integration**: Historical yield data by zone for precision recommendations
     - **Application History**: Track what was actually applied for compliance & ROI validation
     - **Zone-Specific Recommendations**: Variable rate suggestions based on yield zones
     - **OAuth Authentication**: Secure connection to your JD account
+    - *Note: Deferred to v2.6 pending JD Developer Account approval*
 
 ## 💰 Business Value
 
@@ -227,7 +228,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.5 - 3000+ lines, 116 endpoints)
+│   ├── main.py                       # FastAPI application (v2.5 - 3400+ lines, 123 endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
@@ -249,7 +250,8 @@ agtools/
 │       ├── field_service.py          # Field management (v2.5)
 │       ├── field_operations_service.py # Operations logging (v2.5)
 │       ├── equipment_service.py      # Equipment fleet management (v2.5)
-│       └── inventory_service.py      # Inventory tracking (v2.5)
+│       ├── inventory_service.py      # Inventory tracking (v2.5)
+│       └── reporting_service.py      # Reports & analytics (v2.5)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -270,7 +272,8 @@ agtools/
 │   │   ├── field_api.py              # Field management (v2.5)
 │   │   ├── operations_api.py         # Operations logging (v2.5)
 │   │   ├── equipment_api.py          # Equipment management (v2.5)
-│   │   └── inventory_api.py          # Inventory management (v2.5)
+│   │   ├── inventory_api.py          # Inventory management (v2.5)
+│   │   └── reports_api.py            # Reports & analytics (v2.5)
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
@@ -309,7 +312,8 @@ agtools/
 │           ├── pricing.py            # Price management & alerts
 │           ├── pest_identification.py    # Pest ID screen
 │           ├── disease_identification.py # Disease ID screen
-│           └── settings.py           # Settings screen
+│           ├── settings.py           # Settings screen
+│           └── reports_dashboard.py  # Reports & analytics (v2.5)
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
@@ -436,6 +440,17 @@ agtools/
 | `POST /api/v1/inventory/{id}/purchase` | Record purchase |
 | `POST /api/v1/inventory/{id}/adjust` | Adjust quantity |
 | `GET /api/v1/inventory/{id}/transactions` | Transaction history |
+
+### Reports & Analytics (NEW in v2.5)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/reports/operations` | **Operations report with date filtering** |
+| `GET /api/v1/reports/financial` | **Financial summary with cost breakdown** |
+| `GET /api/v1/reports/equipment` | Equipment utilization report |
+| `GET /api/v1/reports/inventory` | Inventory status report |
+| `GET /api/v1/reports/fields` | Field performance report |
+| `GET /api/v1/reports/dashboard` | **Combined dashboard summary** |
+| `POST /api/v1/reports/export/csv` | **Export report data to CSV** |
 
 Visit http://localhost:8000/docs for interactive documentation.
 
