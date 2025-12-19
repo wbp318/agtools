@@ -10,36 +10,48 @@
 
 #### v2.6.0 - Phase 6: Mobile/Crew Interface - IN PROGRESS
 
-**Status:** 🔄 Phase 6.1 Foundation - IN PROGRESS
+**Status:** ✅ Phase 6.1 COMPLETE | 🔄 Phase 6.2-6.6 PENDING
 
 **What's Being Built:**
 Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 
-**Phase 6.1 Files Created:**
+**Phase 6.1 Files Created:** ✅ COMPLETE
 - `database/migrations/005_mobile_crew.sql` - time_entries & task_photos tables
 - `backend/mobile/__init__.py` - Mobile module init
 - `backend/mobile/auth.py` - Cookie-based session authentication
 - `backend/templates/base.html` - Base Jinja2 template (mobile-first)
 - `backend/templates/login.html` - Mobile login page
-- `backend/static/css/mobile.css` - Mobile-first responsive CSS
+- `backend/static/css/mobile.css` - Mobile-first responsive CSS (~400 lines)
 
 **New Database Tables:**
 - `time_entries` - Track hours worked on tasks
 - `task_photos` - Store photo attachments with GPS
 
-**Features Planned:**
-- Responsive web view for phones
-- Task list with priority/status badges
-- One-tap status updates
-- Time logging per task
-- Photo attachments with camera capture
-- Offline PWA support with service worker
+**Remaining TODO (for next session):**
+
+| Phase | Task | Status |
+|-------|------|--------|
+| 6.2 | Create `backend/mobile/routes.py` with login/logout/task list routes | pending |
+| 6.2 | Integrate mobile routes into `backend/main.py` | pending |
+| 6.2 | Create `backend/templates/tasks/list.html` | pending |
+| 6.3 | Create `backend/templates/tasks/detail.html` | pending |
+| 6.3 | Add status update routes to routes.py | pending |
+| 6.4 | Create `backend/services/time_entry_service.py` | pending |
+| 6.4 | Add time logging routes and API endpoints | pending |
+| 6.5 | Create `backend/services/photo_service.py` | pending |
+| 6.5 | Create `backend/uploads/` directory for photos | pending |
+| 6.6 | Create `backend/static/js/sw.js` (service worker) | pending |
+| 6.6 | Create `backend/static/manifest.json` (PWA) | pending |
+| 6.6 | Create `backend/templates/offline.html` | pending |
 
 **Web Routes (planned):**
-- `/m/login` - Mobile login
+- `/m/login` - Mobile login (GET/POST)
+- `/m/logout` - Clear session, redirect
 - `/m/tasks` - Task list (my assigned tasks)
 - `/m/tasks/{id}` - Task detail with actions
-- `/m/logout` - Logout
+- `/m/tasks/{id}/status` - One-tap status update (POST)
+- `/m/tasks/{id}/time` - Log time entry (POST)
+- `/m/tasks/{id}/photo` - Upload photo (POST)
 
 ---
 
