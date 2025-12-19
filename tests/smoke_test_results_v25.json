@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-12-16T13:11:17.727892",
+  "timestamp": "2025-12-19T08:22:42.109939",
   "version": "2.5.0",
-  "total": 21,
-  "passed": 20,
-  "failed": 1,
-  "pass_rate": "95.2%",
+  "total": 65,
+  "passed": 65,
+  "failed": 0,
+  "pass_rate": "100.0%",
   "results": [
     {
       "category": "Root",
@@ -45,8 +45,8 @@
     {
       "category": "Fields",
       "test": "GET /fields",
-      "passed": false,
-      "details": "Status: 500"
+      "passed": true,
+      "details": "0 fields"
     },
     {
       "category": "Fields",
@@ -121,6 +121,84 @@
       "details": "Top: Eyespot (68%)"
     },
     {
+      "category": "Equipment",
+      "test": "GET /equipment",
+      "passed": true,
+      "details": "0 equipment items"
+    },
+    {
+      "category": "Equipment",
+      "test": "GET /equipment/summary",
+      "passed": true,
+      "details": "0 items, $0 value"
+    },
+    {
+      "category": "Equipment",
+      "test": "GET /maintenance/alerts",
+      "passed": true,
+      "details": "0 alerts"
+    },
+    {
+      "category": "Inventory",
+      "test": "GET /inventory",
+      "passed": true,
+      "details": "0 items"
+    },
+    {
+      "category": "Inventory",
+      "test": "GET /inventory/summary",
+      "passed": true,
+      "details": "0 items, $0 value"
+    },
+    {
+      "category": "Inventory",
+      "test": "GET /inventory/alerts",
+      "passed": true,
+      "details": "0 alerts"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/dashboard",
+      "passed": true,
+      "details": "Dashboard summary loaded"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/operations",
+      "passed": true,
+      "details": "0 ops, $0 cost"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/financial",
+      "passed": true,
+      "details": "Total costs: $0"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/equipment",
+      "passed": true,
+      "details": "0 equipment items"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/inventory",
+      "passed": true,
+      "details": "0 inventory items"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/fields",
+      "passed": true,
+      "details": "0 fields"
+    },
+    {
+      "category": "Reports",
+      "test": "POST /reports/export/csv",
+      "passed": true,
+      "details": "CSV with 13 rows"
+    },
+    {
       "category": "Docs",
       "test": "GET /docs (Swagger UI)",
       "passed": true,
@@ -130,7 +208,193 @@
       "category": "Docs",
       "test": "GET /openapi.json",
       "passed": true,
-      "details": "72 endpoints documented"
+      "details": "101 endpoints documented"
+    },
+    {
+      "category": "Frontend",
+      "test": "import dashboard",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import yield_response",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import spray_timing",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import cost_optimizer",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import pricing",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import pest_identification",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import disease_identification",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import settings",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import login",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import user_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import crew_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import task_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import field_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import operations_log",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import equipment_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import inventory_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import maintenance_schedule",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import reports_dashboard",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import client",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import auth_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import yield_response_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import spray_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import pricing_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import cost_optimizer_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import identification_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import task_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import field_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import operations_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import equipment_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import inventory_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import reports_api",
+      "passed": true,
+      "details": "OK"
     }
   ],
   "by_category": {
@@ -155,8 +419,8 @@
       "failed": 0
     },
     "Fields": {
-      "passed": 1,
-      "failed": 1
+      "passed": 2,
+      "failed": 0
     },
     "Operations": {
       "passed": 2,
@@ -186,8 +450,24 @@
       "passed": 1,
       "failed": 0
     },
+    "Equipment": {
+      "passed": 3,
+      "failed": 0
+    },
+    "Inventory": {
+      "passed": 3,
+      "failed": 0
+    },
+    "Reports": {
+      "passed": 7,
+      "failed": 0
+    },
     "Docs": {
       "passed": 2,
+      "failed": 0
+    },
+    "Frontend": {
+      "passed": 31,
       "failed": 0
     }
   }

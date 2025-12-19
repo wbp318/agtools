@@ -417,9 +417,201 @@ def test_disease_identification():
         log_result("DiseaseID", "POST /identify/disease", False, str(e))
 
 
+def test_equipment_management():
+    """Test equipment management endpoints (Phase 4)"""
+    print("\n=== 14. EQUIPMENT MANAGEMENT ===")
+
+    # List equipment
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/equipment", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            count = len(data) if isinstance(data, list) else 0
+            log_result("Equipment", "GET /equipment", True, f"{count} equipment items")
+        else:
+            log_result("Equipment", "GET /equipment", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Equipment", "GET /equipment", False, str(e))
+
+    # Equipment summary
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/equipment/summary", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total = data.get("total_equipment", 0)
+            value = data.get("total_value", 0)
+            log_result("Equipment", "GET /equipment/summary", True,
+                       f"{total} items, ${value:,.0f} value")
+        else:
+            log_result("Equipment", "GET /equipment/summary", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Equipment", "GET /equipment/summary", False, str(e))
+
+    # Maintenance alerts
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/maintenance/alerts", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            count = len(data) if isinstance(data, list) else 0
+            log_result("Equipment", "GET /maintenance/alerts", True, f"{count} alerts")
+        else:
+            log_result("Equipment", "GET /maintenance/alerts", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Equipment", "GET /maintenance/alerts", False, str(e))
+
+
+def test_inventory_management():
+    """Test inventory management endpoints (Phase 4)"""
+    print("\n=== 15. INVENTORY MANAGEMENT ===")
+
+    # List inventory
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/inventory", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            count = len(data) if isinstance(data, list) else 0
+            log_result("Inventory", "GET /inventory", True, f"{count} items")
+        else:
+            log_result("Inventory", "GET /inventory", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Inventory", "GET /inventory", False, str(e))
+
+    # Inventory summary
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/inventory/summary", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total = data.get("total_items", 0)
+            value = data.get("total_value", 0)
+            log_result("Inventory", "GET /inventory/summary", True,
+                       f"{total} items, ${value:,.0f} value")
+        else:
+            log_result("Inventory", "GET /inventory/summary", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Inventory", "GET /inventory/summary", False, str(e))
+
+    # Inventory alerts
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/inventory/alerts", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            # Endpoint returns a list of alerts
+            count = len(data) if isinstance(data, list) else 0
+            log_result("Inventory", "GET /inventory/alerts", True,
+                       f"{count} alerts")
+        else:
+            log_result("Inventory", "GET /inventory/alerts", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Inventory", "GET /inventory/alerts", False, str(e))
+
+
+def test_reports_dashboard():
+    """Test reports & analytics endpoints (Phase 5)"""
+    print("\n=== 16. REPORTS & ANALYTICS ===")
+
+    # Dashboard summary
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/reports/dashboard", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            log_result("Reports", "GET /reports/dashboard", True, "Dashboard summary loaded")
+        else:
+            log_result("Reports", "GET /reports/dashboard", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "GET /reports/dashboard", False, str(e))
+
+    # Operations report
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/reports/operations", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total_ops = data.get("total_operations", 0)
+            total_cost = data.get("total_cost", 0)
+            log_result("Reports", "GET /reports/operations", True,
+                       f"{total_ops} ops, ${total_cost:,.0f} cost")
+        else:
+            log_result("Reports", "GET /reports/operations", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "GET /reports/operations", False, str(e))
+
+    # Financial report
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/reports/financial", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total_costs = data.get("total_costs", 0)
+            log_result("Reports", "GET /reports/financial", True,
+                       f"Total costs: ${total_costs:,.0f}")
+        else:
+            log_result("Reports", "GET /reports/financial", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "GET /reports/financial", False, str(e))
+
+    # Equipment report
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/reports/equipment", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total_equip = data.get("total_equipment", 0)
+            log_result("Reports", "GET /reports/equipment", True,
+                       f"{total_equip} equipment items")
+        else:
+            log_result("Reports", "GET /reports/equipment", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "GET /reports/equipment", False, str(e))
+
+    # Inventory report
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/reports/inventory", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total_items = data.get("total_items", 0)
+            log_result("Reports", "GET /reports/inventory", True,
+                       f"{total_items} inventory items")
+        else:
+            log_result("Reports", "GET /reports/inventory", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "GET /reports/inventory", False, str(e))
+
+    # Fields report
+    try:
+        r = httpx.get(f"{BASE_URL}/api/v1/reports/fields", headers=get_headers(), timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            total_fields = data.get("total_fields", 0)
+            log_result("Reports", "GET /reports/fields", True,
+                       f"{total_fields} fields")
+        else:
+            log_result("Reports", "GET /reports/fields", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "GET /reports/fields", False, str(e))
+
+    # CSV Export
+    try:
+        r = httpx.post(f"{BASE_URL}/api/v1/reports/export/csv",
+                       headers=get_headers(),
+                       json={"report_type": "operations"},
+                       timeout=10)
+        if r.status_code == 200:
+            # Response could be JSON with csv_data or plain text CSV
+            content_type = r.headers.get("content-type", "")
+            if "application/json" in content_type:
+                data = r.json()
+                csv_data = data.get("csv_data", "")
+            else:
+                csv_data = r.text
+            rows = len(csv_data.split("\n")) - 1 if csv_data else 0
+            log_result("Reports", "POST /reports/export/csv", True,
+                       f"CSV with {rows} rows")
+        else:
+            log_result("Reports", "POST /reports/export/csv", False, f"Status: {r.status_code}")
+    except Exception as e:
+        log_result("Reports", "POST /reports/export/csv", False, str(e))
+
+
 def test_api_docs():
     """Test API documentation endpoints"""
-    print("\n=== 14. API DOCUMENTATION ===")
+    print("\n=== 17. API DOCUMENTATION ===")
 
     # OpenAPI docs
     try:
@@ -440,6 +632,69 @@ def test_api_docs():
             log_result("Docs", "GET /openapi.json", False, f"Status: {r.status_code}")
     except Exception as e:
         log_result("Docs", "GET /openapi.json", False, str(e))
+
+
+def test_frontend_imports():
+    """Test frontend module imports"""
+    print("\n=== 18. FRONTEND IMPORTS ===")
+
+    # Add frontend to path
+    frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+    if frontend_path not in sys.path:
+        sys.path.insert(0, frontend_path)
+
+    # Test screen imports
+    screens = [
+        "ui.screens.dashboard",
+        "ui.screens.yield_response",
+        "ui.screens.spray_timing",
+        "ui.screens.cost_optimizer",
+        "ui.screens.pricing",
+        "ui.screens.pest_identification",
+        "ui.screens.disease_identification",
+        "ui.screens.settings",
+        "ui.screens.login",
+        "ui.screens.user_management",
+        "ui.screens.crew_management",
+        "ui.screens.task_management",
+        "ui.screens.field_management",
+        "ui.screens.operations_log",
+        "ui.screens.equipment_management",
+        "ui.screens.inventory_management",
+        "ui.screens.maintenance_schedule",
+        "ui.screens.reports_dashboard",
+    ]
+
+    for screen in screens:
+        try:
+            __import__(screen)
+            log_result("Frontend", f"import {screen.split('.')[-1]}", True, "OK")
+        except Exception as e:
+            log_result("Frontend", f"import {screen.split('.')[-1]}", False, str(e)[:50])
+
+    # Test API imports
+    apis = [
+        "api.client",
+        "api.auth_api",
+        "api.yield_response_api",
+        "api.spray_api",
+        "api.pricing_api",
+        "api.cost_optimizer_api",
+        "api.identification_api",
+        "api.task_api",
+        "api.field_api",
+        "api.operations_api",
+        "api.equipment_api",
+        "api.inventory_api",
+        "api.reports_api",
+    ]
+
+    for api in apis:
+        try:
+            __import__(api)
+            log_result("Frontend", f"import {api.split('.')[-1]}", True, "OK")
+        except Exception as e:
+            log_result("Frontend", f"import {api.split('.')[-1]}", False, str(e)[:50])
 
 
 def generate_report():
@@ -510,7 +765,11 @@ def main():
     test_cost_optimizer()
     test_pest_identification()
     test_disease_identification()
+    test_equipment_management()
+    test_inventory_management()
+    test_reports_dashboard()
     test_api_docs()
+    test_frontend_imports()
 
     # Generate report
     report = generate_report()

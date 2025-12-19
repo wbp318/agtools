@@ -956,7 +956,7 @@ class ReportingService:
         cursor.execute("""
             SELECT COUNT(*) as total,
                    COALESCE(SUM(quantity * unit_cost), 0) as value,
-                   SUM(CASE WHEN quantity < min_quantity AND min_quantity > 0 THEN 1 ELSE 0 END) as low
+                   COALESCE(SUM(CASE WHEN quantity < min_quantity AND min_quantity > 0 THEN 1 ELSE 0 END), 0) as low
             FROM inventory_items WHERE is_active = 1
         """)
         inv_row = cursor.fetchone()

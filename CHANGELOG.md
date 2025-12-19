@@ -6,7 +6,39 @@
 
 ## Current Version: 2.5.0 (In Development - December 17, 2025)
 
-### Latest Session: December 18, 2025
+### Latest Session: December 19, 2025
+
+#### Smoke Test Results - 100% Pass Rate
+
+**Test Date:** December 19, 2025
+
+| Metric | Value |
+|--------|-------|
+| Total Tests | 65 |
+| Passed | 65 |
+| Failed | 0 |
+| **Pass Rate** | **100.0%** |
+
+**Categories Tested:**
+- Root, Auth, Users, Crews, Tasks: ✅ All Pass
+- Fields, Operations, Pricing: ✅ All Pass
+- Yield Response, Spray Timing, Cost Optimizer: ✅ All Pass
+- Pest/Disease Identification: ✅ All Pass
+- Equipment Management (Phase 4): ✅ 3/3 Pass
+- Inventory Management (Phase 4): ✅ 3/3 Pass
+- **Reports & Analytics (Phase 5): ✅ 7/7 Pass**
+- API Documentation: ✅ 101 endpoints documented
+- Frontend Imports: ✅ 31/31 modules import correctly
+
+**Bugs Fixed:**
+- Fixed `low_stock_count` NULL bug in dashboard summary (COALESCE wrapper)
+- Updated smoke test for inventory alerts list response format
+
+See `tests/SMOKE_TEST_RESULTS_v2.5.0_Phase5.md` for detailed results.
+
+---
+
+### Previous Session: December 18, 2025
 
 #### v2.5.0 - Phase 5: Reporting & Analytics Dashboard ✅ COMPLETE
 
