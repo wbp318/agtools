@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Login - AgTools{% endblock %}
+
+{% block head %}
+<style>
+    body {
+        background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 400px;
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+    <div class="login-header">
+        <span class="login-icon">🌾</span>
+        <h1>AgTools</h1>
+        <p class="login-subtitle">Mobile Crew Portal</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form action="/m/login" method="POST" class="login-form">
+        {% if next %}
+        <input type="hidden" name="next" value="{{ next }}">
+        {% endif %}
+
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input
+                type="text"
+                id="username"
+                name="username"
+                value="{{ username or '' }}"
+                placeholder="Enter your username"
+                required
+                autocomplete="username"
+                autofocus
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Enter your password"
+                required
+                autocomplete="current-password"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+            Sign In
+        </button>
+    </form>
+
+    <div class="login-footer">
+        <p>AgTools Farm Operations Manager</p>
+        <p class="version">v2.6.0</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- No extra scripts needed for login -->
+{% endblock %}

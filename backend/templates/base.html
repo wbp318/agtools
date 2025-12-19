@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2e7d32">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="AgTools Mobile - Farm Task Management">
+
+    <title>{% block title %}AgTools{% endblock %}</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/mobile.css">
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% if user %}
+    <!-- Navigation Bar (only shown when logged in) -->
+    <nav class="navbar">
+        <a href="/m/tasks" class="nav-brand">
+            <span class="brand-icon">🌾</span>
+            AgTools
+        </a>
+        <div class="nav-right">
+            <span class="nav-user">{{ user.username }}</span>
+            <a href="/m/logout" class="nav-logout" title="Logout">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Offline Indicator -->
+    <div class="offline-banner" id="offline-banner">
+        You are offline. Changes will sync when connected.
+    </div>
+
+    <!-- Scripts -->
+    {% block scripts %}
+    <script src="/static/js/app.js"></script>
+    {% endblock %}
+</body>
+</html>

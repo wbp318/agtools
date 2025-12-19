@@ -4,9 +4,48 @@
 
 ---
 
-## Current Version: 2.5.0 (Released - December 19, 2025)
+## Current Version: 2.6.0 (In Development)
 
 ### Latest Session: December 19, 2025
+
+#### v2.6.0 - Phase 6: Mobile/Crew Interface - IN PROGRESS
+
+**Status:** 🔄 Phase 6.1 Foundation - IN PROGRESS
+
+**What's Being Built:**
+Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
+
+**Phase 6.1 Files Created:**
+- `database/migrations/005_mobile_crew.sql` - time_entries & task_photos tables
+- `backend/mobile/__init__.py` - Mobile module init
+- `backend/mobile/auth.py` - Cookie-based session authentication
+- `backend/templates/base.html` - Base Jinja2 template (mobile-first)
+- `backend/templates/login.html` - Mobile login page
+- `backend/static/css/mobile.css` - Mobile-first responsive CSS
+
+**New Database Tables:**
+- `time_entries` - Track hours worked on tasks
+- `task_photos` - Store photo attachments with GPS
+
+**Features Planned:**
+- Responsive web view for phones
+- Task list with priority/status badges
+- One-tap status updates
+- Time logging per task
+- Photo attachments with camera capture
+- Offline PWA support with service worker
+
+**Web Routes (planned):**
+- `/m/login` - Mobile login
+- `/m/tasks` - Task list (my assigned tasks)
+- `/m/tasks/{id}` - Task detail with actions
+- `/m/logout` - Logout
+
+---
+
+## Previous Version: 2.5.0 (Released - December 19, 2025)
+
+### Session: December 19, 2025
 
 #### Documentation Updates - v2.5.0 Complete
 
