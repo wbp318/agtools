@@ -10,7 +10,7 @@
 
 #### v2.6.0 - Phase 6: Mobile/Crew Interface - IN PROGRESS
 
-**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | ✅ Phase 6.3 COMPLETE | ✅ Phase 6.4 COMPLETE | 🔄 Phase 6.5-6.6 PENDING
+**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | ✅ Phase 6.3 COMPLETE | ✅ Phase 6.4 COMPLETE | ✅ Phase 6.5 COMPLETE | 🔄 Phase 6.6 PENDING
 
 **What's Being Built:**
 Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
@@ -75,6 +75,26 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
   - Delete button for own entries
 - Updated `backend/static/css/mobile.css` - Time form/entry styles
 
+**Phase 6.5 Files Created:** ✅ COMPLETE (December 20, 2025)
+- `backend/services/photo_service.py` - Photo service (~400 lines)
+  - PhotoResponse Pydantic model
+  - File validation (extensions, size limits)
+  - UUID-based filename generation
+  - GPS coordinate storage
+  - CRUD operations with ownership checking
+  - Automatic uploads directory creation
+- Updated `backend/mobile/routes.py` - Added photo routes
+  - POST /m/tasks/{id}/photo - Upload photo with GPS
+  - POST /m/tasks/{id}/photo/{photo_id}/delete - Delete photo
+  - GET /m/uploads/photos/{filename} - Serve photo files
+- Updated `backend/templates/tasks/detail.html` - Photo UI
+  - Camera/upload button with GPS capture
+  - Caption input field
+  - Responsive photo gallery (2-3 columns)
+  - Photo delete button for owner
+  - File size validation (10MB max)
+- Updated `backend/static/css/mobile.css` - Photo form/gallery styles
+
 **New Database Tables:**
 - `time_entries` - Track hours worked on tasks
 - `task_photos` - Store photo attachments with GPS
@@ -90,8 +110,8 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 | 6.3 | Add status update routes to routes.py | ✅ done |
 | 6.4 | Create `backend/services/time_entry_service.py` | ✅ done |
 | 6.4 | Add time logging routes and API endpoints | ✅ done |
-| 6.5 | Create `backend/services/photo_service.py` | pending |
-| 6.5 | Create `backend/uploads/` directory for photos | pending |
+| 6.5 | Create `backend/services/photo_service.py` | ✅ done |
+| 6.5 | Create `backend/uploads/` directory for photos | ✅ done |
 | 6.6 | Create `backend/static/js/sw.js` (service worker) | pending |
 | 6.6 | Create `backend/static/manifest.json` (PWA) | pending |
 | 6.6 | Create `backend/templates/offline.html` | pending |

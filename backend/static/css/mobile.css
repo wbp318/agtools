@@ -468,22 +468,36 @@ section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: v
 .entry-date { color: var(--text-secondary); }
 .entry-notes { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; }
 
-/* Photo Upload */
+/* Photo Upload Form */
+.photo-upload-form {
+    background: var(--gray-50);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.photo-upload-form .form-group {
+    margin: 0.75rem 0;
+}
+
 .photo-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: var(--gray-50);
+    background: var(--white);
     border: 2px dashed var(--gray-300);
     border-radius: 8px;
     cursor: pointer;
-    margin-bottom: 0.75rem;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
+    color: var(--text-secondary);
 }
 
-.photo-btn:hover { border-color: var(--primary); }
+.photo-btn:hover {
+    border-color: var(--primary);
+    background: var(--gray-50);
+}
 
 .hidden-input { display: none; }
 
@@ -492,9 +506,64 @@ section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: v
 /* Photo Gallery */
 .photo-gallery {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
     margin-top: 1rem;
+}
+
+@media (min-width: 480px) {
+    .photo-gallery {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.photo-item {
+    position: relative;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.photo-link {
+    display: block;
+    aspect-ratio: 1;
+}
+
+.photo-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-info {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.photo-user {
+    color: var(--text-secondary);
+    display: block;
+}
+
+.photo-caption {
+    color: var(--text-primary);
+    display: block;
+    margin-top: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.photo-delete-form {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+}
+
+.photo-delete-form .btn-icon {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
 }
 
 .photo-thumb {

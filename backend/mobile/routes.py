@@ -12,8 +12,8 @@ Provides server-rendered HTML pages for mobile crew members:
 from typing import Optional
 from datetime import date
 
-from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Form, Depends, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 
 from .auth import (
@@ -29,6 +29,7 @@ from services.time_entry_service import (
     TimeEntryCreate,
     TimeEntryType,
 )
+from services.photo_service import get_photo_service
 
 
 # ============================================================================
@@ -318,6 +319,14 @@ async def task_detail(
         entry_dict = entry.model_dump() if hasattr(entry, 'model_dump') else entry.__dict__
         time_entries_data.append(entry_dict)
 
+    # Get photos for this task
+    photo_service = get_photo_service()
+    photos = photo_service.list_photos_for_task(task_id)
+    photos_data = []
+    for photo in photos:
+        photo_dict = photo.model_dump() if hasattr(photo, 'model_dump') else photo.__dict__
+        photos_data.append(photo_dict)
+
     return templates.TemplateResponse(
         "tasks/detail.html",
         {
@@ -329,6 +338,8 @@ async def task_detail(
             "time_entries": time_entries_data,
             "time_summary": time_summary,
             "entry_types": [t.value for t in TimeEntryType],
+            "photos": photos_data,
+            "photo_count": len(photos_data),
         }
     )
 
@@ -447,3 +458,102 @@ async def delete_time_entry(
 
     # Redirect back to task detail
     return RedirectResponse(url=f"/m/tasks/{task_id}", status_code=302)
+
+
+# ============================================================================
+# PHOTO ROUTES
+# ============================================================================
+
+@router.post("/tasks/{task_id}/photo")
+async def upload_photo(
+    request: Request,
+    task_id: int,
+    photo: UploadFile = File(...),
+    caption: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+):
+    """
+    Upload a photo for a task.
+
+    Form fields:
+        photo: Image file
+        caption: Optional caption
+        latitude: GPS latitude (optional, from device)
+        longitude: GPS longitude (optional, from device)
+    """
+    # Check authentication
+    user = await get_session_user(request)
+    if not user:
+        return RedirectResponse(url=f"/m/login?next=/m/tasks/{task_id}", status_code=302)
+
+    task_service = get_task_service()
+
+    # Check permission
+    can_edit = task_service.can_edit_task(task_id, user["id"], user["role"])
+    if not can_edit:
+        return RedirectResponse(url="/m/tasks", status_code=302)
+
+    # Read file content
+    file_content = await photo.read()
+
+    # Save photo
+    photo_service = get_photo_service()
+    result = await photo_service.save_photo(
+        task_id=task_id,
+        user_id=user["id"],
+        file_content=file_content,
+        original_filename=photo.filename or "photo.jpg",
+        latitude=latitude,
+        longitude=longitude,
+        caption=caption if caption and caption.strip() else None,
+    )
+
+    # Redirect back to task detail
+    return RedirectResponse(url=f"/m/tasks/{task_id}", status_code=302)
+
+
+@router.post("/tasks/{task_id}/photo/{photo_id}/delete")
+async def delete_photo(
+    request: Request,
+    task_id: int,
+    photo_id: int,
+):
+    """
+    Delete a photo.
+    Users can only delete their own photos.
+    """
+    # Check authentication
+    user = await get_session_user(request)
+    if not user:
+        return RedirectResponse(url=f"/m/login?next=/m/tasks/{task_id}", status_code=302)
+
+    photo_service = get_photo_service()
+    photo_service.delete_photo(
+        photo_id,
+        user["id"],
+        is_admin=user.get("is_admin", False)
+    )
+
+    # Redirect back to task detail
+    return RedirectResponse(url=f"/m/tasks/{task_id}", status_code=302)
+
+
+@router.get("/uploads/photos/{filename}")
+async def serve_photo(request: Request, filename: str):
+    """
+    Serve uploaded photos.
+    Requires authentication.
+    """
+    # Check authentication
+    user = await get_session_user(request)
+    if not user:
+        return RedirectResponse(url="/m/login", status_code=302)
+
+    photo_service = get_photo_service()
+    file_path = photo_service.get_file_path(filename)
+
+    if not file_path:
+        return RedirectResponse(url="/m/tasks", status_code=302)
+
+    return FileResponse(file_path)
