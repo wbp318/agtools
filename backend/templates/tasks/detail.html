@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }} - AgTools{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="/m/tasks" class="back-link">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+    Back to Tasks
+</a>
+
+<!-- Task Header -->
+<div class="task-detail-header">
+    <div class="task-badges">
+        <span class="badge {{ task.priority_class }}">{{ task.priority | upper }}</span>
+        <span class="badge {{ task.status_class }}">{{ task.status_label }}</span>
+        {% if task.is_overdue %}
+        <span class="badge badge-danger">OVERDUE</span>
+        {% endif %}
+    </div>
+    <h1 class="task-detail-title">{{ task.title }}</h1>
+</div>
+
+<!-- Task Info Cards -->
+<div class="info-cards">
+    {% if task.due_date %}
+    <div class="info-card {% if task.is_overdue %}info-card-danger{% endif %}">
+        <div class="info-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        </div>
+        <div class="info-content">
+            <div class="info-label">Due Date</div>
+            <div class="info-value">{{ task.due_date }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if task.assigned_to_user_name %}
+    <div class="info-card">
+        <div class="info-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </div>
+        <div class="info-content">
+            <div class="info-label">Assigned To</div>
+            <div class="info-value">{{ task.assigned_to_user_name }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if task.assigned_to_crew_name %}
+    <div class="info-card">
+        <div class="info-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        </div>
+        <div class="info-content">
+            <div class="info-label">Crew</div>
+            <div class="info-value">{{ task.assigned_to_crew_name }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="info-card">
+        <div class="info-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        </div>
+        <div class="info-content">
+            <div class="info-label">Created</div>
+            <div class="info-value">{{ task.created_at[:10] if task.created_at else 'Unknown' }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Description -->
+{% if task.description %}
+<div class="detail-section">
+    <h2 class="section-title">Description</h2>
+    <div class="task-description-full">
+        {{ task.description }}
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Actions -->
+{% if can_edit and next_statuses %}
+<div class="detail-section">
+    <h2 class="section-title">Quick Actions</h2>
+    <div class="action-buttons">
+        {% for status_value, label, btn_class in next_statuses %}
+        <form action="/m/tasks/{{ task.id }}/status" method="POST" class="inline-form">
+            <input type="hidden" name="status" value="{{ status_value }}">
+            <button type="submit" class="btn {{ btn_class }} btn-block">
+                {% if status_value == 'in_progress' %}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                {% elif status_value == 'completed' %}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                {% elif status_value == 'todo' %}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+                {% endif %}
+                {{ label }}
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Time Logging (Phase 6.4 placeholder) -->
+<div class="detail-section">
+    <h2 class="section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        Time Logged
+    </h2>
+    <div class="placeholder-content">
+        <p class="text-muted">Time logging coming in Phase 6.4</p>
+    </div>
+</div>
+
+<!-- Photos (Phase 6.5 placeholder) -->
+<div class="detail-section">
+    <h2 class="section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        Photos
+    </h2>
+    <div class="placeholder-content">
+        <p class="text-muted">Photo uploads coming in Phase 6.5</p>
+    </div>
+</div>
+
+<!-- Task Metadata -->
+<div class="detail-section task-meta-section">
+    <div class="meta-row">
+        <span class="meta-label">Created by:</span>
+        <span class="meta-value">{{ task.created_by_user_name or 'Unknown' }}</span>
+    </div>
+    <div class="meta-row">
+        <span class="meta-label">Last updated:</span>
+        <span class="meta-value">{{ task.updated_at[:10] if task.updated_at else 'Unknown' }}</span>
+    </div>
+    {% if task.completed_at %}
+    <div class="meta-row">
+        <span class="meta-label">Completed:</span>
+        <span class="meta-value">{{ task.completed_at[:10] }}</span>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Confirm before status change
+document.querySelectorAll('.action-buttons form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const btn = form.querySelector('button');
+        const action = btn.textContent.trim();
+
+        // Only confirm for completing
+        if (action.includes('Complete')) {
+            if (!confirm('Mark this task as complete?')) {
+                e.preventDefault();
+                return;
+            }
+        }
+
+        // Disable button to prevent double-submit
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Updating...';
+    });
+});
+</script>
+{% endblock %}

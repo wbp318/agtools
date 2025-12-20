@@ -25,6 +25,17 @@
 # Shell scripts
 *.sh text eol=lf
 
+# HTML/Template files
+*.html text eol=lf
+*.htm text eol=lf
+*.jinja text eol=lf
+*.jinja2 text eol=lf
+
+# CSS files
+*.css text eol=lf
+*.scss text eol=lf
+*.less text eol=lf
+
 # Configuration files
 *.yml text eol=lf
 *.yaml text eol=lf
@@ -80,6 +91,9 @@ database/* linguist-vendored=false
 backend/* linguist-vendored=false
 backend/services/* linguist-vendored=false
 backend/middleware/* linguist-vendored=false
+backend/mobile/* linguist-vendored=false
+backend/templates/* linguist-vendored=false
+backend/static/* linguist-vendored=false
 frontend/* linguist-vendored=false
 frontend/ui/* linguist-vendored=false
 frontend/api/* linguist-vendored=false

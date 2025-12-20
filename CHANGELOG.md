@@ -10,7 +10,7 @@
 
 #### v2.6.0 - Phase 6: Mobile/Crew Interface - IN PROGRESS
 
-**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | 🔄 Phase 6.3-6.6 PENDING
+**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | ✅ Phase 6.3 COMPLETE | 🔄 Phase 6.4-6.6 PENDING
 
 **What's Being Built:**
 Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
@@ -47,6 +47,18 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 - Updated `backend/mobile/__init__.py` - Export router and configure_templates
 - Updated `backend/main.py` - Mount static files, configure templates, include mobile router
 
+**Phase 6.3 Files Created:** ✅ COMPLETE (December 20, 2025)
+- `backend/templates/tasks/detail.html` - Task detail template
+  - Back navigation link
+  - Task badges (priority, status, overdue)
+  - Info cards (due date, assigned to, crew, created date)
+  - Full description display
+  - Quick action buttons for status changes (Start, Complete, Reopen)
+  - Time logging placeholder (Phase 6.4)
+  - Photo uploads placeholder (Phase 6.5)
+  - Task metadata section (created by, updated, completed dates)
+  - Confirmation dialogs for status changes
+
 **New Database Tables:**
 - `time_entries` - Track hours worked on tasks
 - `task_photos` - Store photo attachments with GPS
@@ -58,7 +70,7 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 | 6.2 | Create `backend/mobile/routes.py` with login/logout/task list routes | ✅ done |
 | 6.2 | Integrate mobile routes into `backend/main.py` | ✅ done |
 | 6.2 | Create `backend/templates/tasks/list.html` | ✅ done |
-| 6.3 | Create `backend/templates/tasks/detail.html` | pending |
+| 6.3 | Create `backend/templates/tasks/detail.html` | ✅ done |
 | 6.3 | Add status update routes to routes.py | ✅ done |
 | 6.4 | Create `backend/services/time_entry_service.py` | pending |
 | 6.4 | Add time logging routes and API endpoints | pending |
