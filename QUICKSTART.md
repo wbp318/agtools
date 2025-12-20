@@ -32,6 +32,7 @@ Think of AgTools as your **digital agronomist** that:
 15. **Inventory Tracking** (v2.5.0) - Manage seeds, fertilizers, chemicals, fuel with low stock and expiration alerts
 16. **Maintenance Scheduling** (v2.5.0) - Service reminders with overdue, due soon, and upcoming alerts
 17. **Reports & Analytics** (v2.5.0) - 4-tab dashboard with charts and CSV export for operations, financials, equipment, and field performance
+18. **Mobile Crew Interface** (v2.6.0) - PWA mobile web app for field crews with task list, time logging, photo uploads, and offline support
 
 ---
 
@@ -830,6 +831,41 @@ These features help you manage your farm fields, track operations, and coordinat
 - Click **"Export CSV"** button
 - Select report type (operations, financial, equipment, inventory, fields)
 - Save file for spreadsheet analysis
+
+---
+
+## 🆕 MOBILE CREW INTERFACE (NEW in v2.6)
+
+A mobile-friendly web interface for field crews to view tasks, log time, and upload photos from the field.
+
+### 📱 Accessing the Mobile Interface
+
+With the backend running, open a mobile browser:
+
+**http://localhost:8000/m/login**
+
+### What Crews Can Do
+
+1. **View Task List** - See assigned tasks with status and priority badges
+2. **One-Tap Status Updates** - Start, complete, or reopen tasks instantly
+3. **Log Time** - Track hours worked (work, travel, break types)
+4. **Upload Photos** - Capture field photos with GPS coordinates
+5. **Work Offline** - PWA caches pages for offline access
+6. **Install as App** - Add to home screen for app-like experience
+
+### Mobile Routes
+
+| Route | Purpose |
+|-------|---------|
+| `/m/login` | Mobile login page |
+| `/m/tasks` | Task list with filters |
+| `/m/tasks/{id}` | Task detail with actions |
+
+### PWA Features
+
+- **Offline Support** - Service worker caches static assets and pages
+- **Installable** - Add to home screen on iOS/Android
+- **Auto-Sync** - Pages reload when back online
 
 ---
 

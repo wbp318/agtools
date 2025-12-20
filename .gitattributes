@@ -79,12 +79,38 @@ Dockerfile text eol=lf
 *.pyd binary
 
 # GitHub linguist overrides (for repository language detection)
-# Documentation files
+
+# Documentation files - don't count toward language stats
 *.md linguist-documentation
 LICENSE linguist-documentation
 
-# Database files should be detected
+# Generated/config files - don't count toward language stats
+.gitkeep linguist-generated
+*.gitkeep linguist-generated
+.gitignore linguist-generated
+.gitattributes linguist-generated
+
+# Config files - mark as generated to exclude from "Other"
+*.ini linguist-generated
+requirements*.txt linguist-generated
+pytest.ini linguist-generated
+manifest.json linguist-generated
+
+# Database files should be detected as SQL
 *.sql linguist-detectable
+
+# HTML templates - detect as HTML
+*.html linguist-detectable
+
+# CSS files - detect as CSS
+*.css linguist-detectable
+
+# JavaScript files - detect as JavaScript
+*.js linguist-detectable
+
+# JSON files (except manifest) - mark as generated
+backend/static/manifest.json linguist-generated
+tests/*.json linguist-generated
 
 # Core application code - NOT vendored
 database/* linguist-vendored=false
@@ -102,7 +128,8 @@ src/* linguist-vendored=false
 # Python is the primary language
 *.py linguist-detectable=true
 
-# Ensure service and middleware modules are counted
-backend/services/*.py linguist-detectable=true
-backend/middleware/*.py linguist-detectable=true
+# Ensure all Python modules are counted
+backend/**/*.py linguist-detectable=true
 frontend/**/*.py linguist-detectable=true
+database/*.py linguist-detectable=true
+tests/*.py linguist-detectable=true

@@ -33,6 +33,15 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
 
+**Version 2.6.0** adds **Mobile Crew Interface** - a PWA mobile web interface for field crews:
+- **Mobile login** with cookie-based session authentication
+- **Task list** with status filtering and priority badges
+- **One-tap status updates** to start, complete, or reopen tasks
+- **Time logging** to track hours worked (work, travel, break)
+- **Photo uploads** with GPS capture from mobile devices
+- **Offline support** with service worker caching and offline page
+- **PWA installable** on mobile devices for app-like experience
+
 **Version 2.5.0** adds **Farm Operations Manager** - a complete farm management system including:
 - **Multi-user authentication** with role-based access control (admin, manager, crew)
 - **Task management** with assignments, priorities, due dates, and status workflows
@@ -90,7 +99,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 # Visit http://localhost:8000/docs for interactive API
 ```
 
-### Run the Desktop Application (NEW)
+### Run the Desktop Application
 
 ```bash
 # Install frontend dependencies (one time)
@@ -100,6 +109,20 @@ pip install -r requirements.txt
 # Start the desktop app
 python main.py
 ```
+
+### Access the Mobile Crew Interface (NEW in v2.6)
+
+With the backend running, open a mobile browser or desktop browser:
+
+**http://localhost:8000/m/login**
+
+The mobile interface provides:
+- **Mobile-optimized task list** at `/m/tasks`
+- **Task detail with one-tap actions** at `/m/tasks/{id}`
+- **Time logging** for tracking hours worked
+- **Photo uploads** with GPS capture
+- **PWA support** - install on home screen for app-like experience
+- **Offline mode** - cached pages work without internet
 
 The desktop app provides a professional PyQt6 interface with:
 - Dashboard with quick actions
@@ -228,8 +251,24 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.5 - 3400+ lines, 123 endpoints)
+│   ├── main.py                       # FastAPI application (v2.6 - 3600+ lines, 130+ endpoints)
 │   ├── requirements.txt              # Python dependencies
+│   ├── mobile/                       # Mobile crew interface (NEW v2.6)
+│   │   ├── __init__.py               # Mobile module exports
+│   │   ├── auth.py                   # Cookie-based session auth
+│   │   └── routes.py                 # Mobile web routes
+│   ├── templates/                    # Jinja2 templates (NEW v2.6)
+│   │   ├── base.html                 # Base mobile template
+│   │   ├── login.html                # Mobile login page
+│   │   ├── offline.html              # Offline fallback page
+│   │   └── tasks/                    # Task templates
+│   │       ├── list.html             # Task list page
+│   │       └── detail.html           # Task detail page
+│   ├── static/                       # Static assets (NEW v2.6)
+│   │   ├── css/mobile.css            # Mobile-first styles
+│   │   ├── js/app.js                 # Core JavaScript
+│   │   ├── js/sw.js                  # Service worker (PWA)
+│   │   └── manifest.json             # PWA manifest
 │   └── services/
 │       ├── pest_identification.py    # Symptom-based pest ID
 │       ├── disease_identification.py # Disease diagnosis
@@ -251,7 +290,9 @@ agtools/
 │       ├── field_operations_service.py # Operations logging (v2.5)
 │       ├── equipment_service.py      # Equipment fleet management (v2.5)
 │       ├── inventory_service.py      # Inventory tracking (v2.5)
-│       └── reporting_service.py      # Reports & analytics (v2.5)
+│       ├── reporting_service.py      # Reports & analytics (v2.5)
+│       ├── time_entry_service.py     # Time logging service (v2.6)
+│       └── photo_service.py          # Photo upload service (v2.6)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -452,7 +493,21 @@ agtools/
 | `GET /api/v1/reports/dashboard` | **Combined dashboard summary** |
 | `POST /api/v1/reports/export/csv` | **Export report data to CSV** |
 
-Visit http://localhost:8000/docs for interactive documentation.
+### Mobile Crew Interface (NEW in v2.6)
+| Route | Purpose |
+|-------|---------|
+| `GET /m/login` | Mobile login page |
+| `POST /m/login` | Process login |
+| `GET /m/logout` | Logout and redirect |
+| `GET /m/tasks` | **Task list with filters** |
+| `GET /m/tasks/{id}` | **Task detail with actions** |
+| `POST /m/tasks/{id}/status` | Update task status |
+| `POST /m/tasks/{id}/time` | **Log time worked** |
+| `POST /m/tasks/{id}/photo` | **Upload photo with GPS** |
+| `GET /m/offline` | Offline fallback page |
+
+Visit http://localhost:8000/docs for interactive API documentation.
+Visit http://localhost:8000/m/login for the mobile crew interface.
 
 ## 📖 Documentation
 
