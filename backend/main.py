@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
@@ -112,6 +113,7 @@ from services.reporting_service import (
     FieldPerformanceReport,
     DashboardSummary
 )
+from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -130,6 +132,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================================
+# MOBILE WEB INTERFACE (Server-rendered HTML)
+# ============================================================================
+
+# Get the directory containing main.py
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Mount static files (CSS, JS, icons)
+app.mount("/static", StaticFiles(directory=os.path.join(_backend_dir, "static")), name="static")
+
+# Configure Jinja2 templates for mobile routes
+configure_templates(os.path.join(_backend_dir, "templates"))
+
+# Include mobile router (routes under /m/*)
+app.include_router(mobile_router)
 
 # ============================================================================
 # PYDANTIC MODELS (Data Validation)
