@@ -95,6 +95,18 @@ def is_overdue(due_date, status: str) -> bool:
 # LOGIN ROUTES
 # ============================================================================
 
+@router.get("/offline", response_class=HTMLResponse)
+async def offline_page(request: Request):
+    """
+    Offline fallback page for PWA.
+    Shown when user is offline and page is not cached.
+    """
+    return templates.TemplateResponse(
+        "offline.html",
+        {"request": request}
+    )
+
+
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(
     request: Request,

@@ -8,9 +8,9 @@
 
 ### Latest Session: December 20, 2025
 
-#### v2.6.0 - Phase 6: Mobile/Crew Interface - IN PROGRESS
+#### v2.6.0 - Phase 6: Mobile/Crew Interface - COMPLETE
 
-**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | ✅ Phase 6.3 COMPLETE | ✅ Phase 6.4 COMPLETE | ✅ Phase 6.5 COMPLETE | 🔄 Phase 6.6 PENDING
+**Status:** ✅ Phase 6.1-6.6 ALL COMPLETE
 
 **What's Being Built:**
 Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
@@ -95,6 +95,24 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
   - File size validation (10MB max)
 - Updated `backend/static/css/mobile.css` - Photo form/gallery styles
 
+**Phase 6.6 Files Created:** ✅ COMPLETE (December 20, 2025)
+- `backend/static/manifest.json` - PWA web app manifest
+  - App name, icons, theme color, display mode
+  - Start URL and scope for mobile routes
+- `backend/static/js/sw.js` - Service worker (~170 lines)
+  - Cache-first strategy for static assets
+  - Network-first with offline fallback for pages
+  - Automatic cache cleanup on version update
+  - Background sync ready architecture
+- `backend/templates/offline.html` - Offline fallback page
+  - Friendly offline message with icon
+  - Retry button
+  - Auto-reload when back online
+  - Tips for users while offline
+- Updated `backend/mobile/routes.py` - Added offline route
+- Updated `backend/templates/base.html` - Service worker registration
+- Created `backend/static/icons/` directory for PWA icons
+
 **New Database Tables:**
 - `time_entries` - Track hours worked on tasks
 - `task_photos` - Store photo attachments with GPS
@@ -112,9 +130,9 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 | 6.4 | Add time logging routes and API endpoints | ✅ done |
 | 6.5 | Create `backend/services/photo_service.py` | ✅ done |
 | 6.5 | Create `backend/uploads/` directory for photos | ✅ done |
-| 6.6 | Create `backend/static/js/sw.js` (service worker) | pending |
-| 6.6 | Create `backend/static/manifest.json` (PWA) | pending |
-| 6.6 | Create `backend/templates/offline.html` | pending |
+| 6.6 | Create `backend/static/js/sw.js` (service worker) | ✅ done |
+| 6.6 | Create `backend/static/manifest.json` (PWA) | ✅ done |
+| 6.6 | Create `backend/templates/offline.html` | ✅ done |
 
 **Web Routes (planned):**
 - `/m/login` - Mobile login (GET/POST)
