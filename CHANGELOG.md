@@ -10,7 +10,7 @@
 
 #### v2.6.0 - Phase 6: Mobile/Crew Interface - IN PROGRESS
 
-**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | ✅ Phase 6.3 COMPLETE | 🔄 Phase 6.4-6.6 PENDING
+**Status:** ✅ Phase 6.1 COMPLETE | ✅ Phase 6.2 COMPLETE | ✅ Phase 6.3 COMPLETE | ✅ Phase 6.4 COMPLETE | 🔄 Phase 6.5-6.6 PENDING
 
 **What's Being Built:**
 Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
@@ -54,10 +54,26 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
   - Info cards (due date, assigned to, crew, created date)
   - Full description display
   - Quick action buttons for status changes (Start, Complete, Reopen)
-  - Time logging placeholder (Phase 6.4)
-  - Photo uploads placeholder (Phase 6.5)
   - Task metadata section (created by, updated, completed dates)
   - Confirmation dialogs for status changes
+
+**Phase 6.4 Files Created:** ✅ COMPLETE (December 20, 2025)
+- `backend/services/time_entry_service.py` - Time entry service (~480 lines)
+  - TimeEntryCreate/Update/Response Pydantic models
+  - TimeEntryType enum (work, travel, break)
+  - CRUD operations for time entries
+  - Task time summaries (total hours, by type, contributors)
+  - User time summaries with date ranges
+  - Ownership-based edit/delete permissions
+- Updated `backend/mobile/routes.py` - Added time logging routes
+  - POST /m/tasks/{id}/time - Log hours worked
+  - POST /m/tasks/{id}/time/{entry_id}/delete - Delete entry
+- Updated `backend/templates/tasks/detail.html` - Time logging UI
+  - Time log form with hours, type, notes
+  - Time entries list with user, date, notes
+  - Total hours badge in section header
+  - Delete button for own entries
+- Updated `backend/static/css/mobile.css` - Time form/entry styles
 
 **New Database Tables:**
 - `time_entries` - Track hours worked on tasks
@@ -72,8 +88,8 @@ Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 | 6.2 | Create `backend/templates/tasks/list.html` | ✅ done |
 | 6.3 | Create `backend/templates/tasks/detail.html` | ✅ done |
 | 6.3 | Add status update routes to routes.py | ✅ done |
-| 6.4 | Create `backend/services/time_entry_service.py` | pending |
-| 6.4 | Add time logging routes and API endpoints | pending |
+| 6.4 | Create `backend/services/time_entry_service.py` | ✅ done |
+| 6.4 | Add time logging routes and API endpoints | ✅ done |
 | 6.5 | Create `backend/services/photo_service.py` | pending |
 | 6.5 | Create `backend/uploads/` directory for photos | pending |
 | 6.6 | Create `backend/static/js/sw.js` (service worker) | pending |

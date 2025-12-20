@@ -129,7 +129,7 @@
 </div>
 {% endif %}
 
-<!-- Time Logging (Phase 6.4 placeholder) -->
+<!-- Time Logging -->
 <div class="detail-section">
     <h2 class="section-title">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -137,10 +137,87 @@
             <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
         Time Logged
+        {% if time_summary and time_summary.total_hours > 0 %}
+        <span class="badge badge-info">{{ "%.1f"|format(time_summary.total_hours) }}h</span>
+        {% endif %}
     </h2>
-    <div class="placeholder-content">
-        <p class="text-muted">Time logging coming in Phase 6.4</p>
+
+    <!-- Log Time Form -->
+    {% if can_edit %}
+    <form action="/m/tasks/{{ task.id }}/time" method="POST" class="time-form">
+        <div class="form-row">
+            <div class="form-group form-group-sm">
+                <label for="hours">Hours</label>
+                <input
+                    type="number"
+                    id="hours"
+                    name="hours"
+                    min="0.25"
+                    max="24"
+                    step="0.25"
+                    value="1"
+                    required
+                    class="form-input"
+                >
+            </div>
+            <div class="form-group form-group-sm">
+                <label for="entry_type">Type</label>
+                <select id="entry_type" name="entry_type" class="form-select">
+                    {% for et in entry_types %}
+                    <option value="{{ et }}">{{ et | title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <input
+                type="text"
+                name="notes"
+                placeholder="What did you work on? (optional)"
+                class="form-input"
+                maxlength="500"
+            >
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Log Time
+        </button>
+    </form>
+    {% endif %}
+
+    <!-- Time Entries List -->
+    {% if time_entries %}
+    <div class="time-entries">
+        {% for entry in time_entries %}
+        <div class="time-entry">
+            <div class="time-entry-info">
+                <span class="time-hours">{{ "%.1f"|format(entry.hours) }}h</span>
+                <span class="time-type badge badge-secondary">{{ entry.entry_type }}</span>
+                <span class="time-user">{{ entry.user_name or 'Unknown' }}</span>
+                <span class="time-date">{{ entry.work_date }}</span>
+            </div>
+            {% if entry.notes %}
+            <div class="time-notes">{{ entry.notes }}</div>
+            {% endif %}
+            {% if entry.user_id == user.id %}
+            <form action="/m/tasks/{{ task.id }}/time/{{ entry.id }}/delete" method="POST" class="delete-form">
+                <button type="submit" class="btn-icon btn-danger-subtle" title="Delete entry">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
+    {% else %}
+    <p class="text-muted">No time logged yet.</p>
+    {% endif %}
 </div>
 
 <!-- Photos (Phase 6.5 placeholder) -->

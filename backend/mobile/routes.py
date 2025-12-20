@@ -24,6 +24,11 @@ from .auth import (
 )
 from services.auth_service import get_auth_service
 from services.task_service import get_task_service, TaskStatus, TaskPriority
+from services.time_entry_service import (
+    get_time_entry_service,
+    TimeEntryCreate,
+    TimeEntryType,
+)
 
 
 # ============================================================================
@@ -302,6 +307,17 @@ async def task_detail(
     elif current_status == "completed":
         next_statuses = [("in_progress", "Reopen", "btn-warning")]
 
+    # Get time entries for this task
+    time_service = get_time_entry_service()
+    time_entries = time_service.list_entries_for_task(task_id, limit=10)
+    time_summary = time_service.get_task_time_summary(task_id)
+
+    # Convert time entries to dicts
+    time_entries_data = []
+    for entry in time_entries:
+        entry_dict = entry.model_dump() if hasattr(entry, 'model_dump') else entry.__dict__
+        time_entries_data.append(entry_dict)
+
     return templates.TemplateResponse(
         "tasks/detail.html",
         {
@@ -310,6 +326,9 @@ async def task_detail(
             "task": task_dict,
             "can_edit": can_edit,
             "next_statuses": next_statuses,
+            "time_entries": time_entries_data,
+            "time_summary": time_summary,
+            "entry_types": [t.value for t in TimeEntryType],
         }
     )
 
@@ -346,6 +365,85 @@ async def update_task_status(
 
     # Update status
     task_service.change_status(task_id, new_status, user["id"])
+
+    # Redirect back to task detail
+    return RedirectResponse(url=f"/m/tasks/{task_id}", status_code=302)
+
+
+# ============================================================================
+# TIME LOGGING ROUTES
+# ============================================================================
+
+@router.post("/tasks/{task_id}/time", response_class=HTMLResponse)
+async def log_time(
+    request: Request,
+    task_id: int,
+    hours: float = Form(...),
+    entry_type: str = Form("work"),
+    notes: Optional[str] = Form(None),
+):
+    """
+    Log time worked on a task.
+
+    Form fields:
+        hours: Number of hours (0.25-24)
+        entry_type: Type of work (work, travel, break)
+        notes: Optional notes about the work
+    """
+    # Check authentication
+    user = await get_session_user(request)
+    if not user:
+        return RedirectResponse(url=f"/m/login?next=/m/tasks/{task_id}", status_code=302)
+
+    task_service = get_task_service()
+
+    # Check permission (must be able to edit task to log time)
+    can_edit = task_service.can_edit_task(task_id, user["id"], user["role"])
+    if not can_edit:
+        return RedirectResponse(url="/m/tasks", status_code=302)
+
+    # Validate entry type
+    try:
+        entry_type_enum = TimeEntryType(entry_type)
+    except ValueError:
+        entry_type_enum = TimeEntryType.WORK
+
+    # Create time entry
+    time_service = get_time_entry_service()
+    entry_data = TimeEntryCreate(
+        task_id=task_id,
+        hours=hours,
+        entry_type=entry_type_enum,
+        notes=notes if notes and notes.strip() else None,
+    )
+
+    time_service.create_entry(entry_data, user["id"])
+
+    # Redirect back to task detail
+    return RedirectResponse(url=f"/m/tasks/{task_id}", status_code=302)
+
+
+@router.post("/tasks/{task_id}/time/{entry_id}/delete")
+async def delete_time_entry(
+    request: Request,
+    task_id: int,
+    entry_id: int,
+):
+    """
+    Delete a time entry.
+    Users can only delete their own entries.
+    """
+    # Check authentication
+    user = await get_session_user(request)
+    if not user:
+        return RedirectResponse(url=f"/m/login?next=/m/tasks/{task_id}", status_code=302)
+
+    time_service = get_time_entry_service()
+    time_service.delete_entry(
+        entry_id,
+        user["id"],
+        is_admin=user.get("is_admin", False)
+    )
 
     # Redirect back to task detail
     return RedirectResponse(url=f"/m/tasks/{task_id}", status_code=302)
