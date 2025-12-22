@@ -27,6 +27,14 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Inventory Tracking**: Manage seeds, fertilizers, chemicals, fuel with low stock alerts
     - **Maintenance Scheduling**: Service reminders with overdue/upcoming alerts
     - **Reporting & Analytics Dashboard**: 4-tab reporting with charts and CSV export
+14. **Mobile/Crew Interface (v2.6.0)**: Mobile-friendly web interface for field crews:
+    - **Mobile Web Routes**: FastAPI + Jinja2 templates optimized for phones
+    - **Cookie-Based Authentication**: Session-based login for mobile browsers
+    - **Task List & Detail Views**: View and update task status on the go
+    - **Time Logging**: Log hours worked on tasks with entry types (work, travel, break)
+    - **Photo Capture**: Upload photos with GPS coordinates and captions
+    - **PWA Support**: Install as app with offline fallback page
+    - **Responsive CSS**: Mobile-first design with touch-friendly interactions
 
 ---
 
@@ -40,7 +48,7 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application (v2.5 - 3400+ lines, 101 endpoints)
+│   ├── main.py                             # FastAPI application (v2.6 - 3600+ lines, 110+ endpoints)
 │   ├── requirements.txt                    # Backend dependencies
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
@@ -63,9 +71,27 @@ agtools/
 │       ├── field_operations_service.py     # Operations logging (v2.5)
 │       ├── equipment_service.py            # Equipment fleet management (v2.5)
 │       ├── inventory_service.py            # Inventory tracking (v2.5)
-│       └── reporting_service.py            # Reports & analytics (v2.5)
-│   └── middleware/
-│       └── auth_middleware.py              # Protected routes (v2.5)
+│       ├── reporting_service.py            # Reports & analytics (v2.5)
+│       ├── time_entry_service.py           # Time logging for crew (v2.6)
+│       └── photo_service.py                # Task photo uploads (v2.6)
+│   ├── middleware/
+│   │   └── auth_middleware.py              # Protected routes (v2.5)
+│   ├── mobile/                             # Mobile Web Interface (v2.6)
+│   │   ├── __init__.py                     # Mobile module init
+│   │   ├── auth.py                         # Cookie-based session auth
+│   │   └── routes.py                       # Mobile web routes (~280 lines)
+│   ├── templates/                          # Jinja2 Templates (v2.6)
+│   │   ├── base.html                       # Base template (mobile-first)
+│   │   ├── login.html                      # Mobile login page
+│   │   ├── offline.html                    # PWA offline fallback
+│   │   └── tasks/
+│   │       ├── list.html                   # Task list with filters
+│   │       └── detail.html                 # Task detail with actions
+│   └── static/                             # Static Assets (v2.6)
+│       ├── css/mobile.css                  # Mobile-first CSS (~400 lines)
+│       ├── js/app.js                       # Mobile JavaScript
+│       ├── js/sw.js                        # Service worker for PWA
+│       └── manifest.json                   # PWA web app manifest
 │
 ├── frontend/                               # PyQt6 Desktop Application
 │   ├── main.py                             # Application entry point
@@ -3102,6 +3128,582 @@ CREATE TABLE inventory_transactions (
 
 ---
 
+## 📱 MOBILE/CREW INTERFACE (v2.6.0)
+
+Version 2.6.0 adds a **mobile-friendly web interface** for field crews. This allows crew members to view tasks, log time, and upload photos using their smartphones without installing an app.
+
+### Why This Matters
+
+- **Field accessibility**: Crew members can access the system from any smartphone
+- **No app install required**: Works in mobile browsers, installable as PWA
+- **Offline ready**: PWA caches pages for use in areas with poor connectivity
+- **Real-time updates**: Time entries and photos sync immediately when online
+- **GPS-tagged photos**: Automatically captures location data with photos
+- **Simple interface**: Designed for quick use in the field
+
+### Architecture Overview
+
+The mobile interface uses a server-rendered approach with FastAPI and Jinja2:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  Mobile Browser (PWA)                    │
+├─────────────────────────────────────────────────────────┤
+│    Service Worker        Manifest        Offline Page   │
+├─────────────────────────────────────────────────────────┤
+│            HTTP Requests (Cookie Auth)                   │
+├─────────────────────────────────────────────────────────┤
+│                Mobile Routes (/m/...)                    │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │
+│  │   Login     │ │  Task List  │ │    Task Detail      │ │
+│  ├─────────────┤ ├─────────────┤ ├─────────────────────┤ │
+│  │   Logout    │ │   Filters   │ │   Status Update     │ │
+│  ├─────────────┤ ├─────────────┤ ├─────────────────────┤ │
+│  │   Offline   │ │   Summary   │ │   Time Logging      │ │
+│  └─────────────┴─┴─────────────┴─┴─────────────────────┘ │
+│                                   │   Photo Upload      │ │
+│                                   └─────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│           Backend Services (Existing + New)              │
+│  ┌─────────────────────────────────────────────────────┐ │
+│  │  time_entry_service.py    photo_service.py          │ │
+│  │  task_service.py          user_service.py           │ │
+│  └─────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Mobile Web Routes
+
+All mobile routes are prefixed with `/m/` to separate them from the API:
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/m/login` | GET | Display login form |
+| `/m/login` | POST | Process login, set session cookie |
+| `/m/logout` | GET | Clear session, redirect to login |
+| `/m/tasks` | GET | Task list with filters and summary |
+| `/m/tasks/{id}` | GET | Task detail with actions |
+| `/m/tasks/{id}/status` | POST | Quick status update |
+| `/m/tasks/{id}/time` | POST | Log time entry |
+| `/m/tasks/{id}/time/{entry_id}/delete` | POST | Delete time entry |
+| `/m/tasks/{id}/photo` | POST | Upload photo with GPS |
+| `/m/tasks/{id}/photo/{photo_id}/delete` | POST | Delete photo |
+| `/m/offline` | GET | Offline fallback page |
+| `/m/uploads/photos/{filename}` | GET | Serve uploaded photos |
+
+---
+
+### Cookie-Based Session Authentication
+
+The mobile interface uses cookie-based sessions instead of JWT tokens for simpler browser integration.
+
+Location: `backend/mobile/auth.py`
+
+**Login Flow:**
+```
+1. User visits /m/login
+2. Enters username and password
+3. POST to /m/login validates credentials
+4. Success: Set HTTP-only session cookie, redirect to /m/tasks
+5. Failure: Render login page with error message
+```
+
+**Session Cookie:**
+```python
+response.set_cookie(
+    key="session",
+    value=session_token,
+    httponly=True,         # Not accessible via JavaScript
+    max_age=86400,         # 24 hours
+    samesite="lax"         # CSRF protection
+)
+```
+
+**Route Protection:**
+```python
+@router.get("/m/tasks")
+async def task_list(request: Request, session: str = Cookie(None)):
+    if not session or not validate_session(session):
+        return RedirectResponse("/m/login")
+    # ... render task list
+```
+
+---
+
+### Task List View
+
+Location: `backend/templates/tasks/list.html`
+
+The task list provides a mobile-optimized view of assigned tasks.
+
+**Features:**
+- **Summary Cards**: Quick counts of To Do, In Progress, Completed
+- **Filter Dropdowns**: Status (All, Pending, In Progress, Completed) and Priority (All, Low, Medium, High, Urgent)
+- **Task Cards**: Touch-friendly cards with priority/status badges
+- **Overdue Highlighting**: Tasks past due date shown in red
+- **Empty State**: Friendly message when no tasks match filters
+- **Pull-to-Refresh**: Swipe down to refresh (via JavaScript)
+
+**Task Card Display:**
+```html
+<div class="task-card priority-high">
+    <div class="task-badges">
+        <span class="badge priority">High</span>
+        <span class="badge status-pending">Pending</span>
+    </div>
+    <h3>Scout North 80 for aphids</h3>
+    <p class="task-meta">
+        <span class="due-date overdue">Due: Jun 15</span>
+        <span class="field">North 80</span>
+    </p>
+</div>
+```
+
+---
+
+### Task Detail View
+
+Location: `backend/templates/tasks/detail.html`
+
+The task detail view provides full task information and all available actions.
+
+**Sections:**
+
+#### Task Information
+- Back navigation link
+- Priority and status badges
+- Due date (with overdue indicator)
+- Assigned to user/crew
+- Full task description
+- Created/updated timestamps
+
+#### Quick Actions
+Status update buttons that change based on current status:
+- **Pending**: "Start Task" button (→ In Progress)
+- **In Progress**: "Complete Task" button (→ Completed)
+- **Completed**: "Reopen Task" button (→ Pending)
+
+Confirmation dialogs before status changes prevent accidental updates.
+
+#### Time Logging
+Form to log hours worked:
+```python
+{
+    "hours": 2.5,
+    "entry_type": "work",      # work, travel, break
+    "notes": "Scouted 40 acres, found 300+ aphids/plant"
+}
+```
+
+Displays list of time entries with:
+- User who logged
+- Hours and type
+- Date and notes
+- Delete button (for own entries)
+- Total hours badge in header
+
+#### Photo Gallery
+Photo upload with:
+- Camera/file picker button
+- Caption input field
+- Automatic GPS capture (with permission)
+
+Photo display:
+- Responsive grid (2-3 columns based on screen width)
+- Thumbnail previews
+- Caption overlay
+- Delete button for own photos
+- 10MB file size limit
+
+---
+
+### Time Entry Service
+
+Location: `backend/services/time_entry_service.py` (~480 lines)
+
+Complete time tracking for crew members.
+
+**Data Model:**
+```python
+class TimeEntry:
+    id: int
+    task_id: int
+    user_id: int
+    hours: float
+    entry_type: str         # work, travel, break
+    notes: str
+    created_at: datetime
+```
+
+**Entry Types:**
+| Type | Description | Typical Use |
+|------|-------------|-------------|
+| work | Active task work | Field scouting, spraying |
+| travel | Travel to/from task | Driving between fields |
+| break | Rest period | Lunch, equipment break |
+
+**API Methods:**
+```python
+# Create time entry
+create_entry(task_id, user_id, hours, entry_type, notes) -> TimeEntry
+
+# Get entries for a task
+get_task_entries(task_id) -> List[TimeEntry]
+
+# Get entries for a user (with date range)
+get_user_entries(user_id, date_from, date_to) -> List[TimeEntry]
+
+# Get task time summary
+get_task_summary(task_id) -> {
+    "total_hours": 12.5,
+    "by_type": {"work": 10.0, "travel": 2.0, "break": 0.5},
+    "contributors": [
+        {"user_id": 2, "name": "John", "hours": 8.0},
+        {"user_id": 3, "name": "Mike", "hours": 4.5}
+    ]
+}
+
+# Delete entry (ownership check)
+delete_entry(entry_id, user_id) -> bool
+```
+
+---
+
+### Photo Service
+
+Location: `backend/services/photo_service.py` (~400 lines)
+
+Handle photo uploads with GPS metadata.
+
+**Data Model:**
+```python
+class TaskPhoto:
+    id: int
+    task_id: int
+    user_id: int
+    filename: str           # UUID-based unique name
+    original_filename: str  # User's original filename
+    caption: str
+    latitude: float         # GPS coordinates
+    longitude: float
+    created_at: datetime
+```
+
+**Features:**
+- **File Validation**: Only allows jpg, jpeg, png, gif, webp
+- **Size Limit**: 10MB max file size
+- **UUID Naming**: Prevents filename collisions
+- **GPS Storage**: Captures location if provided by browser
+- **Ownership Tracking**: Only uploader can delete
+
+**Upload Flow:**
+```
+1. User clicks camera/upload button
+2. Browser requests location permission
+3. User selects photo (camera or gallery)
+4. Form submits with photo, caption, GPS
+5. Server validates file type and size
+6. UUID filename generated
+7. File saved to /uploads/photos/
+8. Database record created
+9. Redirect back to task detail
+```
+
+**API Methods:**
+```python
+# Upload photo
+upload_photo(task_id, user_id, file, caption, lat, lng) -> TaskPhoto
+
+# Get photos for a task
+get_task_photos(task_id) -> List[TaskPhoto]
+
+# Delete photo (ownership check)
+delete_photo(photo_id, user_id) -> bool
+```
+
+---
+
+### Progressive Web App (PWA)
+
+The mobile interface can be installed as a PWA for app-like experience.
+
+#### Web App Manifest
+
+Location: `backend/static/manifest.json`
+
+```json
+{
+    "name": "AgTools Crew",
+    "short_name": "AgTools",
+    "description": "Mobile interface for farm crew task management",
+    "start_url": "/m/tasks",
+    "scope": "/m/",
+    "display": "standalone",
+    "theme_color": "#228B22",
+    "background_color": "#F5F5DC",
+    "icons": [
+        {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+        {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
+    ]
+}
+```
+
+#### Service Worker
+
+Location: `backend/static/js/sw.js` (~170 lines)
+
+The service worker provides offline functionality:
+
+**Caching Strategy:**
+- **Static Assets**: Cache-first (CSS, JS, images)
+- **Pages**: Network-first with offline fallback
+- **API Calls**: Network-only (no offline API simulation)
+
+**Cache Management:**
+```javascript
+const CACHE_NAME = 'agtools-mobile-v1';
+const STATIC_ASSETS = [
+    '/static/css/mobile.css',
+    '/static/js/app.js',
+    '/m/offline'
+];
+
+// Cache static assets on install
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(STATIC_ASSETS))
+    );
+});
+
+// Clean old caches on activate
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(
+                keys.filter(key => key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
+            )
+        )
+    );
+});
+```
+
+**Fetch Handling:**
+```javascript
+self.addEventListener('fetch', event => {
+    if (isStaticAsset(event.request.url)) {
+        // Cache-first for static
+        event.respondWith(cacheFirst(event.request));
+    } else if (isPageRequest(event.request)) {
+        // Network-first with offline fallback for pages
+        event.respondWith(networkFirstWithFallback(event.request));
+    }
+    // Let API calls pass through
+});
+```
+
+#### Offline Page
+
+Location: `backend/templates/offline.html`
+
+Friendly fallback when network is unavailable:
+
+**Features:**
+- Offline icon and message
+- Retry button to attempt reload
+- Auto-reload when connection returns
+- Tips for users while offline
+
+```html
+<div class="offline-container">
+    <div class="offline-icon">📡</div>
+    <h1>You're Offline</h1>
+    <p>Please check your internet connection</p>
+    <button onclick="window.location.reload()">Try Again</button>
+    <div class="tips">
+        <h3>While you wait:</h3>
+        <ul>
+            <li>Check if WiFi or mobile data is enabled</li>
+            <li>Move to an area with better signal</li>
+            <li>The app will reconnect automatically</li>
+        </ul>
+    </div>
+</div>
+```
+
+---
+
+### Mobile CSS
+
+Location: `backend/static/css/mobile.css` (~400 lines)
+
+Mobile-first responsive design with agriculture theme.
+
+**Design Principles:**
+- **Touch-friendly**: Minimum 44px tap targets
+- **Thumb zone**: Important actions at bottom of screen
+- **Readable text**: 16px+ font size, high contrast
+- **Fast loading**: Minimal CSS, no frameworks
+
+**Color Palette:**
+```css
+:root {
+    --primary-green: #228B22;      /* Forest green */
+    --secondary-brown: #8B4513;    /* Saddle brown */
+    --background: #F5F5DC;         /* Beige */
+    --card-bg: #FFFFFF;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --danger: #DC3545;
+    --warning: #FFA500;
+    --success: #28A745;
+}
+```
+
+**Responsive Breakpoints:**
+```css
+/* Base: Mobile phones (< 768px) */
+.photo-grid { grid-template-columns: repeat(2, 1fr); }
+
+/* Tablets and up */
+@media (min-width: 768px) {
+    .photo-grid { grid-template-columns: repeat(3, 1fr); }
+    .task-list { max-width: 600px; margin: 0 auto; }
+}
+```
+
+**Key Components:**
+- Task cards with priority indicators
+- Status badges with color coding
+- Form elements sized for touch
+- Photo gallery grid
+- Time entry cards
+- Navigation header
+
+---
+
+### Mobile JavaScript
+
+Location: `backend/static/js/app.js`
+
+Core JavaScript for mobile functionality:
+
+**Features:**
+
+1. **Offline Detection**
+```javascript
+window.addEventListener('online', () => {
+    document.getElementById('offline-banner').style.display = 'none';
+});
+
+window.addEventListener('offline', () => {
+    document.getElementById('offline-banner').style.display = 'block';
+});
+```
+
+2. **Form Double-Submit Prevention**
+```javascript
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function() {
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Saving...';
+    });
+});
+```
+
+3. **Touch Feedback**
+```javascript
+document.querySelectorAll('.task-card, .btn').forEach(el => {
+    el.addEventListener('touchstart', () => el.classList.add('touched'));
+    el.addEventListener('touchend', () => el.classList.remove('touched'));
+});
+```
+
+4. **Toast Notifications**
+```javascript
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+```
+
+---
+
+### Database Tables (v2.6)
+
+Two new tables added for mobile functionality:
+
+```sql
+-- Time entries for task work logging
+CREATE TABLE time_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL REFERENCES tasks(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    hours REAL NOT NULL,
+    entry_type TEXT DEFAULT 'work',  -- work, travel, break
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Photo attachments for tasks
+CREATE TABLE task_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL REFERENCES tasks(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    filename TEXT NOT NULL,           -- UUID-based filename
+    original_filename TEXT,           -- User's original name
+    caption TEXT,
+    latitude REAL,                    -- GPS coordinates
+    longitude REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance
+CREATE INDEX idx_time_entries_task ON time_entries(task_id);
+CREATE INDEX idx_time_entries_user ON time_entries(user_id);
+CREATE INDEX idx_task_photos_task ON task_photos(task_id);
+```
+
+---
+
+### Version 2.6.0 Files Summary
+
+**New Backend Files:**
+- `backend/mobile/__init__.py` - Mobile module init
+- `backend/mobile/auth.py` - Cookie-based session auth
+- `backend/mobile/routes.py` - Mobile web routes (~280 lines)
+- `backend/services/time_entry_service.py` - Time logging (~480 lines)
+- `backend/services/photo_service.py` - Photo uploads (~400 lines)
+- `backend/templates/base.html` - Base Jinja2 template
+- `backend/templates/login.html` - Mobile login page
+- `backend/templates/offline.html` - PWA offline fallback
+- `backend/templates/tasks/list.html` - Task list template
+- `backend/templates/tasks/detail.html` - Task detail template
+- `backend/static/css/mobile.css` - Mobile-first CSS (~400 lines)
+- `backend/static/js/app.js` - Mobile JavaScript
+- `backend/static/js/sw.js` - Service worker (~170 lines)
+- `backend/static/manifest.json` - PWA manifest
+- `database/migrations/005_mobile_crew.sql` - New tables
+
+**Modified Files:**
+- `backend/main.py` - Mount static files, templates, mobile router
+- `backend/mobile/__init__.py` - Export router and configure_templates
+
+**Lines of Code Added:**
+- Backend services: ~900 lines
+- Templates: ~600 lines
+- CSS/JavaScript: ~600 lines
+- **Total: ~2,100 lines of new code**
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -3127,6 +3729,13 @@ You now have a **professional-grade foundation** for a crop consulting business 
   - Inventory tracking with low stock alerts
   - Maintenance scheduling with overdue alerts
   - Comprehensive reporting dashboard with charts and CSV export
+- **Empower your field crew** with the Mobile/Crew Interface (v2.6.0):
+  - Mobile-friendly web interface accessible from any smartphone
+  - View assigned tasks and update status on the go
+  - Log hours worked with entry types (work, travel, break)
+  - Capture GPS-tagged photos with captions
+  - PWA support with offline fallback page
+  - No app install required - works in mobile browsers
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -3144,7 +3753,8 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.3.0 | Dec 2025 | Offline mode with SQLite caching, sync manager, offline calculators |
 | 2.4.0 | Dec 2025 | Settings screen (4 tabs), common widget library (7 widgets), integration tests |
 | 2.5.0 | Dec 2025 | **Farm Operations Manager** - Multi-user auth, task/field/equipment/inventory management, operations logging, maintenance scheduling, reporting dashboard with 101 API endpoints |
-| 2.6.0 | Coming | John Deere Ops Center integration (field boundaries, yield maps, application history) |
+| 2.6.0 | Dec 2025 | **Mobile/Crew Interface** - Mobile web routes, task list/detail views, time logging, photo capture with GPS, PWA support with service worker, cookie-based auth |
+| 2.7.0 | Coming | John Deere Ops Center integration (field boundaries, yield maps, application history) |
 
 ---
 
