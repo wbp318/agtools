@@ -1,0 +1,496 @@
+{
+  "timestamp": "2025-12-22T10:16:00.758659",
+  "version": "2.6.0",
+  "total": 66,
+  "passed": 66,
+  "failed": 0,
+  "pass_rate": "100.0%",
+  "results": [
+    {
+      "category": "Root",
+      "test": "GET /",
+      "passed": true,
+      "details": "AgTools Professional Crop Consulting API - operational"
+    },
+    {
+      "category": "Auth",
+      "test": "POST /auth/login",
+      "passed": true,
+      "details": "User: admin (admin)"
+    },
+    {
+      "category": "Auth",
+      "test": "GET /auth/me",
+      "passed": true,
+      "details": "User: admin (admin)"
+    },
+    {
+      "category": "Users",
+      "test": "GET /users",
+      "passed": true,
+      "details": "1 users"
+    },
+    {
+      "category": "Crews",
+      "test": "GET /crews",
+      "passed": true,
+      "details": "0 crews"
+    },
+    {
+      "category": "Tasks",
+      "test": "GET /tasks",
+      "passed": true,
+      "details": "0 tasks"
+    },
+    {
+      "category": "Fields",
+      "test": "GET /fields",
+      "passed": true,
+      "details": "0 fields"
+    },
+    {
+      "category": "Fields",
+      "test": "GET /fields/summary",
+      "passed": true,
+      "details": "Total acres: 0"
+    },
+    {
+      "category": "Operations",
+      "test": "GET /operations",
+      "passed": true,
+      "details": "0 operations"
+    },
+    {
+      "category": "Pricing",
+      "test": "GET /pricing/prices",
+      "passed": true,
+      "details": "0 products"
+    },
+    {
+      "category": "YieldResponse",
+      "test": "POST /yield-response/economic-optimum",
+      "passed": true,
+      "details": "EOR: 0.0 lb/acre"
+    },
+    {
+      "category": "SprayTiming",
+      "test": "POST /spray-timing/evaluate",
+      "passed": true,
+      "details": "Risk: unknown, Score: 0"
+    },
+    {
+      "category": "CostOptimizer",
+      "test": "POST /optimize/quick-estimate",
+      "passed": true,
+      "details": "Total: $197,500.00"
+    },
+    {
+      "category": "PestID",
+      "test": "POST /identify/pest",
+      "passed": true,
+      "details": "Top: European Corn Borer (25%)"
+    },
+    {
+      "category": "Equipment",
+      "test": "GET /equipment",
+      "passed": true,
+      "details": "0 items"
+    },
+    {
+      "category": "Equipment",
+      "test": "GET /equipment/summary",
+      "passed": true,
+      "details": "0 items"
+    },
+    {
+      "category": "Inventory",
+      "test": "GET /inventory",
+      "passed": true,
+      "details": "0 items"
+    },
+    {
+      "category": "Inventory",
+      "test": "GET /inventory/summary",
+      "passed": true,
+      "details": "0 items"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/dashboard",
+      "passed": true,
+      "details": "Dashboard loaded"
+    },
+    {
+      "category": "Reports",
+      "test": "GET /reports/operations",
+      "passed": true,
+      "details": "0 ops"
+    },
+    {
+      "category": "Docs",
+      "test": "GET /docs (Swagger UI)",
+      "passed": true,
+      "details": "Status: 200"
+    },
+    {
+      "category": "Docs",
+      "test": "GET /openapi.json",
+      "passed": true,
+      "details": "112 endpoints"
+    },
+    {
+      "category": "MobileStatic",
+      "test": "GET /static/css/mobile.css",
+      "passed": true,
+      "details": "14208 bytes"
+    },
+    {
+      "category": "MobileStatic",
+      "test": "GET /static/js/app.js",
+      "passed": true,
+      "details": "3038 bytes"
+    },
+    {
+      "category": "MobileStatic",
+      "test": "GET /static/js/sw.js",
+      "passed": true,
+      "details": "5709 bytes"
+    },
+    {
+      "category": "MobileStatic",
+      "test": "GET /static/manifest.json",
+      "passed": true,
+      "details": "App: AgTools Mobile"
+    },
+    {
+      "category": "MobileLogin",
+      "test": "GET /m/login",
+      "passed": true,
+      "details": "Login form found"
+    },
+    {
+      "category": "MobileLogin",
+      "test": "POST /m/login (valid)",
+      "passed": true,
+      "details": "Redirect to /m/tasks"
+    },
+    {
+      "category": "MobileLogin",
+      "test": "POST /m/login (invalid)",
+      "passed": true,
+      "details": "Error message shown"
+    },
+    {
+      "category": "MobileTaskList",
+      "test": "GET /m/tasks (no auth)",
+      "passed": true,
+      "details": "Redirects to /m/login?next=/m/tasks"
+    },
+    {
+      "category": "MobileTaskList",
+      "test": "GET /m/tasks (with auth)",
+      "passed": true,
+      "details": "Task list page loaded"
+    },
+    {
+      "category": "MobileTaskList",
+      "test": "GET /m/tasks?status&priority",
+      "passed": true,
+      "details": "Filtered list loaded"
+    },
+    {
+      "category": "MobileOffline",
+      "test": "GET /m/offline",
+      "passed": true,
+      "details": "Offline page with message"
+    },
+    {
+      "category": "MobileTemplates",
+      "test": "base.html (via /m/login)",
+      "passed": true,
+      "details": "Valid HTML with viewport meta"
+    },
+    {
+      "category": "MobileTemplates",
+      "test": "tasks/list.html",
+      "passed": true,
+      "details": "Task list template rendered"
+    },
+    {
+      "category": "Frontend",
+      "test": "import dashboard",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import yield_response",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import spray_timing",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import cost_optimizer",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import pricing",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import pest_identification",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import disease_identification",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import settings",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import login",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import user_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import crew_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import task_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import field_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import operations_log",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import equipment_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import inventory_management",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import maintenance_schedule",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import reports_dashboard",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import client",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import auth_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import yield_response_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import spray_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import pricing_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import cost_optimizer_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import identification_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import task_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import field_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import operations_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import equipment_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import inventory_api",
+      "passed": true,
+      "details": "OK"
+    },
+    {
+      "category": "Frontend",
+      "test": "import reports_api",
+      "passed": true,
+      "details": "OK"
+    }
+  ],
+  "by_category": {
+    "Root": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Auth": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Users": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Crews": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Tasks": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Fields": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Operations": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Pricing": {
+      "passed": 1,
+      "failed": 0
+    },
+    "YieldResponse": {
+      "passed": 1,
+      "failed": 0
+    },
+    "SprayTiming": {
+      "passed": 1,
+      "failed": 0
+    },
+    "CostOptimizer": {
+      "passed": 1,
+      "failed": 0
+    },
+    "PestID": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Equipment": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Inventory": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Reports": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Docs": {
+      "passed": 2,
+      "failed": 0
+    },
+    "MobileStatic": {
+      "passed": 4,
+      "failed": 0
+    },
+    "MobileLogin": {
+      "passed": 3,
+      "failed": 0
+    },
+    "MobileTaskList": {
+      "passed": 3,
+      "failed": 0
+    },
+    "MobileOffline": {
+      "passed": 1,
+      "failed": 0
+    },
+    "MobileTemplates": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Frontend": {
+      "passed": 31,
+      "failed": 0
+    }
+  }
+}

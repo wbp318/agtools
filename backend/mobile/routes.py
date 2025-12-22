@@ -23,6 +23,7 @@ from .auth import (
     require_session,
 )
 from services.auth_service import get_auth_service
+from services.user_service import get_user_service
 from services.task_service import get_task_service, TaskStatus, TaskPriority
 from services.time_entry_service import (
     get_time_entry_service,
@@ -151,23 +152,23 @@ async def login_submit(
         password: User's password
         next: URL to redirect to after login
     """
-    auth_service = get_auth_service()
+    user_service = get_user_service()
 
-    # Attempt authentication
-    result = auth_service.authenticate_user(
+    # Attempt authentication - returns (Token, UserResponse, error_message)
+    token, user, error = user_service.authenticate(
         username=username,
         password=password,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
     )
 
-    if not result.get("success"):
+    if error or not token:
         # Authentication failed - show login page with error
         return templates.TemplateResponse(
             "login.html",
             {
                 "request": request,
-                "error": result.get("message", "Invalid username or password"),
+                "error": error or "Invalid username or password",
                 "username": username,
                 "next": next,
                 "user": None,
@@ -177,7 +178,7 @@ async def login_submit(
     # Authentication successful - set cookie and redirect
     redirect_url = next if next else "/m/tasks"
     response = RedirectResponse(url=redirect_url, status_code=302)
-    set_session_cookie(response, result["access_token"])
+    set_session_cookie(response, token.access_token)
 
     return response
 

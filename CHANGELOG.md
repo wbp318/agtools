@@ -4,15 +4,21 @@
 
 ---
 
-## Current Version: 2.6.0 (In Development)
+## Current Version: 2.6.0 (Released - December 22, 2025)
 
-### Latest Session: December 20, 2025
+### Latest Session: December 22, 2025
 
-#### v2.6.0 - Phase 6: Mobile/Crew Interface - COMPLETE
+#### v2.6.0 - Phase 6: Mobile/Crew Interface - RELEASED
 
-**Status:** ✅ Phase 6.1-6.6 ALL COMPLETE
+**Status:** ✅ RELEASED - All smoke tests passing (66/66 - 100%)
 
-**What's Being Built:**
+**Smoke Test Results:** See `tests/SMOKE_TEST_RESULTS_v26.md` for full report
+
+**Bug Fixes (December 22, 2025):**
+- Fixed mobile login authentication to use `user_service.authenticate()` instead of non-existent `auth_service.authenticate_user()`
+- Fixed session cookie name in test script (`agtools_session` not `session`)
+
+**What Was Built:**
 Mobile-friendly web interface for crew members using FastAPI + Jinja2 templates.
 
 **Phase 6.1 Files Created:** ✅ COMPLETE
