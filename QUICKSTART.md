@@ -1274,18 +1274,18 @@ A printable table you can take to the field:
 8. **Is now a good time to spray?** (v2.1)
 9. **What's my most profitable fertilizer rate?** (v2.2)
 10. **How should I adjust rates when prices change?** (v2.2)
-11. **What did my fields actually yield last year?** (v2.6 - JD Integration)
-12. **What was actually applied vs. recommended?** (v2.6 - JD Integration)
+11. **What did my fields actually yield last year?** (v2.7 - JD Integration)
+12. **What was actually applied vs. recommended?** (v2.7 - JD Integration)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 
 ---
 
-## 🚜 John Deere Operations Center Integration (Planned for v2.6)
+## 🚜 John Deere Operations Center Integration (Planned for v2.7)
 
-**Note:** This feature has been deferred to v2.6 as John Deere Developer Account requires a business application/approval process.
+**Note:** This feature has been deferred to v2.7 as John Deere Developer Account requires a business application/approval process.
 
-If you use John Deere Operations Center, v2.6 will let you:
+If you use John Deere Operations Center, v2.7 will let you:
 
 - **Import your fields automatically** - No more manual boundary entry
 - **See actual yield maps** - Historical yield data by zone
@@ -1293,7 +1293,7 @@ If you use John Deere Operations Center, v2.6 will let you:
 - **Get zone-specific recommendations** - Variable rate suggestions based on yield history
 - **Validate ROI** - See if recommendations actually improved outcomes
 
-**Prerequisites for v2.6:**
+**Prerequisites for v2.7:**
 1. John Deere Developer Account - https://developer.deere.com (requires business application)
 2. API credentials (client_id, client_secret)
 3. Your JD Ops Center account with field data

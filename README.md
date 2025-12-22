@@ -207,13 +207,13 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
    - **5 Response Models**: Quadratic, quadratic-plateau, linear-plateau, Mitscherlich, square-root
    - **Soil Test Adjustments**: Rates adjusted based on soil test levels (very low to very high)
 
-10. **John Deere Operations Center Integration (Planned for v2.6)**
+10. **John Deere Operations Center Integration (Planned for v2.7)**
     - **Field Boundary Import**: Auto-populate fields from JD Ops Center account
     - **Yield Map Integration**: Historical yield data by zone for precision recommendations
     - **Application History**: Track what was actually applied for compliance & ROI validation
     - **Zone-Specific Recommendations**: Variable rate suggestions based on yield zones
     - **OAuth Authentication**: Secure connection to your JD account
-    - *Note: Deferred to v2.6 pending JD Developer Account approval*
+    - *Note: Deferred to v2.7 pending JD Developer Account approval*
 
 ## 💰 Business Value
 
@@ -251,7 +251,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.6 - 3600+ lines, 130+ endpoints)
+│   ├── main.py                       # FastAPI application (v2.6 - 3600+ lines, 112 endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   ├── mobile/                       # Mobile crew interface (NEW v2.6)
 │   │   ├── __init__.py               # Mobile module exports
