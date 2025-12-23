@@ -33,6 +33,7 @@ Think of AgTools as your **digital agronomist** that:
 16. **Maintenance Scheduling** (v2.5.0) - Service reminders with overdue, due soon, and upcoming alerts
 17. **Reports & Analytics** (v2.5.0) - 4-tab dashboard with charts and CSV export for operations, financials, equipment, and field performance
 18. **Mobile Crew Interface** (v2.6.0) - PWA mobile web app for field crews with task list, time logging, photo uploads, and offline support
+19. **Cost Per Acre Tracking** (v2.7.0) - Import expenses from QuickBooks CSV or scanned receipts, allocate to fields, get cost-per-acre reports
 
 ---
 
@@ -869,6 +870,358 @@ With the backend running, open a mobile browser:
 
 ---
 
+## 🆕 COST PER ACRE TRACKING (NEW in v2.7)
+
+Track all your farm expenses from QuickBooks and calculate true cost-per-acre by field and by crop.
+
+### 💰 What This Feature Does
+
+1. **Import from QuickBooks** - Upload CSV exports or scan receipts
+2. **Auto-Categorize** - Automatically detects seed, fertilizer, chemical, fuel, etc.
+3. **Split Allocations** - Allocate one expense across multiple fields by percentage
+4. **Cost Reports** - See cost-per-acre by field, by crop, by category
+5. **Year Comparison** - Compare costs across years
+
+### 📊 Expense Categories
+
+The system tracks 13 expense categories:
+
+**Inputs:**
+- Seed, Fertilizer, Chemical (herbicides/insecticides/fungicides), Fuel
+
+**Operations:**
+- Repairs, Labor, Custom Hire
+
+**Overhead:**
+- Land Rent, Crop Insurance, Interest, Utilities, Storage
+
+**Other:**
+- Miscellaneous expenses
+
+---
+
+### 📥 Importing Expenses from CSV
+
+**When to use:** You exported a report from QuickBooks and want to import the expenses.
+
+#### Step 1: Preview Your CSV
+
+1. Find **"POST /api/v1/costs/import/csv/preview"**
+2. Upload your QuickBooks CSV file
+3. The system shows:
+   - Column headers from your file
+   - Sample rows
+   - Suggested column mappings
+
+#### Step 2: Import with Column Mapping
+
+1. Find **"POST /api/v1/costs/import/csv"**
+2. Upload your CSV file
+3. Set the column mappings:
+   - **amount_column**: Which column has the dollar amount (e.g., "Amount", "Debit")
+   - **date_column**: Which column has the date (e.g., "Date", "Trans Date")
+   - **vendor_column**: Which column has the vendor name (optional)
+   - **description_column**: Which column has the memo/description (optional)
+   - **reference_column**: Which column has the check/invoice number (for duplicate detection)
+4. Click **"Execute"**
+
+**What you get:**
+- Count of imported expenses
+- Count of duplicates skipped
+- Any errors encountered
+- Batch ID for tracking/rollback
+
+**Example QuickBooks columns:**
+```
+Date, Type, Num, Name, Memo, Account, Debit, Credit
+```
+Map: amount_column="Debit", date_column="Date", vendor_column="Name", description_column="Memo", reference_column="Num"
+
+---
+
+### 📸 Importing from Scanned Receipts (OCR)
+
+**When to use:** You have scanned invoices or receipts and want to extract the expenses.
+
+**Prerequisites:** Install OCR libraries:
+```bash
+pip install pytesseract Pillow pdf2image
+```
+Also install Tesseract OCR on your system.
+
+1. Find **"POST /api/v1/costs/import/scan"**
+2. Upload your image (JPG, PNG) or PDF
+3. Click **"Execute"**
+
+**What you get:**
+- Extracted expenses with amounts, dates, vendors
+- Confidence scores (low-confidence items flagged for review)
+- Warnings about any extraction issues
+
+**Note:** OCR works best with:
+- Clear, high-resolution scans
+- Standard invoice formats
+- Machine-printed text (not handwritten)
+
+---
+
+### 🔍 Reviewing OCR Extractions
+
+**When to use:** After OCR import, review and correct any low-confidence extractions.
+
+1. Find **"GET /api/v1/costs/review"** - See all expenses needing review
+2. For each expense, verify the amount, date, vendor, and category
+3. Find **"POST /api/v1/costs/expenses/{expense_id}/approve"**
+4. Optionally provide corrections in the request body
+5. Click **"Execute"** to approve
+
+---
+
+### ✏️ Manual Expense Entry
+
+**When to use:** Add an expense manually (not from import).
+
+1. Find **"POST /api/v1/costs/expenses"**
+2. Fill in:
+```json
+{
+  "category": "fertilizer",
+  "vendor": "Local Co-op",
+  "description": "Spring nitrogen application",
+  "amount": 8500.00,
+  "expense_date": "2024-04-15",
+  "tax_year": 2024
+}
+```
+3. Click **"Execute"**
+
+**Category options:** seed, fertilizer, chemical, fuel, repairs, labor, custom_hire, land_rent, crop_insurance, interest, utilities, storage, other
+
+---
+
+### 📋 Viewing and Filtering Expenses
+
+**When to use:** See all your expenses with filters.
+
+1. Find **"GET /api/v1/costs/expenses"**
+2. Optional filters:
+   - **tax_year**: Filter by year (e.g., 2024)
+   - **category**: Filter by category (e.g., "fertilizer")
+   - **vendor**: Search by vendor name
+   - **unallocated_only**: Set to `true` to see expenses not yet assigned to fields
+   - **start_date** / **end_date**: Date range filter
+3. Click **"Execute"**
+
+**What you get:**
+- List of expenses with all details
+- Allocation percentage (how much has been assigned to fields)
+
+---
+
+### 🏗️ Allocating Expenses to Fields
+
+This is the key step - assigning each expense to one or more fields so you can calculate cost-per-acre.
+
+#### Single Field Allocation (100%)
+
+**When to use:** An expense applies to just one field.
+
+1. Find **"POST /api/v1/costs/expenses/{expense_id}/allocations"**
+2. Fill in:
+```json
+[
+  {
+    "field_id": 1,
+    "crop_year": 2024,
+    "allocation_percent": 100
+  }
+]
+```
+3. Click **"Execute"**
+
+#### Split Allocation (Multiple Fields)
+
+**When to use:** An expense applies to multiple fields (e.g., bulk fertilizer purchase).
+
+1. Find **"POST /api/v1/costs/expenses/{expense_id}/allocations"**
+2. Fill in with percentages that total 100% or less:
+```json
+[
+  {
+    "field_id": 1,
+    "crop_year": 2024,
+    "allocation_percent": 40,
+    "notes": "North 80 - 40 acres"
+  },
+  {
+    "field_id": 2,
+    "crop_year": 2024,
+    "allocation_percent": 35,
+    "notes": "South 160 - 35 acres"
+  },
+  {
+    "field_id": 3,
+    "crop_year": 2024,
+    "allocation_percent": 25,
+    "notes": "Home Farm - 25 acres"
+  }
+]
+```
+3. Click **"Execute"**
+
+#### Get Allocation Suggestions
+
+**When to use:** You want to split an expense proportionally by field acreage.
+
+1. Find **"POST /api/v1/costs/allocations/suggest"**
+2. Provide the field IDs:
+```json
+{
+  "field_ids": [1, 2, 3]
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Each field with suggested percentage based on acreage
+- Example: 80 acres + 160 acres + 200 acres = 18.2%, 36.4%, 45.4%
+
+---
+
+### 📊 Cost Per Acre Reports
+
+The payoff - see your actual cost per acre by field!
+
+#### Cost Per Acre by Field
+
+1. Find **"GET /api/v1/costs/reports/per-acre"**
+2. Set **crop_year** (e.g., 2024)
+3. Optionally filter by **field_ids** (comma-separated)
+4. Click **"Execute"**
+
+**What you get:**
+```json
+{
+  "crop_year": 2024,
+  "total_fields": 5,
+  "total_acreage": 800.0,
+  "total_cost": 376000.0,
+  "average_cost_per_acre": 470.0,
+  "fields": [
+    {
+      "field_name": "North 80",
+      "acreage": 80.0,
+      "total_cost": 42000.0,
+      "cost_per_acre": 525.0,
+      "by_category": {
+        "seed": 8000.0,
+        "fertilizer": 15000.0,
+        "chemical": 6400.0,
+        "fuel": 3200.0,
+        "land_rent": 9400.0
+      }
+    }
+  ]
+}
+```
+
+#### Category Breakdown
+
+1. Find **"GET /api/v1/costs/reports/by-category"**
+2. Set **crop_year**
+3. Optionally filter by **field_id**
+4. Click **"Execute"**
+
+**What you get:**
+- Each category with total amount and percentage of total
+- Example: Fertilizer = $87,500 (23.3%), Land Rent = $96,000 (25.5%)
+
+#### Cost by Crop Type
+
+1. Find **"GET /api/v1/costs/reports/by-crop"**
+2. Set **crop_year**
+3. Click **"Execute"**
+
+**What you get:**
+- Cost per acre by crop (corn, soybeans, etc.)
+- Great for comparing profitability across crops
+
+#### Year-Over-Year Comparison
+
+1. Find **"POST /api/v1/costs/reports/comparison"**
+2. Provide years to compare:
+```json
+{
+  "years": [2022, 2023, 2024],
+  "field_id": null
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Total cost, total acres, and cost per acre for each year
+- See how your costs have changed
+
+---
+
+### 🔄 Managing Import Batches
+
+#### View Import History
+
+1. Find **"GET /api/v1/costs/imports"**
+2. Click **"Execute"**
+3. See all your import batches with success/fail counts
+
+#### Rollback an Import
+
+**When to use:** You imported the wrong file or need to redo an import.
+
+1. Find **"DELETE /api/v1/costs/imports/{batch_id}"**
+2. Enter the batch ID
+3. Click **"Execute"**
+4. All expenses from that import are deleted
+
+---
+
+### 💾 Saving Column Mappings
+
+**When to use:** Save your QuickBooks column mapping for reuse.
+
+1. Find **"POST /api/v1/costs/mappings"**
+2. Fill in:
+```json
+{
+  "mapping_name": "QuickBooks Transaction Detail",
+  "column_config": {
+    "amount": "Debit",
+    "date": "Date",
+    "vendor": "Name",
+    "description": "Memo",
+    "reference": "Num"
+  },
+  "source_type": "QuickBooks",
+  "is_default": true
+}
+```
+3. Click **"Execute"**
+
+Next time you import, you can use **"GET /api/v1/costs/mappings"** to retrieve your saved mappings.
+
+---
+
+### 📋 Quick Reference: Cost Tracking Workflow
+
+1. **Export from QuickBooks** - Get your expenses as CSV
+2. **Preview CSV** - Check column detection
+3. **Import CSV** - Map columns and import
+4. **Review** - Check any OCR or low-confidence items
+5. **Allocate** - Assign each expense to fields
+6. **Report** - View cost per acre by field
+
+**Best Practice:** Do this quarterly or monthly to stay on top of your costs.
+
+---
+
 ## 🆕 REAL-TIME PRICING (NEW in v2.1)
 
 These features let you use YOUR actual prices instead of averages, so your cost calculations are accurate.
@@ -1274,18 +1627,19 @@ A printable table you can take to the field:
 8. **Is now a good time to spray?** (v2.1)
 9. **What's my most profitable fertilizer rate?** (v2.2)
 10. **How should I adjust rates when prices change?** (v2.2)
-11. **What did my fields actually yield last year?** (v2.7 - JD Integration)
-12. **What was actually applied vs. recommended?** (v2.7 - JD Integration)
+11. **What's my actual cost per acre by field?** (v2.7)
+12. **Where are my biggest expense categories?** (v2.7)
+13. **How do my costs compare year-over-year?** (v2.7)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 
 ---
 
-## 🚜 John Deere Operations Center Integration (Planned for v2.7)
+## 🚜 John Deere Operations Center Integration (Planned for v2.8)
 
-**Note:** This feature has been deferred to v2.7 as John Deere Developer Account requires a business application/approval process.
+**Note:** This feature is planned for v2.8 as John Deere Developer Account requires a business application/approval process.
 
-If you use John Deere Operations Center, v2.7 will let you:
+If you use John Deere Operations Center, v2.8 will let you:
 
 - **Import your fields automatically** - No more manual boundary entry
 - **See actual yield maps** - Historical yield data by zone
@@ -1293,7 +1647,7 @@ If you use John Deere Operations Center, v2.7 will let you:
 - **Get zone-specific recommendations** - Variable rate suggestions based on yield history
 - **Validate ROI** - See if recommendations actually improved outcomes
 
-**Prerequisites for v2.7:**
+**Prerequisites for v2.8:**
 1. John Deere Developer Account - https://developer.deere.com (requires business application)
 2. API credentials (client_id, client_secret)
 3. Your JD Ops Center account with field data
