@@ -46,8 +46,20 @@ Cost-per-acre tracking module that imports expense data from QuickBooks (CSV or 
 - Saved column mappings for reuse
 - Rollback import functionality
 
+**Phase 3: OCR Import** - ✅ COMPLETE (December 23, 2025)
+- Added OCR processing to cost_tracking_service.py
+- Features:
+  - Process scanned images (JPG, PNG) and PDFs
+  - Uses pytesseract for text extraction
+  - Automatic amount and date parsing from OCR text
+  - Vendor name extraction from text patterns
+  - Category auto-detection from extracted text
+  - Confidence scoring (flags low-confidence for review)
+  - Review queue for OCR expenses needing verification
+  - Approve/correct OCR expenses workflow
+- Dependencies: pytesseract, Pillow, pdf2image (optional for PDFs)
+
 **Remaining Phases:**
-- [ ] Phase 3: OCR import with pytesseract
 - [ ] Phase 4: API endpoints in main.py
 - [ ] Phase 5: Testing
 

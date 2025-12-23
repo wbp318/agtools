@@ -214,6 +214,14 @@ class SavedMappingResponse(BaseModel):
     created_at: datetime
 
 
+class OCRScanResult(BaseModel):
+    """Result of OCR scan processing"""
+    expenses: List[ExpenseResponse]
+    warnings: List[str]
+    batch_id: Optional[int] = None
+    needs_review_count: int = 0
+
+
 # ============================================================================
 # PYDANTIC MODELS - REPORTS
 # ============================================================================
@@ -1399,6 +1407,307 @@ class CostTrackingService:
         conn.close()
 
         return deleted, None
+
+
+    # ========================================================================
+    # OCR IMPORT
+    # ========================================================================
+
+    def process_ocr_image(
+        self,
+        image_data: bytes,
+        user_id: int,
+        source_file: str = "scan.jpg",
+        default_tax_year: Optional[int] = None
+    ) -> Tuple[List[ExpenseResponse], List[str]]:
+        """
+        Process a scanned image/PDF and extract expenses using OCR.
+
+        Args:
+            image_data: Raw image bytes (JPG, PNG) or PDF
+            user_id: User performing import
+            source_file: Original filename
+            default_tax_year: Tax year if not derivable
+
+        Returns:
+            Tuple of (extracted_expenses, warnings)
+        """
+        if default_tax_year is None:
+            default_tax_year = datetime.now().year
+
+        warnings = []
+
+        # Try to import OCR libraries
+        try:
+            from PIL import Image
+            import pytesseract
+        except ImportError as e:
+            warnings.append(f"OCR libraries not installed: {e}. Install with: pip install pytesseract Pillow")
+            return [], warnings
+
+        # Check if it's a PDF
+        is_pdf = source_file.lower().endswith('.pdf') or image_data[:4] == b'%PDF'
+
+        try:
+            if is_pdf:
+                # Try to convert PDF to images
+                try:
+                    from pdf2image import convert_from_bytes
+                    images = convert_from_bytes(image_data)
+                    text_parts = []
+                    for img in images:
+                        text_parts.append(pytesseract.image_to_string(img))
+                    raw_text = "\n".join(text_parts)
+                except ImportError:
+                    warnings.append("PDF support requires pdf2image. Install with: pip install pdf2image")
+                    return [], warnings
+            else:
+                # Process image directly
+                image = Image.open(io.BytesIO(image_data))
+                raw_text = pytesseract.image_to_string(image)
+
+        except Exception as e:
+            warnings.append(f"OCR processing failed: {str(e)}")
+            return [], warnings
+
+        # Parse extracted text
+        extracted = self._parse_ocr_text(raw_text, default_tax_year)
+
+        if not extracted:
+            warnings.append("No expense data could be extracted from the image")
+            return [], warnings
+
+        # Create import batch
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO import_batches (source_file, source_type, user_id, status)
+            VALUES (?, ?, ?, ?)
+        """, (source_file, SourceType.OCR_SCAN.value, user_id, ImportStatus.PROCESSING.value))
+        batch_id = cursor.lastrowid
+
+        # Insert extracted expenses
+        created_expenses = []
+        for item in extracted:
+            needs_review = item.get("confidence", 100) < 80
+
+            cursor.execute("""
+                INSERT INTO expenses (
+                    category, vendor, description, amount, expense_date, tax_year,
+                    source_type, source_reference, import_batch_id,
+                    ocr_confidence, ocr_needs_review, ocr_raw_text,
+                    created_by_user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                item["category"].value,
+                item.get("vendor"),
+                item.get("description"),
+                item["amount"],
+                item["date"].isoformat(),
+                item["date"].year,
+                SourceType.OCR_SCAN.value,
+                source_file,
+                batch_id,
+                item.get("confidence", 50),
+                needs_review,
+                raw_text[:2000],  # Store first 2000 chars of raw text
+                user_id
+            ))
+
+            expense_id = cursor.lastrowid
+            expense = self.get_expense(expense_id)
+            if expense:
+                created_expenses.append(expense)
+
+            if needs_review:
+                warnings.append(f"Expense #{expense_id} has low confidence ({item.get('confidence', 50):.0f}%) - please verify")
+
+        # Update batch
+        cursor.execute("""
+            UPDATE import_batches
+            SET total_records = ?, successful = ?, status = ?
+            WHERE id = ?
+        """, (len(extracted), len(created_expenses), ImportStatus.COMPLETED.value, batch_id))
+
+        conn.commit()
+        conn.close()
+
+        return created_expenses, warnings
+
+    def _parse_ocr_text(
+        self,
+        text: str,
+        default_year: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse OCR text to extract expense data.
+
+        Returns list of dicts with: amount, date, vendor, description, category, confidence
+        """
+        expenses = []
+
+        # Currency patterns
+        amount_pattern = r'\$?\s*([\d,]+\.?\d{0,2})'
+
+        # Date patterns
+        date_patterns = [
+            r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+            r'(\d{4}[/-]\d{1,2}[/-]\d{1,2})',
+            r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4})',
+        ]
+
+        # Split into lines
+        lines = text.split('\n')
+
+        # Look for expense-like patterns
+        current_vendor = None
+        current_date = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Try to find a date in this line
+            found_date = None
+            for pattern in date_patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    parsed = self._parse_date(match.group(1))
+                    if parsed:
+                        found_date = parsed
+                        current_date = parsed
+                        break
+
+            # Try to find amounts
+            amounts = re.findall(amount_pattern, line)
+            for amount_str in amounts:
+                amount = self._parse_amount(amount_str)
+                if amount and amount > 1.0:  # Filter out tiny amounts
+                    # Determine confidence based on what we found
+                    confidence = 50
+                    if current_date:
+                        confidence += 20
+                    if current_vendor:
+                        confidence += 15
+
+                    # Try to extract vendor from line
+                    vendor = self._extract_vendor_from_line(line)
+                    if vendor:
+                        current_vendor = vendor
+                        confidence += 15
+
+                    # Detect category
+                    category = self._detect_category(current_vendor, line, None)
+
+                    expenses.append({
+                        "amount": amount,
+                        "date": current_date or date(default_year, 1, 1),
+                        "vendor": current_vendor,
+                        "description": line[:200] if len(line) > 10 else None,
+                        "category": category,
+                        "confidence": min(confidence, 100)
+                    })
+
+        # Deduplicate by amount + date
+        seen = set()
+        unique = []
+        for exp in expenses:
+            key = (exp["amount"], exp["date"])
+            if key not in seen:
+                seen.add(key)
+                unique.append(exp)
+
+        return unique
+
+    def _extract_vendor_from_line(self, line: str) -> Optional[str]:
+        """Try to extract vendor name from a line."""
+        # Common vendor indicators
+        vendor_indicators = ["from:", "payee:", "to:", "paid to:", "vendor:"]
+
+        lower_line = line.lower()
+        for indicator in vendor_indicators:
+            if indicator in lower_line:
+                idx = lower_line.index(indicator) + len(indicator)
+                remaining = line[idx:].strip()
+                # Take first few words
+                words = remaining.split()[:4]
+                if words:
+                    return " ".join(words)
+
+        # Look for capitalized words at start of line (company names)
+        words = line.split()
+        if words and words[0][0].isupper() and len(words[0]) > 2:
+            # Take capitalized words
+            vendor_words = []
+            for word in words[:3]:
+                if word[0].isupper() or word.upper() == word:
+                    vendor_words.append(word)
+                else:
+                    break
+            if vendor_words:
+                return " ".join(vendor_words)
+
+        return None
+
+    def get_expenses_needing_review(self, user_id: int) -> List[ExpenseResponse]:
+        """Get OCR expenses that need manual review."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT e.*,
+                   COALESCE(SUM(ea.allocation_percent), 0) as allocated_percent
+            FROM expenses e
+            LEFT JOIN expense_allocations ea ON e.id = ea.expense_id
+            WHERE e.ocr_needs_review = 1 AND e.is_active = 1
+            GROUP BY e.id
+            ORDER BY e.created_at DESC
+        """)
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [self._row_to_expense_response(row) for row in rows]
+
+    def approve_ocr_expense(
+        self,
+        expense_id: int,
+        user_id: int,
+        updates: Optional[ExpenseUpdate] = None
+    ) -> Tuple[Optional[ExpenseResponse], Optional[str]]:
+        """
+        Approve an OCR expense after review, optionally with corrections.
+
+        Args:
+            expense_id: Expense to approve
+            user_id: User approving
+            updates: Optional corrections to apply
+
+        Returns:
+            Tuple of (expense, error)
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Apply any updates first
+        if updates:
+            result, error = self.update_expense(expense_id, updates, user_id)
+            if error:
+                conn.close()
+                return None, error
+
+        # Mark as reviewed
+        cursor.execute("""
+            UPDATE expenses SET ocr_needs_review = 0 WHERE id = ?
+        """, (expense_id,))
+
+        conn.commit()
+        expense = self.get_expense(expense_id)
+        conn.close()
+
+        return expense, None
 
 
 # ============================================================================
