@@ -113,6 +113,28 @@ from services.reporting_service import (
     FieldPerformanceReport,
     DashboardSummary
 )
+from services.cost_tracking_service import (
+    get_cost_tracking_service,
+    ExpenseCategory,
+    SourceType,
+    ExpenseCreate,
+    ExpenseUpdate,
+    ExpenseResponse,
+    ExpenseListResponse,
+    AllocationCreate,
+    AllocationResponse,
+    ExpenseWithAllocations,
+    ColumnMapping,
+    ImportPreview,
+    ImportResult,
+    ImportBatchResponse,
+    SavedMappingResponse,
+    OCRScanResult,
+    CostPerAcreReport,
+    CostPerAcreItem,
+    CategoryBreakdown,
+    CropCostSummary
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
@@ -3299,6 +3321,444 @@ async def export_report_csv(
             "Content-Disposition": f"attachment; filename={request.report_type.value}_report.csv"
         }
     )
+
+
+# ============================================================================
+# COST TRACKING - Import & Expenses
+# ============================================================================
+
+@app.post("/api/v1/costs/import/csv/preview", response_model=ImportPreview, tags=["Cost Tracking"])
+async def preview_csv_import(
+    file: UploadFile = File(...),
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Preview CSV file and get column mapping suggestions.
+
+    Upload a QuickBooks CSV export to preview and get suggested column mappings.
+    """
+    content = await file.read()
+    csv_text = content.decode('utf-8')
+
+    cost_service = get_cost_tracking_service()
+    return cost_service.preview_csv(csv_text)
+
+
+@app.post("/api/v1/costs/import/csv", response_model=ImportResult, tags=["Cost Tracking"])
+async def import_csv(
+    file: UploadFile = File(...),
+    amount_column: str = "Amount",
+    date_column: str = "Date",
+    vendor_column: Optional[str] = None,
+    description_column: Optional[str] = None,
+    category_column: Optional[str] = None,
+    reference_column: Optional[str] = None,
+    default_tax_year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Import expenses from CSV file.
+
+    Provide column mapping for your QuickBooks export format.
+    """
+    content = await file.read()
+    csv_text = content.decode('utf-8')
+
+    mapping = ColumnMapping(
+        amount=amount_column,
+        date=date_column,
+        vendor=vendor_column,
+        description=description_column,
+        category=category_column,
+        reference=reference_column
+    )
+
+    cost_service = get_cost_tracking_service()
+    return cost_service.import_csv(
+        csv_text,
+        mapping,
+        user.id,
+        file.filename or "upload.csv",
+        default_tax_year
+    )
+
+
+@app.post("/api/v1/costs/import/scan", response_model=OCRScanResult, tags=["Cost Tracking"])
+async def import_scan(
+    file: UploadFile = File(...),
+    default_tax_year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Import expenses from scanned image or PDF using OCR.
+
+    Supported formats: JPG, PNG, PDF
+    Requires pytesseract and Pillow to be installed.
+    """
+    content = await file.read()
+
+    cost_service = get_cost_tracking_service()
+    expenses, warnings = cost_service.process_ocr_image(
+        content,
+        user.id,
+        file.filename or "scan.jpg",
+        default_tax_year
+    )
+
+    needs_review = sum(1 for e in expenses if e.ocr_needs_review)
+
+    return OCRScanResult(
+        expenses=expenses,
+        warnings=warnings,
+        needs_review_count=needs_review
+    )
+
+
+@app.get("/api/v1/costs/imports", response_model=List[ImportBatchResponse], tags=["Cost Tracking"])
+async def list_import_batches(
+    limit: int = 20,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get recent import batches for audit trail."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_import_batches(user.id, limit)
+
+
+@app.delete("/api/v1/costs/imports/{batch_id}", tags=["Cost Tracking"])
+async def rollback_import(
+    batch_id: int,
+    user: AuthenticatedUser = Depends(require_manager)
+):
+    """
+    Rollback an import batch (delete all imported expenses).
+
+    Requires manager or admin role.
+    """
+    cost_service = get_cost_tracking_service()
+    deleted, error = cost_service.rollback_import(batch_id, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return {"message": f"Rolled back {deleted} expenses", "deleted_count": deleted}
+
+
+# ============================================================================
+# COST TRACKING - Column Mappings
+# ============================================================================
+
+@app.get("/api/v1/costs/mappings", response_model=List[SavedMappingResponse], tags=["Cost Tracking"])
+async def list_column_mappings(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get saved column mappings for this user."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_user_mappings(user.id)
+
+
+class SaveMappingRequest(BaseModel):
+    mapping_name: str
+    column_config: ColumnMapping
+    source_type: Optional[str] = None
+    is_default: bool = False
+
+
+@app.post("/api/v1/costs/mappings", tags=["Cost Tracking"])
+async def save_column_mapping(
+    request: SaveMappingRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Save a column mapping for reuse."""
+    cost_service = get_cost_tracking_service()
+    mapping_id = cost_service.save_column_mapping(
+        user.id,
+        request.mapping_name,
+        request.column_config,
+        request.source_type,
+        request.is_default
+    )
+    return {"id": mapping_id, "message": "Mapping saved"}
+
+
+@app.delete("/api/v1/costs/mappings/{mapping_id}", tags=["Cost Tracking"])
+async def delete_column_mapping(
+    mapping_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a saved column mapping."""
+    cost_service = get_cost_tracking_service()
+    deleted = cost_service.delete_column_mapping(mapping_id, user.id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+
+    return {"message": "Mapping deleted"}
+
+
+# ============================================================================
+# COST TRACKING - Expenses CRUD
+# ============================================================================
+
+@app.get("/api/v1/costs/expenses", response_model=ExpenseListResponse, tags=["Cost Tracking"])
+async def list_expenses(
+    tax_year: Optional[int] = None,
+    category: Optional[ExpenseCategory] = None,
+    vendor: Optional[str] = None,
+    unallocated_only: bool = False,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    limit: int = 100,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    List expenses with filters.
+
+    Use unallocated_only=true to see expenses needing field allocation.
+    """
+    cost_service = get_cost_tracking_service()
+    return cost_service.list_expenses(
+        user.id,
+        tax_year=tax_year,
+        category=category,
+        vendor=vendor,
+        unallocated_only=unallocated_only,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+        offset=offset
+    )
+
+
+@app.post("/api/v1/costs/expenses", response_model=ExpenseResponse, tags=["Cost Tracking"])
+async def create_expense(
+    expense: ExpenseCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a manual expense entry."""
+    cost_service = get_cost_tracking_service()
+    result, error = cost_service.create_expense(expense, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/costs/expenses/{expense_id}", response_model=ExpenseWithAllocations, tags=["Cost Tracking"])
+async def get_expense(
+    expense_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get expense details with allocations."""
+    cost_service = get_cost_tracking_service()
+    expense = cost_service.get_expense(expense_id)
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    allocations = cost_service.get_allocations(expense_id)
+
+    return ExpenseWithAllocations(expense=expense, allocations=allocations)
+
+
+@app.put("/api/v1/costs/expenses/{expense_id}", response_model=ExpenseResponse, tags=["Cost Tracking"])
+async def update_expense(
+    expense_id: int,
+    expense: ExpenseUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update an expense."""
+    cost_service = get_cost_tracking_service()
+    result, error = cost_service.update_expense(expense_id, expense, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.delete("/api/v1/costs/expenses/{expense_id}", tags=["Cost Tracking"])
+async def delete_expense(
+    expense_id: int,
+    user: AuthenticatedUser = Depends(require_manager)
+):
+    """Delete an expense (soft delete). Requires manager role."""
+    cost_service = get_cost_tracking_service()
+    deleted = cost_service.delete_expense(expense_id, user.id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    return {"message": "Expense deleted"}
+
+
+# ============================================================================
+# COST TRACKING - OCR Review Queue
+# ============================================================================
+
+@app.get("/api/v1/costs/review", response_model=List[ExpenseResponse], tags=["Cost Tracking"])
+async def get_ocr_review_queue(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get OCR expenses needing manual review."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_expenses_needing_review(user.id)
+
+
+@app.post("/api/v1/costs/expenses/{expense_id}/approve", response_model=ExpenseResponse, tags=["Cost Tracking"])
+async def approve_ocr_expense(
+    expense_id: int,
+    corrections: Optional[ExpenseUpdate] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Approve an OCR expense after review.
+
+    Optionally provide corrections to apply before approval.
+    """
+    cost_service = get_cost_tracking_service()
+    result, error = cost_service.approve_ocr_expense(expense_id, user.id, corrections)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+# ============================================================================
+# COST TRACKING - Allocations
+# ============================================================================
+
+@app.get("/api/v1/costs/expenses/{expense_id}/allocations", response_model=List[AllocationResponse], tags=["Cost Tracking"])
+async def get_expense_allocations(
+    expense_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get allocations for an expense."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_allocations(expense_id)
+
+
+@app.post("/api/v1/costs/expenses/{expense_id}/allocations", response_model=List[AllocationResponse], tags=["Cost Tracking"])
+async def set_expense_allocations(
+    expense_id: int,
+    allocations: List[AllocationCreate],
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Set allocations for an expense (replaces existing).
+
+    Total allocation_percent across all fields should not exceed 100%.
+    """
+    cost_service = get_cost_tracking_service()
+    result, error = cost_service.set_allocations(expense_id, allocations, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+class SuggestAllocationRequest(BaseModel):
+    field_ids: List[int]
+
+
+@app.post("/api/v1/costs/allocations/suggest", tags=["Cost Tracking"])
+async def suggest_allocation(
+    request: SuggestAllocationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Suggest allocation percentages based on field acreage.
+
+    Useful for splitting farm-wide expenses proportionally.
+    """
+    cost_service = get_cost_tracking_service()
+    return cost_service.suggest_allocation_by_acreage(request.field_ids)
+
+
+@app.get("/api/v1/costs/unallocated", response_model=ExpenseListResponse, tags=["Cost Tracking"])
+async def get_unallocated_expenses(
+    tax_year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get expenses that haven't been fully allocated to fields."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.list_expenses(
+        user.id,
+        tax_year=tax_year,
+        unallocated_only=True
+    )
+
+
+# ============================================================================
+# COST TRACKING - Reports
+# ============================================================================
+
+@app.get("/api/v1/costs/reports/per-acre", response_model=CostPerAcreReport, tags=["Cost Tracking"])
+async def get_cost_per_acre_report(
+    crop_year: int,
+    field_ids: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get cost per acre report for a crop year.
+
+    Optionally filter by field_ids (comma-separated).
+    """
+    cost_service = get_cost_tracking_service()
+
+    field_id_list = None
+    if field_ids:
+        field_id_list = [int(x.strip()) for x in field_ids.split(",")]
+
+    return cost_service.get_cost_per_acre_report(crop_year, field_id_list)
+
+
+@app.get("/api/v1/costs/reports/by-category", response_model=List[CategoryBreakdown], tags=["Cost Tracking"])
+async def get_category_breakdown(
+    crop_year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get expense breakdown by category."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_category_breakdown(crop_year, field_id)
+
+
+@app.get("/api/v1/costs/reports/by-crop", response_model=List[CropCostSummary], tags=["Cost Tracking"])
+async def get_cost_by_crop(
+    crop_year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get cost summary grouped by crop type."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_cost_by_crop(crop_year)
+
+
+class YearComparisonRequest(BaseModel):
+    years: List[int]
+    field_id: Optional[int] = None
+
+
+@app.post("/api/v1/costs/reports/comparison", tags=["Cost Tracking"])
+async def get_year_comparison(
+    request: YearComparisonRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Compare costs across multiple years."""
+    cost_service = get_cost_tracking_service()
+    return cost_service.get_year_comparison(request.years, request.field_id)
+
+
+@app.get("/api/v1/costs/categories", tags=["Cost Tracking"])
+async def list_expense_categories():
+    """Get list of available expense categories."""
+    return [
+        {"value": cat.value, "name": cat.name.replace("_", " ").title()}
+        for cat in ExpenseCategory
+    ]
 
 
 # ============================================================================

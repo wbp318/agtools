@@ -59,8 +59,40 @@ Cost-per-acre tracking module that imports expense data from QuickBooks (CSV or 
   - Approve/correct OCR expenses workflow
 - Dependencies: pytesseract, Pillow, pdf2image (optional for PDFs)
 
-**Remaining Phases:**
-- [ ] Phase 4: API endpoints in main.py
+**Phase 4: API Endpoints** - ✅ COMPLETE (December 23, 2025)
+- Added 22 new endpoints to `backend/main.py` under `/api/v1/costs/`
+- Import endpoints:
+  - `POST /api/v1/costs/import/csv/preview` - Preview CSV and get mapping suggestions
+  - `POST /api/v1/costs/import/csv` - Import CSV with column mapping
+  - `POST /api/v1/costs/import/scan` - Import via OCR (image/PDF)
+  - `GET /api/v1/costs/imports` - List import batches
+  - `DELETE /api/v1/costs/imports/{id}` - Rollback import
+- Column mapping endpoints:
+  - `GET /api/v1/costs/mappings` - List saved mappings
+  - `POST /api/v1/costs/mappings` - Save mapping
+  - `DELETE /api/v1/costs/mappings/{id}` - Delete mapping
+- Expense CRUD:
+  - `GET /api/v1/costs/expenses` - List with filters
+  - `POST /api/v1/costs/expenses` - Create manual expense
+  - `GET /api/v1/costs/expenses/{id}` - Get with allocations
+  - `PUT /api/v1/costs/expenses/{id}` - Update
+  - `DELETE /api/v1/costs/expenses/{id}` - Delete (manager+)
+- OCR review:
+  - `GET /api/v1/costs/review` - Get review queue
+  - `POST /api/v1/costs/expenses/{id}/approve` - Approve OCR expense
+- Allocation endpoints:
+  - `GET /api/v1/costs/expenses/{id}/allocations` - Get allocations
+  - `POST /api/v1/costs/expenses/{id}/allocations` - Set allocations
+  - `POST /api/v1/costs/allocations/suggest` - Suggest by acreage
+  - `GET /api/v1/costs/unallocated` - List unallocated expenses
+- Report endpoints:
+  - `GET /api/v1/costs/reports/per-acre` - Cost per acre report
+  - `GET /api/v1/costs/reports/by-category` - Category breakdown
+  - `GET /api/v1/costs/reports/by-crop` - Cost by crop type
+  - `POST /api/v1/costs/reports/comparison` - Year comparison
+  - `GET /api/v1/costs/categories` - List expense categories
+
+**Remaining:**
 - [ ] Phase 5: Testing
 
 ---
