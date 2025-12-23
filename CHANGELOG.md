@@ -4,9 +4,42 @@
 
 ---
 
-## Current Version: 2.6.0 (Released - December 22, 2025)
+## Current Version: 2.7.0 (In Progress - December 23, 2025)
 
-### Latest Session: December 22, 2025
+### Latest Session: December 23, 2025
+
+#### v2.7.0 - Cost Per Acre Tracking Module
+
+**Status:** In Progress
+
+**What's Being Built:**
+Cost-per-acre tracking module that imports expense data from QuickBooks (CSV or scanned reports) and calculates cost-per-acre by field and by crop. Supports split allocations where a single expense applies to multiple fields.
+
+**Phase 1: Database Schema** - ✅ COMPLETE (December 23, 2025)
+- Created `database/migrations/006_cost_tracking.sql`
+- New tables:
+  - `expense_categories` - Predefined categories (seed, fertilizer, chemical, fuel, repairs, labor, custom_hire, land_rent, crop_insurance, interest, utilities, storage, other)
+  - `import_batches` - Track import sessions for audit/undo
+  - `column_mappings` - Save user's CSV column mappings for reuse
+  - `expenses` - Master expense records with OCR support fields
+  - `expense_allocations` - Link expenses to fields with split percentages
+- Views for reporting:
+  - `v_cost_per_acre` - Cost per acre by field, year, and category
+  - `v_unallocated_expenses` - Expenses needing allocation
+- Triggers for auto-updating timestamps
+
+**Remaining Phases:**
+- [ ] Phase 2: cost_tracking_service.py with CSV import + column mapper
+- [ ] Phase 3: OCR import with pytesseract
+- [ ] Phase 4: Expense CRUD endpoints
+- [ ] Phase 5: Allocation endpoints
+- [ ] Phase 6: Cost-per-acre report endpoints
+
+---
+
+## Previous Version: 2.6.0 (Released - December 22, 2025)
+
+### Session: December 22, 2025
 
 #### v2.6.0 - Phase 6: Mobile/Crew Interface - RELEASED
 
