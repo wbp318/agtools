@@ -28,12 +28,28 @@ Cost-per-acre tracking module that imports expense data from QuickBooks (CSV or 
   - `v_unallocated_expenses` - Expenses needing allocation
 - Triggers for auto-updating timestamps
 
+**Phase 2: Cost Tracking Service** - ✅ COMPLETE (December 23, 2025)
+- Created `backend/services/cost_tracking_service.py` (~900 lines)
+- CSV Import with flexible column mapper:
+  - Auto-detect column mappings from headers
+  - Parse various date and amount formats
+  - Auto-detect expense categories from vendor/description text
+  - Duplicate detection by reference + date + amount
+  - Import batch tracking for audit/undo
+- Expense CRUD operations
+- Allocation management (single + split across fields)
+- Cost-per-acre reporting:
+  - Report by field with category breakdown
+  - Category breakdown with percentages
+  - Cost by crop type summary
+  - Year-over-year comparison
+- Saved column mappings for reuse
+- Rollback import functionality
+
 **Remaining Phases:**
-- [ ] Phase 2: cost_tracking_service.py with CSV import + column mapper
 - [ ] Phase 3: OCR import with pytesseract
-- [ ] Phase 4: Expense CRUD endpoints
-- [ ] Phase 5: Allocation endpoints
-- [ ] Phase 6: Cost-per-acre report endpoints
+- [ ] Phase 4: API endpoints in main.py
+- [ ] Phase 5: Testing
 
 ---
 
