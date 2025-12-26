@@ -135,13 +135,27 @@ from services.cost_tracking_service import (
     CategoryBreakdown,
     CropCostSummary
 )
+from services.profitability_service import (
+    get_profitability_service,
+    CropType as ProfitCropType,
+    InputCategory,
+    BudgetStatus,
+    BreakEvenRequest,
+    BreakEvenResponse,
+    InputROIRequest,
+    InputROIResponse,
+    ScenarioRequest,
+    ScenarioResponse,
+    BudgetTrackerRequest,
+    BudgetTrackerResponse
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, and yield response economics",
-    version="2.2.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, and profitability analysis",
+    version="2.8.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -3758,6 +3772,139 @@ async def list_expense_categories():
     return [
         {"value": cat.value, "name": cat.name.replace("_", " ").title()}
         for cat in ExpenseCategory
+    ]
+
+
+# ============================================================================
+# PROFITABILITY ANALYSIS
+# ============================================================================
+
+@app.post("/api/v1/profitability/break-even", response_model=BreakEvenResponse, tags=["Profitability"])
+async def calculate_break_even(
+    request: BreakEvenRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate break-even yields and prices.
+
+    Answers:
+    - What yield do I need at price X to break even?
+    - What price do I need at yield Y to break even?
+    - How much cushion do I have before losing money?
+    """
+    profit_service = get_profitability_service()
+    return profit_service.calculate_break_even(request)
+
+
+@app.post("/api/v1/profitability/input-roi", response_model=InputROIResponse, tags=["Profitability"])
+async def rank_inputs_by_roi(
+    request: InputROIRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Rank all inputs by return on investment.
+
+    Identifies:
+    - Which inputs give the best return per dollar spent
+    - Which inputs to cut first if you need to reduce costs
+    - Risk of yield loss for each potential cut
+    """
+    profit_service = get_profitability_service()
+    return profit_service.rank_inputs_by_roi(request)
+
+
+@app.post("/api/v1/profitability/scenarios", response_model=ScenarioResponse, tags=["Profitability"])
+async def run_scenarios(
+    request: ScenarioRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Run what-if scenario analysis.
+
+    Models different combinations of:
+    - Grain prices (what if corn drops to $4?)
+    - Yields (what if we only make 150 bu?)
+    - Cost changes (what if fertilizer goes up 20%?)
+    """
+    profit_service = get_profitability_service()
+    return profit_service.run_scenarios(request)
+
+
+@app.post("/api/v1/profitability/budget", response_model=BudgetTrackerResponse, tags=["Profitability"])
+async def track_budget(
+    request: BudgetTrackerRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Set up and track budget vs actual spending.
+
+    Features:
+    - Set budget targets by category
+    - Track spending against targets
+    - Get alerts for over-budget categories
+    - Project end-of-season profit
+    """
+    profit_service = get_profitability_service()
+    return profit_service.setup_budget_tracker(request)
+
+
+@app.get("/api/v1/profitability/summary/{crop}", tags=["Profitability"])
+async def get_profitability_summary(
+    crop: ProfitCropType,
+    acres: float,
+    expected_yield: Optional[float] = None,
+    expected_price: Optional[float] = None,
+    cost_per_acre: Optional[float] = None,
+    is_irrigated: bool = False,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get a quick profitability summary combining all analyses.
+
+    One call to get:
+    - Break-even analysis
+    - Input ROI ranking
+    - Key scenarios
+    - Recommendations
+    """
+    profit_service = get_profitability_service()
+    return profit_service.get_profitability_summary(
+        crop=crop,
+        acres=acres,
+        expected_yield=expected_yield,
+        expected_price=expected_price,
+        cost_per_acre=cost_per_acre,
+        is_irrigated=is_irrigated
+    )
+
+
+@app.get("/api/v1/profitability/crops", tags=["Profitability"])
+async def list_supported_crops():
+    """Get list of supported crops with their default parameters."""
+    from services.profitability_service import CROP_PARAMETERS
+
+    result = []
+    for crop_type, params in CROP_PARAMETERS.items():
+        result.append({
+            "crop": crop_type.value,
+            "default_yield": params["default_yield"],
+            "yield_unit": params["yield_unit"],
+            "default_price": params["default_price"],
+            "price_unit": params["price_unit"],
+            "typical_yield_range": params["typical_yield_range"],
+            "typical_price_range": params["typical_price_range"],
+            "total_variable_cost_per_acre": sum(params["variable_costs_per_acre"].values()),
+            "irrigation_cost_per_acre": params.get("irrigation_cost_per_acre", 0),
+        })
+    return result
+
+
+@app.get("/api/v1/profitability/input-categories", tags=["Profitability"])
+async def list_input_categories():
+    """Get list of input cost categories."""
+    return [
+        {"value": cat.value, "name": cat.name.replace("_", " ").title()}
+        for cat in InputCategory
     ]
 
 

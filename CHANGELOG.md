@@ -57,8 +57,17 @@
 - Cotton
 - Grain Sorghum
 
-**Phase 2: API Endpoints** - 🔄 IN PROGRESS
-- TODO: Add endpoints to main.py
+**Phase 2: API Endpoints** - ✅ COMPLETE (December 26, 2025)
+- Added 7 new endpoints under `/api/v1/profitability/`:
+  - `POST /api/v1/profitability/break-even` - Calculate break-even yields and prices
+  - `POST /api/v1/profitability/input-roi` - Rank inputs by ROI, identify what to cut
+  - `POST /api/v1/profitability/scenarios` - Run what-if scenario analysis
+  - `POST /api/v1/profitability/budget` - Track budget vs actual spending
+  - `GET /api/v1/profitability/summary/{crop}` - Quick profitability summary
+  - `GET /api/v1/profitability/crops` - List supported crops with parameters
+  - `GET /api/v1/profitability/input-categories` - List input cost categories
+- Updated API version to 2.8.0
+- All endpoints require authentication
 
 **Phase 3: Testing** - ⏳ PENDING
 
