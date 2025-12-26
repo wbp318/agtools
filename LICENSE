@@ -1,93 +1,181 @@
 PROPRIETARY SOFTWARE LICENSE AGREEMENT
-
 Copyright (c) 2024 New Generation Farms / AgTools Professional Crop Consulting System
-All Rights Reserved.
+ALL RIGHTS RESERVED
 
-NOTICE: This software and associated documentation files (the "Software") are
-proprietary and confidential. The Software is made available on GitHub for
-demonstration and portfolio purposes only.
+================================================================================
+                              LEGAL NOTICE
+================================================================================
 
-TERMS AND CONDITIONS:
+This software is protected by United States copyright law (17 U.S.C. § 101 et
+seq.), international copyright treaties, and applicable state and federal trade
+secret laws. Unauthorized reproduction, distribution, or use of this software
+may result in severe civil and criminal penalties.
 
-1. GRANT OF LICENSE
-   The copyright holder grants no license to use, copy, modify, merge, publish,
-   distribute, sublicense, or sell copies of the Software without express written
-   permission from the copyright holder.
+================================================================================
+                         TERMS AND CONDITIONS
+================================================================================
 
-2. VIEWING RIGHTS
-   The public may view the source code on GitHub for educational and evaluation
-   purposes only. Viewing does not grant any rights to use, copy, or distribute
-   the Software.
+1. NO LICENSE GRANTED
 
-3. COMMERCIAL USE PROHIBITED
-   Use of this Software for commercial purposes, including but not limited to:
-   - Running as a service (SaaS)
-   - Integration into commercial products
-   - Consulting services using this Software
-   - Creating derivative works for commercial use
+   NO LICENSE, EXPRESS OR IMPLIED, IS GRANTED TO ANY PARTY. Viewing this source
+   code on GitHub or any other platform does NOT constitute permission to:
 
-   ...is strictly prohibited without a separate commercial license agreement.
+   - Copy, clone, fork, or download this repository
+   - Use any portion of this code in your own projects
+   - Modify, adapt, or create derivative works
+   - Distribute, publish, or share this code
+   - Sell, sublicense, or commercially exploit this software
+   - Reverse engineer or decompile compiled versions
+   - Use this code for training AI/ML models
 
-4. SAAS LICENSING AVAILABLE
-   Commercial licenses and SaaS subscriptions are available. Contact the copyright
-   holder for licensing terms and pricing.
+   The code is made publicly visible SOLELY for portfolio demonstration and
+   employer/client evaluation purposes.
 
-5. NO WARRANTY
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-   IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+2. PROHIBITED ACTIVITIES
 
-6. INTELLECTUAL PROPERTY
-   All intellectual property rights in the Software, including but not limited to:
-   - Pest and disease knowledge base
-   - Chemical database and product information
-   - Recommendation algorithms
-   - Economic models
-   - API design and implementation
+   The following activities are STRICTLY PROHIBITED and will be prosecuted to
+   the fullest extent of the law:
 
-   ...remain the exclusive property of the copyright holder.
+   a) COPYING OR CLONING: Copying any portion of this codebase, whether through
+      git clone, fork, download, copy-paste, or any other means.
 
-7. TERMINATION
-   Any unauthorized use of the Software will result in immediate termination of
-   any implied rights and may result in legal action.
+   b) COMMERCIAL USE: Using this software or any derivative to:
+      - Operate a SaaS or hosted service
+      - Provide consulting or advisory services
+      - Integrate into commercial products
+      - Generate revenue directly or indirectly
 
-8. CONTACT FOR LICENSING
-   For commercial licensing, SaaS subscriptions, or white-label opportunities:
+   c) REPUBLISHING: Uploading this code to any other repository, website, or
+      distribution platform under any name or license.
 
-   GitHub: https://github.com/wbp318/agtools
-   Repository: https://github.com/wbp318/agtools
+   d) CODE THEFT: Incorporating any algorithms, data structures, database
+      schemas, API designs, or business logic from this software into other
+      projects.
 
-   Inquiries: See GitHub profile for contact information
+   e) MISREPRESENTATION: Claiming authorship or ownership of this code or any
+      portion thereof.
 
-9. EXCEPTIONS
-   The following components retain their original open-source licenses:
-   - Third-party libraries listed in requirements.txt
-   - Any files explicitly marked with different licenses
+3. PROPRIETARY ASSETS - TRADE SECRETS
 
-ADDITIONAL NOTES FOR POTENTIAL CLIENTS:
+   The following components constitute trade secrets and proprietary information
+   with independent economic value:
 
-This is professional-grade crop consulting software designed for commercial use.
-We offer:
-- SaaS subscriptions for consultants and farmers
-- White-label licensing for ag retailers and co-ops
-- Custom development and integration services
-- API access for third-party applications
-- Training and support packages
+   - Pest and disease identification knowledge base
+   - Pesticide product database and label information
+   - Spray recommendation algorithms and decision logic
+   - Economic threshold calculation models
+   - Weather integration and timing algorithms
+   - API architecture and endpoint designs
+   - Database schemas and data models
+   - User interface designs and workflows
 
-The software includes:
-- 46+ pest/disease identification models
-- 40+ pesticide product database with label information
-- Economic threshold calculators
-- Spray recommendation engine with resistance management
-- Weather integration for application timing
-- Professional reporting capabilities
+   Misappropriation of trade secrets is a federal crime under the Defend Trade
+   Secrets Act (18 U.S.C. § 1836) and may result in criminal prosecution.
 
-Contact us to discuss licensing options tailored to your business needs.
+4. CODE FINGERPRINTING AND MONITORING
 
----
+   This codebase contains unique identifiers, watermarks, and fingerprinting
+   mechanisms that allow tracking of unauthorized copies. We actively monitor:
 
-Last Updated: November 23, 2024
-Version: 1.0
+   - GitHub and GitLab for unauthorized forks and clones
+   - Package registries (npm, PyPI, etc.) for stolen code
+   - Commercial products and SaaS platforms for infringement
+   - Code search engines and AI training datasets
+
+   Automated systems continuously scan for unauthorized use of this code.
+
+5. ENFORCEMENT AND LEGAL REMEDIES
+
+   Violation of this license will result in IMMEDIATE legal action including:
+
+   a) DMCA TAKEDOWN: We will file DMCA takedown notices (17 U.S.C. § 512) with
+      GitHub, hosting providers, domain registrars, and search engines.
+
+   b) CIVIL DAMAGES: We will pursue maximum statutory damages under copyright
+      law, which can reach $150,000 PER WORK for willful infringement
+      (17 U.S.C. § 504(c)).
+
+   c) INJUNCTIVE RELIEF: We will seek immediate injunctions to halt
+      unauthorized use, distribution, and commercial exploitation.
+
+   d) ATTORNEY'S FEES: Prevailing plaintiffs in copyright cases are entitled
+      to recover attorney's fees and costs (17 U.S.C. § 505).
+
+   e) CRIMINAL REFERRAL: Willful copyright infringement for commercial gain is
+      a federal crime (17 U.S.C. § 506, 18 U.S.C. § 2319) punishable by up to
+      5 years imprisonment and $250,000 in fines.
+
+   f) TRADE SECRET CLAIMS: Misappropriation will be prosecuted under the Defend
+      Trade Secrets Act with remedies including exemplary damages up to 2x
+      actual damages.
+
+6. DMCA AGENT AND TAKEDOWN PROCEDURE
+
+   Pursuant to 17 U.S.C. § 512(c), the designated agent for receiving
+   notifications of claimed infringement is the copyright holder. Reports of
+   infringement should be filed via GitHub's repository.
+
+   We maintain records of all authorized copies (there are none for public use)
+   and will issue takedown notices for ANY unauthorized reproduction.
+
+7. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. THE COPYRIGHT
+   HOLDER SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM VIEWING OR
+   UNAUTHORIZED USE OF THIS SOFTWARE.
+
+8. SEVERABILITY
+
+   If any provision of this license is held unenforceable, the remaining
+   provisions shall continue in full force and effect.
+
+9. GOVERNING LAW AND JURISDICTION
+
+   This license shall be governed by the laws of the State of Iowa and
+   applicable federal law. Any legal action shall be brought exclusively in the
+   state or federal courts located in Iowa, and you consent to personal
+   jurisdiction in such courts.
+
+10. COMMERCIAL LICENSING AVAILABLE
+
+    Authorized commercial use requires a separate written license agreement.
+    Licensing options include:
+
+    - SaaS subscriptions for consultants and farmers
+    - White-label licensing for agricultural retailers
+    - API access agreements
+    - Custom development contracts
+
+    Contact: See GitHub profile (https://github.com/wbp318) for inquiries
+
+================================================================================
+                              WARNING
+================================================================================
+
+IF YOU ARE READING THIS BECAUSE YOU COPIED THIS CODE:
+
+You are already in violation of this license and federal copyright law. Your
+options are:
+
+1. DELETE all copies immediately and cease all use
+2. Contact us to negotiate a commercial license
+3. Face legal action including DMCA takedowns, civil litigation, and potential
+   criminal prosecution
+
+We take intellectual property theft seriously and have the resources to pursue
+legal remedies. This software represents significant investment in development
+and contains valuable proprietary business logic.
+
+DO NOT TEST US.
+
+================================================================================
+
+Third-party libraries and dependencies retain their original open-source
+licenses as specified in their respective packages.
+
+Last Updated: December 26, 2024
+License Version: 2.0
+Copyright Holder: New Generation Farms
+
+For portfolio evaluation: Employers and clients may view this code to assess
+capabilities. Any use beyond evaluation requires written authorization.
