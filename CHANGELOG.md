@@ -76,6 +76,14 @@
   - Scenario planner: Best case $276,400 to worst case -$55,700
   - Rice support: $740/acre cost (includes flood irrigation)
 - Risk assessment working correctly
+- See `tests/SMOKE_TEST_RESULTS_v2.8.0.md` for full results
+
+**Next Steps (Planned):**
+- Import 2025 expenses from QuickBooks to get actual cost per acre
+- Set up fields (corn, soybeans, rice)
+- Allocate expenses to fields
+- Compare actual 2025 costs to industry averages
+- Use real data to plan 2026 budget
 
 ---
 
