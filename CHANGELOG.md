@@ -4,7 +4,67 @@
 
 ---
 
-## Current Version: 2.7.0 (Released - December 23, 2025)
+## Current Version: 2.8.0 (In Progress - December 26, 2025)
+
+### Latest Session: December 26, 2025
+
+#### v2.8.0 - Profitability Analysis & Input Optimization
+
+**Status:** 🔄 IN PROGRESS
+
+**Goal:** Build tools to maximize profitability and identify cost-cutting opportunities without sacrificing yield. Focus on turning a profit without relying on government subsidies.
+
+**Phase 1: Profitability Service** - ✅ COMPLETE (December 26, 2025)
+- Created `backend/services/profitability_service.py` (~950 lines)
+- **Break-Even Calculator:**
+  - Calculate break-even yield at any price
+  - Calculate break-even price at any yield
+  - Margin of safety analysis (yield cushion, price cushion)
+  - Risk level assessment
+  - Actionable recommendations
+- **Input ROI Ranker:**
+  - Rank all inputs by return on investment
+  - Identify lowest ROI inputs to cut first
+  - Cut risk assessment (low/medium/high yield impact)
+  - Net benefit analysis (savings vs yield loss)
+  - "What if I cut this?" projections
+- **Scenario Planner:**
+  - What-if analysis for price changes
+  - What-if analysis for yield changes
+  - What-if analysis for cost changes
+  - Combined scenario matrix
+  - Best case / worst case identification
+  - Price and yield sensitivity analysis
+  - Risk assessment across all scenarios
+- **Budget Tracker:**
+  - Set budget targets by category
+  - Track actual vs budgeted spending
+  - Category-level alerts (on track, warning, over budget, critical)
+  - Projected profit calculation
+  - Break-even status tracking
+  - Recommendations for staying on budget
+
+**Crop Support Added:**
+- Corn (default)
+- Soybeans
+- **Rice** (new for Louisiana operations)
+  - Default yield: 7,500 lbs/acre (75 cwt)
+  - Pricing in $/cwt
+  - Higher irrigation costs ($120/acre - flood irrigation)
+  - Higher chemical costs ($95/acre)
+  - Aerial application costs included
+- Wheat
+- Cotton
+- Grain Sorghum
+
+**Phase 2: API Endpoints** - 🔄 IN PROGRESS
+- TODO: Add endpoints to main.py
+
+**Phase 3: Testing** - ⏳ PENDING
+
+---
+
+## Previous Version: 2.7.0 (Released - December 23, 2025)
 
 ### Latest Session: December 23, 2025
 
