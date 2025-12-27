@@ -4197,6 +4197,149 @@ async def list_ai_models():
 
 
 # ============================================================================
+# CROP HEALTH SCORING (v3.0 Phase 2)
+# ============================================================================
+
+from services.crop_health_service import get_crop_health_service, ImageType, HealthStatus
+
+
+@app.post("/api/v1/ai/health/analyze", tags=["Crop Health"])
+async def analyze_crop_health(
+    image: UploadFile = File(...),
+    image_type: str = Form("rgb"),
+    field_id: Optional[int] = Form(None),
+    field_name: Optional[str] = Form(None),
+    grid_size: int = Form(10),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Analyze drone/satellite imagery for crop health
+
+    Processes field imagery to calculate:
+    - NDVI (Normalized Difference Vegetation Index)
+    - Health scores per zone
+    - Problem area detection
+    - Treatment recommendations
+
+    Image types supported:
+    - rgb: Standard color photos (calculates pseudo-NDVI)
+    - ndvi: Pre-calculated NDVI visualization
+    - multispectral: Multi-band imagery (NIR, Red, etc.)
+    """
+    health_service = get_crop_health_service()
+
+    # Read image bytes
+    image_bytes = await image.read()
+
+    # Convert image type
+    try:
+        img_type = ImageType(image_type.lower())
+    except ValueError:
+        img_type = ImageType.RGB
+
+    # Analyze image
+    report = health_service.analyze_image(
+        image_bytes=image_bytes,
+        image_type=img_type,
+        field_id=field_id,
+        field_name=field_name,
+        grid_size=grid_size,
+        save_results=True
+    )
+
+    # Convert dataclasses to dicts for JSON response
+    return {
+        "field_id": report.field_id,
+        "field_name": report.field_name,
+        "analysis_date": report.analysis_date,
+        "image_hash": report.image_hash,
+        "image_type": report.image_type.value,
+        "overall_ndvi": report.overall_ndvi,
+        "overall_health": report.overall_health.value,
+        "healthy_percentage": report.healthy_percentage,
+        "stressed_percentage": report.stressed_percentage,
+        "zones": [
+            {
+                "zone_id": z.zone_id,
+                "center_x": z.center_x,
+                "center_y": z.center_y,
+                "ndvi_mean": z.ndvi_mean,
+                "health_status": z.health_status.value,
+                "issue_type": z.issue_type.value if z.issue_type else None,
+                "confidence": z.confidence,
+                "recommendations": z.recommendations
+            }
+            for z in report.zones
+        ],
+        "problem_areas": report.problem_areas,
+        "recommendations": report.recommendations,
+        "processing_time_ms": report.processing_time_ms,
+        "notes": report.notes
+    }
+
+
+@app.get("/api/v1/ai/health/history/{field_id}", tags=["Crop Health"])
+async def get_field_health_history(
+    field_id: int,
+    limit: int = 10,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get health assessment history for a field
+
+    Returns list of past assessments with:
+    - Analysis dates
+    - NDVI scores
+    - Health percentages
+    - Recommendations
+    """
+    health_service = get_crop_health_service()
+    return health_service.get_field_history(field_id, limit)
+
+
+@app.get("/api/v1/ai/health/trends/{field_id}", tags=["Crop Health"])
+async def get_field_health_trends(
+    field_id: int,
+    crop_year: Optional[int] = None,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get health trends for a field over time
+
+    Returns:
+    - Time series of NDVI values
+    - Healthy/stressed percentages over time
+    - Trend summary (improving/declining)
+    """
+    health_service = get_crop_health_service()
+    return health_service.get_health_trends(field_id, crop_year)
+
+
+@app.get("/api/v1/ai/health/status-levels", tags=["Crop Health"])
+async def get_health_status_levels():
+    """
+    Get health status level definitions
+
+    Returns NDVI thresholds for each health category
+    """
+    from services.crop_health_service import CropHealthService
+    return {
+        "levels": [
+            {"status": status.value, "min_ndvi": threshold}
+            for status, threshold in CropHealthService.NDVI_THRESHOLDS.items()
+        ],
+        "description": {
+            "excellent": "NDVI > 0.7 - Crop is thriving",
+            "good": "NDVI 0.5-0.7 - Crop is healthy",
+            "moderate": "NDVI 0.3-0.5 - Some stress present",
+            "stressed": "NDVI 0.2-0.3 - Significant stress",
+            "poor": "NDVI 0.1-0.2 - Severe stress",
+            "critical": "NDVI < 0.1 - Critical condition"
+        }
+    }
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
