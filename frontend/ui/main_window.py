@@ -34,6 +34,7 @@ from ui.screens.equipment_management import EquipmentManagementScreen
 from ui.screens.inventory_management import InventoryManagementScreen
 from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
 from ui.screens.reports_dashboard import ReportsDashboardScreen
+from ui.screens.quickbooks_import import QuickBooksImportScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -445,6 +446,10 @@ class MainWindow(QMainWindow):
         reports_screen = ReportsDashboardScreen(current_user=self._current_user)
         self._add_screen("reports", reports_screen)
 
+        # QuickBooks Import Screen (v2.9) - All users
+        qb_import_screen = QuickBooksImportScreen(current_user=self._current_user)
+        self._add_screen("quickbooks", qb_import_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -525,6 +530,7 @@ class MainWindow(QMainWindow):
                 "inventory": "Inventory Management",
                 "maintenance": "Maintenance Schedule",
                 "reports": "Reports & Analytics",
+                "quickbooks": "QuickBooks Import",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",

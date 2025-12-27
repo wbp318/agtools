@@ -149,6 +149,10 @@ class Sidebar(QFrame):
         nav_layout.addWidget(SectionHeader("Analytics"))
         self._add_nav_item(nav_layout, "Reports", icon="\u2637")  # Chart/analytics
 
+        # Import Section (v2.9)
+        nav_layout.addWidget(SectionHeader("Import"))
+        self._add_nav_item(nav_layout, "QuickBooks", icon="\u21E9")  # Download arrow
+
         # Spacer
         nav_layout.addSpacerItem(
             QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
