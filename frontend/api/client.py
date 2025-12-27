@@ -263,6 +263,30 @@ class APIClient:
         except Exception as e:
             return self._handle_exception(e)
 
+    def post_file(
+        self,
+        endpoint: str,
+        files: dict,
+        data: Optional[dict] = None
+    ) -> APIResponse:
+        """
+        Make a POST request with file upload.
+
+        Args:
+            endpoint: API endpoint
+            files: Dict of field_name -> (filename, file_object, content_type)
+            data: Optional form data fields
+
+        Returns:
+            APIResponse with the result
+        """
+        try:
+            client = self._get_client()
+            response = client.post(endpoint, files=files, data=data)
+            return self._handle_response(response)
+        except Exception as e:
+            return self._handle_exception(e)
+
     # -------------------------------------------------------------------------
     # Offline-Capable Methods
     # -------------------------------------------------------------------------
