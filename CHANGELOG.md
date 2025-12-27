@@ -1864,7 +1864,37 @@ AgTools v2.5.0
   - [x] Phase 3: Field Operations & Logging **DONE**
   - [x] Phase 4: Equipment & Inventory Tracking **DONE**
   - [x] Phase 5: Reporting & Analytics Dashboard **DONE**
-- [ ] **John Deere Operations Center Integration** (v2.6 - requires JD Developer Account approval)
+
+- [ ] **AI/ML Intelligence Suite (v3.0)** 🧠 **IN PROGRESS**
+  - [ ] Phase 1: Image-Based Pest/Disease Identification
+    - Train CNN model on crop pest/disease images
+    - Users upload photo → instant AI identification
+    - Transfer learning from pre-trained models (ResNet/EfficientNet)
+    - Confidence scoring with top-3 predictions
+    - Integration with existing pest/disease knowledge base
+  - [ ] Phase 2: Crop Health Scoring from Imagery
+    - Process drone/satellite field imagery
+    - NDVI and vegetation index analysis
+    - Problem area detection and mapping
+    - Health score generation per field zone
+    - Treatment recommendations based on detected issues
+  - [ ] Phase 3: Yield Prediction Model
+    - Train on historical field data (inputs, weather, yields)
+    - Predict expected yield based on current season inputs
+    - Factor in weather patterns, soil conditions, input rates
+    - Help with marketing/pricing decisions
+  - [ ] Phase 4: Smart Expense Categorization
+    - Auto-categorize expenses from descriptions
+    - Improve QuickBooks import accuracy
+    - Learn from user corrections over time
+    - Vendor recognition and pattern matching
+  - [ ] Phase 5: Weather-Based Spray AI Enhancement
+    - ML-enhanced spray timing predictions
+    - Learn from historical spray success/failure data
+    - Factor in micro-climate patterns
+    - Optimize application windows
+
+- [ ] **John Deere Operations Center Integration** (v2.10 - requires JD Developer Account approval)
   - [ ] JD API Client & OAuth Authentication
   - [ ] Field Boundary Sync
   - [ ] Yield/Harvest Data Import
@@ -1875,7 +1905,7 @@ AgTools v2.5.0
 - [x] ~~Phase 9: Polish & Testing~~ **DONE v2.4** (PyQt6 frontend complete!)
 - [ ] Custom vs. hire equipment decision engine
 - [ ] Carbon credit / sustainability ROI calculator
-- [ ] Mobile app / frontend web interface
+- [ ] Mobile app / frontend web interface (React SPA - planned)
 - [ ] Climate FieldView integration (future)
 
 ---
