@@ -25,13 +25,33 @@ We offer commercial licensing options:
 
 **Contact:** See [LICENSE](LICENSE) for full terms and contact information.
 
-**Copyright © 2024 New Generation Farms. All Rights Reserved.**
+**Copyright © 2025 New Generation Farms. All Rights Reserved.**
 
 ---
 
 ## 🌾 Overview
 
-**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, and complete decision support for corn and soybean production.
+**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, and complete decision support for corn and soybean production.
+
+**Version 2.9.0** adds **QuickBooks Import** - direct import from QuickBooks exports:
+- **Auto-detect** QB Desktop and Online export formats
+- **73 default mappings** for common farm expense accounts
+- **Smart filtering** skips deposits/transfers (expenses only)
+- **Duplicate detection** prevents re-importing same transactions
+- **Saved mappings** for one-click future imports
+- **Desktop UI** with file browser, preview, and mapping editor
+
+**Version 2.8.0** adds **Profitability Analysis** for financial decision support:
+- **Break-even analysis** for yield and price thresholds
+- **Input ROI ranking** to identify best/worst investments
+- **Scenario modeling** for price and yield changes
+- **Budget management** with overage alerts
+
+**Version 2.7.0** adds **Cost Per Acre Tracking** for expense management:
+- **CSV import** with flexible column mapping
+- **OCR scanning** for receipts and invoices
+- **Expense allocation** to fields by percentage
+- **Cost-per-acre reports** by field, crop, and category
 
 **Version 2.6.0** adds **Mobile Crew Interface** - a PWA mobile web interface for field crews:
 - **Mobile login** with cookie-based session authentication
@@ -207,13 +227,28 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
    - **5 Response Models**: Quadratic, quadratic-plateau, linear-plateau, Mitscherlich, square-root
    - **Soil Test Adjustments**: Rates adjusted based on soil test levels (very low to very high)
 
-10. **John Deere Operations Center Integration (Planned for v2.7)**
+10. **Cost Per Acre Tracking (v2.7)**
+    - **CSV Import**: Flexible column mapping for any expense data format
+    - **OCR Scanning**: Extract expenses from scanned receipts
+    - **Expense Allocation**: Split costs across multiple fields by percentage
+    - **Cost Reports**: Cost-per-acre by field, crop, and category
+
+11. **Profitability Analysis (v2.8)**
+    - **Break-Even Analysis**: Calculate yield/price thresholds
+    - **Input ROI Ranking**: Identify best and worst investments
+    - **Scenario Modeling**: What-if analysis for prices and yields
+    - **Budget Management**: Track spending with overage alerts
+
+12. **QuickBooks Import (v2.9)**
+    - **Format Detection**: Auto-detect QB Desktop and Online exports
+    - **Account Mapping**: 73 default mappings for farm accounts
+    - **Smart Filtering**: Auto-skip deposits/transfers (expenses only)
+    - **Desktop UI**: File browser, preview, and mapping editor
+
+13. **John Deere Operations Center Integration (Future)**
     - **Field Boundary Import**: Auto-populate fields from JD Ops Center account
-    - **Yield Map Integration**: Historical yield data by zone for precision recommendations
-    - **Application History**: Track what was actually applied for compliance & ROI validation
-    - **Zone-Specific Recommendations**: Variable rate suggestions based on yield zones
-    - **OAuth Authentication**: Secure connection to your JD account
-    - *Note: Deferred to v2.7 pending JD Developer Account approval*
+    - **Yield Map Integration**: Historical yield data by zone
+    - *Note: Pending JD Developer Account approval*
 
 ## 💰 Business Value
 
@@ -251,7 +286,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.6 - 3600+ lines, 112 endpoints)
+│   ├── main.py                       # FastAPI application (v2.9 - 4200+ lines, 179 endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   ├── mobile/                       # Mobile crew interface (NEW v2.6)
 │   │   ├── __init__.py               # Mobile module exports
@@ -292,7 +327,10 @@ agtools/
 │       ├── inventory_service.py      # Inventory tracking (v2.5)
 │       ├── reporting_service.py      # Reports & analytics (v2.5)
 │       ├── time_entry_service.py     # Time logging service (v2.6)
-│       └── photo_service.py          # Photo upload service (v2.6)
+│       ├── photo_service.py          # Photo upload service (v2.6)
+│       ├── cost_tracking_service.py  # Cost per acre tracking (v2.7)
+│       ├── profitability_service.py  # Profitability analysis (v2.8)
+│       └── quickbooks_import.py      # QuickBooks import (v2.9)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -314,7 +352,8 @@ agtools/
 │   │   ├── operations_api.py         # Operations logging (v2.5)
 │   │   ├── equipment_api.py          # Equipment management (v2.5)
 │   │   ├── inventory_api.py          # Inventory management (v2.5)
-│   │   └── reports_api.py            # Reports & analytics (v2.5)
+│   │   ├── reports_api.py            # Reports & analytics (v2.5)
+│   │   └── quickbooks_api.py         # QuickBooks import (v2.9)
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
@@ -354,7 +393,8 @@ agtools/
 │           ├── pest_identification.py    # Pest ID screen
 │           ├── disease_identification.py # Disease ID screen
 │           ├── settings.py           # Settings screen
-│           └── reports_dashboard.py  # Reports & analytics (v2.5)
+│           ├── reports_dashboard.py  # Reports & analytics (v2.5)
+│           └── quickbooks_import.py  # QuickBooks import (v2.9)
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
@@ -493,7 +533,7 @@ agtools/
 | `GET /api/v1/reports/dashboard` | **Combined dashboard summary** |
 | `POST /api/v1/reports/export/csv` | **Export report data to CSV** |
 
-### Mobile Crew Interface (NEW in v2.6)
+### Mobile Crew Interface (v2.6)
 | Route | Purpose |
 |-------|---------|
 | `GET /m/login` | Mobile login page |
@@ -505,6 +545,39 @@ agtools/
 | `POST /m/tasks/{id}/time` | **Log time worked** |
 | `POST /m/tasks/{id}/photo` | **Upload photo with GPS** |
 | `GET /m/offline` | Offline fallback page |
+
+### Cost Per Acre Tracking (v2.7)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/costs/expenses` | **List all expenses** |
+| `POST /api/v1/costs/expenses` | Create expense |
+| `POST /api/v1/costs/import/csv/preview` | Preview CSV import |
+| `POST /api/v1/costs/import/csv` | **Import from CSV** |
+| `POST /api/v1/costs/import/ocr` | OCR scan receipt |
+| `POST /api/v1/costs/allocations` | Allocate expense to fields |
+| `GET /api/v1/costs/reports/per-acre` | **Cost per acre report** |
+| `GET /api/v1/costs/reports/by-category` | Category breakdown |
+| `GET /api/v1/costs/reports/by-field` | Field cost summary |
+
+### Profitability Analysis (v2.8)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/profitability/break-even` | **Break-even analysis** |
+| `POST /api/v1/profitability/input-roi` | **Input ROI ranking** |
+| `POST /api/v1/profitability/scenario` | Scenario modeling |
+| `GET /api/v1/profitability/budget/{field_id}` | Field budget status |
+| `POST /api/v1/profitability/budget` | Create/update budget |
+
+### QuickBooks Import (NEW in v2.9)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/quickbooks/preview` | **Preview QB export** |
+| `POST /api/v1/quickbooks/import` | **Import with mappings** |
+| `GET /api/v1/quickbooks/mappings` | Get saved mappings |
+| `POST /api/v1/quickbooks/mappings` | Save account mappings |
+| `DELETE /api/v1/quickbooks/mappings/{id}` | Delete mapping |
+| `GET /api/v1/quickbooks/formats` | List supported formats |
+| `GET /api/v1/quickbooks/default-mappings` | View default mappings |
 
 Visit http://localhost:8000/docs for interactive API documentation.
 Visit http://localhost:8000/m/login for the mobile crew interface.
