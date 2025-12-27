@@ -34,6 +34,7 @@ Think of AgTools as your **digital agronomist** that:
 17. **Reports & Analytics** (v2.5.0) - 4-tab dashboard with charts and CSV export for operations, financials, equipment, and field performance
 18. **Mobile Crew Interface** (v2.6.0) - PWA mobile web app for field crews with task list, time logging, photo uploads, and offline support
 19. **Cost Per Acre Tracking** (v2.7.0) - Import expenses from QuickBooks CSV or scanned receipts, allocate to fields, get cost-per-acre reports
+20. **QuickBooks Import** (v2.9.0) - Direct QuickBooks export import with auto-format detection, account-to-category mapping, and smart filtering
 
 ---
 
@@ -1209,6 +1210,118 @@ Next time you import, you can use **"GET /api/v1/costs/mappings"** to retrieve y
 
 ---
 
+## 🆕 QUICKBOOKS IMPORT (NEW in v2.9)
+
+Direct import from QuickBooks exports with automatic format detection, smart account mapping, and expense filtering.
+
+### 📥 Why Use QuickBooks Import?
+
+The v2.7 cost tracking requires manual column mapping for each CSV. The v2.9 QuickBooks Import:
+- **Auto-detects** your QuickBooks export format (Desktop or Online)
+- **Auto-maps** your QB accounts to AgTools expense categories
+- **Auto-filters** to expenses only (skips deposits, transfers, invoices)
+- **Saves your mappings** for one-click future imports
+
+### 📋 Supported QuickBooks Formats
+
+| Format | How to Export |
+|--------|---------------|
+| QB Desktop - Transaction Detail | Reports → Transaction Detail by Account → Export CSV |
+| QB Desktop - Transaction List | Reports → Transaction List by Date → Export CSV |
+| QB Desktop - Check Detail | Reports → Check Detail → Export CSV |
+| QB Online | Transactions → Export → CSV |
+
+### 📥 Step 1: Preview Your QuickBooks Export
+
+1. Find **"POST /api/v1/quickbooks/preview"**
+2. Upload your QuickBooks CSV file
+3. Click **"Execute"**
+
+**What you get:**
+- **Format detected**: Which QB export type was recognized
+- **Expense rows**: How many expense transactions found
+- **Skipped rows**: How many non-expense transactions (deposits, transfers) will be skipped
+- **Accounts found**: List of your QB accounts with suggested category mappings
+- **Unmapped accounts**: Accounts that need manual mapping
+
+**Example preview:**
+```
+Format: desktop_transaction_detail
+Total rows: 250
+Expense rows: 180
+Skipped: 70 (deposits, transfers)
+
+Accounts found:
+  Farm Expense:Seed       → seed (suggested)
+  Farm Expense:Fertilizer → fertilizer (suggested)
+  Farm Expense:Chemical   → chemical (suggested)
+  Equipment Repair        → repairs (suggested)
+  Custom Work             → NOT MAPPED (needs assignment)
+```
+
+### 📥 Step 2: Import with Account Mappings
+
+1. Find **"POST /api/v1/quickbooks/import"**
+2. Upload your CSV file
+3. Provide account mappings as JSON:
+```json
+{
+  "Farm Expense:Seed": "seed",
+  "Farm Expense:Fertilizer": "fertilizer",
+  "Farm Expense:Chemical": "chemical",
+  "Equipment Repair": "repairs",
+  "Custom Work": "custom_hire"
+}
+```
+4. Click **"Execute"**
+
+**What you get:**
+- **Successful imports**: Number of expenses created
+- **Skipped**: Non-expense transactions and duplicates
+- **By category**: Breakdown of imports by category
+- **Total amount**: Sum of all imported expenses
+
+### 📋 Default Account Mappings
+
+The system includes 73 default mappings for common farm accounts:
+
+| QB Account Pattern | AgTools Category |
+|-------------------|------------------|
+| seed, pioneer, dekalb, asgrow | seed |
+| fertilizer, fert, urea, dap, potash | fertilizer |
+| chemical, herbicide, insecticide, fungicide | chemical |
+| fuel, diesel, gasoline | fuel |
+| repair, maintenance, parts | repairs |
+| labor, payroll, wages | labor |
+| custom hire, aerial, trucking | custom_hire |
+| land rent, cash rent, lease | land_rent |
+| crop insurance | crop_insurance |
+| interest, loan | interest |
+| utilities, electric, water | utilities |
+| storage, drying, elevator | storage |
+
+### 💾 Saving Your Mappings
+
+Your account mappings are automatically saved after each import. For future imports:
+
+1. Find **"GET /api/v1/quickbooks/mappings"** - View your saved mappings
+2. Next import will auto-suggest using your saved mappings
+3. Update mappings: **"POST /api/v1/quickbooks/mappings"**
+4. Delete a mapping: **"DELETE /api/v1/quickbooks/mappings/{id}"**
+
+### 📋 QuickBooks Import Workflow
+
+1. **Export from QuickBooks** - Transaction Detail by Account works best
+2. **Preview** - Upload to `/api/v1/quickbooks/preview`
+3. **Review mappings** - Check suggested categories, map any unmapped accounts
+4. **Import** - Upload to `/api/v1/quickbooks/import` with your mappings
+5. **Allocate to fields** - Use cost tracking endpoints to assign expenses to fields
+6. **View reports** - See cost-per-acre by field, crop, and category
+
+**Best Practice:** Run QuickBooks exports quarterly and import to stay current on your costs.
+
+---
+
 ### 📋 Quick Reference: Cost Tracking Workflow
 
 1. **Export from QuickBooks** - Get your expenses as CSV
@@ -1630,6 +1743,8 @@ A printable table you can take to the field:
 11. **What's my actual cost per acre by field?** (v2.7)
 12. **Where are my biggest expense categories?** (v2.7)
 13. **How do my costs compare year-over-year?** (v2.7)
+14. **How do I get my QuickBooks data into AgTools?** (v2.9)
+15. **What accounts do I map to what categories?** (v2.9)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 

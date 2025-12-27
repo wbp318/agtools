@@ -35,6 +35,18 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Photo Capture**: Upload photos with GPS coordinates and captions
     - **PWA Support**: Install as app with offline fallback page
     - **Responsive CSS**: Mobile-first design with touch-friendly interactions
+15. **Cost Per Acre Tracking (v2.7.0)**: Import and track farm expenses:
+    - **CSV Import**: Flexible column mapping for any CSV format
+    - **OCR Scanning**: Extract expenses from scanned receipts
+    - **Category Auto-Detection**: Intelligently categorize expenses
+    - **Allocation Management**: Split expenses across multiple fields
+    - **Cost Reports**: Cost-per-acre by field, crop, and category
+16. **QuickBooks Import (v2.9.0)**: Direct import from QuickBooks:
+    - **Format Detection**: Auto-detect QB Desktop and Online export formats
+    - **Account Mapping**: 73 default mappings for common farm accounts
+    - **Smart Filtering**: Auto-skip deposits, transfers, invoices (expenses only)
+    - **Duplicate Detection**: Prevent re-importing same transactions
+    - **Saved Mappings**: Remember your account-to-category mappings
 
 ---
 
@@ -48,7 +60,7 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application (v2.6 - 3600+ lines, 110+ endpoints)
+│   ├── main.py                             # FastAPI application (v2.9 - 4000+ lines, 179 endpoints)
 │   ├── requirements.txt                    # Backend dependencies
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
@@ -73,7 +85,9 @@ agtools/
 │       ├── inventory_service.py            # Inventory tracking (v2.5)
 │       ├── reporting_service.py            # Reports & analytics (v2.5)
 │       ├── time_entry_service.py           # Time logging for crew (v2.6)
-│       └── photo_service.py                # Task photo uploads (v2.6)
+│       ├── photo_service.py                # Task photo uploads (v2.6)
+│       ├── cost_tracking_service.py        # Cost per acre tracking (v2.7)
+│       └── quickbooks_import.py            # QuickBooks import (v2.9)
 │   ├── middleware/
 │   │   └── auth_middleware.py              # Protected routes (v2.5)
 │   ├── mobile/                             # Mobile Web Interface (v2.6)
@@ -3704,6 +3718,115 @@ CREATE INDEX idx_task_photos_task ON task_photos(task_id);
 
 ---
 
+## 📥 QUICKBOOKS IMPORT (v2.9.0)
+
+Direct import from QuickBooks exports with automatic format detection, intelligent account mapping, and smart transaction filtering.
+
+### Why QuickBooks Import?
+
+Most farms use QuickBooks for accounting. The v2.9 QuickBooks Import eliminates manual data entry by:
+- **Auto-detecting** your QuickBooks export format
+- **Auto-mapping** QB accounts to expense categories
+- **Auto-filtering** to expenses only (skips deposits/transfers)
+- **Saving mappings** for one-click future imports
+
+### Supported QuickBooks Formats
+
+| Format | Export Method |
+|--------|---------------|
+| QB Desktop - Transaction Detail | Reports → Transaction Detail by Account → Export to Excel/CSV |
+| QB Desktop - Transaction List | Reports → Transaction List by Date → Export |
+| QB Desktop - Check Detail | Reports → Check Detail → Export |
+| QB Online | Transactions → Export |
+
+### API Endpoints
+
+**Preview Import:**
+```
+POST /api/v1/quickbooks/preview
+Content-Type: multipart/form-data
+file: <your_qb_export.csv>
+```
+
+Returns format detected, expense rows, skipped rows, accounts with suggested mappings.
+
+**Import Data:**
+```
+POST /api/v1/quickbooks/import
+Content-Type: multipart/form-data
+file: <your_qb_export.csv>
+account_mappings: {"Farm Expense:Seed": "seed", "Farm Expense:Fertilizer": "fertilizer"}
+tax_year: 2025 (optional)
+save_mappings: true
+```
+
+**Manage Mappings:**
+```
+GET /api/v1/quickbooks/mappings        # Get saved mappings
+POST /api/v1/quickbooks/mappings       # Save new mappings
+DELETE /api/v1/quickbooks/mappings/{id} # Delete a mapping
+```
+
+**Reference:**
+```
+GET /api/v1/quickbooks/formats          # List supported formats
+GET /api/v1/quickbooks/default-mappings # View default account mappings
+```
+
+### Default Account Mappings
+
+73 built-in mappings for common farm accounts:
+
+| Account Pattern | Category |
+|----------------|----------|
+| seed, pioneer, dekalb, asgrow | seed |
+| fertilizer, fert, urea, dap, potash, anhydrous | fertilizer |
+| chemical, herbicide, insecticide, fungicide, roundup | chemical |
+| fuel, diesel, gasoline, gas | fuel |
+| repair, maintenance, parts | repairs |
+| labor, payroll, wages, salaries | labor |
+| custom hire, aerial, trucking, hauling | custom_hire |
+| land rent, cash rent, farm rent, lease | land_rent |
+| crop insurance, farm insurance | crop_insurance |
+| interest, loan, bank charges | interest |
+| utilities, electric, water, phone | utilities |
+| storage, drying, elevator, bin rent | storage |
+
+### Import Workflow
+
+1. **Export from QuickBooks** - Transaction Detail by Account works best
+2. **Preview** - `POST /api/v1/quickbooks/preview` to see what will import
+3. **Map accounts** - Review suggested mappings, add any missing
+4. **Import** - `POST /api/v1/quickbooks/import` with your mappings
+5. **Allocate** - Use cost tracking to assign expenses to fields
+6. **Report** - View cost-per-acre by field, crop, category
+
+### Transaction Filtering
+
+The import automatically skips non-expense transactions:
+- **Imported**: Bill, Check, Credit Card Charge, Expense, Purchase Order
+- **Skipped**: Deposit, Transfer, Invoice, Payment, Sales Receipt, Journal Entry
+
+### Duplicate Prevention
+
+Expenses are deduplicated by:
+- Reference number (check/invoice number)
+- Transaction date
+- Amount
+
+Re-importing the same file won't create duplicates.
+
+### Files
+
+**New:**
+- `backend/services/quickbooks_import.py` (~750 lines)
+- `tests/test_quickbooks_import.py` (~200 lines)
+
+**Modified:**
+- `backend/main.py` - Added 7 QuickBooks endpoints
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -3736,6 +3859,21 @@ You now have a **professional-grade foundation** for a crop consulting business 
   - Capture GPS-tagged photos with captions
   - PWA support with offline fallback page
   - No app install required - works in mobile browsers
+- **Track cost per acre** with Cost Tracking (v2.7.0):
+  - Import expenses from CSV with flexible column mapping
+  - OCR scanning for receipts and invoices
+  - Allocate expenses to fields by percentage
+  - Cost-per-acre reports by field, crop, and category
+- **Analyze profitability** with Profitability Analysis (v2.8.0):
+  - Break-even yield and price calculations
+  - Input ROI ranking to identify best/worst investments
+  - Scenario modeling for price and yield changes
+  - Budget management with overage alerts
+- **Import from QuickBooks** directly (v2.9.0):
+  - Auto-detect QB Desktop and Online export formats
+  - 73 default account-to-category mappings for farms
+  - Smart filtering skips deposits, transfers, invoices
+  - Save mappings for one-click future imports
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -3754,7 +3892,10 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.4.0 | Dec 2025 | Settings screen (4 tabs), common widget library (7 widgets), integration tests |
 | 2.5.0 | Dec 2025 | **Farm Operations Manager** - Multi-user auth, task/field/equipment/inventory management, operations logging, maintenance scheduling, reporting dashboard with 101 API endpoints |
 | 2.6.0 | Dec 2025 | **Mobile/Crew Interface** - Mobile web routes, task list/detail views, time logging, photo capture with GPS, PWA support with service worker, cookie-based auth |
-| 2.7.0 | Coming | John Deere Ops Center integration (field boundaries, yield maps, application history) |
+| 2.7.0 | Dec 2025 | **Cost Per Acre Tracking** - CSV import with column mapping, OCR receipt scanning, expense allocation to fields, cost-per-acre reports by field/crop/category |
+| 2.8.0 | Dec 2025 | **Profitability Analysis** - Break-even calculations, input ROI ranking, scenario modeling, budget management |
+| 2.9.0 | Dec 2025 | **QuickBooks Import** - Auto-detect QB formats, 73 default account mappings, smart filtering, duplicate detection, saved mappings |
+| Future | TBD | John Deere Ops Center integration (requires JD Developer Account approval) |
 
 ---
 
