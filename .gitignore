@@ -166,3 +166,8 @@ exports/
 # Frontend settings/cache
 frontend/agtools_settings.json
 frontend/*.db
+
+# Docker
+docker-compose.override.yml
+data/
+uploads/

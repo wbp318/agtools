@@ -1,0 +1,77 @@
+# AgTools - Docker Compose Configuration
+# Run: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # Backend API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agtools-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://agtools:agtools@db:5432/agtools
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - FROM_EMAIL=${FROM_EMAIL:-agtools@example.com}
+      - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN:-}
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: agtools-db
+    environment:
+      - POSTGRES_USER=agtools
+      - POSTGRES_PASSWORD=agtools
+      - POSTGRES_DB=agtools
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agtools"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: agtools-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@agtools.local
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+    profiles:
+      - admin
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: agtools-network

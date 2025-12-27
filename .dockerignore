@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+.eggs
+*.egg
+.pytest_cache
+.coverage
+htmlcov
+
+# Virtual environments
+venv
+.venv
+ENV
+env
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.db
+*.sqlite3
+.env
+*.log
+/data/*
+/uploads/*
+/frontend/
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Tests
+tests/
+*_test.py
+test_*.py
+
+# Local development
+docker-compose.override.yml
