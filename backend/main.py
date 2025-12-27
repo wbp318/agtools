@@ -5300,6 +5300,202 @@ async def get_pdf_report_types():
 
 
 # ============================================================================
+# EMAIL NOTIFICATIONS (v3.1)
+# ============================================================================
+
+try:
+    from services.email_notification_service import (
+        get_email_notification_service, NotificationType, NotificationPriority
+    )
+    EMAIL_SERVICE_AVAILABLE = True
+except ImportError:
+    EMAIL_SERVICE_AVAILABLE = False
+
+
+@app.post("/api/v1/notifications/send", tags=["Notifications"])
+async def send_notification(
+    notification_type: str = Form(...),
+    recipients: str = Form(...),
+    data: str = Form(...),
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Send a notification email (Manager+ only)"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+
+    service = get_email_notification_service()
+
+    try:
+        notif_type = NotificationType(notification_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid type: {notification_type}")
+
+    try:
+        data_dict = json.loads(data)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    recipient_list = [r.strip() for r in recipients.split(",") if r.strip()]
+    notification = service.create_notification(notif_type, recipient_list, data_dict)
+    return await service.send_notification(notification)
+
+
+@app.post("/api/v1/notifications/maintenance", tags=["Notifications"])
+async def send_maintenance_notification(
+    recipients: str = Form(...),
+    equipment_name: str = Form(...),
+    maintenance_type: str = Form(...),
+    due_date: str = Form(...),
+    current_hours: float = Form(0),
+    is_overdue: bool = Form(False),
+    days_overdue: int = Form(0),
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Send maintenance alert email"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+
+    service = get_email_notification_service()
+    recipient_list = [r.strip() for r in recipients.split(",") if r.strip()]
+
+    return await service.send_maintenance_alert(
+        recipients=recipient_list,
+        equipment_name=equipment_name,
+        maintenance_type=maintenance_type,
+        due_date=due_date,
+        current_hours=current_hours,
+        is_overdue=is_overdue,
+        days_overdue=days_overdue
+    )
+
+
+@app.post("/api/v1/notifications/low-stock", tags=["Notifications"])
+async def send_low_stock_notification(
+    recipients: str = Form(...),
+    item_name: str = Form(...),
+    category: str = Form(...),
+    current_qty: float = Form(...),
+    reorder_point: float = Form(...),
+    unit: str = Form(""),
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Send low stock alert email"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+
+    service = get_email_notification_service()
+    recipient_list = [r.strip() for r in recipients.split(",") if r.strip()]
+
+    return await service.send_low_stock_alert(
+        recipients=recipient_list,
+        item_name=item_name,
+        category=category,
+        current_qty=current_qty,
+        reorder_point=reorder_point,
+        unit=unit
+    )
+
+
+@app.post("/api/v1/notifications/spray-window", tags=["Notifications"])
+async def send_spray_window_notification(
+    recipients: str = Form(...),
+    field_name: str = Form(...),
+    target_pest: str = Form(...),
+    product_name: str = Form(...),
+    temperature: float = Form(...),
+    wind_speed: float = Form(...),
+    humidity: float = Form(...),
+    rain_forecast: str = Form("None expected"),
+    window_start: str = Form(...),
+    window_end: str = Form(...),
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Send spray window alert email"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+
+    service = get_email_notification_service()
+    recipient_list = [r.strip() for r in recipients.split(",") if r.strip()]
+
+    return await service.send_spray_window_alert(
+        recipients=recipient_list,
+        field_name=field_name,
+        target_pest=target_pest,
+        product_name=product_name,
+        temperature=temperature,
+        wind_speed=wind_speed,
+        humidity=humidity,
+        rain_forecast=rain_forecast,
+        window_start=window_start,
+        window_end=window_end
+    )
+
+
+@app.post("/api/v1/notifications/task-assigned", tags=["Notifications"])
+async def send_task_notification(
+    recipients: str = Form(...),
+    task_title: str = Form(...),
+    priority: str = Form("normal"),
+    due_date: str = Form(...),
+    assigned_by: str = Form(...),
+    description: str = Form(""),
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Send task assigned notification"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+
+    service = get_email_notification_service()
+    recipient_list = [r.strip() for r in recipients.split(",") if r.strip()]
+
+    return await service.send_task_assigned_alert(
+        recipients=recipient_list,
+        task_title=task_title,
+        priority=priority,
+        due_date=due_date,
+        assigned_by=assigned_by,
+        description=description
+    )
+
+
+@app.post("/api/v1/notifications/daily-digest", tags=["Notifications"])
+async def send_daily_digest_notification(
+    recipients: str = Form(...),
+    tasks_due: int = Form(0),
+    maintenance_alerts: int = Form(0),
+    low_stock_count: int = Form(0),
+    expiring_count: int = Form(0),
+    details: str = Form(""),
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Send daily digest email"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Email service not available")
+
+    service = get_email_notification_service()
+    recipient_list = [r.strip() for r in recipients.split(",") if r.strip()]
+
+    return await service.send_daily_digest(
+        recipients=recipient_list,
+        tasks_due=tasks_due,
+        maintenance_alerts=maintenance_alerts,
+        low_stock_count=low_stock_count,
+        expiring_count=expiring_count,
+        details=details
+    )
+
+
+@app.get("/api/v1/notifications/types", tags=["Notifications"])
+async def get_notification_types():
+    """Get list of available notification types"""
+    if not EMAIL_SERVICE_AVAILABLE:
+        return {"available": False, "types": []}
+
+    service = get_email_notification_service()
+    return {"available": True, "types": service.get_notification_types()}
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
@@ -5308,6 +5504,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,  # Auto-reload during development
+        reload=True,
         log_level="info"
     )
