@@ -5496,6 +5496,243 @@ async def get_notification_types():
 
 
 # ============================================================================
+# DATA EXPORT ENDPOINTS
+# ============================================================================
+
+# Check if export service is available
+try:
+    from services.data_export_service import get_data_export_service, ExportFormat
+    EXPORT_SERVICE_AVAILABLE = True
+except ImportError:
+    EXPORT_SERVICE_AVAILABLE = False
+
+
+@app.get("/api/v1/export/fields/{format}", tags=["Export"])
+async def export_fields(
+    format: str,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Export all fields to CSV or Excel"""
+    if not EXPORT_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Export service not available")
+
+    from fastapi.responses import Response
+    service = get_data_export_service()
+    field_service = get_field_service()
+
+    fields = field_service.list_fields()
+    field_data = [f.dict() for f in fields]
+
+    export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
+
+    if export_format == ExportFormat.EXCEL:
+        content = service.export_fields(field_data, export_format)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=fields.xlsx"}
+        )
+    else:
+        content = service.export_fields(field_data, export_format)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=fields.csv"}
+        )
+
+
+@app.get("/api/v1/export/equipment/{format}", tags=["Export"])
+async def export_equipment(
+    format: str,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Export all equipment to CSV or Excel"""
+    if not EXPORT_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Export service not available")
+
+    from fastapi.responses import Response
+    service = get_data_export_service()
+    equip_service = get_equipment_service()
+
+    equipment = equip_service.list_equipment()
+    equip_data = [e.dict() for e in equipment]
+
+    export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
+
+    if export_format == ExportFormat.EXCEL:
+        content = service.export_equipment(equip_data, export_format)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=equipment.xlsx"}
+        )
+    else:
+        content = service.export_equipment(equip_data, export_format)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=equipment.csv"}
+        )
+
+
+@app.get("/api/v1/export/inventory/{format}", tags=["Export"])
+async def export_inventory(
+    format: str,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Export all inventory items to CSV or Excel"""
+    if not EXPORT_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Export service not available")
+
+    from fastapi.responses import Response
+    service = get_data_export_service()
+    inv_service = get_inventory_service()
+
+    items = inv_service.list_items()
+    item_data = [i.dict() for i in items]
+
+    export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
+
+    if export_format == ExportFormat.EXCEL:
+        content = service.export_inventory(item_data, export_format)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=inventory.xlsx"}
+        )
+    else:
+        content = service.export_inventory(item_data, export_format)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=inventory.csv"}
+        )
+
+
+@app.get("/api/v1/export/tasks/{format}", tags=["Export"])
+async def export_tasks(
+    format: str,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Export all tasks to CSV or Excel"""
+    if not EXPORT_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Export service not available")
+
+    from fastapi.responses import Response
+    service = get_data_export_service()
+    task_service = get_task_service()
+
+    tasks = task_service.list_tasks()
+    task_data = [t.dict() for t in tasks]
+
+    export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
+
+    if export_format == ExportFormat.EXCEL:
+        content = service.export_tasks(task_data, export_format)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=tasks.xlsx"}
+        )
+    else:
+        content = service.export_tasks(task_data, export_format)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=tasks.csv"}
+        )
+
+
+@app.post("/api/v1/export/custom/{format}", tags=["Export"])
+async def export_custom_data(
+    format: str,
+    data: List[Dict[str, Any]],
+    columns: Optional[List[str]] = None,
+    sheet_name: str = "Data",
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Export custom data to CSV or Excel"""
+    if not EXPORT_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Export service not available")
+
+    from fastapi.responses import Response
+    from services.data_export_service import ExportConfig
+    service = get_data_export_service()
+
+    config = ExportConfig(sheet_name=sheet_name)
+    export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
+
+    if export_format == ExportFormat.EXCEL:
+        content = service.export_to_excel(data, columns, config)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={sheet_name.lower().replace(' ', '_')}.xlsx"}
+        )
+    else:
+        content = service.export_to_csv(data, columns, config)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={sheet_name.lower().replace(' ', '_')}.csv"}
+        )
+
+
+@app.get("/api/v1/export/full-report/{format}", tags=["Export"])
+async def export_full_farm_report(
+    format: str,
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """Export full farm report with all data (Excel only, multiple sheets)"""
+    if not EXPORT_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Export service not available")
+
+    if format.lower() != "excel":
+        raise HTTPException(status_code=400, detail="Full report only available in Excel format")
+
+    from fastapi.responses import Response
+    service = get_data_export_service()
+
+    # Gather all data
+    field_service = get_field_service()
+    equip_service = get_equipment_service()
+    inv_service = get_inventory_service()
+    task_service = get_task_service()
+
+    sheets = {
+        "Fields": [f.dict() for f in field_service.list_fields()],
+        "Equipment": [e.dict() for e in equip_service.list_equipment()],
+        "Inventory": [i.dict() for i in inv_service.list_items()],
+        "Tasks": [t.dict() for t in task_service.list_tasks()],
+    }
+
+    content = service.export_multi_sheet(sheets)
+
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=farm_report.xlsx"}
+    )
+
+
+@app.get("/api/v1/export/status", tags=["Export"])
+async def get_export_status():
+    """Check export service availability"""
+    return {
+        "available": EXPORT_SERVICE_AVAILABLE,
+        "formats": ["csv", "excel"] if EXPORT_SERVICE_AVAILABLE else [],
+        "endpoints": [
+            "/api/v1/export/fields/{format}",
+            "/api/v1/export/equipment/{format}",
+            "/api/v1/export/inventory/{format}",
+            "/api/v1/export/tasks/{format}",
+            "/api/v1/export/custom/{format}",
+            "/api/v1/export/full-report/excel"
+        ] if EXPORT_SERVICE_AVAILABLE else []
+    }
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 

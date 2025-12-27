@@ -1,14 +1,14 @@
 # Full Smoke Test Results - AgTools v3.1
 
-**Date:** 2025-12-27 12:09:11
-**Duration:** 3.51 seconds
+**Date:** 2025-12-27 12:35:27
+**Duration:** 3.98 seconds
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Tests | 83 |
-| Passed | 83 |
+| Total Tests | 90 |
+| Passed | 90 |
 | Failed | 0 |
 | **Pass Rate** | **100.0%** |
 
@@ -67,11 +67,23 @@
 | Notification has subject | ✅ Pass | - |
 | Notification has body | ✅ Pass | - |
 
+### Export (7/7 passed)
+
+| Test | Status | Details |
+|------|--------|--------|
+| DataExportService import | ✅ Pass | - |
+| DataExportService singleton | ✅ Pass | - |
+| CSV export | ✅ Pass | 58 bytes |
+| CSV has headers | ✅ Pass | - |
+| Excel export | ✅ Pass | 5129 bytes |
+| Excel file valid | ✅ Pass | - |
+| Fields export | ✅ Pass | - |
+
 ### Main App (1/1 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| FastAPI app loads | ✅ Pass | 221 routes |
+| FastAPI app loads | ✅ Pass | 228 routes |
 
 ### Mobile (5/5 passed)
 
@@ -89,8 +101,8 @@
 |------|--------|--------|
 | PDFReportService import | ✅ Pass | - |
 | PDFReportService singleton | ✅ Pass | - |
-| Generate scouting report | ✅ Pass | 2499 bytes |
-| Generate spray report | ✅ Pass | 2858 bytes |
+| Generate scouting report | ✅ Pass | 2498 bytes |
+| Generate spray report | ✅ Pass | 2861 bytes |
 | Generate cost report | ✅ Pass | 2420 bytes |
 
 ### Routes (21/21 passed)

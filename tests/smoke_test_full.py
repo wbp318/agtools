@@ -395,6 +395,62 @@ def test_docker_config():
         log_result("Docker", "Dockerfile has CMD", "CMD" in content)
 
 
+def test_export_service():
+    """Test data export service"""
+    print("\n" + "="*60)
+    print("📊 Testing Data Export Service")
+    print("="*60)
+
+    try:
+        from services.data_export_service import get_data_export_service, ExportFormat, ExportConfig
+        log_result("Export", "DataExportService import", True)
+    except ImportError as e:
+        log_result("Export", "DataExportService import", False, str(e)[:50])
+        return
+
+    try:
+        service = get_data_export_service()
+        log_result("Export", "DataExportService singleton", True)
+    except Exception as e:
+        log_result("Export", "DataExportService singleton", False, str(e)[:50])
+        return
+
+    # Test CSV export
+    test_data = [
+        {"name": "Field 1", "acres": 160, "crop": "corn"},
+        {"name": "Field 2", "acres": 80, "crop": "soybean"}
+    ]
+
+    try:
+        csv_bytes = service.export_to_csv(test_data)
+        log_result("Export", "CSV export", len(csv_bytes) > 0, f"{len(csv_bytes)} bytes")
+        # Check CSV has headers
+        csv_content = csv_bytes.decode('utf-8-sig')
+        has_headers = "Name" in csv_content and "Acres" in csv_content
+        log_result("Export", "CSV has headers", has_headers)
+    except Exception as e:
+        log_result("Export", "CSV export", False, str(e)[:50])
+
+    # Test Excel export
+    try:
+        excel_bytes = service.export_to_excel(test_data)
+        log_result("Export", "Excel export", len(excel_bytes) > 0, f"{len(excel_bytes)} bytes")
+        # Excel files start with PK (zip format)
+        is_valid_xlsx = excel_bytes[:2] == b'PK'
+        log_result("Export", "Excel file valid", is_valid_xlsx)
+    except ImportError:
+        log_result("Export", "Excel export", False, "openpyxl not installed")
+    except Exception as e:
+        log_result("Export", "Excel export", False, str(e)[:50])
+
+    # Test pre-configured exports
+    try:
+        fields_csv = service.export_fields(test_data, ExportFormat.CSV)
+        log_result("Export", "Fields export", len(fields_csv) > 0)
+    except Exception as e:
+        log_result("Export", "Fields export", False, str(e)[:50])
+
+
 def generate_report():
     """Generate test report"""
     duration = (datetime.now() - START_TIME).total_seconds()
@@ -476,6 +532,7 @@ if __name__ == "__main__":
     test_pdf_service()
     test_email_service()
     test_docker_config()
+    test_export_service()
 
     success = generate_report()
     sys.exit(0 if success else 1)

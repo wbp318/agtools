@@ -29,6 +29,9 @@ email-validator>=2.0.0
 # PDF Generation
 reportlab>=4.0.0
 
+# Excel Export
+openpyxl>=3.1.0
+
 # Email
 aiosmtplib>=3.0.0
 
