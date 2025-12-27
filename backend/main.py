@@ -4340,6 +4340,245 @@ async def get_health_status_levels():
 
 
 # ============================================================================
+# YIELD PREDICTION (v3.0 Phase 3)
+# ============================================================================
+
+from services.yield_prediction_service import (
+    get_yield_prediction_service,
+    CropType as YieldCropType,
+    ModelType as YieldModelType,
+    TrainingData
+)
+
+
+class YieldPredictionRequest(BaseModel):
+    """Request for yield prediction"""
+    crop: str = Field(..., description="Crop type (corn, soybean, wheat, etc.)")
+    field_id: Optional[int] = Field(None, description="Optional field ID")
+    field_name: Optional[str] = Field(None, description="Optional field name")
+    seeding_rate: Optional[float] = Field(None, description="Seeding rate")
+    nitrogen_rate: float = Field(0, description="Nitrogen applied (lbs/acre)")
+    phosphorus_rate: float = Field(0, description="P2O5 applied (lbs/acre)")
+    potassium_rate: float = Field(0, description="K2O applied (lbs/acre)")
+    soil_ph: float = Field(6.5, description="Soil pH")
+    organic_matter: float = Field(3.0, description="Organic matter %")
+    total_rainfall: Optional[float] = Field(None, description="Growing season rainfall (inches)")
+    gdd_accumulated: Optional[float] = Field(None, description="Growing degree days")
+    avg_temp: float = Field(70, description="Average temperature")
+    irrigation: bool = Field(False, description="Whether field is irrigated")
+
+
+class YieldHistoryRequest(BaseModel):
+    """Request to add historical yield data"""
+    crop: str
+    crop_year: int
+    actual_yield: float
+    field_id: Optional[int] = None
+    planting_date: Optional[str] = None
+    seed_variety: Optional[str] = None
+    seeding_rate: Optional[float] = None
+    nitrogen_rate: float = 0
+    phosphorus_rate: float = 0
+    potassium_rate: float = 0
+    soil_type: Optional[str] = None
+    soil_ph: Optional[float] = None
+    organic_matter: Optional[float] = None
+    total_rainfall: Optional[float] = None
+    gdd_accumulated: Optional[float] = None
+    avg_temp: Optional[float] = None
+    irrigation: bool = False
+    previous_crop: Optional[str] = None
+    tillage_type: Optional[str] = None
+    moisture_at_harvest: Optional[float] = None
+
+
+@app.post("/api/v1/ai/yield/predict", tags=["Yield Prediction"])
+async def predict_yield(
+    request: YieldPredictionRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Predict crop yield based on inputs and conditions
+
+    Uses trained ML model if available, otherwise uses agronomic formulas.
+    Returns predicted yield with confidence interval and recommendations.
+    """
+    yield_service = get_yield_prediction_service()
+
+    try:
+        crop = YieldCropType(request.crop.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unsupported crop: {request.crop}")
+
+    prediction = yield_service.predict_yield(
+        crop=crop,
+        field_id=request.field_id,
+        field_name=request.field_name,
+        seeding_rate=request.seeding_rate,
+        nitrogen_rate=request.nitrogen_rate,
+        phosphorus_rate=request.phosphorus_rate,
+        potassium_rate=request.potassium_rate,
+        soil_ph=request.soil_ph,
+        organic_matter=request.organic_matter,
+        total_rainfall=request.total_rainfall,
+        gdd_accumulated=request.gdd_accumulated,
+        avg_temp=request.avg_temp,
+        irrigation=request.irrigation
+    )
+
+    return {
+        "crop": prediction.crop.value,
+        "field_id": prediction.field_id,
+        "field_name": prediction.field_name,
+        "predicted_yield": prediction.predicted_yield,
+        "yield_unit": prediction.yield_unit,
+        "confidence": {
+            "low": prediction.confidence_low,
+            "high": prediction.confidence_high,
+            "level": prediction.confidence_level
+        },
+        "factors": prediction.factors,
+        "comparison": prediction.comparison,
+        "recommendations": prediction.recommendations,
+        "model_info": prediction.model_info
+    }
+
+
+@app.post("/api/v1/ai/yield/history", tags=["Yield Prediction"])
+async def add_yield_history(
+    request: YieldHistoryRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add historical yield data for model training
+
+    More historical data improves prediction accuracy.
+    Need at least 10 records per crop to train a model.
+    """
+    yield_service = get_yield_prediction_service()
+
+    try:
+        crop = YieldCropType(request.crop.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unsupported crop: {request.crop}")
+
+    training_data = TrainingData(
+        crop=crop,
+        crop_year=request.crop_year,
+        field_id=request.field_id,
+        planting_date=request.planting_date,
+        seed_variety=request.seed_variety,
+        seeding_rate=request.seeding_rate or 0,
+        nitrogen_rate=request.nitrogen_rate,
+        phosphorus_rate=request.phosphorus_rate,
+        potassium_rate=request.potassium_rate,
+        soil_type=request.soil_type,
+        soil_ph=request.soil_ph,
+        organic_matter=request.organic_matter,
+        total_rainfall=request.total_rainfall,
+        gdd_accumulated=request.gdd_accumulated,
+        avg_temp=request.avg_temp,
+        irrigation=request.irrigation,
+        previous_crop=request.previous_crop,
+        tillage_type=request.tillage_type,
+        actual_yield=request.actual_yield,
+        moisture_at_harvest=request.moisture_at_harvest
+    )
+
+    record_id = yield_service.add_historical_data(training_data)
+
+    return {
+        "status": "success",
+        "record_id": record_id,
+        "message": "Historical yield data added successfully"
+    }
+
+
+@app.post("/api/v1/ai/yield/train/{crop}", tags=["Yield Prediction"])
+async def train_yield_model(
+    crop: str,
+    model_type: str = "random_forest",
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """
+    Train yield prediction model for a crop (Manager+ only)
+
+    Requires at least 10 historical yield records for the crop.
+    Model types: random_forest, gradient_boosting, linear, ridge
+    """
+    yield_service = get_yield_prediction_service()
+
+    try:
+        crop_type = YieldCropType(crop.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unsupported crop: {crop}")
+
+    try:
+        model_type_enum = YieldModelType(model_type.lower())
+    except ValueError:
+        model_type_enum = YieldModelType.RANDOM_FOREST
+
+    result = yield_service.train_model(crop_type, model_type_enum)
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+
+    return result
+
+
+@app.get("/api/v1/ai/yield/models", tags=["Yield Prediction"])
+async def get_yield_models():
+    """
+    Get information about available yield prediction models
+
+    Returns trained models, their accuracy, and supported crops.
+    """
+    yield_service = get_yield_prediction_service()
+    return yield_service.get_model_info()
+
+
+@app.get("/api/v1/ai/yield/training-stats", tags=["Yield Prediction"])
+async def get_yield_training_stats(
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get statistics about available training data
+
+    Shows how many records are available per crop and whether
+    there's enough data to train a model.
+    """
+    yield_service = get_yield_prediction_service()
+    return yield_service.get_training_data_stats()
+
+
+@app.get("/api/v1/ai/yield/crops", tags=["Yield Prediction"])
+async def get_supported_crops():
+    """
+    Get list of supported crops with default parameters
+
+    Returns typical yields, optimal inputs, and units for each crop.
+    """
+    from services.yield_prediction_service import CROP_DEFAULTS, CropType as YC
+
+    return {
+        "crops": [
+            {
+                "crop": crop.value,
+                "yield_unit": params["yield_unit"],
+                "typical_yield": params["typical_yield"],
+                "yield_range": params["yield_range"],
+                "optimal_n": params["optimal_n"],
+                "optimal_p": params["optimal_p"],
+                "optimal_k": params["optimal_k"],
+                "optimal_seeding": params["optimal_seeding"],
+                "gdd_requirement": params["gdd_requirement"]
+            }
+            for crop, params in CROP_DEFAULTS.items()
+        ]
+    }
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
