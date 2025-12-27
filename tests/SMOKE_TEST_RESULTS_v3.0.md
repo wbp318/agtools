@@ -1,14 +1,14 @@
 # Smoke Test Results - AgTools v3.0 AI/ML Intelligence Suite
 
-**Date:** 2025-12-27 10:26:01
-**Duration:** 1.59 seconds
+**Date:** 2025-12-27 11:45:32
+**Duration:** 3.56 seconds
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Tests | 37 |
-| Passed | 37 |
+| Total Tests | 56 |
+| Passed | 56 |
 | Failed | 0 |
 | **Pass Rate** | **100.0%** |
 
@@ -44,12 +44,19 @@
 | Zones analyzed (25) | ✅ Pass | - |
 | Recommendations generated (1) | ✅ Pass | - |
 
-### Main App (11/11 passed)
+### Main App (30/30 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| App loads successfully (188 routes) | ✅ Pass | - |
-| AI endpoints registered (9) | ✅ Pass | - |
+| App loads successfully (207 routes) | ✅ Pass | - |
+| AI endpoints registered (28) | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/batch | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/categories | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/correct | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/expense | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/stats | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/suggest-qb | ✅ Pass | - |
+| Route: /api/v1/ai/categorize/train | ✅ Pass | - |
 | Route: /api/v1/ai/feedback | ✅ Pass | - |
 | Route: /api/v1/ai/health/analyze | ✅ Pass | - |
 | Route: /api/v1/ai/health/history/{field_id} | ✅ Pass | - |
@@ -57,8 +64,20 @@
 | Route: /api/v1/ai/health/trends/{field_id} | ✅ Pass | - |
 | Route: /api/v1/ai/identify/image | ✅ Pass | - |
 | Route: /api/v1/ai/models | ✅ Pass | - |
+| Route: /api/v1/ai/spray/history | ✅ Pass | - |
+| Route: /api/v1/ai/spray/predict | ✅ Pass | - |
+| Route: /api/v1/ai/spray/record | ✅ Pass | - |
+| Route: /api/v1/ai/spray/train/{spray_type} | ✅ Pass | - |
+| Route: /api/v1/ai/spray/types | ✅ Pass | - |
+| Route: /api/v1/ai/spray/windows | ✅ Pass | - |
 | Route: /api/v1/ai/training/export | ✅ Pass | - |
 | Route: /api/v1/ai/training/stats | ✅ Pass | - |
+| Route: /api/v1/ai/yield/crops | ✅ Pass | - |
+| Route: /api/v1/ai/yield/history | ✅ Pass | - |
+| Route: /api/v1/ai/yield/models | ✅ Pass | - |
+| Route: /api/v1/ai/yield/predict | ✅ Pass | - |
+| Route: /api/v1/ai/yield/train/{crop} | ✅ Pass | - |
+| Route: /api/v1/ai/yield/training-stats | ✅ Pass | - |
 
 ### Database (6/6 passed)
 
