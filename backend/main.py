@@ -4775,6 +4775,249 @@ async def suggest_category_for_qb_import(
 
 
 # ============================================================================
+# WEATHER-BASED SPRAY AI (v3.0 Phase 5)
+# ============================================================================
+
+from services.spray_ai_service import (
+    get_spray_ai_service,
+    SprayType as AISprayType,
+    SprayOutcome,
+    SprayApplication
+)
+
+
+class SprayPredictionRequest(BaseModel):
+    """Request for spray outcome prediction"""
+    spray_type: str = Field(..., description="Type: herbicide, insecticide, fungicide")
+    temperature: float = Field(..., description="Temperature in Fahrenheit")
+    humidity: float = Field(..., description="Relative humidity %")
+    wind_speed: float = Field(..., description="Wind speed in mph")
+    rain_chance: float = Field(0, description="Rain probability 0-100")
+    time_of_day: str = Field("morning", description="morning, midday, evening, night")
+    field_id: Optional[int] = Field(None, description="Field ID for micro-climate")
+
+
+class SprayRecordRequest(BaseModel):
+    """Request to add spray application record"""
+    spray_type: str
+    product_name: str
+    application_date: str
+    temperature: float
+    humidity: float
+    wind_speed: float
+    outcome: str
+    field_id: Optional[int] = None
+    application_time: Optional[str] = None
+    wind_direction: Optional[str] = None
+    rain_last_24h: float = 0
+    rain_next_24h: float = 0
+    dew_point: Optional[float] = None
+    cloud_cover: Optional[float] = None
+    rate_per_acre: Optional[float] = None
+    acres_treated: Optional[float] = None
+    applicator: Optional[str] = None
+    efficacy_rating: Optional[float] = None
+    notes: Optional[str] = None
+
+
+@app.post("/api/v1/ai/spray/predict", tags=["Spray AI"])
+async def predict_spray_outcome(
+    request: SprayPredictionRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    AI-enhanced spray timing prediction
+
+    Uses ML model (if trained) or rule-based scoring to predict
+    spray application success based on weather conditions.
+    """
+    service = get_spray_ai_service()
+
+    try:
+        spray_type = AISprayType(request.spray_type.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid spray type: {request.spray_type}")
+
+    prediction = service.predict_outcome(
+        spray_type=spray_type,
+        temperature=request.temperature,
+        humidity=request.humidity,
+        wind_speed=request.wind_speed,
+        rain_chance=request.rain_chance,
+        time_of_day=request.time_of_day,
+        field_id=request.field_id
+    )
+
+    return {
+        "spray_type": prediction.spray_type.value,
+        "predicted_outcome": prediction.predicted_outcome.value,
+        "success_probability": prediction.success_probability,
+        "confidence": prediction.confidence,
+        "risk_factors": prediction.risk_factors,
+        "recommendations": prediction.recommendations,
+        "historical_similar": prediction.historical_similar,
+        "model_used": prediction.model_used,
+        "conditions": prediction.conditions
+    }
+
+
+@app.post("/api/v1/ai/spray/record", tags=["Spray AI"])
+async def add_spray_record(
+    request: SprayRecordRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add historical spray application record
+
+    Records are used to train and improve the AI model.
+    Include outcome for best results.
+    """
+    service = get_spray_ai_service()
+
+    try:
+        spray_type = AISprayType(request.spray_type.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid spray type: {request.spray_type}")
+
+    try:
+        outcome = SprayOutcome(request.outcome.lower())
+    except ValueError:
+        outcome = SprayOutcome.UNKNOWN
+
+    application = SprayApplication(
+        field_id=request.field_id,
+        spray_type=spray_type,
+        product_name=request.product_name,
+        application_date=request.application_date,
+        application_time=request.application_time,
+        temperature=request.temperature,
+        humidity=request.humidity,
+        wind_speed=request.wind_speed,
+        wind_direction=request.wind_direction,
+        rain_last_24h=request.rain_last_24h,
+        rain_next_24h=request.rain_next_24h,
+        dew_point=request.dew_point,
+        cloud_cover=request.cloud_cover,
+        rate_per_acre=request.rate_per_acre or 0,
+        acres_treated=request.acres_treated or 0,
+        applicator=request.applicator,
+        outcome=outcome,
+        efficacy_rating=request.efficacy_rating,
+        notes=request.notes
+    )
+
+    record_id = service.add_spray_record(application)
+
+    return {
+        "status": "success",
+        "record_id": record_id,
+        "message": "Spray record added successfully"
+    }
+
+
+@app.post("/api/v1/ai/spray/train/{spray_type}", tags=["Spray AI"])
+async def train_spray_model(
+    spray_type: str,
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """
+    Train spray prediction model (Manager+ only)
+
+    Requires at least 20 historical spray records with outcomes.
+    """
+    service = get_spray_ai_service()
+
+    try:
+        spray_type_enum = AISprayType(spray_type.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid spray type: {spray_type}")
+
+    result = service.train_model(spray_type_enum)
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+
+    return result
+
+
+@app.get("/api/v1/ai/spray/history", tags=["Spray AI"])
+async def get_spray_history_analysis(
+    spray_type: Optional[str] = None,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get analysis of historical spray outcomes
+
+    Shows success rates, outcome distribution, and
+    average conditions for each outcome type.
+    """
+    service = get_spray_ai_service()
+
+    spray_type_enum = None
+    if spray_type:
+        try:
+            spray_type_enum = AISprayType(spray_type.lower())
+        except ValueError:
+            pass
+
+    return service.get_historical_analysis(spray_type_enum)
+
+
+@app.post("/api/v1/ai/spray/windows", tags=["Spray AI"])
+async def find_optimal_spray_windows(
+    spray_type: str = Form(...),
+    forecast: str = Form(...),  # JSON array of hourly forecasts
+    min_success_prob: float = Form(0.7),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Find optimal spray windows in forecast
+
+    Analyzes hourly forecast to find best application times.
+    Returns top windows sorted by success probability.
+    """
+    service = get_spray_ai_service()
+
+    try:
+        spray_type_enum = AISprayType(spray_type.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid spray type: {spray_type}")
+
+    try:
+        forecast_data = json.loads(forecast)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid forecast JSON")
+
+    windows = service.get_optimal_windows(
+        spray_type=spray_type_enum,
+        forecast=forecast_data,
+        min_success_prob=min_success_prob
+    )
+
+    return {
+        "spray_type": spray_type_enum.value,
+        "min_success_probability": min_success_prob,
+        "windows_found": len(windows),
+        "optimal_windows": windows
+    }
+
+
+@app.get("/api/v1/ai/spray/types", tags=["Spray AI"])
+async def get_spray_types():
+    """Get list of supported spray types"""
+    return {
+        "types": [
+            {"value": t.value, "name": t.name.replace("_", " ").title()}
+            for t in AISprayType
+        ],
+        "outcomes": [
+            {"value": o.value, "name": o.name.replace("_", " ").title()}
+            for o in SprayOutcome
+        ]
+    }
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
