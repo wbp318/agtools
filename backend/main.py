@@ -4579,6 +4579,202 @@ async def get_supported_crops():
 
 
 # ============================================================================
+# SMART EXPENSE CATEGORIZATION (v3.0 Phase 4)
+# ============================================================================
+
+from services.expense_categorization_service import (
+    get_expense_categorization_service,
+    ExpenseCategory as AIExpenseCategory
+)
+
+
+class CategorizationRequest(BaseModel):
+    """Request to categorize an expense"""
+    description: str = Field(..., description="Expense description")
+    vendor: Optional[str] = Field(None, description="Vendor name")
+    amount: Optional[float] = Field(None, description="Amount")
+
+
+class BatchCategorizationRequest(BaseModel):
+    """Request to categorize multiple expenses"""
+    expenses: List[Dict[str, Any]] = Field(..., description="List of expenses")
+
+
+class CategorizationCorrectionRequest(BaseModel):
+    """Request to correct a categorization"""
+    description: str = Field(..., description="Expense description")
+    correct_category: str = Field(..., description="Correct category")
+    vendor: Optional[str] = Field(None, description="Vendor name")
+    amount: Optional[float] = Field(None, description="Amount")
+
+
+@app.post("/api/v1/ai/categorize/expense", tags=["Expense Categorization"])
+async def categorize_expense(
+    request: CategorizationRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Auto-categorize an expense from its description
+
+    Uses ML model (if trained) and keyword rules to predict category.
+    Returns confidence score and alternative suggestions.
+    """
+    service = get_expense_categorization_service()
+
+    result = service.categorize(
+        description=request.description,
+        vendor=request.vendor,
+        amount=request.amount
+    )
+
+    return {
+        "description": result.description,
+        "predicted_category": result.predicted_category.value,
+        "confidence": result.confidence,
+        "alternatives": [
+            {"category": cat.value, "confidence": round(conf, 3)}
+            for cat, conf in result.alternative_categories
+        ],
+        "matching_rules": result.matching_rules,
+        "vendor_recognized": result.vendor_recognized,
+        "vendor_category_history": result.vendor_category_history
+    }
+
+
+@app.post("/api/v1/ai/categorize/batch", tags=["Expense Categorization"])
+async def categorize_expenses_batch(
+    request: BatchCategorizationRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Auto-categorize multiple expenses at once
+
+    Useful for processing QuickBooks imports or bulk expense entry.
+    """
+    service = get_expense_categorization_service()
+
+    results = service.categorize_batch(request.expenses)
+
+    return {
+        "count": len(results),
+        "results": [
+            {
+                "description": r.description,
+                "predicted_category": r.predicted_category.value,
+                "confidence": r.confidence,
+                "vendor_recognized": r.vendor_recognized
+            }
+            for r in results
+        ]
+    }
+
+
+@app.post("/api/v1/ai/categorize/correct", tags=["Expense Categorization"])
+async def submit_categorization_correction(
+    request: CategorizationCorrectionRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Submit a correction to improve categorization accuracy
+
+    Corrections are used to train and improve the ML model.
+    Also updates vendor-to-category mappings.
+    """
+    service = get_expense_categorization_service()
+
+    try:
+        category = AIExpenseCategory(request.correct_category.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid category: {request.correct_category}")
+
+    success = service.submit_correction(
+        description=request.description,
+        correct_category=category,
+        vendor=request.vendor,
+        amount=request.amount,
+        user_id=current_user.user_id
+    )
+
+    if success:
+        return {
+            "status": "success",
+            "message": "Correction saved. Thank you for improving our AI!"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save correction")
+
+
+@app.post("/api/v1/ai/categorize/train", tags=["Expense Categorization"])
+async def train_categorization_model(
+    min_samples: int = 50,
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """
+    Train expense categorization ML model (Manager+ only)
+
+    Requires at least 50 categorized expenses to train.
+    More training data = better accuracy.
+    """
+    service = get_expense_categorization_service()
+
+    result = service.train_model(min_samples=min_samples)
+
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+
+    return result
+
+
+@app.get("/api/v1/ai/categorize/stats", tags=["Expense Categorization"])
+async def get_categorization_stats(
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get training statistics for expense categorization
+
+    Shows how many samples are available, by category, and
+    whether there's enough data to train a model.
+    """
+    service = get_expense_categorization_service()
+    return service.get_training_stats()
+
+
+@app.get("/api/v1/ai/categorize/categories", tags=["Expense Categorization"])
+async def get_expense_categories():
+    """
+    Get list of available expense categories
+
+    Returns all supported categories for farm expenses.
+    """
+    service = get_expense_categorization_service()
+    return {"categories": service.get_categories()}
+
+
+@app.post("/api/v1/ai/categorize/suggest-qb", tags=["Expense Categorization"])
+async def suggest_category_for_qb_import(
+    qb_account: str = Form(...),
+    description: str = Form(""),
+    vendor: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Suggest category for QuickBooks import
+
+    Analyzes QB account name and description to suggest
+    the best expense category for imported transactions.
+    """
+    service = get_expense_categorization_service()
+
+    result = service.suggest_category_for_import(
+        qb_account=qb_account,
+        description=description,
+        vendor=vendor
+    )
+
+    return result
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
