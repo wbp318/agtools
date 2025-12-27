@@ -625,6 +625,8 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 2. PDF report generation for clients
 3. Satellite imagery integration
 4. Custom AI model training from field photos
+5. Market price feeds for dynamic economics
+6. Regional disease/pest pressure mapping
 
 ## 💡 Use Cases
 
