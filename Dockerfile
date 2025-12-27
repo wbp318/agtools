@@ -15,6 +15,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
+    libhdf5-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,7 +24,8 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r backend/requirements.txt
+    pip install --no-cache-dir -r backend/requirements.txt && \
+    pip install --no-cache-dir tensorflow || echo "TensorFlow optional, skipping..."
 
 # Copy application code
 COPY backend/ /app/backend/

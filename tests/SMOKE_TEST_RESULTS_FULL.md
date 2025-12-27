@@ -1,7 +1,7 @@
 # Full Smoke Test Results - AgTools v3.1
 
-**Date:** 2025-12-27 12:35:27
-**Duration:** 3.98 seconds
+**Date:** 2025-12-27 12:46:11
+**Duration:** 4.00 seconds
 
 ## Summary
 
@@ -75,7 +75,7 @@
 | DataExportService singleton | ✅ Pass | - |
 | CSV export | ✅ Pass | 58 bytes |
 | CSV has headers | ✅ Pass | - |
-| Excel export | ✅ Pass | 5129 bytes |
+| Excel export | ✅ Pass | 5130 bytes |
 | Excel file valid | ✅ Pass | - |
 | Fields export | ✅ Pass | - |
 
@@ -101,8 +101,8 @@
 |------|--------|--------|
 | PDFReportService import | ✅ Pass | - |
 | PDFReportService singleton | ✅ Pass | - |
-| Generate scouting report | ✅ Pass | 2498 bytes |
-| Generate spray report | ✅ Pass | 2861 bytes |
+| Generate scouting report | ✅ Pass | 2499 bytes |
+| Generate spray report | ✅ Pass | 2859 bytes |
 | Generate cost report | ✅ Pass | 2420 bytes |
 
 ### Routes (21/21 passed)
