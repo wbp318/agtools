@@ -1,22 +1,55 @@
+# =============================================================================
+# AgTools .gitignore
+# =============================================================================
+
+# =============================================================================
+# SECURITY - Sensitive Files (NEVER commit these)
+# =============================================================================
+.env
+.env.*
+!.env.example
+config.ini
+secrets.yaml
+secrets.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.*
+*_credentials.*
+api_keys.*
+tokens.json
+service_account*.json
+*.secret
+
+# =============================================================================
 # Python
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+.installed.cfg
 
-# Virtual Environment
+# Virtual Environments
 venv/
+.venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
-# Distribution / packaging
-.Python
+# Distribution / Packaging
 build/
 develop-eggs/
 dist/
 downloads/
 eggs/
-.eggs/
 lib/
 lib64/
 parts/
@@ -24,25 +57,24 @@ sdist/
 var/
 wheels/
 share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
 # PyInstaller
 *.manifest
 *.spec
 
-# Installer logs
+# Installer Logs
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
 htmlcov/
 .tox/
 .nox/
 .coverage
 .coverage.*
-.cache
+.cache/
 nosetests.xml
 coverage.xml
 *.cover
@@ -50,77 +82,37 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
+# =============================================================================
+# Type Checkers & Linters
+# =============================================================================
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
-
-# pytype static type analyzer
 .pytype/
 
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
+# =============================================================================
+# IDE & Editors
+# =============================================================================
 .idea/
-
-# VS Code
 .vscode/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+.ropeproject
 
-# Professional System specific
-*.h5
-models/
-training_data/
-logs/
+# =============================================================================
+# Jupyter / IPython
+# =============================================================================
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
 
-# Data files (sample/test data only - allow database seed files)
-sample_*.csv
-test_*.csv
-*_sample.csv
-
-# Image files (uncomment if you don't want to track images)
-# *.jpg
-# *.jpeg
-# *.png
-# *.gif
-# *.bmp
-
-# Logs
-*.log
-
-# OS generated files
+# =============================================================================
+# OS Generated
+# =============================================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -128,46 +120,80 @@ test_*.csv
 .Trashes
 ehthumbs.db
 Thumbs.db
-nul
-NUL
 desktop.ini
 
-# API keys and sensitive information
-config.ini
-secrets.yaml
-.env.local
-.env.development
-.env.production
+# =============================================================================
+# Database
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+logs/
+
+# =============================================================================
+# AI/ML Models & Training
+# =============================================================================
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+models/
+training_data/
+checkpoints/
+
+# =============================================================================
+# Docker
+# =============================================================================
+docker-compose.override.yml
+data/
+uploads/
+
+# =============================================================================
+# Node.js (if frontend added)
+# =============================================================================
+node_modules/
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# Documentation Build
+# =============================================================================
+/site/
+
+# =============================================================================
+# Output & Generated Files
+# =============================================================================
+output/
+reports/
+exports/
+*.tmp
+*.temp
+
+# =============================================================================
+# AgTools Specific
+# =============================================================================
+# Frontend desktop app
+frontend/agtools_settings.json
+frontend/*.db
+
+# Test data files (keep seed data, ignore samples)
+sample_*.csv
+test_*.csv
+*_sample.csv
+
+# Test health maps (generated during testing)
+backend/test_health_maps/
 
 # Claude Code
 .claude/
 
-# Database files (local development)
-*.db
-*.sqlite
-*.sqlite3
-agtools.db
+# Cython debug
+cython_debug/
 
-# Temporary files
-*.tmp
-*.temp
-*.swp
-*~
-
-# Node modules (if frontend added later)
-node_modules/
-package-lock.json
-
-# Output files
-output/
-reports/
-exports/
-
-# Frontend settings/cache
-frontend/agtools_settings.json
-frontend/*.db
-
-# Docker
-docker-compose.override.yml
-data/
-uploads/
+# pyenv
+.python-version
