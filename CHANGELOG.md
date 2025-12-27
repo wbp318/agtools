@@ -4,9 +4,103 @@
 
 ---
 
-## Current Version: 2.9.0 (Released - December 26, 2025)
+## Current Version: 3.0.0 (In Development - December 27, 2025)
 
-### Latest Session: December 26, 2025
+### Latest Session: December 27, 2025
+
+#### v3.0.0 - AI/ML Intelligence Suite
+
+**Status:** 🔄 IN PROGRESS
+
+**Goal:** Add AI-powered features for pest/disease identification, crop health scoring, yield prediction, and smart recommendations.
+
+**Phase 1: Image-Based Pest/Disease Identification** - ✅ COMPLETE
+
+1. **AI Image Service** (`backend/services/ai_image_service.py` ~500 lines)
+   - **Hybrid Cloud + Local Model Architecture:**
+     - Cloud API integration (Hugging Face Inference API)
+     - Local TensorFlow model support (when trained)
+     - Automatic fallback between providers
+     - Offline mode with knowledge base matching
+
+   - **Training Data Collection:**
+     - Automatic image saving for future training
+     - User feedback system for prediction correction
+     - Export pipeline for model training
+     - Verification workflow for data quality
+
+   - **Knowledge Base Integration:**
+     - Maps AI labels to 46+ pests/diseases
+     - Keyword matching and fuzzy lookup
+     - Confidence scoring with top-5 predictions
+     - Links to management recommendations
+
+2. **API Endpoints** (5 new endpoints)
+   - `POST /api/v1/ai/identify/image` - AI image analysis
+   - `POST /api/v1/ai/feedback` - Submit prediction feedback
+   - `GET /api/v1/ai/training/stats` - Training data statistics
+   - `POST /api/v1/ai/training/export` - Export training data (admin)
+   - `GET /api/v1/ai/models` - List available models
+
+3. **Database Tables**
+   - `ai_training_images` - Store images with labels for training
+   - `ai_predictions` - Log predictions for model improvement
+   - `ai_models` - Track model versions and accuracy
+
+**Phase 2: Crop Health Scoring from Imagery** - ✅ COMPLETE
+
+1. **Crop Health Service** (`backend/services/crop_health_service.py` ~700 lines)
+   - **Vegetation Index Analysis:**
+     - NDVI calculation from multispectral imagery
+     - Pseudo-NDVI from RGB photos (Excess Green Index)
+     - Pre-calculated NDVI map support
+     - Zone-based health scoring (configurable grid)
+
+   - **Health Classification:**
+     - 6 health status levels (Excellent to Critical)
+     - NDVI thresholds: Excellent (>0.7), Good (0.5-0.7), Moderate (0.3-0.5), Stressed (0.2-0.3), Poor (0.1-0.2), Critical (<0.1)
+     - Healthy vs stressed percentage calculation
+
+   - **Problem Detection:**
+     - Issue type classification (water stress, nutrient deficiency, pest damage, disease, weed pressure)
+     - Confidence scoring per detection
+     - Spatial pattern analysis
+     - Automated treatment recommendations
+
+   - **Trend Tracking:**
+     - Historical assessment storage
+     - Health trends over time
+     - Improvement/decline analysis
+     - Year-over-year comparison
+
+2. **API Endpoints** (4 new endpoints)
+   - `POST /api/v1/ai/health/analyze` - Analyze field imagery
+   - `GET /api/v1/ai/health/history/{field_id}` - Assessment history
+   - `GET /api/v1/ai/health/trends/{field_id}` - Health trends
+   - `GET /api/v1/ai/health/status-levels` - NDVI thresholds
+
+3. **Database Tables**
+   - `field_health_assessments` - Store analysis results
+   - `health_zones` - Zone-level health data
+   - `health_trends` - Time series health data
+
+**Files Created:**
+- `backend/services/ai_image_service.py` (~500 lines)
+- `backend/services/crop_health_service.py` (~700 lines)
+
+**Files Modified:**
+- `backend/main.py` - Added 9 AI/ML endpoints, 188 total routes
+
+**Remaining Phases (Planned):**
+- Phase 3: Yield Prediction Model
+- Phase 4: Smart Expense Categorization
+- Phase 5: Weather-Based Spray AI Enhancement
+
+---
+
+## Previous Version: 2.9.0 (Released - December 26, 2025)
+
+### Session: December 26, 2025
 
 #### v2.9.0 - QuickBooks Import Integration
 
