@@ -3,7 +3,9 @@
 > **Version:** 2.6.0
 > **Status:** ✅ COMPLETE - All 6 Phases Implemented
 > **Started:** December 11, 2025
-> **Last Updated:** December 20, 2025
+> **Last Updated:** December 27, 2025
+>
+> **Note:** This plan covers v2.5-2.6 (Farm Operations Manager). See CHANGELOG.md for subsequent versions including v2.7-2.9 (Cost Tracking, Profitability, QuickBooks) and v3.0 (AI/ML Intelligence Suite).
 
 ---
 
@@ -816,4 +818,19 @@ Analytics Section:
 - Phase 1 detailed design and implementation
 - JWT authentication, user/crew management
 - 17 new API endpoints
+
+---
+
+## Subsequent Development (After Farm Ops Manager)
+
+After completing the Farm Operations Manager (v2.5-2.6), development continued with:
+
+| Version | Date | Feature |
+|---------|------|---------|
+| v2.7.0 | Dec 2025 | Cost Per Acre Tracking - CSV import, OCR, field allocation |
+| v2.8.0 | Dec 2025 | Profitability Analysis - Break-even, ROI, scenarios |
+| v2.9.0 | Dec 2025 | QuickBooks Import - Auto-detect formats, account mapping |
+| v3.0.0 | Dec 2025 | AI/ML Intelligence Suite - 5 AI features, 28 new endpoints |
+
+See CHANGELOG.md and PROFESSIONAL_SYSTEM_GUIDE.md for full details.
 
