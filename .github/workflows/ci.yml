@@ -27,6 +27,7 @@ jobs:
           pip install python-jose bcrypt email-validator
           pip install reportlab openpyxl aiosmtplib
           pip install requests python-dateutil
+          pip install jinja2 httpx
 
       - name: Run smoke tests
         env:

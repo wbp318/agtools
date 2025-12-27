@@ -22,7 +22,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pillow numpy scikit-learn pandas \
     python-jose bcrypt email-validator \
     reportlab openpyxl aiosmtplib \
-    requests python-dateutil
+    requests python-dateutil \
+    jinja2 httpx
 
 # Copy application code
 COPY backend/ /app/backend/
