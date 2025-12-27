@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """
-AgTools v3.0 Full System Smoke Test
+AgTools v3.1 Full System Smoke Test
 Tests all modules and routes without requiring a running server
+Includes v3.1 features: PDF Reports, Email Notifications, Docker
 """
 
 import os
 import sys
+import io
 from datetime import datetime
+
+# Fix Windows console encoding for emojis
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -255,6 +262,139 @@ def test_mobile_interface():
         log_result("Mobile", f"Template: {t}", exists)
 
 
+def test_pdf_service():
+    """Test PDF report generation service"""
+    print("\n" + "="*60)
+    print("📄 Testing PDF Report Service")
+    print("="*60)
+
+    try:
+        from services.pdf_report_service import get_pdf_report_service, ReportConfig
+        log_result("PDF", "PDFReportService import", True)
+    except ImportError as e:
+        log_result("PDF", "PDFReportService import", False, str(e)[:50])
+        return
+
+    try:
+        service = get_pdf_report_service()
+        log_result("PDF", "PDFReportService singleton", True)
+    except Exception as e:
+        log_result("PDF", "PDFReportService singleton", False, str(e)[:50])
+        return
+
+    # Test scouting report generation
+    try:
+        pdf_bytes = service.generate_scouting_report(
+            field_name="Test Field",
+            crop="corn",
+            growth_stage="V6",
+            observations=[{"type": "Pest", "finding": "Aphids", "severity": "Low", "location": "North"}],
+            recommendations=["Monitor weekly", "No treatment needed"]
+        )
+        log_result("PDF", "Generate scouting report", len(pdf_bytes) > 0, f"{len(pdf_bytes)} bytes")
+    except Exception as e:
+        log_result("PDF", "Generate scouting report", False, str(e)[:50])
+
+    # Test spray recommendation report
+    try:
+        pdf_bytes = service.generate_spray_recommendation(
+            field_name="Test Field",
+            crop="soybean",
+            target_pest="Soybean Aphid",
+            products=[{"name": "Test Product", "rate": "8 oz/acre", "cost_per_acre": 12.50, "moa_group": "4A", "phi_days": 21}],
+            economics={"treatment_cost": 18.50, "yield_loss_bu": 5, "saved_value": 45, "net_benefit": 26.50, "roi_percent": 143}
+        )
+        log_result("PDF", "Generate spray report", len(pdf_bytes) > 0, f"{len(pdf_bytes)} bytes")
+    except Exception as e:
+        log_result("PDF", "Generate spray report", False, str(e)[:50])
+
+    # Test cost per acre report
+    try:
+        pdf_bytes = service.generate_cost_per_acre_report(
+            crop_year=2025,
+            fields=[{"name": "Field 1", "acres": 160, "crop": "corn", "total_cost": 45000, "cost_per_acre": 281.25}],
+            summary={"total_fields": 1, "total_acres": 160, "total_cost": 45000, "avg_cost_per_acre": 281.25}
+        )
+        log_result("PDF", "Generate cost report", len(pdf_bytes) > 0, f"{len(pdf_bytes)} bytes")
+    except Exception as e:
+        log_result("PDF", "Generate cost report", False, str(e)[:50])
+
+
+def test_email_service():
+    """Test email notification service"""
+    print("\n" + "="*60)
+    print("📧 Testing Email Notification Service")
+    print("="*60)
+
+    try:
+        from services.email_notification_service import (
+            get_email_notification_service, NotificationType, NotificationPriority
+        )
+        log_result("Email", "EmailNotificationService import", True)
+    except ImportError as e:
+        log_result("Email", "EmailNotificationService import", False, str(e)[:50])
+        return
+
+    try:
+        service = get_email_notification_service()
+        log_result("Email", "EmailNotificationService singleton", True)
+    except Exception as e:
+        log_result("Email", "EmailNotificationService singleton", False, str(e)[:50])
+        return
+
+    # Test notification types
+    types = service.get_notification_types()
+    log_result("Email", "Notification types loaded", len(types) > 0, f"{len(types)} types")
+
+    # Test notification creation (without sending)
+    try:
+        notification = service.create_notification(
+            notification_type=NotificationType.MAINTENANCE_DUE,
+            recipients=["test@example.com"],
+            data={
+                "equipment_name": "John Deere 8R",
+                "maintenance_type": "Oil Change",
+                "due_date": "2025-01-15",
+                "current_hours": 450
+            }
+        )
+        log_result("Email", "Create notification", notification is not None)
+        log_result("Email", "Notification has subject", bool(notification.subject))
+        log_result("Email", "Notification has body", bool(notification.body_text))
+    except Exception as e:
+        log_result("Email", "Create notification", False, str(e)[:50])
+
+
+def test_docker_config():
+    """Test Docker configuration files exist"""
+    print("\n" + "="*60)
+    print("🐳 Testing Docker Configuration")
+    print("="*60)
+
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+
+    files_to_check = [
+        ("Dockerfile", "Dockerfile"),
+        ("docker-compose.yml", "docker-compose.yml"),
+        (".env.example", ".env.example"),
+        (".dockerignore", ".dockerignore"),
+    ]
+
+    for name, filename in files_to_check:
+        path = os.path.join(base_dir, filename)
+        exists = os.path.exists(path)
+        log_result("Docker", f"{name} exists", exists)
+
+    # Check Dockerfile has required content
+    dockerfile_path = os.path.join(base_dir, "Dockerfile")
+    if os.path.exists(dockerfile_path):
+        with open(dockerfile_path, 'r') as f:
+            content = f.read()
+        log_result("Docker", "Dockerfile has FROM", "FROM python" in content)
+        log_result("Docker", "Dockerfile has EXPOSE", "EXPOSE 8000" in content)
+        log_result("Docker", "Dockerfile has CMD", "CMD" in content)
+
+
 def generate_report():
     """Generate test report"""
     duration = (datetime.now() - START_TIME).total_seconds()
@@ -276,7 +416,7 @@ def generate_report():
             categories[cat]['failed'] += 1
 
     print("\n" + "="*60)
-    print("📋 FULL SMOKE TEST REPORT - AgTools v3.0")
+    print("📋 FULL SMOKE TEST REPORT - AgTools v3.1")
     print("="*60)
     print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Duration: {duration:.2f} seconds")
@@ -294,7 +434,7 @@ def generate_report():
     # Save report
     report_path = os.path.join(os.path.dirname(__file__), 'SMOKE_TEST_RESULTS_FULL.md')
     with open(report_path, 'w', encoding='utf-8') as f:
-        f.write(f"# Full Smoke Test Results - AgTools v3.0\n\n")
+        f.write(f"# Full Smoke Test Results - AgTools v3.1\n\n")
         f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"**Duration:** {duration:.2f} seconds\n\n")
         f.write(f"## Summary\n\n")
@@ -325,7 +465,7 @@ def generate_report():
 
 if __name__ == "__main__":
     print("="*60)
-    print("🧪 FULL SMOKE TEST - AgTools v3.0")
+    print("🧪 FULL SMOKE TEST - AgTools v3.1")
     print("="*60)
 
     test_main_app()
@@ -333,6 +473,9 @@ if __name__ == "__main__":
     test_database_schema()
     test_ai_services()
     test_mobile_interface()
+    test_pdf_service()
+    test_email_service()
+    test_docker_config()
 
     success = generate_report()
     sys.exit(0 if success else 1)

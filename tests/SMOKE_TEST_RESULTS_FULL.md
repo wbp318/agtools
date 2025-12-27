@@ -1,14 +1,14 @@
-# Full Smoke Test Results - AgTools v3.0
+# Full Smoke Test Results - AgTools v3.1
 
-**Date:** 2025-12-27 11:50:50
-**Duration:** 3.19 seconds
+**Date:** 2025-12-27 12:09:11
+**Duration:** 3.51 seconds
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Tests | 65 |
-| Passed | 65 |
+| Total Tests | 83 |
+| Passed | 83 |
 | Failed | 0 |
 | **Pass Rate** | **100.0%** |
 
@@ -44,11 +44,34 @@
 | Seed data loads | ✅ Pass | 20 pests, 27 diseases |
 | chemical_database.py exists | ✅ Pass | - |
 
+### Docker (7/7 passed)
+
+| Test | Status | Details |
+|------|--------|--------|
+| Dockerfile exists | ✅ Pass | - |
+| docker-compose.yml exists | ✅ Pass | - |
+| .env.example exists | ✅ Pass | - |
+| .dockerignore exists | ✅ Pass | - |
+| Dockerfile has FROM | ✅ Pass | - |
+| Dockerfile has EXPOSE | ✅ Pass | - |
+| Dockerfile has CMD | ✅ Pass | - |
+
+### Email (6/6 passed)
+
+| Test | Status | Details |
+|------|--------|--------|
+| EmailNotificationService import | ✅ Pass | - |
+| EmailNotificationService singleton | ✅ Pass | - |
+| Notification types loaded | ✅ Pass | 10 types |
+| Create notification | ✅ Pass | - |
+| Notification has subject | ✅ Pass | - |
+| Notification has body | ✅ Pass | - |
+
 ### Main App (1/1 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| FastAPI app loads | ✅ Pass | 207 routes |
+| FastAPI app loads | ✅ Pass | 221 routes |
 
 ### Mobile (5/5 passed)
 
@@ -59,6 +82,16 @@
 | Template: base.html | ✅ Pass | - |
 | Template: login.html | ✅ Pass | - |
 | Template: offline.html | ✅ Pass | - |
+
+### PDF (5/5 passed)
+
+| Test | Status | Details |
+|------|--------|--------|
+| PDFReportService import | ✅ Pass | - |
+| PDFReportService singleton | ✅ Pass | - |
+| Generate scouting report | ✅ Pass | 2499 bytes |
+| Generate spray report | ✅ Pass | 2858 bytes |
+| Generate cost report | ✅ Pass | 2420 bytes |
 
 ### Routes (21/21 passed)
 
@@ -73,7 +106,7 @@
 | equipment endpoints | ✅ Pass | 12 routes |
 | maintenance endpoints | ✅ Pass | 4 routes |
 | inventory endpoints | ✅ Pass | 13 routes |
-| reports endpoints | ✅ Pass | 7 routes |
+| reports endpoints | ✅ Pass | 14 routes |
 | costs endpoints | ✅ Pass | 24 routes |
 | quickbooks endpoints | ✅ Pass | 7 routes |
 | profitability endpoints | ✅ Pass | 7 routes |
