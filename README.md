@@ -259,6 +259,9 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Economic Models** showing ROI for every recommendation
 - **Resistance Management** built into all recommendations
 - **Professional Knowledge** equivalent to extension bulletins
+- **Cost Per Acre Tracking** with QuickBooks import (v2.7-2.9)
+- **Profitability Analysis** with break-even and ROI ranking (v2.8)
+- **179 API Endpoints** covering complete farm operations
 
 ### Example ROI
 
@@ -585,43 +588,43 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 ## 📖 Documentation
 
 - **CHANGELOG.md** - Development changelog (reference at start of new sessions)
-- **QUICKSTART.md** - Get running in 5 minutes
+- **QUICKSTART.md** - Get running in 5 minutes with farmer-friendly guide
 - **PROFESSIONAL_SYSTEM_GUIDE.md** - Complete system documentation
+- **SMOKE_TEST_RESULTS.md** - Latest test results (29/29 passing)
 - **database/seed_data.py** - View pest/disease knowledge base
 - **database/chemical_database.py** - View product library
 
 ## 🛠️ Technology Stack
 
-- **Backend:** FastAPI (Python)
-- **Database:** PostgreSQL with PostGIS (optional - can use in-memory)
+- **Backend:** FastAPI (Python 3.8+)
+- **Frontend:** PyQt6 desktop application
+- **Mobile:** PWA with service worker (v2.6)
+- **Database:** SQLite (default) or PostgreSQL
 - **AI/ML:** TensorFlow, scikit-learn
 - **APIs:** Weather.gov, OpenWeather (integration ready)
 
-## 📈 Next Steps
+## 📈 Current Status & Next Steps
 
-### Immediate Use (Week 1)
-1. Run the API and test endpoints
-2. Use for real field scouting
-3. Validate recommendations against extension resources
-4. Build confidence in the system
+### ✅ Already Built
+- Multi-user authentication with roles (admin, manager, crew)
+- Complete desktop application (PyQt6)
+- Mobile crew interface (PWA)
+- Field, task, equipment, inventory management
+- Cost tracking with QuickBooks import
+- Profitability analysis
+- Offline mode with sync
 
-### Production Deployment (Month 1)
-1. Set up PostgreSQL database
-2. Add user authentication
-3. Create simple web interface
-4. Deploy to cloud (AWS, Digital Ocean, etc.)
+### 🔄 In Progress
+1. Import 2025 QuickBooks data (waiting on export)
+2. Set up actual farm fields
+3. Allocate expenses to fields
+4. Generate real cost-per-acre reports
 
-### Business Growth (Month 2-3)
-1. Build mobile app or responsive web app
-2. Add field mapping and GPS integration
-3. Generate PDF reports for clients
-4. Integrate with equipment (sprayers, monitors)
-
-### Advanced Features (Month 4+)
-1. Custom AI model training from your field photos
-2. Satellite imagery integration
-3. Market price feeds for dynamic economics
-4. Regional disease/pest pressure mapping
+### 📋 Planned
+1. John Deere Operations Center integration (pending API approval)
+2. PDF report generation for clients
+3. Satellite imagery integration
+4. Custom AI model training from field photos
 
 ## 💡 Use Cases
 
@@ -636,6 +639,8 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 - Know if treatment is economically justified
 - Optimize spray timing with weather
 - Reduce input costs while protecting yield
+- Track actual costs per acre with QuickBooks import
+- Analyze profitability by field and crop
 
 ### For Ag Retailers
 - Provide value-added consulting services
@@ -681,8 +686,27 @@ Unlike simple pest ID apps, this system:
 3. **Manages resistance** - protects long-term efficacy
 4. **Professional-grade** - based on extension research
 5. **Complete workflow** - from scouting to application
+6. **Tracks real costs** - QuickBooks import for actual expenses
+7. **Full farm management** - fields, tasks, equipment, inventory
+8. **Works offline** - desktop app with sync capability
 
-**This is a professional tool for professional consultants.**
+**This is a professional tool for professional consultants and farmers.**
+
+## 📊 Version History
+
+| Version | Release | Highlights |
+|---------|---------|------------|
+| 2.9.0 | Dec 2025 | QuickBooks import with desktop UI |
+| 2.8.0 | Dec 2025 | Profitability analysis, break-even, ROI |
+| 2.7.0 | Dec 2025 | Cost per acre tracking, CSV import |
+| 2.6.0 | Dec 2025 | Mobile crew interface (PWA) |
+| 2.5.0 | Dec 2025 | Farm operations manager (101 endpoints) |
+| 2.4.0 | Dec 2025 | Settings screen, offline mode |
+| 2.3.0 | Dec 2025 | SQLite caching, sync manager |
+| 2.2.0 | Dec 2025 | Yield response, EOR calculator |
+| 2.1.0 | Dec 2025 | Real-time pricing, spray timing |
+| 2.0.0 | Dec 2025 | Input cost optimization |
+| 1.0.0 | Nov 2025 | Core pest/disease ID, spray recommendations |
 
 ---
 
