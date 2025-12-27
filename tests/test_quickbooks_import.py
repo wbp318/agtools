@@ -200,6 +200,13 @@ def run_all_tests():
     print("QuickBooks Import Service Tests")
     print("=" * 60)
 
+    # Clean up test database to avoid duplicate detection issues
+    import os
+    test_db = "agtools.db"
+    if os.path.exists(test_db):
+        os.remove(test_db)
+        print(f"Cleaned up test database: {test_db}")
+
     try:
         test_format_detection()
         test_default_mappings()
