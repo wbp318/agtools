@@ -5018,6 +5018,288 @@ async def get_spray_types():
 
 
 # ============================================================================
+# PDF REPORT GENERATION (v3.1)
+# ============================================================================
+
+try:
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    PDF_SERVICE_AVAILABLE = True
+except ImportError:
+    PDF_SERVICE_AVAILABLE = False
+
+
+@app.post("/api/v1/reports/pdf/scouting", tags=["PDF Reports"])
+async def generate_scouting_pdf(
+    field_name: str = Form(...),
+    crop: str = Form(...),
+    growth_stage: str = Form(...),
+    observations: str = Form("[]"),
+    recommendations: str = Form("[]"),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a scouting report PDF"""
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available. Install reportlab.")
+
+    service = get_pdf_report_service()
+    config = ReportConfig(
+        title="Field Scouting Report",
+        subtitle=f"{field_name} - {crop.title()}",
+        farm_name=farm_name,
+        prepared_by=prepared_by or current_user.username
+    )
+
+    try:
+        obs_list = json.loads(observations)
+        rec_list = json.loads(recommendations)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    pdf_bytes = service.generate_scouting_report(
+        field_name=field_name,
+        crop=crop,
+        growth_stage=growth_stage,
+        observations=obs_list,
+        recommendations=rec_list,
+        config=config
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=scouting_{field_name}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/spray-recommendation", tags=["PDF Reports"])
+async def generate_spray_pdf(
+    field_name: str = Form(...),
+    crop: str = Form(...),
+    target_pest: str = Form(...),
+    products: str = Form(...),
+    economics: str = Form(...),
+    weather_window: Optional[str] = Form(None),
+    farm_name: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a spray recommendation PDF"""
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    service = get_pdf_report_service()
+    config = ReportConfig(
+        title="Spray Recommendation",
+        subtitle=f"{target_pest} - {field_name}",
+        farm_name=farm_name,
+        prepared_by=current_user.username
+    )
+
+    try:
+        products_list = json.loads(products)
+        economics_dict = json.loads(economics)
+        weather_dict = json.loads(weather_window) if weather_window else None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    pdf_bytes = service.generate_spray_recommendation(
+        field_name=field_name,
+        crop=crop,
+        target_pest=target_pest,
+        products=products_list,
+        economics=economics_dict,
+        weather_window=weather_dict,
+        config=config
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=spray_rec_{field_name}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/cost-per-acre", tags=["PDF Reports"])
+async def generate_cost_pdf(
+    crop_year: int = Form(...),
+    fields: str = Form(...),
+    summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a cost per acre report PDF"""
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    service = get_pdf_report_service()
+    config = ReportConfig(
+        title="Cost Per Acre Report",
+        subtitle=f"Crop Year {crop_year}",
+        farm_name=farm_name,
+        prepared_by=current_user.username
+    )
+
+    try:
+        fields_list = json.loads(fields)
+        summary_dict = json.loads(summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    pdf_bytes = service.generate_cost_per_acre_report(
+        crop_year=crop_year,
+        fields=fields_list,
+        summary=summary_dict,
+        config=config
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=cost_per_acre_{crop_year}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/profitability", tags=["PDF Reports"])
+async def generate_profitability_pdf(
+    crop_year: int = Form(...),
+    fields: str = Form(...),
+    summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a profitability analysis PDF"""
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    service = get_pdf_report_service()
+    config = ReportConfig(
+        title="Profitability Analysis",
+        subtitle=f"Crop Year {crop_year}",
+        farm_name=farm_name,
+        prepared_by=current_user.username
+    )
+
+    try:
+        fields_list = json.loads(fields)
+        summary_dict = json.loads(summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    pdf_bytes = service.generate_profitability_report(
+        crop_year=crop_year,
+        fields=fields_list,
+        summary=summary_dict,
+        config=config
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=profitability_{crop_year}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/equipment", tags=["PDF Reports"])
+async def generate_equipment_pdf(
+    equipment_list: str = Form(...),
+    maintenance_alerts: str = Form("[]"),
+    summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate an equipment status report PDF"""
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    service = get_pdf_report_service()
+    config = ReportConfig(
+        title="Equipment Status Report",
+        farm_name=farm_name,
+        prepared_by=current_user.username
+    )
+
+    try:
+        equip_list = json.loads(equipment_list)
+        alerts_list = json.loads(maintenance_alerts)
+        summary_dict = json.loads(summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    pdf_bytes = service.generate_equipment_status_report(
+        equipment_list=equip_list,
+        maintenance_alerts=alerts_list,
+        summary=summary_dict,
+        config=config
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=equipment_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/inventory", tags=["PDF Reports"])
+async def generate_inventory_pdf(
+    inventory_items: str = Form(...),
+    low_stock_alerts: str = Form("[]"),
+    expiring_soon: str = Form("[]"),
+    summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate an inventory status report PDF"""
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    service = get_pdf_report_service()
+    config = ReportConfig(
+        title="Inventory Status Report",
+        farm_name=farm_name,
+        prepared_by=current_user.username
+    )
+
+    try:
+        items_list = json.loads(inventory_items)
+        low_list = json.loads(low_stock_alerts)
+        exp_list = json.loads(expiring_soon)
+        summary_dict = json.loads(summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    pdf_bytes = service.generate_inventory_status_report(
+        inventory_items=items_list,
+        low_stock_alerts=low_list,
+        expiring_soon=exp_list,
+        summary=summary_dict,
+        config=config
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=inventory_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.get("/api/v1/reports/pdf/types", tags=["PDF Reports"])
+async def get_pdf_report_types():
+    """Get list of available PDF report types"""
+    return {
+        "available": PDF_SERVICE_AVAILABLE,
+        "types": [
+            {"type": "scouting", "name": "Scouting Report"},
+            {"type": "spray_recommendation", "name": "Spray Recommendation"},
+            {"type": "cost_per_acre", "name": "Cost Per Acre"},
+            {"type": "profitability", "name": "Profitability Analysis"},
+            {"type": "equipment", "name": "Equipment Status"},
+            {"type": "inventory", "name": "Inventory Status"},
+        ]
+    }
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
