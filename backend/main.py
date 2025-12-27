@@ -10,7 +10,7 @@ import os
 # Add parent directory to path so we can import from database/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -135,6 +135,12 @@ from services.cost_tracking_service import (
     CategoryBreakdown,
     CropCostSummary
 )
+from services.quickbooks_import import (
+    get_qb_import_service,
+    QBImportPreview,
+    QBImportSummary,
+    QBAccountMapping
+)
 from services.profitability_service import (
     get_profitability_service,
     CropType as ProfitCropType,
@@ -155,7 +161,7 @@ from mobile import mobile_router, configure_templates
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, and profitability analysis",
-    version="2.8.0",
+    version="2.9.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -3773,6 +3779,133 @@ async def list_expense_categories():
         {"value": cat.value, "name": cat.name.replace("_", " ").title()}
         for cat in ExpenseCategory
     ]
+
+
+# ============================================================================
+# QUICKBOOKS IMPORT (v2.9.0)
+# ============================================================================
+
+@app.post("/api/v1/quickbooks/preview", response_model=QBImportPreview, tags=["QuickBooks Import"])
+async def preview_quickbooks_import(
+    file: UploadFile,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Preview a QuickBooks CSV export before importing.
+
+    Returns:
+    - Detected export format (Desktop Transaction Detail, Online, etc.)
+    - List of accounts found with suggested category mappings
+    - Unmapped accounts that need manual mapping
+    - Sample transactions
+    - Date range and expense count
+    """
+    qb_service = get_qb_import_service()
+    content = await file.read()
+    csv_content = content.decode("utf-8-sig")  # Handle BOM from Excel/QB
+    return qb_service.preview_import(csv_content, current_user.user_id)
+
+
+@app.post("/api/v1/quickbooks/import", response_model=QBImportSummary, tags=["QuickBooks Import"])
+async def import_quickbooks_data(
+    file: UploadFile,
+    account_mappings: str = Form(...),  # JSON string of account -> category mappings
+    tax_year: Optional[int] = Form(None),
+    save_mappings: bool = Form(True),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Import expenses from a QuickBooks CSV export.
+
+    Requires account_mappings as a JSON string mapping QB accounts to AgTools categories.
+    Example: {"Farm Expense:Seed": "seed", "Farm Expense:Fertilizer": "fertilizer"}
+
+    Features:
+    - Auto-filters to expense transactions only (skips deposits, transfers)
+    - Duplicate detection by reference number + date + amount
+    - Saves mappings for future imports if save_mappings=true
+    """
+    import json
+
+    qb_service = get_qb_import_service()
+
+    # Parse mappings JSON
+    try:
+        mappings = json.loads(account_mappings)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid account_mappings JSON")
+
+    # Read file
+    content = await file.read()
+    csv_content = content.decode("utf-8-sig")
+
+    return qb_service.import_quickbooks(
+        csv_content=csv_content,
+        user_id=current_user.user_id,
+        account_mappings=mappings,
+        source_file=file.filename or "quickbooks_export.csv",
+        tax_year=tax_year,
+        save_mappings=save_mappings
+    )
+
+
+@app.get("/api/v1/quickbooks/mappings", response_model=List[QBAccountMapping], tags=["QuickBooks Import"])
+async def get_qb_account_mappings(
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get user's saved QuickBooks account mappings."""
+    qb_service = get_qb_import_service()
+    return qb_service.get_all_user_mappings(current_user.user_id)
+
+
+@app.post("/api/v1/quickbooks/mappings", tags=["QuickBooks Import"])
+async def save_qb_account_mappings(
+    mappings: Dict[str, str],
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Save QuickBooks account to AgTools category mappings.
+
+    Body should be a dict of qb_account -> agtools_category.
+    Example: {"Farm Expense:Seed": "seed", "Farm Expense:Fertilizer": "fertilizer"}
+    """
+    qb_service = get_qb_import_service()
+    saved = qb_service.save_user_mappings(current_user.user_id, mappings)
+    return {"message": f"Saved {saved} mappings", "count": saved}
+
+
+@app.delete("/api/v1/quickbooks/mappings/{mapping_id}", tags=["QuickBooks Import"])
+async def delete_qb_account_mapping(
+    mapping_id: int,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a QuickBooks account mapping."""
+    qb_service = get_qb_import_service()
+    if qb_service.delete_user_mapping(current_user.user_id, mapping_id):
+        return {"message": "Mapping deleted"}
+    raise HTTPException(status_code=404, detail="Mapping not found")
+
+
+@app.get("/api/v1/quickbooks/formats", tags=["QuickBooks Import"])
+async def get_supported_qb_formats():
+    """Get list of supported QuickBooks export formats."""
+    qb_service = get_qb_import_service()
+    return qb_service.get_supported_formats()
+
+
+@app.get("/api/v1/quickbooks/default-mappings", tags=["QuickBooks Import"])
+async def get_default_qb_mappings():
+    """
+    Get default QuickBooks account to category mappings.
+
+    These are common mappings that work for many farm operations.
+    Users can customize these for their specific chart of accounts.
+    """
+    from services.quickbooks_import import DEFAULT_QB_MAPPINGS
+    return {
+        account: category.value
+        for account, category in DEFAULT_QB_MAPPINGS.items()
+    }
 
 
 # ============================================================================

@@ -4,7 +4,99 @@
 
 ---
 
-## Current Version: 2.8.0 (Released - December 26, 2025)
+## Current Version: 2.9.0 (Released - December 26, 2025)
+
+### Latest Session: December 26, 2025
+
+#### v2.9.0 - QuickBooks Import Integration
+
+**Status:** ✅ RELEASED
+
+**Goal:** Import 2025 farm expenses from QuickBooks to get actual cost per acre data.
+
+**What Was Built:**
+
+1. **QuickBooks Import Service** (`backend/services/quickbooks_import.py` ~750 lines)
+   - **Format Detection:**
+     - Auto-detects QB Desktop Transaction Detail reports
+     - Auto-detects QB Desktop Transaction List reports
+     - Auto-detects QB Desktop Check Detail reports
+     - Auto-detects QB Online exports
+     - Falls back to generic CSV if format unknown
+
+   - **Account-to-Category Mapping:**
+     - 73 default mappings for common farm accounts
+     - Intelligent partial matching (e.g., "Farm Expense:Seed" → seed)
+     - User-saveable custom mappings
+     - Suggests categories for unmapped accounts
+
+   - **Transaction Filtering:**
+     - Auto-filters to expense transactions only
+     - Skips deposits, transfers, invoices, payments
+     - Skips credit/refund transactions
+     - Handles credit card charges correctly
+
+   - **Import Processing:**
+     - Duplicate detection by reference + date + amount
+     - QB parent:child account format handling
+     - Credit/debit column parsing
+     - Date format flexibility (MM/DD/YYYY, YYYY-MM-DD, etc.)
+     - Preserves QB account in notes for reference
+
+2. **API Endpoints** (7 new endpoints)
+   - `POST /api/v1/quickbooks/preview` - Preview QB export before importing
+   - `POST /api/v1/quickbooks/import` - Import expenses with account mappings
+   - `GET /api/v1/quickbooks/mappings` - Get saved account mappings
+   - `POST /api/v1/quickbooks/mappings` - Save new mappings
+   - `DELETE /api/v1/quickbooks/mappings/{id}` - Delete a mapping
+   - `GET /api/v1/quickbooks/formats` - List supported QB formats
+   - `GET /api/v1/quickbooks/default-mappings` - Get default account mappings
+
+3. **Database Changes**
+   - New table: `qb_account_mappings` for user-specific account mappings
+
+4. **Testing**
+   - Comprehensive test suite: `tests/test_quickbooks_import.py`
+   - Tests format detection, category suggestions, preview, and full import
+   - All tests passing
+
+**Supported QuickBooks Formats:**
+- QB Desktop - Transaction Detail Report (Reports > Transaction Detail by Account)
+- QB Desktop - Transaction List (Reports > Transaction List by Date)
+- QB Desktop - Check Detail (Reports > Check Detail)
+- QB Online Export
+
+**Default Account Mappings Include:**
+- Seed accounts → seed category
+- Fertilizer/fert/nutrients → fertilizer category
+- Chemical/herbicide/pesticide → chemical category
+- Fuel/diesel/gasoline → fuel category
+- Repairs/maintenance/parts → repairs category
+- Labor/wages/payroll → labor category
+- Custom hire/aerial/trucking → custom_hire category
+- Land rent/cash rent → land_rent category
+- Crop insurance → crop_insurance category
+- Interest/loan → interest category
+- Utilities/electric/water → utilities category
+- Storage/drying/elevator → storage category
+
+**How to Import QuickBooks Data:**
+1. Export from QuickBooks: Reports > Transaction Detail by Account > Export to CSV
+2. Preview: `POST /api/v1/quickbooks/preview` with the CSV file
+3. Review suggested mappings and unmapped accounts
+4. Import: `POST /api/v1/quickbooks/import` with mappings
+5. Allocate expenses to fields for cost-per-acre analysis
+
+**Files Created:**
+- `backend/services/quickbooks_import.py` (~750 lines)
+- `tests/test_quickbooks_import.py` (~200 lines)
+
+**Files Modified:**
+- `backend/main.py` - Added 7 QB endpoints, Form import, bumped to 179 routes
+
+---
+
+## Previous Version: 2.8.0 (Released - December 26, 2025)
 
 ### Latest Session: December 26, 2025
 
