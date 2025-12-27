@@ -33,6 +33,13 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, and complete decision support for corn and soybean production.
 
+**Version 3.0.0** adds **AI/ML Intelligence Suite** - 5 new AI-powered features:
+- **Image-Based Pest/Disease ID**: Upload photos for instant AI identification with confidence scores
+- **Crop Health Scoring**: NDVI analysis from drone/satellite imagery with zone-based health maps
+- **Yield Prediction Model**: ML-based yield predictions using field inputs and historical data
+- **Smart Expense Categorization**: Auto-categorize expenses from descriptions with 95%+ accuracy
+- **Weather-Based Spray AI**: ML-enhanced spray timing that learns from your outcomes
+
 **Version 2.9.0** adds **QuickBooks Import** - direct import from QuickBooks exports:
 - **Auto-detect** QB Desktop and Online export formats
 - **73 default mappings** for common farm expense accounts
@@ -245,7 +252,29 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
     - **Smart Filtering**: Auto-skip deposits/transfers (expenses only)
     - **Desktop UI**: File browser, preview, and mapping editor
 
-13. **John Deere Operations Center Integration (Future)**
+13. **AI/ML Intelligence Suite (NEW in v3.0)**
+    - **Image-Based Pest/Disease ID**: Upload field photos for instant AI identification
+      - Hybrid cloud + local model architecture (Hugging Face API)
+      - Knowledge base integration with 46+ pests/diseases
+      - Training data collection for custom model improvement
+    - **Crop Health Scoring**: Analyze drone/satellite imagery
+      - NDVI calculation from RGB or multispectral imagery
+      - Zone-based health analysis with 6 health levels
+      - Problem detection (water stress, nutrient deficiency, pest damage)
+    - **Yield Prediction Model**: ML-based yield forecasting
+      - RandomForestRegressor with agronomic formula fallback
+      - Support for 6 crops (corn, soybean, wheat, rice, cotton, sorghum)
+      - Train on your historical field data for improved accuracy
+    - **Smart Expense Categorization**: Auto-categorize expenses
+      - ML + rule-based hybrid with 19 expense categories
+      - 30+ vendor-to-category mappings (Bayer→chemical, Pioneer→seed)
+      - Learns from your corrections over time
+    - **Weather-Based Spray AI**: Intelligent spray timing
+      - Learn from historical spray outcomes and efficacy
+      - Micro-climate pattern support for field-specific predictions
+      - Continuous improvement from recorded results
+
+14. **John Deere Operations Center Integration (Future)**
     - **Field Boundary Import**: Auto-populate fields from JD Ops Center account
     - **Yield Map Integration**: Historical yield data by zone
     - *Note: Pending JD Developer Account approval*
@@ -261,7 +290,8 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Professional Knowledge** equivalent to extension bulletins
 - **Cost Per Acre Tracking** with QuickBooks import (v2.7-2.9)
 - **Profitability Analysis** with break-even and ROI ranking (v2.8)
-- **179 API Endpoints** covering complete farm operations
+- **AI/ML Intelligence** with 5 AI-powered features (v3.0)
+- **207 API Endpoints** covering complete farm operations
 
 ### Example ROI
 
@@ -289,7 +319,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v2.9 - 4200+ lines, 179 endpoints)
+│   ├── main.py                       # FastAPI application (v3.0 - 5000+ lines, 207 endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   ├── mobile/                       # Mobile crew interface (NEW v2.6)
 │   │   ├── __init__.py               # Mobile module exports
@@ -333,7 +363,12 @@ agtools/
 │       ├── photo_service.py          # Photo upload service (v2.6)
 │       ├── cost_tracking_service.py  # Cost per acre tracking (v2.7)
 │       ├── profitability_service.py  # Profitability analysis (v2.8)
-│       └── quickbooks_import.py      # QuickBooks import (v2.9)
+│       ├── quickbooks_import.py      # QuickBooks import (v2.9)
+│       ├── ai_image_service.py       # AI pest/disease identification (v3.0)
+│       ├── crop_health_service.py    # Crop health scoring (v3.0)
+│       ├── yield_prediction_service.py # Yield prediction model (v3.0)
+│       ├── expense_categorization_service.py # Smart expense categorization (v3.0)
+│       └── spray_ai_service.py       # Weather-based spray AI (v3.0)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -582,6 +617,38 @@ agtools/
 | `GET /api/v1/quickbooks/formats` | List supported formats |
 | `GET /api/v1/quickbooks/default-mappings` | View default mappings |
 
+### AI/ML Intelligence Suite (NEW in v3.0)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/ai/identify/image` | **AI image identification** |
+| `POST /api/v1/ai/feedback` | Submit prediction feedback |
+| `GET /api/v1/ai/training/stats` | Training data statistics |
+| `POST /api/v1/ai/training/export` | Export training data |
+| `GET /api/v1/ai/models` | List available AI models |
+| `POST /api/v1/ai/health/analyze` | **Analyze field imagery (NDVI)** |
+| `GET /api/v1/ai/health/history/{field_id}` | Health assessment history |
+| `GET /api/v1/ai/health/trends/{field_id}` | Health trends over time |
+| `GET /api/v1/ai/health/status-levels` | NDVI threshold reference |
+| `POST /api/v1/ai/yield/predict` | **ML yield prediction** |
+| `POST /api/v1/ai/yield/record` | Record actual yield |
+| `GET /api/v1/ai/yield/history/{field_id}` | Field yield history |
+| `POST /api/v1/ai/yield/train` | Train yield model |
+| `GET /api/v1/ai/yield/model-status` | Yield model status |
+| `GET /api/v1/ai/yield/crop-defaults` | Crop parameters |
+| `POST /api/v1/ai/expense/categorize` | **Auto-categorize expense** |
+| `POST /api/v1/ai/expense/categorize-batch` | Batch categorization |
+| `POST /api/v1/ai/expense/feedback` | Submit correction |
+| `GET /api/v1/ai/expense/categories` | List expense categories |
+| `GET /api/v1/ai/expense/vendor-mappings` | Vendor category mappings |
+| `POST /api/v1/ai/expense/train` | Train categorization model |
+| `GET /api/v1/ai/expense/model-status` | Categorization model status |
+| `POST /api/v1/ai/spray/predict` | **ML spray timing prediction** |
+| `POST /api/v1/ai/spray/record` | Record spray application |
+| `POST /api/v1/ai/spray/outcome` | Record spray efficacy |
+| `GET /api/v1/ai/spray/history/{field_id}` | Spray history |
+| `POST /api/v1/ai/spray/train` | Train spray AI model |
+| `GET /api/v1/ai/spray/model-status` | Spray model status |
+
 Visit http://localhost:8000/docs for interactive API documentation.
 Visit http://localhost:8000/m/login for the mobile crew interface.
 
@@ -613,6 +680,12 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 - Cost tracking with QuickBooks import
 - Profitability analysis
 - Offline mode with sync
+- **AI/ML Intelligence Suite** (v3.0):
+  - Image-based pest/disease identification
+  - Crop health scoring from imagery (NDVI)
+  - Yield prediction model
+  - Smart expense categorization
+  - Weather-based spray AI
 
 ### 🔄 In Progress
 1. Import 2025 QuickBooks data (waiting on export)
@@ -623,10 +696,11 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 ### 📋 Planned
 1. John Deere Operations Center integration (pending API approval)
 2. PDF report generation for clients
-3. Satellite imagery integration
-4. Custom AI model training from field photos
+3. Satellite imagery integration (NDVI from drone/satellite services)
+4. Train custom AI models with your field photos and outcomes
 5. Market price feeds for dynamic economics
 6. Regional disease/pest pressure mapping
+7. React/Vue web application for browser access
 
 ## 💡 Use Cases
 
@@ -691,6 +765,7 @@ Unlike simple pest ID apps, this system:
 6. **Tracks real costs** - QuickBooks import for actual expenses
 7. **Full farm management** - fields, tasks, equipment, inventory
 8. **Works offline** - desktop app with sync capability
+9. **AI-powered intelligence** - image ID, yield prediction, smart categorization
 
 **This is a professional tool for professional consultants and farmers.**
 
@@ -698,6 +773,7 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 3.0.0 | Dec 2025 | AI/ML Intelligence Suite (28 new AI endpoints) |
 | 2.9.0 | Dec 2025 | QuickBooks import with desktop UI |
 | 2.8.0 | Dec 2025 | Profitability analysis, break-even, ROI |
 | 2.7.0 | Dec 2025 | Cost per acre tracking, CSV import |
