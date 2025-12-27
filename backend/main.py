@@ -4042,6 +4042,161 @@ async def list_input_categories():
 
 
 # ============================================================================
+# AI/ML INTELLIGENCE SUITE (v3.0)
+# ============================================================================
+
+from services.ai_image_service import get_ai_image_service, AIProvider
+
+
+class AIImageRequest(BaseModel):
+    """Request for AI image analysis"""
+    crop: str = Field(..., description="Crop type (corn, soybean, wheat, etc.)")
+    growth_stage: Optional[str] = Field(None, description="Current growth stage")
+    use_local_model: bool = Field(True, description="Use local model if available")
+    save_for_training: bool = Field(True, description="Save image for training data")
+
+
+class AIFeedbackRequest(BaseModel):
+    """User feedback on AI prediction"""
+    image_hash: str = Field(..., description="Hash of the analyzed image")
+    is_correct: bool = Field(..., description="Whether the top prediction was correct")
+    correct_label: Optional[str] = Field(None, description="The correct identification if wrong")
+
+
+@app.post("/api/v1/ai/identify/image", tags=["AI Intelligence"])
+async def ai_identify_image(
+    image: UploadFile = File(...),
+    crop: str = Form("corn"),
+    growth_stage: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    AI-based pest/disease identification from uploaded image
+
+    Uses hybrid approach:
+    1. Local trained model (if available)
+    2. Cloud API (Hugging Face) for analysis
+    3. Maps results to our knowledge base
+
+    Returns top 5 matches with confidence scores
+    """
+    ai_service = get_ai_image_service()
+
+    # Read image bytes
+    image_bytes = await image.read()
+
+    # Analyze image
+    result = await ai_service.analyze_image(
+        image_bytes=image_bytes,
+        crop=crop,
+        growth_stage=growth_stage,
+        use_local_model=True,
+        save_for_training=True
+    )
+
+    return {
+        "provider": result.provider.value,
+        "image_hash": result.image_hash,
+        "confidence": result.confidence,
+        "processing_time_ms": result.processing_time_ms,
+        "identifications": result.mapped_identifications,
+        "raw_labels": result.raw_labels[:5],  # Top 5 raw labels
+        "notes": result.notes,
+        "crop": crop,
+        "growth_stage": growth_stage
+    }
+
+
+@app.post("/api/v1/ai/feedback", tags=["AI Intelligence"])
+async def submit_ai_feedback(
+    request: AIFeedbackRequest,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Submit feedback on AI prediction to improve model accuracy
+
+    This feedback is used to:
+    - Correct training data labels
+    - Track model performance
+    - Improve future predictions
+    """
+    ai_service = get_ai_image_service()
+
+    success = ai_service.submit_feedback(
+        image_hash=request.image_hash,
+        is_correct=request.is_correct,
+        correct_label=request.correct_label,
+        user_id=current_user.user_id
+    )
+
+    if success:
+        return {"status": "success", "message": "Feedback recorded. Thank you for improving our AI!"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save feedback")
+
+
+@app.get("/api/v1/ai/training/stats", tags=["AI Intelligence"])
+async def get_ai_training_stats(
+    current_user: AuthenticatedUser = Depends(require_manager)
+):
+    """
+    Get statistics about collected AI training data
+
+    Returns:
+    - Total images collected
+    - Verified vs unverified counts
+    - Breakdown by crop and type
+    - Prediction accuracy from user feedback
+    - Readiness for model training
+    """
+    ai_service = get_ai_image_service()
+    return ai_service.get_training_stats()
+
+
+@app.post("/api/v1/ai/training/export", tags=["AI Intelligence"])
+async def export_ai_training_data(
+    output_dir: str = Form("training_export"),
+    crop: Optional[str] = Form(None),
+    current_user: AuthenticatedUser = Depends(require_admin)
+):
+    """
+    Export verified training data for model training (Admin only)
+
+    Creates organized directory structure:
+    - output_dir/label_name/image_hash.jpg
+    - output_dir/manifest.json
+
+    Returns export statistics
+    """
+    ai_service = get_ai_image_service()
+
+    result = ai_service.export_training_data(
+        output_dir=output_dir,
+        crop=crop
+    )
+
+    return {
+        "status": "success",
+        "exported_to": output_dir,
+        **result
+    }
+
+
+@app.get("/api/v1/ai/models", tags=["AI Intelligence"])
+async def list_ai_models():
+    """
+    List available AI models and their capabilities
+
+    Returns information about:
+    - Available models (local and cloud)
+    - Supported crops and classes
+    - Model accuracy metrics
+    """
+    from services.ai_identification import get_model_info
+    return get_model_info()
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
