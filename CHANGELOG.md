@@ -90,9 +90,26 @@
 **Files Created:**
 - `backend/services/quickbooks_import.py` (~750 lines)
 - `tests/test_quickbooks_import.py` (~200 lines)
+- `frontend/api/quickbooks_api.py` (~275 lines)
+- `frontend/ui/screens/quickbooks_import.py` (~560 lines)
 
 **Files Modified:**
-- `backend/main.py` - Added 7 QB endpoints, Form import, bumped to 179 routes
+- `backend/main.py` - Added 7 QB endpoints, Form import, 179 routes
+- `frontend/api/client.py` - Added post_file for multipart uploads
+- `frontend/ui/sidebar.py` - Added Import section with QuickBooks nav
+- `frontend/ui/main_window.py` - Added QuickBooks screen
+
+**Desktop UI Features:**
+- File browser to select QB CSV exports
+- Auto-preview with format detection and row counts
+- Account mappings table with category dropdowns
+- Auto-suggested mappings highlighted in green
+- Unmapped accounts highlighted in red
+- Background workers for non-blocking operations
+- Progress bar during preview/import
+- Detailed import summary dialog
+
+**Smoke Tests:** 29/29 pass (see SMOKE_TEST_RESULTS.md)
 
 ---
 
