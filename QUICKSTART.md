@@ -35,6 +35,11 @@ Think of AgTools as your **digital agronomist** that:
 18. **Mobile Crew Interface** (v2.6.0) - PWA mobile web app for field crews with task list, time logging, photo uploads, and offline support
 19. **Cost Per Acre Tracking** (v2.7.0) - Import expenses from QuickBooks CSV or scanned receipts, allocate to fields, get cost-per-acre reports
 20. **QuickBooks Import** (v2.9.0) - Direct QuickBooks export import with auto-format detection, account-to-category mapping, and smart filtering
+21. **AI Image Identification** (v3.0.0) - Upload field photos for instant AI pest/disease identification with confidence scoring
+22. **Crop Health Scoring** (v3.0.0) - NDVI analysis from drone/satellite imagery with zone-based health maps
+23. **Yield Prediction** (v3.0.0) - ML-based yield predictions using your field inputs and historical data
+24. **Smart Expense Categorization** (v3.0.0) - Auto-categorize expenses with 95%+ accuracy, learns from your corrections
+25. **Spray AI** (v3.0.0) - ML-enhanced spray timing that learns from your outcomes and improves over time
 
 ---
 
@@ -1322,6 +1327,186 @@ Your account mappings are automatically saved after each import. For future impo
 
 ---
 
+## 🆕 AI/ML INTELLIGENCE SUITE (NEW in v3.0)
+
+Five AI-powered features that learn from your data and improve over time.
+
+### 📸 AI Image Identification
+
+**When to use:** You're in the field with your phone and want to identify a pest or disease from a photo.
+
+1. Find **"POST /api/v1/ai/identify/image"**
+2. Upload your field photo (JPG, PNG)
+3. Click **"Execute"**
+
+**What you get:**
+- Top 5 possible identifications with confidence scores
+- Links to pest/disease details from the knowledge base
+- Management recommendations
+
+**How it improves:**
+- Submit feedback when predictions are wrong
+- The system collects training data for custom model development
+- Over time, accuracy increases for your specific region and conditions
+
+---
+
+### 🌿 Crop Health Scoring from Imagery
+
+**When to use:** You have drone or satellite imagery of a field and want to assess health.
+
+1. Find **"POST /api/v1/ai/health/analyze"**
+2. Upload your field image
+3. Optionally specify number of zones for grid analysis
+4. Click **"Execute"**
+
+**What you get:**
+- Overall field health score (Excellent to Critical)
+- NDVI or pseudo-NDVI calculation
+- Zone-by-zone health breakdown
+- Problem detection (water stress, nutrient deficiency, pest damage)
+- Specific recommendations for problem areas
+
+**Health Levels:**
+| Status | NDVI Range | What it means |
+|--------|------------|---------------|
+| Excellent | > 0.7 | Healthy, vigorous crop |
+| Good | 0.5 - 0.7 | Normal growth |
+| Moderate | 0.3 - 0.5 | Minor stress, monitor |
+| Stressed | 0.2 - 0.3 | Intervention needed |
+| Poor | 0.1 - 0.2 | Significant problems |
+| Critical | < 0.1 | Severe damage |
+
+---
+
+### 📊 Yield Prediction Model
+
+**When to use:** You want to estimate expected yield based on your field inputs.
+
+1. Find **"POST /api/v1/ai/yield/predict"**
+2. Fill in your field data:
+```json
+{
+  "crop": "corn",
+  "field_id": 1,
+  "planted_acres": 160,
+  "plant_population": 34000,
+  "nitrogen_applied": 180,
+  "phosphorus_applied": 60,
+  "potassium_applied": 40,
+  "previous_crop": "soybean",
+  "planting_date": "2025-04-25",
+  "irrigation_type": "center_pivot"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Predicted yield (e.g., 195 bu/acre)
+- Confidence interval (e.g., 185-205 bu/acre)
+- Factors affecting the prediction
+- Comparison to crop defaults
+
+**Training your model:**
+1. After harvest, record actual yields: **"POST /api/v1/ai/yield/record"**
+2. Train model from your data: **"POST /api/v1/ai/yield/train"**
+3. Check model status: **"GET /api/v1/ai/yield/model-status"**
+
+The more years of data you provide, the more accurate predictions become for your specific fields.
+
+---
+
+### 💰 Smart Expense Categorization
+
+**When to use:** You have expense descriptions and want them auto-categorized.
+
+1. Find **"POST /api/v1/ai/expense/categorize"**
+2. Fill in:
+```json
+{
+  "description": "Pioneer P1197 seed corn 80 bags",
+  "vendor": "Local Co-op",
+  "amount": 18500.00
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Predicted category (e.g., "seed")
+- Confidence score (e.g., 0.95)
+- Alternative suggestions if confidence is low
+
+**19 Categories:**
+seed, fertilizer, chemical, fuel, repairs, labor, custom_hire, land_rent, crop_insurance, interest, utilities, storage, equipment, marketing, trucking, supplies, professional_services, taxes, other
+
+**Batch categorization:**
+- Use **"POST /api/v1/ai/expense/categorize-batch"** to categorize multiple expenses at once
+
+**Training from corrections:**
+1. When the system is wrong, submit feedback: **"POST /api/v1/ai/expense/feedback"**
+2. Periodically train: **"POST /api/v1/ai/expense/train"**
+3. Accuracy improves with your corrections
+
+---
+
+### 🌤️ Weather-Based Spray AI
+
+**When to use:** You want ML-enhanced spray timing predictions that improve with your outcomes.
+
+1. Find **"POST /api/v1/ai/spray/predict"**
+2. Fill in current conditions:
+```json
+{
+  "field_id": 1,
+  "spray_type": "fungicide",
+  "target_pest": "gray_leaf_spot",
+  "temperature_f": 78,
+  "humidity_pct": 55,
+  "wind_mph": 6,
+  "hours_until_rain": 48,
+  "pest_pressure": "moderate"
+}
+```
+3. Click **"Execute"**
+
+**What you get:**
+- Spray timing recommendation (Spray Now, Wait, Caution)
+- Confidence score
+- Optimal window timing
+- Risk factors
+
+**Recording outcomes for learning:**
+1. Record application: **"POST /api/v1/ai/spray/record"**
+2. After 2-4 weeks, record outcome: **"POST /api/v1/ai/spray/outcome"**
+```json
+{
+  "application_id": 123,
+  "efficacy_score": 85,
+  "notes": "Good control, some escapes in low areas"
+}
+```
+3. Train model: **"POST /api/v1/ai/spray/train"**
+
+**How it learns:**
+- Tracks which conditions led to good vs. poor efficacy
+- Learns your micro-climate patterns
+- Adjusts recommendations based on your specific fields
+- Improves with each recorded outcome
+
+---
+
+### 📋 Quick Reference: AI/ML Workflow
+
+1. **Start using AI features** - They work immediately with default models
+2. **Submit feedback when wrong** - Helps improve accuracy
+3. **Record actual outcomes** - Yields, spray efficacy, expense corrections
+4. **Train periodically** - Use the /train endpoints after collecting data
+5. **Check model status** - See accuracy metrics and training data counts
+
+**The more data you provide, the smarter the system becomes for YOUR farm.**
+
+---
+
 ### 📋 Quick Reference: Cost Tracking Workflow
 
 1. **Export from QuickBooks** - Get your expenses as CSV
@@ -1745,6 +1930,11 @@ A printable table you can take to the field:
 13. **How do my costs compare year-over-year?** (v2.7)
 14. **How do I get my QuickBooks data into AgTools?** (v2.9)
 15. **What accounts do I map to what categories?** (v2.9)
+16. **What pest or disease is in this photo?** (v3.0 - AI Image ID)
+17. **How healthy is my field from this drone image?** (v3.0 - Crop Health)
+18. **What yield should I expect this year?** (v3.0 - Yield Prediction)
+19. **What category is this expense?** (v3.0 - Smart Categorization)
+20. **When is the best time to spray based on my past results?** (v3.0 - Spray AI)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
 
