@@ -100,7 +100,7 @@ class AuthAPI:
             LoginResult with tokens and user info if successful
         """
         response = self._client.post(
-            "/api/v1/auth/login",
+            "/auth/login",
             data={"username": username, "password": password}
         )
 
@@ -130,7 +130,7 @@ class AuthAPI:
         Returns:
             True if successful
         """
-        response = self._client.post("/api/v1/auth/logout")
+        response = self._client.post("/auth/logout")
         self._client.clear_auth_token()
         return response.success
 
@@ -145,7 +145,7 @@ class AuthAPI:
             Tuple of (AuthToken, error_message)
         """
         response = self._client.post(
-            "/api/v1/auth/refresh",
+            "/auth/refresh",
             params={"refresh_token": refresh_token}
         )
 
@@ -164,7 +164,7 @@ class AuthAPI:
         Returns:
             Tuple of (UserInfo, error_message)
         """
-        response = self._client.get("/api/v1/auth/me")
+        response = self._client.get("/auth/me")
 
         if not response.success:
             return None, response.error_message
@@ -194,7 +194,7 @@ class AuthAPI:
         if phone is not None:
             data["phone"] = phone
 
-        response = self._client.put("/api/v1/auth/me", data=data)
+        response = self._client.put("/auth/me", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -213,7 +213,7 @@ class AuthAPI:
             Tuple of (success, error_message)
         """
         response = self._client.post(
-            "/api/v1/auth/change-password",
+            "/auth/change-password",
             data={
                 "current_password": current_password,
                 "new_password": new_password

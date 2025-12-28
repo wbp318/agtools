@@ -137,7 +137,7 @@ class TaskAPI:
         if my_tasks:
             params["my_tasks"] = "true"
 
-        response = self._client.get("/api/v1/tasks", params=params if params else None)
+        response = self._client.get("/tasks", params=params if params else None)
 
         if not response.success:
             return [], response.error_message
@@ -152,7 +152,7 @@ class TaskAPI:
         Returns:
             Tuple of (TaskInfo, error_message)
         """
-        response = self._client.get(f"/api/v1/tasks/{task_id}")
+        response = self._client.get(f"/tasks/{task_id}")
 
         if not response.success:
             return None, response.error_message
@@ -198,7 +198,7 @@ class TaskAPI:
         if due_date:
             data["due_date"] = due_date
 
-        response = self._client.post("/api/v1/tasks", data=data)
+        response = self._client.post("/tasks", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -238,7 +238,7 @@ class TaskAPI:
         if due_date is not None:
             data["due_date"] = due_date
 
-        response = self._client.put(f"/api/v1/tasks/{task_id}", data=data)
+        response = self._client.put(f"/tasks/{task_id}", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -252,7 +252,7 @@ class TaskAPI:
         Returns:
             Tuple of (success, error_message)
         """
-        response = self._client.delete(f"/api/v1/tasks/{task_id}")
+        response = self._client.delete(f"/tasks/{task_id}")
 
         if not response.success:
             return False, response.error_message
@@ -276,7 +276,7 @@ class TaskAPI:
         """
         data = {"status": new_status}
 
-        response = self._client.post(f"/api/v1/tasks/{task_id}/status", data=data)
+        response = self._client.post(f"/tasks/{task_id}/status", data=data)
 
         if not response.success:
             return None, response.error_message

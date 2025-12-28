@@ -1,7 +1,7 @@
 # Full Smoke Test Results - AgTools v3.1
 
-**Date:** 2025-12-27 12:46:11
-**Duration:** 4.00 seconds
+**Date:** 2025-12-27 12:50:41
+**Duration:** 4.18 seconds
 
 ## Summary
 
@@ -102,7 +102,7 @@
 | PDFReportService import | ✅ Pass | - |
 | PDFReportService singleton | ✅ Pass | - |
 | Generate scouting report | ✅ Pass | 2499 bytes |
-| Generate spray report | ✅ Pass | 2859 bytes |
+| Generate spray report | ✅ Pass | 2862 bytes |
 | Generate cost report | ✅ Pass | 2420 bytes |
 
 ### Routes (21/21 passed)

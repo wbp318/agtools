@@ -83,7 +83,7 @@ class CrewAPI:
         if is_active is not None:
             params["is_active"] = str(is_active).lower()
 
-        response = self._client.get("/api/v1/crews", params=params if params else None)
+        response = self._client.get("/crews", params=params if params else None)
 
         if not response.success:
             return [], response.error_message
@@ -93,7 +93,7 @@ class CrewAPI:
 
     def get_crew(self, crew_id: int) -> Tuple[Optional[CrewInfo], Optional[str]]:
         """Get crew by ID."""
-        response = self._client.get(f"/api/v1/crews/{crew_id}")
+        response = self._client.get(f"/crews/{crew_id}")
 
         if not response.success:
             return None, response.error_message
@@ -118,7 +118,7 @@ class CrewAPI:
         if manager_id:
             data["manager_id"] = manager_id
 
-        response = self._client.post("/api/v1/crews", data=data)
+        response = self._client.post("/crews", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -149,7 +149,7 @@ class CrewAPI:
         if is_active is not None:
             data["is_active"] = is_active
 
-        response = self._client.put(f"/api/v1/crews/{crew_id}", data=data)
+        response = self._client.put(f"/crews/{crew_id}", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -158,7 +158,7 @@ class CrewAPI:
 
     def get_crew_members(self, crew_id: int) -> Tuple[List[CrewMember], Optional[str]]:
         """Get all members of a crew."""
-        response = self._client.get(f"/api/v1/crews/{crew_id}/members")
+        response = self._client.get(f"/crews/{crew_id}/members")
 
         if not response.success:
             return [], response.error_message
@@ -168,7 +168,7 @@ class CrewAPI:
 
     def add_crew_member(self, crew_id: int, user_id: int) -> Tuple[bool, Optional[str]]:
         """Add a user to a crew (manager/admin only)."""
-        response = self._client.post(f"/api/v1/crews/{crew_id}/members/{user_id}")
+        response = self._client.post(f"/crews/{crew_id}/members/{user_id}")
 
         if not response.success:
             return False, response.error_message
@@ -177,7 +177,7 @@ class CrewAPI:
 
     def remove_crew_member(self, crew_id: int, user_id: int) -> Tuple[bool, Optional[str]]:
         """Remove a user from a crew (manager/admin only)."""
-        response = self._client.delete(f"/api/v1/crews/{crew_id}/members/{user_id}")
+        response = self._client.delete(f"/crews/{crew_id}/members/{user_id}")
 
         if not response.success:
             return False, response.error_message
@@ -186,7 +186,7 @@ class CrewAPI:
 
     def get_user_crews(self, user_id: int) -> Tuple[List[CrewInfo], Optional[str]]:
         """Get all crews a user belongs to."""
-        response = self._client.get(f"/api/v1/users/{user_id}/crews")
+        response = self._client.get(f"/users/{user_id}/crews")
 
         if not response.success:
             return [], response.error_message

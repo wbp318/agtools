@@ -323,7 +323,7 @@ class InventoryAPI:
         if expiring_only:
             params["expiring_only"] = "true"
 
-        response = self._client.get("/api/v1/inventory", params=params)
+        response = self._client.get("/inventory", params=params)
         if not response.success:
             return [], response.error
 
@@ -331,7 +331,7 @@ class InventoryAPI:
 
     def get_item(self, item_id: int) -> Tuple[Optional[InventoryItem], Optional[str]]:
         """Get inventory item by ID."""
-        response = self._client.get(f"/api/v1/inventory/{item_id}")
+        response = self._client.get(f"/inventory/{item_id}")
         if not response.success:
             return None, response.error
 
@@ -372,7 +372,7 @@ class InventoryAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/inventory", json=data)
+        response = self._client.post("/inventory", json=data)
         if not response.success:
             return None, response.error
 
@@ -387,7 +387,7 @@ class InventoryAPI:
         # Remove None values
         data = {k: v for k, v in kwargs.items() if v is not None}
 
-        response = self._client.put(f"/api/v1/inventory/{item_id}", json=data)
+        response = self._client.put(f"/inventory/{item_id}", json=data)
         if not response.success:
             return None, response.error
 
@@ -395,7 +395,7 @@ class InventoryAPI:
 
     def delete_item(self, item_id: int) -> Tuple[bool, Optional[str]]:
         """Delete (deactivate) inventory item."""
-        response = self._client.delete(f"/api/v1/inventory/{item_id}")
+        response = self._client.delete(f"/inventory/{item_id}")
         if not response.success:
             return False, response.error
 
@@ -403,7 +403,7 @@ class InventoryAPI:
 
     def get_summary(self) -> Tuple[Optional[InventorySummary], Optional[str]]:
         """Get inventory summary."""
-        response = self._client.get("/api/v1/inventory/summary")
+        response = self._client.get("/inventory/summary")
         if not response.success:
             return None, response.error
 
@@ -411,7 +411,7 @@ class InventoryAPI:
 
     def get_categories(self) -> Tuple[List[dict], Optional[str]]:
         """Get list of inventory categories."""
-        response = self._client.get("/api/v1/inventory/categories")
+        response = self._client.get("/inventory/categories")
         if not response.success:
             return [], response.error
 
@@ -419,7 +419,7 @@ class InventoryAPI:
 
     def get_storage_locations(self) -> Tuple[List[str], Optional[str]]:
         """Get list of storage locations."""
-        response = self._client.get("/api/v1/inventory/locations")
+        response = self._client.get("/inventory/locations")
         if not response.success:
             return [], response.error
 
@@ -458,7 +458,7 @@ class InventoryAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/inventory/transaction", json=data)
+        response = self._client.post("/inventory/transaction", json=data)
         if not response.success:
             return None, response.error
 
@@ -482,7 +482,7 @@ class InventoryAPI:
             params["date_to"] = date_to
 
         response = self._client.get(
-            f"/api/v1/inventory/{item_id}/transactions",
+            f"/inventory/{item_id}/transactions",
             params=params
         )
         if not response.success:
@@ -511,7 +511,7 @@ class InventoryAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/inventory/purchase", json=data)
+        response = self._client.post("/inventory/purchase", json=data)
         if not response.success:
             return None, response.error
 
@@ -532,7 +532,7 @@ class InventoryAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/inventory/adjust", json=data)
+        response = self._client.post("/inventory/adjust", json=data)
         if not response.success:
             return None, response.error
 
@@ -548,7 +548,7 @@ class InventoryAPI:
     ) -> Tuple[List[InventoryAlert], Optional[str]]:
         """Get inventory alerts (low stock and expiring items)."""
         response = self._client.get(
-            "/api/v1/inventory/alerts",
+            "/inventory/alerts",
             params={"expiry_days": expiry_days}
         )
         if not response.success:

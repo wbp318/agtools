@@ -371,7 +371,7 @@ class EquipmentAPI:
         if search:
             params["search"] = search
 
-        response = self._client.get("/api/v1/equipment", params=params)
+        response = self._client.get("/equipment", params=params)
         if not response.success:
             return [], response.error
 
@@ -379,7 +379,7 @@ class EquipmentAPI:
 
     def get_equipment(self, equipment_id: int) -> Tuple[Optional[EquipmentInfo], Optional[str]]:
         """Get equipment by ID."""
-        response = self._client.get(f"/api/v1/equipment/{equipment_id}")
+        response = self._client.get(f"/equipment/{equipment_id}")
         if not response.success:
             return None, response.error
 
@@ -422,7 +422,7 @@ class EquipmentAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/equipment", json=data)
+        response = self._client.post("/equipment", json=data)
         if not response.success:
             return None, response.error
 
@@ -437,7 +437,7 @@ class EquipmentAPI:
         # Remove None values
         data = {k: v for k, v in kwargs.items() if v is not None}
 
-        response = self._client.put(f"/api/v1/equipment/{equipment_id}", json=data)
+        response = self._client.put(f"/equipment/{equipment_id}", json=data)
         if not response.success:
             return None, response.error
 
@@ -445,7 +445,7 @@ class EquipmentAPI:
 
     def delete_equipment(self, equipment_id: int) -> Tuple[bool, Optional[str]]:
         """Delete (retire) equipment."""
-        response = self._client.delete(f"/api/v1/equipment/{equipment_id}")
+        response = self._client.delete(f"/equipment/{equipment_id}")
         if not response.success:
             return False, response.error
 
@@ -458,7 +458,7 @@ class EquipmentAPI:
     ) -> Tuple[Optional[EquipmentInfo], Optional[str]]:
         """Update equipment hour meter."""
         response = self._client.post(
-            f"/api/v1/equipment/{equipment_id}/hours",
+            f"/equipment/{equipment_id}/hours",
             params={"new_hours": new_hours}
         )
         if not response.success:
@@ -468,7 +468,7 @@ class EquipmentAPI:
 
     def get_summary(self) -> Tuple[Optional[EquipmentSummary], Optional[str]]:
         """Get equipment fleet summary."""
-        response = self._client.get("/api/v1/equipment/summary")
+        response = self._client.get("/equipment/summary")
         if not response.success:
             return None, response.error
 
@@ -497,7 +497,7 @@ class EquipmentAPI:
         if date_to:
             params["date_to"] = date_to
 
-        response = self._client.get("/api/v1/maintenance", params=params)
+        response = self._client.get("/maintenance", params=params)
         if not response.success:
             return [], response.error
 
@@ -532,7 +532,7 @@ class EquipmentAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/maintenance", json=data)
+        response = self._client.post("/maintenance", json=data)
         if not response.success:
             return None, response.error
 
@@ -544,7 +544,7 @@ class EquipmentAPI:
     ) -> Tuple[List[MaintenanceAlert], Optional[str]]:
         """Get upcoming maintenance alerts."""
         response = self._client.get(
-            "/api/v1/maintenance/alerts",
+            "/maintenance/alerts",
             params={"days_ahead": days_ahead}
         )
         if not response.success:
@@ -559,7 +559,7 @@ class EquipmentAPI:
     ) -> Tuple[List[MaintenanceInfo], Optional[str]]:
         """Get maintenance history for specific equipment."""
         response = self._client.get(
-            f"/api/v1/equipment/{equipment_id}/maintenance",
+            f"/equipment/{equipment_id}/maintenance",
             params={"limit": limit}
         )
         if not response.success:
@@ -600,7 +600,7 @@ class EquipmentAPI:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = self._client.post("/api/v1/equipment/usage", json=data)
+        response = self._client.post("/equipment/usage", json=data)
         if not response.success:
             return None, response.error
 
@@ -621,7 +621,7 @@ class EquipmentAPI:
             params["date_to"] = date_to
 
         response = self._client.get(
-            f"/api/v1/equipment/{equipment_id}/usage",
+            f"/equipment/{equipment_id}/usage",
             params=params
         )
         if not response.success:

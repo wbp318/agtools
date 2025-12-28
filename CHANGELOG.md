@@ -4,9 +4,79 @@
 
 ---
 
-## Current Version: 3.0.0 (Released - December 27, 2025)
+## Current Version: 3.1.0 (Released - December 28, 2025)
 
-### Latest Session: December 27, 2025
+### Latest Session: December 28, 2025
+
+#### v3.1.0 - Desktop Launcher & Bug Fixes
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Create a one-click desktop launcher that starts both backend and frontend, plus fix API path bugs.
+
+**What Was Built:**
+
+1. **Desktop Application Launcher** (`start_agtools.pyw`)
+   - One-click launcher for Windows desktop
+   - Automatically starts backend server (hidden, no console)
+   - Waits for backend to be ready before launching frontend
+   - Clean shutdown - stops backend when app closes
+   - Works with `.pyw` extension (no console window)
+
+2. **Application Icon** (`agtools.ico`)
+   - Professional agriculture-themed icon
+   - Green background with wheat/crop design
+   - Multiple sizes for Windows (16x16 to 256x256)
+   - Icon generator script: `scripts/create_icon.py`
+
+3. **Desktop & Start Menu Shortcuts**
+   - Automatic shortcut creation via PowerShell
+   - Custom icon integration
+   - Working directory properly configured
+
+4. **Build Scripts**
+   - `scripts/build_exe.py` - PyInstaller build script (for future standalone exe)
+   - `scripts/create_admin.py` - Create admin user
+   - `scripts/reset_admin_password.py` - Reset admin password
+   - `AgTools.spec` - PyInstaller configuration (portable paths)
+   - `StartAgTools.bat` - Batch file alternative launcher
+
+5. **Bug Fixes**
+   - **Fixed duplicate API paths** - All frontend API clients were calling `/api/v1/api/v1/...` instead of `/api/v1/...`
+   - Fixed in: `auth_api.py`, `crew_api.py`, `equipment_api.py`, `field_api.py`, `inventory_api.py`, `operations_api.py`, `quickbooks_api.py`, `reports_api.py`, `task_api.py`, `user_api.py`
+   - **Fixed AppSettings missing methods** - Added `get()` and `set()` methods to `AppSettings` class
+   - **Fixed missing attributes** - Added `auth_token`, `app_version`, `app_name` to `AppSettings`
+
+**Files Created:**
+- `start_agtools.pyw` - Main launcher (use this!)
+- `launcher.py` - Alternative Python launcher
+- `StartAgTools.bat` - Batch file launcher
+- `agtools.ico` - Application icon
+- `agtools_icon.png` - PNG version of icon
+- `AgTools.spec` - PyInstaller spec file
+- `scripts/create_icon.py` - Icon generator
+- `scripts/build_exe.py` - EXE build script
+- `scripts/create_admin.py` - Admin user creation
+- `scripts/reset_admin_password.py` - Password reset
+
+**Files Modified:**
+- `frontend/config.py` - Added settings methods and attributes
+- `frontend/api/*.py` - Fixed duplicate API paths (10 files)
+
+**How to Run AgTools:**
+1. Double-click `start_agtools.pyw` (or use desktop shortcut)
+2. Login with: `admin` / `agtools123`
+3. App automatically starts backend and opens the UI
+
+**Default Credentials:**
+- Username: `admin`
+- Password: `agtools123`
+
+---
+
+## Previous Version: 3.0.0 (Released - December 27, 2025)
+
+### Session: December 27, 2025
 
 #### v3.0.0 - AI/ML Intelligence Suite
 

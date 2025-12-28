@@ -461,7 +461,7 @@ class ReportsAPI:
         if field_id:
             params["field_id"] = field_id
 
-        response = self._client.get("/api/v1/reports/operations", params=params if params else None)
+        response = self._client.get("/reports/operations", params=params if params else None)
 
         if response.error:
             return None, response.error
@@ -485,7 +485,7 @@ class ReportsAPI:
         if date_to:
             params["date_to"] = date_to
 
-        response = self._client.get("/api/v1/reports/financial", params=params if params else None)
+        response = self._client.get("/reports/financial", params=params if params else None)
 
         if response.error:
             return None, response.error
@@ -509,7 +509,7 @@ class ReportsAPI:
         if date_to:
             params["date_to"] = date_to
 
-        response = self._client.get("/api/v1/reports/equipment", params=params if params else None)
+        response = self._client.get("/reports/equipment", params=params if params else None)
 
         if response.error:
             return None, response.error
@@ -523,7 +523,7 @@ class ReportsAPI:
         Returns:
             Tuple of (InventoryReport, error_message or None)
         """
-        response = self._client.get("/api/v1/reports/inventory")
+        response = self._client.get("/reports/inventory")
 
         if response.error:
             return None, response.error
@@ -547,7 +547,7 @@ class ReportsAPI:
         if date_to:
             params["date_to"] = date_to
 
-        response = self._client.get("/api/v1/reports/fields", params=params if params else None)
+        response = self._client.get("/reports/fields", params=params if params else None)
 
         if response.error:
             return None, response.error
@@ -561,7 +561,7 @@ class ReportsAPI:
         Returns:
             Tuple of (DashboardSummary, error_message or None)
         """
-        response = self._client.get("/api/v1/reports/dashboard")
+        response = self._client.get("/reports/dashboard")
 
         if response.error:
             return None, response.error
@@ -586,7 +586,7 @@ class ReportsAPI:
         if date_to:
             data["date_to"] = date_to
 
-        response = self._client.post("/api/v1/reports/export/csv", json=data)
+        response = self._client.post("/reports/export/csv", json=data)
 
         if response.error:
             return None, response.error

@@ -89,6 +89,29 @@ class AppSettings:
     is_offline: bool = False
     last_sync: Optional[str] = None
 
+    # Authentication
+    auth_token: str = ""
+
+    # App info
+    app_version: str = APP_VERSION
+    app_name: str = APP_NAME
+
+    # Extra settings storage
+    _extra: dict = field(default_factory=dict)
+
+    def get(self, key: str, default=None):
+        """Get a setting value by key."""
+        if hasattr(self, key):
+            return getattr(self, key)
+        return self._extra.get(key, default)
+
+    def set(self, key: str, value) -> None:
+        """Set a setting value by key."""
+        if hasattr(self, key) and key != '_extra':
+            setattr(self, key, value)
+        else:
+            self._extra[key] = value
+
     def save(self) -> None:
         """Save settings to disk."""
         USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -109,6 +132,7 @@ class AppSettings:
             "region": self.region,
             "default_crop": self.default_crop,
             "last_sync": self.last_sync,
+            "auth_token": self.auth_token,
         }
 
         with open(SETTINGS_FILE, "w") as f:
@@ -140,6 +164,7 @@ class AppSettings:
                 settings.region = data.get("region", settings.region)
                 settings.default_crop = data.get("default_crop", settings.default_crop)
                 settings.last_sync = data.get("last_sync")
+                settings.auth_token = data.get("auth_token", "")
 
             except (json.JSONDecodeError, KeyError) as e:
                 print(f"Warning: Could not load settings: {e}")

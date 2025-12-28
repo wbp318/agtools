@@ -266,7 +266,7 @@ class OperationsAPI:
         if farm_name:
             params["farm_name"] = farm_name
 
-        response = self._client.get("/api/v1/operations", params=params)
+        response = self._client.get("/operations", params=params)
 
         if not response.success:
             return [], response.error_message
@@ -281,7 +281,7 @@ class OperationsAPI:
         Returns:
             Tuple of (OperationInfo, error_message)
         """
-        response = self._client.get(f"/api/v1/operations/{operation_id}")
+        response = self._client.get(f"/operations/{operation_id}")
 
         if not response.success:
             return None, response.error_message
@@ -371,7 +371,7 @@ class OperationsAPI:
         if notes:
             data["notes"] = notes
 
-        response = self._client.post("/api/v1/operations", data=data)
+        response = self._client.post("/operations", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -395,7 +395,7 @@ class OperationsAPI:
         """
         data = {k: v for k, v in kwargs.items() if v is not None}
 
-        response = self._client.put(f"/api/v1/operations/{operation_id}", data=data)
+        response = self._client.put(f"/operations/{operation_id}", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -409,7 +409,7 @@ class OperationsAPI:
         Returns:
             Tuple of (success, error_message)
         """
-        response = self._client.delete(f"/api/v1/operations/{operation_id}")
+        response = self._client.delete(f"/operations/{operation_id}")
 
         if not response.success:
             return False, response.error_message
@@ -436,7 +436,7 @@ class OperationsAPI:
         if date_to:
             params["date_to"] = date_to
 
-        response = self._client.get("/api/v1/operations/summary", params=params if params else None)
+        response = self._client.get("/operations/summary", params=params if params else None)
 
         if not response.success:
             return None, response.error_message
@@ -450,7 +450,7 @@ class OperationsAPI:
         Returns:
             Tuple of (FieldOperationHistory, error_message)
         """
-        response = self._client.get(f"/api/v1/fields/{field_id}/operations")
+        response = self._client.get(f"/fields/{field_id}/operations")
 
         if not response.success:
             return None, response.error_message

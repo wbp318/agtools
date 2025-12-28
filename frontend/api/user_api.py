@@ -41,7 +41,7 @@ class UserAPI:
         if crew_id:
             params["crew_id"] = crew_id
 
-        response = self._client.get("/api/v1/users", params=params if params else None)
+        response = self._client.get("/users", params=params if params else None)
 
         if not response.success:
             return [], response.error_message
@@ -51,7 +51,7 @@ class UserAPI:
 
     def get_user(self, user_id: int) -> Tuple[Optional[UserInfo], Optional[str]]:
         """Get user by ID."""
-        response = self._client.get(f"/api/v1/users/{user_id}")
+        response = self._client.get(f"/users/{user_id}")
 
         if not response.success:
             return None, response.error_message
@@ -87,7 +87,7 @@ class UserAPI:
         if phone:
             data["phone"] = phone
 
-        response = self._client.post("/api/v1/users", data=data)
+        response = self._client.post("/users", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -124,7 +124,7 @@ class UserAPI:
         if is_active is not None:
             data["is_active"] = is_active
 
-        response = self._client.put(f"/api/v1/users/{user_id}", data=data)
+        response = self._client.put(f"/users/{user_id}", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -138,7 +138,7 @@ class UserAPI:
         Returns:
             Tuple of (success, error_message)
         """
-        response = self._client.delete(f"/api/v1/users/{user_id}")
+        response = self._client.delete(f"/users/{user_id}")
 
         if not response.success:
             return False, response.error_message

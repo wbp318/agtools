@@ -169,7 +169,7 @@ class QuickBooksAPI:
             with open(file_path, 'rb') as f:
                 filename = file_path.replace('\\', '/').split('/')[-1]
                 files = {'file': (filename, f, 'text/csv')}
-                response = self.client.post_file('/api/v1/quickbooks/preview', files=files)
+                response = self.client.post_file('/quickbooks/preview', files=files)
 
             if response.success and response.data:
                 return QBImportPreview.from_dict(response.data), None
@@ -208,7 +208,7 @@ class QuickBooksAPI:
                     data['tax_year'] = str(tax_year)
 
                 response = self.client.post_file(
-                    '/api/v1/quickbooks/import',
+                    '/quickbooks/import',
                     files=files,
                     data=data
                 )
@@ -221,38 +221,38 @@ class QuickBooksAPI:
 
     def get_mappings(self) -> Tuple[List[QBAccountMapping], Optional[str]]:
         """Get user's saved QuickBooks account mappings."""
-        response = self.client.get('/api/v1/quickbooks/mappings')
+        response = self.client.get('/quickbooks/mappings')
         if response.success and response.data:
             return [QBAccountMapping.from_dict(m) for m in response.data], None
         return [], response.error
 
     def save_mappings(self, mappings: Dict[str, str]) -> Tuple[bool, Optional[str]]:
         """Save QuickBooks account to AgTools category mappings."""
-        response = self.client.post('/api/v1/quickbooks/mappings', data=mappings)
+        response = self.client.post('/quickbooks/mappings', data=mappings)
         return response.success, response.error
 
     def delete_mapping(self, mapping_id: int) -> Tuple[bool, Optional[str]]:
         """Delete a QuickBooks account mapping."""
-        response = self.client.delete(f'/api/v1/quickbooks/mappings/{mapping_id}')
+        response = self.client.delete(f'/quickbooks/mappings/{mapping_id}')
         return response.success, response.error
 
     def get_supported_formats(self) -> Tuple[List[QBFormat], Optional[str]]:
         """Get list of supported QuickBooks export formats."""
-        response = self.client.get('/api/v1/quickbooks/formats')
+        response = self.client.get('/quickbooks/formats')
         if response.success and response.data:
             return [QBFormat.from_dict(f) for f in response.data], None
         return [], response.error
 
     def get_default_mappings(self) -> Tuple[Dict[str, str], Optional[str]]:
         """Get default QuickBooks account to category mappings."""
-        response = self.client.get('/api/v1/quickbooks/default-mappings')
+        response = self.client.get('/quickbooks/default-mappings')
         if response.success and response.data:
             return response.data, None
         return {}, response.error
 
     def get_categories(self) -> Tuple[List[ExpenseCategory], Optional[str]]:
         """Get list of available expense categories."""
-        response = self.client.get('/api/v1/costs/categories')
+        response = self.client.get('/costs/categories')
         if response.success and response.data:
             return [ExpenseCategory.from_dict(c) for c in response.data], None
         return [], response.error

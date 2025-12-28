@@ -182,7 +182,7 @@ class FieldAPI:
         if search:
             params["search"] = search
 
-        response = self._client.get("/api/v1/fields", params=params if params else None)
+        response = self._client.get("/fields", params=params if params else None)
 
         if not response.success:
             return [], response.error_message
@@ -197,7 +197,7 @@ class FieldAPI:
         Returns:
             Tuple of (FieldInfo, error_message)
         """
-        response = self._client.get(f"/api/v1/fields/{field_id}")
+        response = self._client.get(f"/fields/{field_id}")
 
         if not response.success:
             return None, response.error_message
@@ -256,7 +256,7 @@ class FieldAPI:
         if notes:
             data["notes"] = notes
 
-        response = self._client.post("/api/v1/fields", data=data)
+        response = self._client.post("/fields", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -305,7 +305,7 @@ class FieldAPI:
         if notes is not None:
             data["notes"] = notes
 
-        response = self._client.put(f"/api/v1/fields/{field_id}", data=data)
+        response = self._client.put(f"/fields/{field_id}", data=data)
 
         if not response.success:
             return None, response.error_message
@@ -319,7 +319,7 @@ class FieldAPI:
         Returns:
             Tuple of (success, error_message)
         """
-        response = self._client.delete(f"/api/v1/fields/{field_id}")
+        response = self._client.delete(f"/fields/{field_id}")
 
         if not response.success:
             return False, response.error_message
@@ -333,7 +333,7 @@ class FieldAPI:
         Returns:
             Tuple of (FieldSummary, error_message)
         """
-        response = self._client.get("/api/v1/fields/summary")
+        response = self._client.get("/fields/summary")
 
         if not response.success:
             return None, response.error_message
@@ -347,7 +347,7 @@ class FieldAPI:
         Returns:
             Tuple of (list of farm names, error_message)
         """
-        response = self._client.get("/api/v1/fields/farms")
+        response = self._client.get("/fields/farms")
 
         if not response.success:
             return [], response.error_message
