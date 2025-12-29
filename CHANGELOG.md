@@ -4,9 +4,122 @@
 
 ---
 
-## Current Version: 3.4.0 (Released - December 28, 2025)
+## Current Version: 3.5.0 (Released - December 29, 2025)
 
-### Latest Session: December 28, 2025
+### Latest Session: December 29, 2025
+
+#### v3.5.0 - Grant Support & Compliance Suite
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Add comprehensive grant application support with NRCS practice tracking, carbon credit calculations, benchmark comparisons, and automated grant report generation.
+
+**What Was Built:**
+
+1. **Grant Service** (`backend/services/grant_service.py` ~1200 lines)
+   - **NRCS Practice Tracker:**
+     - 15 official NRCS practice codes (340, 329, 345, 590, 595, 592, 328, 412, 393, 420, 391, 449, 484, 330, 585)
+     - Practice categories: soil health, water quality, water quantity, air quality, wildlife, energy, plant health
+     - Payment rates per acre
+     - Carbon benefit calculations (tons CO2e/acre/year)
+     - Environmental scores (soil health, water quality, biodiversity)
+     - Eligible programs per practice (EQIP, CSP, CRP, CIG)
+     - Documentation requirements tracking
+     - Verification workflow
+
+   - **Carbon Credit Calculator:**
+     - 8 carbon programs with current market prices:
+       - Nori ($15-25/ton, 10-year contracts)
+       - Indigo Ag ($20-30/ton, 5-year contracts)
+       - Bayer Carbon ($18-28/ton, 3-year contracts)
+       - Cargill RegenConnect ($22-35/ton, 5-year contracts)
+       - Corteva Carbon ($17-26/ton, 5-year contracts)
+       - Nutrien Carbon ($20-30/ton, 5-year contracts)
+       - Gradable/ADM ($15-24/ton, 3-year contracts)
+       - Truterra/Land O'Lakes ($18-28/ton, 5-year contracts)
+     - Practice-to-program eligibility matching
+     - Annual and multi-year revenue projections
+     - Farm portfolio carbon credit aggregation
+
+   - **Benchmark Comparisons:**
+     - 14 benchmark metrics with regional data:
+       - Yield: corn, soybean, rice
+       - Efficiency: nitrogen, water, pesticide use
+       - Sustainability: carbon footprint, soil organic matter, cover crop adoption, no-till adoption
+       - Economic: cost per bushel, profit per acre
+     - Louisiana, Delta Region, National averages
+     - Top 10% benchmarks
+     - Percentile ranking calculations
+     - Automated interpretations
+
+   - **Grant Reporting Engine:**
+     - SARE Producer Grant format
+     - SBIR/STTR metrics section
+     - CIG compliance reports
+     - EQIP application data packages
+     - Grant readiness assessments
+
+   - **Grant Readiness Assessment:**
+     - Multi-program readiness scoring (A-F grades)
+     - Requirements checklist (met/missing)
+     - Priority actions recommendations
+     - Documentation status tracking
+
+2. **API Endpoints** (20 new endpoints under `/api/v1/grants/`)
+   - NRCS Practice Management:
+     - GET /nrcs-practices - List all practices
+     - GET /nrcs-practices/{code} - Get practice details
+     - GET /nrcs-practices/program/{program} - Practices by program
+     - POST /practices/implement - Record implementation
+     - POST /practices/{id}/document - Add documentation
+     - POST /practices/{id}/verify - Verify practice
+     - GET /practices/summary - Implementation summary
+   - Carbon Credits:
+     - GET /carbon-programs - List programs
+     - POST /carbon-credits/calculate - Calculate revenue
+     - GET /carbon-credits/portfolio - Farm portfolio
+   - Benchmarks:
+     - GET /benchmarks - Available metrics
+     - POST /benchmarks/compare - Compare single metric
+     - POST /benchmarks/report - Full comparison report
+   - Grant Reports:
+     - POST /reports/sare - SARE application
+     - POST /reports/sbir-metrics - SBIR metrics
+     - POST /reports/cig - CIG compliance
+     - POST /reports/eqip - EQIP application
+   - Utilities:
+     - POST /readiness - Grant readiness assessment
+     - GET /programs - List grant programs
+     - GET /resource-concerns - NRCS resource concerns
+
+**Grant Programs Supported:**
+| Program | Funding Range | Focus |
+|---------|---------------|-------|
+| USDA SBIR/STTR | $125K-$650K | Technology commercialization |
+| SARE Producer | $10K-$30K | Sustainable ag research |
+| CIG | Varies | Climate-smart innovation |
+| EQIP | Up to $450K | Conservation practices |
+| CSP | Annual payments | Conservation stewardship |
+| LA On Farm | Up to $50K | Louisiana research |
+
+**Files Created:**
+- `backend/services/grant_service.py`
+
+**Files Modified:**
+- `backend/main.py` - Added grant routes, updated to v3.5.0
+
+**Value for Grant Applications:**
+- Track NRCS practices with official codes for EQIP/CSP applications
+- Calculate carbon credit revenue potential for sustainability proposals
+- Compare farm metrics to regional benchmarks for competitive positioning
+- Generate formatted reports matching grant application requirements
+- Assess readiness across multiple programs to prioritize applications
+
+---
+
+## Previous Version: 3.4.0 (Released - December 28, 2025)
+
+### Session: December 28, 2025
 
 #### v3.4.0 - Field Trial & Research Tools
 
@@ -2361,7 +2474,7 @@ AgTools v2.5.0
 - [x] ~~Offline mode & local database~~ **DONE v2.3**
 - [x] ~~Phase 9: Polish & Testing~~ **DONE v2.4** (PyQt6 frontend complete!)
 - [ ] Custom vs. hire equipment decision engine
-- [ ] Carbon credit / sustainability ROI calculator
+- [x] ~~Carbon credit / sustainability ROI calculator~~ **DONE v3.5.0**
 - [ ] Mobile app / frontend web interface (React SPA - planned)
 - [ ] Climate FieldView integration (future)
 

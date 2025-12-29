@@ -209,13 +209,22 @@ from services.research_service import (
     TrialAnalysis,
     ResearchExport
 )
+from services.grant_service import (
+    get_grant_service,
+    GrantProgram,
+    NRCSCategory,
+    CarbonProgram,
+    NRCS_PRACTICES,
+    CARBON_PROGRAMS,
+    BENCHMARK_DATA
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, and sustainability metrics",
-    version="3.2.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, and grant compliance support",
+    version="3.5.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -6530,6 +6539,478 @@ async def list_measurement_types():
         "types": [
             {"value": m.value, "label": m.value.replace("_", " ").title()}
             for m in MeasurementType
+        ]
+    }
+
+
+# ============================================================================
+# GRANT SUPPORT & COMPLIANCE ROUTES (v3.5.0)
+# ============================================================================
+
+# Pydantic models for Grant API
+class PracticeImplementationCreate(BaseModel):
+    practice_code: str = Field(..., description="NRCS practice code (e.g., '340' for Cover Crop)")
+    field_id: str
+    field_name: str
+    acres: float
+    start_date: date
+    notes: str = ""
+    gps_coordinates: Optional[Dict[str, float]] = None
+
+
+class PracticeDocumentCreate(BaseModel):
+    document_type: str = Field(..., description="Type of document (e.g., 'Seed receipts', 'Photos')")
+    document_path: str
+    document_date: date
+
+
+class PracticeVerificationCreate(BaseModel):
+    verifier: str
+    verification_date: date
+    passed: bool
+    notes: str = ""
+
+
+class CarbonCalculationRequest(BaseModel):
+    practice_code: str
+    acres: float
+    years: int = 5
+
+
+class BenchmarkComparisonRequest(BaseModel):
+    metric: str
+    farm_value: float
+    county: str = "Louisiana"
+
+
+class BenchmarkReportRequest(BaseModel):
+    farm_metrics: Dict[str, float]
+    farm_name: str = "Farm"
+
+
+class SAREReportRequest(BaseModel):
+    farm_name: str
+    project_title: str
+    project_description: str
+    practices_implemented: List[str]
+    metrics: Dict[str, Any] = {}
+
+
+class SBIRMetricsRequest(BaseModel):
+    product_name: str = "AgTools"
+    version: str = "3.5.0"
+    features: Optional[List[str]] = None
+
+
+class CIGReportRequest(BaseModel):
+    farm_name: str
+    project_title: str
+    reporting_period: Dict[str, str]
+    climate_smart_practices: List[str]
+
+
+class EQIPApplicationRequest(BaseModel):
+    farm_name: str
+    farm_acres: float
+    priority_resource_concerns: List[str]
+    planned_practices: List[str]
+
+
+class GrantReadinessRequest(BaseModel):
+    farm_name: str
+    farm_acres: float
+    years_in_operation: int
+    current_practices: List[str]
+    farm_metrics: Dict[str, float]
+    target_grants: Optional[List[str]] = None
+
+
+# ----- NRCS Practice Endpoints -----
+
+@app.get("/api/v1/grants/nrcs-practices", tags=["Grant Support"])
+async def get_all_nrcs_practices(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get all available NRCS conservation practices.
+
+    Returns complete list of 15 tracked practices with codes, payment rates,
+    carbon benefits, and environmental scores.
+    """
+    service = get_grant_service()
+    return service.get_all_nrcs_practices()
+
+
+@app.get("/api/v1/grants/nrcs-practices/{code}", tags=["Grant Support"])
+async def get_nrcs_practice(
+    code: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get details for a specific NRCS practice by code"""
+    service = get_grant_service()
+    result = service.get_practice_by_code(code)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Practice code {code} not found")
+    return result
+
+
+@app.get("/api/v1/grants/nrcs-practices/program/{program}", tags=["Grant Support"])
+async def get_practices_by_program(
+    program: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get NRCS practices eligible for a specific program.
+
+    Programs: EQIP, CSP, CRP, CIG
+    """
+    service = get_grant_service()
+    return service.get_practices_by_program(program)
+
+
+@app.post("/api/v1/grants/practices/implement", tags=["Grant Support"])
+async def record_practice_implementation(
+    data: PracticeImplementationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record implementation of an NRCS conservation practice.
+
+    Creates a trackable record with estimated payments and carbon benefits.
+    """
+    service = get_grant_service()
+    return service.record_practice_implementation(
+        practice_code=data.practice_code,
+        field_id=data.field_id,
+        field_name=data.field_name,
+        acres=data.acres,
+        start_date=data.start_date,
+        notes=data.notes,
+        gps_coordinates=data.gps_coordinates
+    )
+
+
+@app.post("/api/v1/grants/practices/{implementation_id}/document", tags=["Grant Support"])
+async def add_practice_documentation(
+    implementation_id: str,
+    data: PracticeDocumentCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add documentation to a practice implementation.
+
+    Tracks required documents for grant compliance verification.
+    """
+    service = get_grant_service()
+    result = service.add_practice_documentation(
+        implementation_id=implementation_id,
+        document_type=data.document_type,
+        document_path=data.document_path,
+        document_date=data.document_date
+    )
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/grants/practices/{implementation_id}/verify", tags=["Grant Support"])
+async def verify_practice(
+    implementation_id: str,
+    data: PracticeVerificationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record verification of a practice implementation.
+
+    Marks practice as verified for payment eligibility.
+    """
+    service = get_grant_service()
+    result = service.verify_practice(
+        implementation_id=implementation_id,
+        verifier=data.verifier,
+        verification_date=data.verification_date,
+        passed=data.passed,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/grants/practices/summary", tags=["Grant Support"])
+async def get_practice_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get summary of all implemented conservation practices.
+
+    Includes totals by practice, status, payments, and carbon benefits.
+    """
+    service = get_grant_service()
+    return service.get_practice_summary()
+
+
+# ----- Carbon Credit Endpoints -----
+
+@app.get("/api/v1/grants/carbon-programs", tags=["Grant Support"])
+async def get_carbon_programs(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get all available carbon credit programs.
+
+    Returns 8 programs with price ranges, requirements, and eligible practices:
+    Nori, Indigo Ag, Bayer Carbon, Cargill RegenConnect, Corteva, Nutrien, Gradable, Truterra
+    """
+    service = get_grant_service()
+    return service.get_carbon_programs()
+
+
+@app.post("/api/v1/grants/carbon-credits/calculate", tags=["Grant Support"])
+async def calculate_carbon_credits(
+    data: CarbonCalculationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate potential carbon credit revenue for a practice.
+
+    Shows eligible programs with price ranges and total revenue potential.
+    """
+    service = get_grant_service()
+    result = service.calculate_carbon_credits(
+        practice_code=data.practice_code,
+        acres=data.acres,
+        years=data.years
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/grants/carbon-credits/portfolio", tags=["Grant Support"])
+async def get_carbon_portfolio(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate total carbon credit potential for all implemented practices.
+
+    Aggregates all practices to show total CO2e sequestration and revenue potential.
+    """
+    service = get_grant_service()
+    return service.calculate_farm_carbon_portfolio()
+
+
+# ----- Benchmark Endpoints -----
+
+@app.get("/api/v1/grants/benchmarks", tags=["Grant Support"])
+async def get_available_benchmarks(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get list of available benchmark metrics.
+
+    Includes yield, efficiency, sustainability, and economic benchmarks
+    with Louisiana, Delta region, and national averages.
+    """
+    service = get_grant_service()
+    return service.get_available_benchmarks()
+
+
+@app.post("/api/v1/grants/benchmarks/compare", tags=["Grant Support"])
+async def compare_to_benchmarks(
+    data: BenchmarkComparisonRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare farm metric to regional and national benchmarks.
+
+    Returns percentile ranking and interpretation.
+    """
+    service = get_grant_service()
+    result = service.compare_to_benchmarks(
+        metric=data.metric,
+        farm_value=data.farm_value,
+        county=data.county
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/grants/benchmarks/report", tags=["Grant Support"])
+async def generate_benchmark_report(
+    data: BenchmarkReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate comprehensive benchmark comparison report.
+
+    Shows strengths, opportunities, and overall percentile across all metrics.
+    """
+    service = get_grant_service()
+    return service.generate_benchmark_report(
+        farm_metrics=data.farm_metrics,
+        farm_name=data.farm_name
+    )
+
+
+# ----- Grant Reporting Endpoints -----
+
+@app.post("/api/v1/grants/reports/sare", tags=["Grant Support"])
+async def generate_sare_report(
+    data: SAREReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate report formatted for SARE grant application.
+
+    Includes sustainable practices, environmental impact, and outreach plan sections.
+    """
+    service = get_grant_service()
+    return service.generate_sare_report(
+        farm_name=data.farm_name,
+        project_title=data.project_title,
+        project_description=data.project_description,
+        practices_implemented=data.practices_implemented,
+        metrics=data.metrics
+    )
+
+
+@app.post("/api/v1/grants/reports/sbir-metrics", tags=["Grant Support"])
+async def generate_sbir_metrics(
+    data: SBIRMetricsRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate metrics section for SBIR/STTR applications.
+
+    Includes innovation metrics, commercialization potential, and societal benefits.
+    """
+    service = get_grant_service()
+    return service.generate_sbir_metrics(
+        product_name=data.product_name,
+        version=data.version,
+        features=data.features
+    )
+
+
+@app.post("/api/v1/grants/reports/cig", tags=["Grant Support"])
+async def generate_cig_report(
+    data: CIGReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate compliance report for Conservation Innovation Grant.
+
+    Includes climate-smart agriculture practices and GHG reduction metrics.
+    """
+    service = get_grant_service()
+    return service.generate_cig_compliance_report(
+        farm_name=data.farm_name,
+        project_title=data.project_title,
+        reporting_period=data.reporting_period,
+        climate_smart_practices=data.climate_smart_practices
+    )
+
+
+@app.post("/api/v1/grants/reports/eqip", tags=["Grant Support"])
+async def generate_eqip_application(
+    data: EQIPApplicationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate data package for EQIP application.
+
+    Includes practice analysis, payment estimates, and environmental benefit scores.
+    """
+    service = get_grant_service()
+    return service.generate_eqip_application_data(
+        farm_name=data.farm_name,
+        farm_acres=data.farm_acres,
+        priority_resource_concerns=data.priority_resource_concerns,
+        planned_practices=data.planned_practices
+    )
+
+
+# ----- Grant Readiness Assessment -----
+
+@app.post("/api/v1/grants/readiness", tags=["Grant Support"])
+async def assess_grant_readiness(
+    data: GrantReadinessRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Comprehensive assessment of readiness for various grant programs.
+
+    Analyzes readiness for USDA SBIR, SARE, CIG, and EQIP programs.
+    Returns scores, requirements met/missing, and priority actions.
+    """
+    service = get_grant_service()
+    return service.assess_grant_readiness(
+        farm_name=data.farm_name,
+        farm_acres=data.farm_acres,
+        years_in_operation=data.years_in_operation,
+        current_practices=data.current_practices,
+        farm_metrics=data.farm_metrics,
+        target_grants=data.target_grants
+    )
+
+
+@app.get("/api/v1/grants/programs", tags=["Grant Support"])
+async def list_grant_programs():
+    """Get list of supported grant programs"""
+    return {
+        "programs": [
+            {
+                "id": "usda_sbir",
+                "name": "USDA SBIR/STTR",
+                "funding_range": "$125,000 - $650,000",
+                "description": "Technology commercialization funding"
+            },
+            {
+                "id": "sare_producer",
+                "name": "SARE Producer Grant",
+                "funding_range": "$10,000 - $30,000",
+                "description": "Farmer-led sustainable agriculture research"
+            },
+            {
+                "id": "cig",
+                "name": "Conservation Innovation Grant",
+                "funding_range": "Varies",
+                "description": "Climate-smart agriculture innovation"
+            },
+            {
+                "id": "eqip",
+                "name": "EQIP",
+                "funding_range": "Up to $450,000",
+                "description": "Environmental quality incentives for conservation"
+            },
+            {
+                "id": "csp",
+                "name": "CSP",
+                "funding_range": "Annual payments",
+                "description": "Conservation stewardship payments"
+            },
+            {
+                "id": "la_on_farm",
+                "name": "Louisiana On Farm Grant",
+                "funding_range": "Up to $50,000",
+                "description": "Louisiana on-farm research funding"
+            }
+        ]
+    }
+
+
+@app.get("/api/v1/grants/resource-concerns", tags=["Grant Support"])
+async def list_resource_concerns():
+    """Get list of NRCS resource concerns for EQIP applications"""
+    return {
+        "resource_concerns": [
+            {"id": "soil_erosion", "name": "Soil Erosion", "practices": ["340", "329", "330", "412"]},
+            {"id": "water_quality", "name": "Water Quality", "practices": ["590", "393", "391", "412"]},
+            {"id": "soil_health", "name": "Soil Health", "practices": ["340", "329", "328", "484"]},
+            {"id": "wildlife_habitat", "name": "Wildlife Habitat", "practices": ["420", "393", "391"]},
+            {"id": "air_quality", "name": "Air Quality", "practices": ["329", "345", "340"]}
         ]
     }
 
