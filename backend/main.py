@@ -300,8 +300,8 @@ from mobile import mobile_router, configure_templates
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, and complete farm business suite",
-    version="4.2.0",
+    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, and professional PDF report generation",
+    version="4.3.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -5423,18 +5423,554 @@ async def generate_inventory_pdf(
     )
 
 
+# v4.3.0 - Professional Report Suite
+@app.post("/api/v1/reports/pdf/annual-performance", tags=["PDF Reports"])
+async def generate_annual_performance_pdf(
+    crop_year: int = Form(...),
+    farm_summary: str = Form(...),
+    field_performance: str = Form(...),
+    cost_breakdown: str = Form(...),
+    yield_data: str = Form(...),
+    comparison: str = Form("null"),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Annual Farm Performance Report PDF
+
+    Comprehensive year-end report showing:
+    - Production totals by crop
+    - Cost breakdown by category
+    - Field-by-field performance
+    - Year-over-year comparison (optional)
+    - Key metrics and recommendations
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        farm_summary_data = json.loads(farm_summary)
+        field_performance_data = json.loads(field_performance)
+        cost_breakdown_data = json.loads(cost_breakdown)
+        yield_data_parsed = json.loads(yield_data)
+        comparison_data = json.loads(comparison) if comparison != "null" else None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_annual_performance_report(
+        crop_year=crop_year,
+        farm_summary=farm_summary_data,
+        field_performance=field_performance_data,
+        cost_breakdown=cost_breakdown_data,
+        yield_data=yield_data_parsed,
+        comparison=comparison_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=annual_performance_{crop_year}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/lender-package", tags=["PDF Reports"])
+async def generate_lender_package_pdf(
+    farm_info: str = Form(...),
+    income_history: str = Form(...),
+    balance_sheet: str = Form(...),
+    cash_flow_projection: str = Form(...),
+    collateral: str = Form(...),
+    loan_request: str = Form("null"),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Lender Financial Package PDF
+
+    Professional package for loan applications:
+    - Farm overview and operation summary
+    - 3-year income history
+    - Current balance sheet
+    - Cash flow projections (12-24 months)
+    - Collateral listing
+    - Loan request details (optional)
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        farm_info_data = json.loads(farm_info)
+        income_history_data = json.loads(income_history)
+        balance_sheet_data = json.loads(balance_sheet)
+        cash_flow_data = json.loads(cash_flow_projection)
+        collateral_data = json.loads(collateral)
+        loan_request_data = json.loads(loan_request) if loan_request != "null" else None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_lender_package_report(
+        farm_info=farm_info_data,
+        income_history=income_history_data,
+        balance_sheet=balance_sheet_data,
+        cash_flow_projection=cash_flow_data,
+        collateral=collateral_data,
+        loan_request=loan_request_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=lender_package_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/spray-records", tags=["PDF Reports"])
+async def generate_spray_records_pdf(
+    applications: str = Form(...),
+    date_range: str = Form(...),
+    applicator_info: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Spray Application Records PDF (Compliance)
+
+    Regulatory-compliant spray records including:
+    - Chronological application log
+    - Required fields: date, time, field, crop, product, EPA reg#
+    - Application details: rate, total applied, acres treated
+    - Weather conditions at application
+    - Applicator certification info
+    - REI/PHI compliance tracking
+    - Signature line for certification
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        applications_data = json.loads(applications)
+        date_range_data = json.loads(date_range)
+        applicator_info_data = json.loads(applicator_info)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by, landscape=True)
+
+    pdf_bytes = service.generate_spray_records_report(
+        applications=applications_data,
+        date_range=date_range_data,
+        applicator_info=applicator_info_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=spray_records_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/labor-summary", tags=["PDF Reports"])
+async def generate_labor_summary_pdf(
+    date_range: str = Form(...),
+    employees: str = Form(...),
+    hours_by_task: str = Form(...),
+    hours_by_field: str = Form(...),
+    payroll_summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Labor Summary Report PDF
+
+    Comprehensive labor tracking report:
+    - Employee hours by date range
+    - Hours breakdown by task type
+    - Hours breakdown by field
+    - Overtime tracking
+    - Payroll cost summary
+    - Crew utilization rates
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        date_range_data = json.loads(date_range)
+        employees_data = json.loads(employees)
+        hours_by_task_data = json.loads(hours_by_task)
+        hours_by_field_data = json.loads(hours_by_field)
+        payroll_summary_data = json.loads(payroll_summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_labor_summary_report(
+        date_range=date_range_data,
+        employees=employees_data,
+        hours_by_task=hours_by_task_data,
+        hours_by_field=hours_by_field_data,
+        payroll_summary=payroll_summary_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=labor_summary_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/maintenance-log", tags=["PDF Reports"])
+async def generate_maintenance_log_pdf(
+    equipment_name: str = Form(...),
+    equipment_info: str = Form(...),
+    maintenance_history: str = Form(...),
+    upcoming_maintenance: str = Form(...),
+    cost_summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Equipment Maintenance Log PDF
+
+    Complete maintenance history for equipment:
+    - Equipment details and specifications
+    - Service history with parts and costs
+    - Hours at each service
+    - Upcoming scheduled maintenance
+    - Total maintenance costs YTD
+    - Equipment downtime tracking
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        equipment_info_data = json.loads(equipment_info)
+        maintenance_history_data = json.loads(maintenance_history)
+        upcoming_maintenance_data = json.loads(upcoming_maintenance)
+        cost_summary_data = json.loads(cost_summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_maintenance_log_report(
+        equipment_name=equipment_name,
+        equipment_info=equipment_info_data,
+        maintenance_history=maintenance_history_data,
+        upcoming_maintenance=upcoming_maintenance_data,
+        cost_summary=cost_summary_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=maintenance_log_{equipment_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/field-history", tags=["PDF Reports"])
+async def generate_field_history_pdf(
+    field_info: str = Form(...),
+    operations_history: str = Form(...),
+    input_summary: str = Form(...),
+    yield_history: str = Form(...),
+    cost_summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Field Operations History PDF
+
+    Complete historical record for a field:
+    - Field details and soil information
+    - All operations performed (chronological)
+    - Inputs applied (seed, fertilizer, chemicals)
+    - Yield history by year
+    - Cost summary and trends
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        field_info_data = json.loads(field_info)
+        operations_history_data = json.loads(operations_history)
+        input_summary_data = json.loads(input_summary)
+        yield_history_data = json.loads(yield_history)
+        cost_summary_data = json.loads(cost_summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_field_history_report(
+        field_info=field_info_data,
+        operations_history=operations_history_data,
+        input_summary=input_summary_data,
+        yield_history=yield_history_data,
+        cost_summary=cost_summary_data,
+        config=config
+    )
+
+    field_name = field_info_data.get('name', 'field').replace(' ', '_')
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=field_history_{field_name}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/grain-marketing", tags=["PDF Reports"])
+async def generate_grain_marketing_pdf(
+    crop_year: int = Form(...),
+    inventory_summary: str = Form(...),
+    bins: str = Form(...),
+    sales_history: str = Form(...),
+    price_analysis: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Grain Marketing Report PDF
+
+    Complete grain marketing analysis:
+    - Current inventory by bin/location
+    - Sales history with prices achieved
+    - Average sale price analysis
+    - Basis tracking and trends
+    - Unsold inventory value
+    - Marketing plan vs actual performance
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        inventory_summary_data = json.loads(inventory_summary)
+        bins_data = json.loads(bins)
+        sales_history_data = json.loads(sales_history)
+        price_analysis_data = json.loads(price_analysis)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_grain_marketing_report(
+        crop_year=crop_year,
+        inventory_summary=inventory_summary_data,
+        bins=bins_data,
+        sales_history=sales_history_data,
+        price_analysis=price_analysis_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=grain_marketing_{crop_year}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/tax-summary", tags=["PDF Reports"])
+async def generate_tax_summary_pdf(
+    tax_year: int = Form(...),
+    depreciation_schedule: str = Form(...),
+    expense_summary: str = Form(...),
+    section_179: str = Form(...),
+    tax_projection: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Tax Planning Summary PDF
+
+    Year-end tax planning report:
+    - Depreciation schedules by asset class
+    - Section 179 deductions taken/available
+    - Total deductible expenses by category
+    - Prepaid expenses for next year
+    - Tax liability projection
+    - Carryforward items and planning notes
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        depreciation_data = json.loads(depreciation_schedule)
+        expense_data = json.loads(expense_summary)
+        section_179_data = json.loads(section_179)
+        tax_projection_data = json.loads(tax_projection)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_tax_summary_report(
+        tax_year=tax_year,
+        depreciation_schedule=depreciation_data,
+        expense_summary=expense_data,
+        section_179=section_179_data,
+        tax_projection=tax_projection_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=tax_summary_{tax_year}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/cash-flow", tags=["PDF Reports"])
+async def generate_cash_flow_pdf(
+    date_range: str = Form(...),
+    monthly_data: str = Form(...),
+    loan_summary: str = Form(...),
+    summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Cash Flow Report PDF
+
+    Monthly cash flow analysis:
+    - Actual vs projected cash flow by month
+    - Loan payment schedule
+    - Upcoming major expenses
+    - Expected income timing
+    - Working capital position
+    - Cash reserve recommendations
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        date_range_data = json.loads(date_range)
+        monthly_data_parsed = json.loads(monthly_data)
+        loan_summary_data = json.loads(loan_summary)
+        summary_data = json.loads(summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by, landscape=True)
+
+    pdf_bytes = service.generate_cash_flow_report(
+        date_range=date_range_data,
+        monthly_data=monthly_data_parsed,
+        loan_summary=loan_summary_data,
+        summary=summary_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=cash_flow_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@app.post("/api/v1/reports/pdf/succession-plan", tags=["PDF Reports"])
+async def generate_succession_plan_pdf(
+    family_members: str = Form(...),
+    ownership_structure: str = Form(...),
+    transfer_plans: str = Form(...),
+    milestones: str = Form(...),
+    summary: str = Form(...),
+    farm_name: Optional[str] = Form(None),
+    prepared_by: Optional[str] = Form(None)
+):
+    """Generate Succession Planning Report PDF
+
+    Family farm succession planning document:
+    - Family member roles and involvement
+    - Current ownership structure
+    - Asset transfer timeline and plans
+    - Milestone tracking (legal, financial, operational)
+    - Training and transition status
+    - Estate planning summary
+    """
+    if not PDF_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="PDF service not available")
+
+    from services.pdf_report_service import get_pdf_report_service, ReportConfig
+    service = get_pdf_report_service()
+
+    try:
+        family_members_data = json.loads(family_members)
+        ownership_data = json.loads(ownership_structure)
+        transfer_plans_data = json.loads(transfer_plans)
+        milestones_data = json.loads(milestones)
+        summary_data = json.loads(summary)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in parameters")
+
+    config = ReportConfig(farm_name=farm_name, prepared_by=prepared_by)
+
+    pdf_bytes = service.generate_succession_plan_report(
+        family_members=family_members_data,
+        ownership_structure=ownership_data,
+        transfer_plans=transfer_plans_data,
+        milestones=milestones_data,
+        summary=summary_data,
+        config=config
+    )
+
+    return StreamingResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=succession_plan_{datetime.now().strftime('%Y%m%d')}.pdf"}
+    )
+
+
 @app.get("/api/v1/reports/pdf/types", tags=["PDF Reports"])
 async def get_pdf_report_types():
     """Get list of available PDF report types"""
     return {
         "available": PDF_SERVICE_AVAILABLE,
         "types": [
-            {"type": "scouting", "name": "Scouting Report"},
-            {"type": "spray_recommendation", "name": "Spray Recommendation"},
-            {"type": "cost_per_acre", "name": "Cost Per Acre"},
-            {"type": "profitability", "name": "Profitability Analysis"},
-            {"type": "equipment", "name": "Equipment Status"},
-            {"type": "inventory", "name": "Inventory Status"},
+            # Original reports (v3.0)
+            {"type": "scouting", "name": "Scouting Report", "category": "field"},
+            {"type": "spray_recommendation", "name": "Spray Recommendation", "category": "field"},
+            {"type": "cost_per_acre", "name": "Cost Per Acre", "category": "financial"},
+            {"type": "profitability", "name": "Profitability Analysis", "category": "financial"},
+            {"type": "equipment", "name": "Equipment Status", "category": "operations"},
+            {"type": "inventory", "name": "Inventory Status", "category": "operations"},
+            # Professional Report Suite (v4.3)
+            {"type": "annual_performance", "name": "Annual Farm Performance", "category": "business"},
+            {"type": "lender_package", "name": "Lender Financial Package", "category": "business"},
+            {"type": "spray_records", "name": "Spray Application Records", "category": "compliance"},
+            {"type": "labor_summary", "name": "Labor Summary", "category": "operations"},
+            {"type": "maintenance_log", "name": "Equipment Maintenance Log", "category": "operations"},
+            {"type": "field_history", "name": "Field Operations History", "category": "field"},
+            {"type": "grain_marketing", "name": "Grain Marketing Analysis", "category": "financial"},
+            {"type": "tax_summary", "name": "Tax Planning Summary", "category": "financial"},
+            {"type": "cash_flow", "name": "Cash Flow Report", "category": "financial"},
+            {"type": "succession_plan", "name": "Succession Planning", "category": "business"},
         ]
     }
 
