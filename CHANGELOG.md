@@ -4,9 +4,112 @@
 
 ---
 
-## Current Version: 3.6.0 (Released - December 29, 2025)
+## Current Version: 3.7.0 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
+
+#### v3.7.0 - Grant Operations Suite
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Add comprehensive grant operations management including application tracking, regulatory compliance, enterprise budgets, and outreach documentation.
+
+**What Was Built:**
+
+1. **Grant Operations Service** (`backend/services/grant_operations_service.py` ~1300 lines)
+
+   - **Grant Application Manager:**
+     - 6 grant programs with full details (USDA SBIR, SARE, CIG, EQIP, LA On Farm, NSF SBIR)
+     - Application lifecycle tracking (identified → preparing → submitted → awarded)
+     - Required document checklist per program
+     - Deadline monitoring with urgency alerts (critical/high/normal)
+     - Document status tracking (not started → in progress → complete → submitted)
+     - Application dashboard with success rate metrics
+
+   - **Regulatory Compliance Tracker:**
+     - License management (private/commercial applicator, dealer licenses)
+     - Expiration tracking with 90-day alerts
+     - CEU credit tracking and progress
+     - Restricted Use Pesticide (RUP) application records
+       - All EPA-required fields
+       - REI/PHI calculations
+       - Weather conditions at application
+     - Worker Protection Standard (WPS) compliance
+       - Training records
+       - Notification tracking
+       - Next-due alerts
+     - Compliance dashboard with overall status
+
+   - **Enterprise Budgets & Scenarios:**
+     - 6 crop types: corn, soybeans, rice, cotton, wheat, grain sorghum
+     - Louisiana-specific default costs (2024/2025 estimates)
+     - Full variable cost breakdown (seed, fertilizer, chemicals, fuel, repairs, etc.)
+     - Fixed cost tracking (land rent, depreciation, labor, overhead)
+     - Revenue projections with price scenarios
+     - Break-even yield and price calculations
+     - What-if scenario analysis (yield × price matrix)
+     - Farm-level budget aggregation
+
+   - **Outreach & Impact Tracker:**
+     - 10 activity types (field days, presentations, workshops, webinars, etc.)
+     - Attendance and reach tracking
+     - Partner and topic documentation
+     - Publication records (journal, extension, trade, blog)
+     - Grant-formatted outreach reports with narrative generation
+     - Impact metrics calculation
+
+2. **API Endpoints** (24 new endpoints)
+   - Grant Applications:
+     - GET /applications/programs - Program list
+     - POST /applications - Create application
+     - PUT /applications/{id}/status - Update status
+     - PUT /applications/{id}/documents - Document status
+     - GET /applications/{id} - Application summary
+     - GET /applications/deadlines/upcoming - Deadline alerts
+     - GET /applications/dashboard - Dashboard
+   - Compliance:
+     - GET /compliance/requirements - Requirements list
+     - POST /compliance/licenses - Add license
+     - POST /compliance/licenses/{id}/ceu - Record CEU
+     - POST /compliance/rup - Record RUP application
+     - POST /compliance/wps - Record WPS activity
+     - GET /compliance/dashboard - Compliance status
+   - Budgets:
+     - GET /budgets/defaults/{crop} - Crop defaults
+     - POST /budgets - Create budget
+     - POST /budgets/scenarios - Run scenarios
+     - GET /budgets/summary - Farm summary
+     - GET /budgets/crops - Crop list
+   - Outreach:
+     - POST /outreach/activities - Record activity
+     - POST /outreach/publications - Record publication
+     - GET /outreach/summary - Summary
+     - POST /outreach/report - Generate report
+     - GET /outreach/activity-types - Type list
+
+**Example Results:**
+- Corn budget (500 acres): Break-even at 191.6 bu/ac at $4.75/bu
+- Scenario analysis: 25 yield×price combinations evaluated
+- Compliance dashboard: License expiration alerts, RUP record counts
+
+**Files Created:**
+- `backend/services/grant_operations_service.py`
+
+**Files Modified:**
+- `backend/main.py` - Added grant operations routes, updated to v3.7.0
+
+**Value for Grant Applications:**
+- Never miss a deadline with application tracking and alerts
+- Document compliance status for "good standing" requirements
+- Generate professional enterprise budgets for grant proposals
+- Track and report outreach activities for SARE requirements
+- Prove regulatory compliance for federal funding eligibility
+
+---
+
+## Previous Version: 3.6.0 (Released - December 29, 2025)
+
+### Session: December 29, 2025
 
 #### v3.6.0 - Grant Enhancement Suite
 

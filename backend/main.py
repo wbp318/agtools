@@ -228,13 +228,25 @@ from services.grant_enhancement_service import (
     GRANT_DATA_REQUIREMENTS,
     RESEARCH_PARTNERS
 )
+from services.grant_operations_service import (
+    get_grant_operations_service,
+    ApplicationStatus,
+    DocumentStatus,
+    LicenseType,
+    ComplianceCategory,
+    CropType as BudgetCropType,
+    OutreachType,
+    GRANT_PROGRAMS,
+    CROP_BUDGET_DEFAULTS,
+    COMPLIANCE_REQUIREMENTS
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, grant compliance, and research partnership support",
-    version="3.6.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, grant compliance, research partnerships, and grant operations management",
+    version="3.7.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -7379,6 +7391,545 @@ async def list_all_partners():
             for p in RESEARCH_PARTNERS
         ],
         "total": len(RESEARCH_PARTNERS)
+    }
+
+
+# ============================================================================
+# GRANT OPERATIONS ROUTES (v3.7.0)
+# ============================================================================
+
+# Pydantic models for Grant Operations API
+class GrantApplicationCreate(BaseModel):
+    program: str = Field(..., description="Grant program ID (e.g., 'USDA_SBIR', 'SARE_PRODUCER')")
+    project_title: str
+    project_description: str
+    funding_amount: float
+    deadline: date
+    notes: str = ""
+
+
+class ApplicationStatusUpdate(BaseModel):
+    status: str = Field(..., description="New status (identified, preparing, submitted, under_review, awarded, not_funded, withdrawn)")
+    notes: str = ""
+
+
+class DocumentStatusUpdate(BaseModel):
+    document_name: str
+    status: str = Field(..., description="Document status (not_started, in_progress, complete, submitted)")
+
+
+class LicenseCreate(BaseModel):
+    license_type: str = Field(..., description="Type (private_applicator, commercial_applicator, etc.)")
+    license_number: str
+    holder_name: str
+    issue_date: date
+    expiration_date: date
+    issuing_authority: str
+    categories: List[str] = []
+    ceu_required: int = 0
+    ceu_earned: int = 0
+
+
+class CEURecordCreate(BaseModel):
+    ceu_amount: float
+    course_name: str
+    completion_date: date
+
+
+class RUPApplicationCreate(BaseModel):
+    application_date: date
+    product_name: str
+    epa_reg_number: str
+    active_ingredient: str
+    field_name: str
+    acres_treated: float
+    rate_per_acre: float
+    rate_unit: str
+    target_pest: str
+    applicator_name: str
+    applicator_license: str
+    wind_speed_mph: float = 0
+    temperature_f: float = 0
+    humidity_pct: float = 0
+    rei_hours: int = 0
+    phi_days: int = 0
+    notes: str = ""
+
+
+class WPSActivityCreate(BaseModel):
+    record_type: str = Field(..., description="Type (training, notification, decontamination, etc.)")
+    activity_date: date
+    description: str
+    participants: List[str]
+    trainer: str = None
+    documentation_path: str = None
+    next_due: date = None
+
+
+class EnterpriseBudgetCreate(BaseModel):
+    crop: str = Field(..., description="Crop type (corn, soybeans, rice, cotton, wheat, grain_sorghum)")
+    year: int
+    acres: float
+    expected_yield: float = None
+    expected_price: float = None
+    # Optional cost overrides
+    seed: float = None
+    fertilizer: float = None
+    chemicals: float = None
+    land_rent: float = None
+
+
+class ScenarioAnalysisRequest(BaseModel):
+    budget_id: str
+    yield_scenarios: List[float] = None
+    price_scenarios: List[float] = None
+
+
+class OutreachActivityCreate(BaseModel):
+    activity_type: str = Field(..., description="Type (field_day, presentation, workshop, webinar, etc.)")
+    title: str
+    activity_date: date
+    description: str
+    audience: str
+    attendance: int
+    location: str
+    partners: List[str] = []
+    topics: List[str] = []
+    materials_path: str = None
+    follow_up_contacts: int = 0
+    notes: str = ""
+
+
+class PublicationCreate(BaseModel):
+    pub_type: str = Field(..., description="Type (journal, extension, trade, blog)")
+    title: str
+    authors: List[str]
+    publication_venue: str
+    pub_date: date
+    doi_or_url: str = None
+    abstract: str = ""
+    keywords: List[str] = []
+    grant_acknowledgment: str = None
+
+
+class OutreachReportRequest(BaseModel):
+    grant_program: str
+    project_title: str
+    start_date: date
+    end_date: date
+
+
+# ----- Grant Application Manager Endpoints -----
+
+@app.get("/api/v1/grants/applications/programs", tags=["Grant Operations"])
+async def get_grant_programs_list(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get list of grant programs with details.
+
+    Returns 6 programs: USDA SBIR, SARE Producer, CIG, EQIP, LA On Farm, NSF SBIR
+    with funding ranges, deadlines, and required documents.
+    """
+    service = get_grant_operations_service()
+    return service.get_grant_programs()
+
+
+@app.post("/api/v1/grants/applications", tags=["Grant Operations"])
+async def create_grant_application(
+    data: GrantApplicationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a new grant application.
+
+    Initializes tracking for all required documents with deadline monitoring.
+    """
+    service = get_grant_operations_service()
+    result = service.create_application(
+        program=data.program,
+        project_title=data.project_title,
+        project_description=data.project_description,
+        funding_amount=data.funding_amount,
+        deadline=data.deadline,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.put("/api/v1/grants/applications/{application_id}/status", tags=["Grant Operations"])
+async def update_application_status(
+    application_id: str,
+    data: ApplicationStatusUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update the status of a grant application"""
+    service = get_grant_operations_service()
+    result = service.update_application_status(application_id, data.status, data.notes)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.put("/api/v1/grants/applications/{application_id}/documents", tags=["Grant Operations"])
+async def update_document_status(
+    application_id: str,
+    data: DocumentStatusUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update status of a required document"""
+    service = get_grant_operations_service()
+    result = service.update_document_status(application_id, data.document_name, data.status)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/grants/applications/{application_id}", tags=["Grant Operations"])
+async def get_application_summary(
+    application_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get detailed summary of a grant application"""
+    service = get_grant_operations_service()
+    result = service.get_application_summary(application_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/grants/applications/deadlines/upcoming", tags=["Grant Operations"])
+async def get_upcoming_deadlines(
+    days_ahead: int = 90,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get applications with upcoming deadlines"""
+    service = get_grant_operations_service()
+    return service.get_upcoming_deadlines(days_ahead)
+
+
+@app.get("/api/v1/grants/applications/dashboard", tags=["Grant Operations"])
+async def get_applications_dashboard(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get dashboard summary of all grant applications.
+
+    Shows counts by status, total funding requested/awarded, and critical deadlines.
+    """
+    service = get_grant_operations_service()
+    return service.get_application_dashboard()
+
+
+# ----- Regulatory Compliance Endpoints -----
+
+@app.get("/api/v1/compliance/requirements", tags=["Grant Operations"])
+async def get_compliance_requirements(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get list of regulatory compliance requirements.
+
+    Includes pesticide applicator, WPS training, RUP records, and storage requirements.
+    """
+    service = get_grant_operations_service()
+    return service.get_compliance_requirements()
+
+
+@app.post("/api/v1/compliance/licenses", tags=["Grant Operations"])
+async def add_license(
+    data: LicenseCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a license or certification record.
+
+    Tracks expiration dates, CEU requirements, and renewal status.
+    """
+    service = get_grant_operations_service()
+    result = service.add_license(
+        license_type=data.license_type,
+        license_number=data.license_number,
+        holder_name=data.holder_name,
+        issue_date=data.issue_date,
+        expiration_date=data.expiration_date,
+        issuing_authority=data.issuing_authority,
+        categories=data.categories,
+        ceu_required=data.ceu_required,
+        ceu_earned=data.ceu_earned
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/compliance/licenses/{license_id}/ceu", tags=["Grant Operations"])
+async def record_ceu(
+    license_id: str,
+    data: CEURecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record CEU credits earned for a license"""
+    service = get_grant_operations_service()
+    result = service.record_ceu(license_id, data.ceu_amount, data.course_name, data.completion_date)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/compliance/rup", tags=["Grant Operations"])
+async def record_rup_application(
+    data: RUPApplicationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a Restricted Use Pesticide application.
+
+    Captures all required information for EPA/state compliance records.
+    """
+    service = get_grant_operations_service()
+    return service.record_rup_application(
+        application_date=data.application_date,
+        product_name=data.product_name,
+        epa_reg_number=data.epa_reg_number,
+        active_ingredient=data.active_ingredient,
+        field_name=data.field_name,
+        acres_treated=data.acres_treated,
+        rate_per_acre=data.rate_per_acre,
+        rate_unit=data.rate_unit,
+        target_pest=data.target_pest,
+        applicator_name=data.applicator_name,
+        applicator_license=data.applicator_license,
+        wind_speed_mph=data.wind_speed_mph,
+        temperature_f=data.temperature_f,
+        humidity_pct=data.humidity_pct,
+        rei_hours=data.rei_hours,
+        phi_days=data.phi_days,
+        notes=data.notes
+    )
+
+
+@app.post("/api/v1/compliance/wps", tags=["Grant Operations"])
+async def record_wps_activity(
+    data: WPSActivityCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a Worker Protection Standard compliance activity.
+
+    Tracks training, notifications, and other WPS requirements.
+    """
+    service = get_grant_operations_service()
+    return service.record_wps_activity(
+        record_type=data.record_type,
+        activity_date=data.activity_date,
+        description=data.description,
+        participants=data.participants,
+        trainer=data.trainer,
+        documentation_path=data.documentation_path,
+        next_due=data.next_due
+    )
+
+
+@app.get("/api/v1/compliance/dashboard", tags=["Grant Operations"])
+async def get_compliance_dashboard(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get compliance status dashboard.
+
+    Shows license status, upcoming expirations, WPS due dates, and RUP record counts.
+    """
+    service = get_grant_operations_service()
+    return service.get_compliance_dashboard()
+
+
+# ----- Enterprise Budget Endpoints -----
+
+@app.get("/api/v1/budgets/defaults/{crop}", tags=["Grant Operations"])
+async def get_budget_defaults(
+    crop: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get default budget values for a crop.
+
+    Returns Louisiana typical costs for corn, soybeans, rice, cotton, wheat, grain sorghum.
+    """
+    service = get_grant_operations_service()
+    result = service.get_crop_budget_defaults(crop)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/budgets", tags=["Grant Operations"])
+async def create_enterprise_budget(
+    data: EnterpriseBudgetCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create an enterprise budget for a crop.
+
+    Calculates revenues, costs, net returns, and break-even points.
+    """
+    service = get_grant_operations_service()
+    cost_overrides = {}
+    if data.seed is not None:
+        cost_overrides["seed"] = data.seed
+    if data.fertilizer is not None:
+        cost_overrides["fertilizer"] = data.fertilizer
+    if data.chemicals is not None:
+        cost_overrides["chemicals"] = data.chemicals
+    if data.land_rent is not None:
+        cost_overrides["land_rent"] = data.land_rent
+
+    result = service.create_enterprise_budget(
+        crop=data.crop,
+        year=data.year,
+        acres=data.acres,
+        expected_yield=data.expected_yield,
+        expected_price=data.expected_price,
+        **cost_overrides
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/budgets/scenarios", tags=["Grant Operations"])
+async def run_scenario_analysis(
+    data: ScenarioAnalysisRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Run what-if scenario analysis on a budget.
+
+    Tests combinations of yield and price scenarios to identify risk/opportunity.
+    """
+    service = get_grant_operations_service()
+    result = service.run_scenario_analysis(
+        budget_id=data.budget_id,
+        yield_scenarios=data.yield_scenarios,
+        price_scenarios=data.price_scenarios
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/budgets/summary", tags=["Grant Operations"])
+async def get_farm_budget_summary(
+    year: int = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary of all enterprise budgets for a year"""
+    service = get_grant_operations_service()
+    return service.get_farm_budget_summary(year)
+
+
+# ----- Outreach & Impact Endpoints -----
+
+@app.post("/api/v1/outreach/activities", tags=["Grant Operations"])
+async def record_outreach_activity(
+    data: OutreachActivityCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record an outreach activity.
+
+    Tracks field days, presentations, workshops, webinars, and other events.
+    """
+    service = get_grant_operations_service()
+    result = service.record_outreach_activity(
+        activity_type=data.activity_type,
+        title=data.title,
+        activity_date=data.activity_date,
+        description=data.description,
+        audience=data.audience,
+        attendance=data.attendance,
+        location=data.location,
+        partners=data.partners,
+        topics=data.topics,
+        materials_path=data.materials_path,
+        follow_up_contacts=data.follow_up_contacts,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/outreach/publications", tags=["Grant Operations"])
+async def record_publication(
+    data: PublicationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a publication (journal, extension, trade, blog)"""
+    service = get_grant_operations_service()
+    return service.record_publication(
+        pub_type=data.pub_type,
+        title=data.title,
+        authors=data.authors,
+        publication_venue=data.publication_venue,
+        pub_date=data.pub_date,
+        doi_or_url=data.doi_or_url,
+        abstract=data.abstract,
+        keywords=data.keywords,
+        grant_acknowledgment=data.grant_acknowledgment
+    )
+
+
+@app.get("/api/v1/outreach/summary", tags=["Grant Operations"])
+async def get_outreach_summary(
+    start_date: date = None,
+    end_date: date = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary of outreach activities for a period"""
+    service = get_grant_operations_service()
+    return service.get_outreach_summary(start_date, end_date)
+
+
+@app.post("/api/v1/outreach/report", tags=["Grant Operations"])
+async def generate_outreach_report(
+    data: OutreachReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate outreach report for grant reporting.
+
+    Creates formatted report with activities, publications, reach metrics, and narrative.
+    """
+    service = get_grant_operations_service()
+    return service.generate_outreach_report(
+        grant_program=data.grant_program,
+        project_title=data.project_title,
+        reporting_period=(data.start_date, data.end_date)
+    )
+
+
+@app.get("/api/v1/outreach/activity-types", tags=["Grant Operations"])
+async def get_outreach_activity_types():
+    """Get list of outreach activity types"""
+    return {
+        "types": [
+            {"id": t.value, "name": t.value.replace("_", " ").title()}
+            for t in OutreachType
+        ]
+    }
+
+
+@app.get("/api/v1/budgets/crops", tags=["Grant Operations"])
+async def get_budget_crop_types():
+    """Get list of supported crops for budgeting"""
+    return {
+        "crops": [
+            {"id": c.value, "name": c.value.replace("_", " ").title()}
+            for c in BudgetCropType
+        ]
     }
 
 
