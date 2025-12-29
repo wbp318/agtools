@@ -240,13 +240,23 @@ from services.grant_operations_service import (
     CROP_BUDGET_DEFAULTS,
     COMPLIANCE_REQUIREMENTS
 )
+from services.farm_intelligence_service import (
+    get_farm_intelligence_service,
+    Commodity,
+    ContractStatus,
+    InsuranceType,
+    CoverageLevel,
+    InputCategory as ProcurementInputCategory,
+    CURRENT_PRICES,
+    INSURANCE_RATES
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, grant compliance, research partnerships, and grant operations management",
-    version="3.7.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, grant compliance, research partnerships, grant operations management, and elite farm intelligence (market intelligence, crop insurance, soil health, lender reporting, harvest analytics, input procurement)",
+    version="3.8.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -7929,6 +7939,660 @@ async def get_budget_crop_types():
         "crops": [
             {"id": c.value, "name": c.value.replace("_", " ").title()}
             for c in BudgetCropType
+        ]
+    }
+
+
+# ============================================================================
+# v3.8.0 - ELITE FARM INTELLIGENCE SUITE
+# ============================================================================
+
+# ----- Pydantic Models for Market Intelligence -----
+
+class ForwardContractCreate(BaseModel):
+    """Create a forward contract"""
+    commodity: str = Field(..., description="Commodity type (corn, soybeans, wheat, etc.)")
+    bushels: float = Field(..., gt=0, description="Number of bushels")
+    contract_price: float = Field(..., gt=0, description="Contract price per bushel")
+    delivery_start: date = Field(..., description="Delivery period start date")
+    delivery_end: date = Field(..., description="Delivery period end date")
+    buyer: str = Field(..., description="Buyer name")
+    contract_number: str = Field(..., description="Contract number")
+    notes: str = Field("", description="Optional notes")
+
+
+class MarketingPlanRequest(BaseModel):
+    """Calculate marketing plan"""
+    commodity: str = Field(..., description="Commodity type")
+    expected_production: float = Field(..., gt=0, description="Expected production in bushels")
+    target_avg_price: float = Field(..., gt=0, description="Target average price")
+
+
+# ----- Pydantic Models for Crop Insurance -----
+
+class InsuranceOptionsRequest(BaseModel):
+    """Request insurance options comparison"""
+    crop: str = Field(..., description="Crop type")
+    acres: float = Field(..., gt=0, description="Number of acres")
+    aph_yield: float = Field(..., gt=0, description="Actual Production History yield")
+    projected_price: float = Field(..., gt=0, description="Projected price")
+
+
+class InsurancePolicyCreate(BaseModel):
+    """Create insurance policy record"""
+    crop: str = Field(..., description="Crop type")
+    crop_year: int = Field(..., description="Crop year")
+    insurance_type: str = Field("revenue_protection", description="Insurance type")
+    coverage_level: int = Field(75, ge=50, le=85, description="Coverage level percentage")
+    acres: float = Field(..., gt=0, description="Number of acres")
+    aph_yield: float = Field(..., gt=0, description="APH yield")
+    projected_price: float = Field(..., gt=0, description="Projected price")
+
+
+class LossRecordCreate(BaseModel):
+    """Record a crop loss"""
+    policy_id: str = Field(..., description="Policy ID")
+    field_name: str = Field(..., description="Field name")
+    acres_affected: float = Field(..., gt=0, description="Acres affected")
+    cause_of_loss: str = Field(..., description="Cause of loss")
+    date_of_loss: date = Field(..., description="Date loss occurred")
+    estimated_loss_pct: float = Field(..., ge=0, le=100, description="Estimated loss percentage")
+    documentation: List[str] = Field(default=[], description="Documentation files")
+
+
+class IndemnityScenarioRequest(BaseModel):
+    """Calculate indemnity scenarios"""
+    policy_id: str = Field(..., description="Policy ID")
+    yield_scenarios: List[float] = Field(..., description="List of yield scenarios to calculate")
+    harvest_price: Optional[float] = Field(None, description="Optional harvest price override")
+
+
+# ----- Pydantic Models for Soil Health -----
+
+class SoilTestCreate(BaseModel):
+    """Record soil test results"""
+    field_id: str = Field(..., description="Field ID")
+    field_name: str = Field(..., description="Field name")
+    sample_date: date = Field(..., description="Sample date")
+    lab_name: str = Field(..., description="Lab name")
+    ph: float = Field(..., ge=0, le=14, description="pH level")
+    organic_matter_pct: float = Field(..., ge=0, le=100, description="Organic matter percentage")
+    phosphorus_ppm: float = Field(..., ge=0, description="Phosphorus (ppm)")
+    potassium_ppm: float = Field(..., ge=0, description="Potassium (ppm)")
+    nitrogen_ppm: float = Field(0, ge=0, description="Nitrogen (ppm)")
+    calcium_ppm: float = Field(0, ge=0, description="Calcium (ppm)")
+    magnesium_ppm: float = Field(0, ge=0, description="Magnesium (ppm)")
+    sulfur_ppm: float = Field(0, ge=0, description="Sulfur (ppm)")
+    zinc_ppm: float = Field(0, ge=0, description="Zinc (ppm)")
+    cec: float = Field(0, ge=0, description="Cation Exchange Capacity")
+    sample_depth: str = Field("0-6 inches", description="Sample depth")
+
+
+# ----- Pydantic Models for Lender/Investor Reporting -----
+
+class LenderReportRequest(BaseModel):
+    """Generate lender report"""
+    farm_name: str = Field(..., description="Farm name")
+    operator_name: str = Field(..., description="Operator name")
+    total_acres: float = Field(..., gt=0, description="Total acres")
+    crops: Dict[str, float] = Field(..., description="Crops and acres {crop: acres}")
+    year: Optional[int] = Field(None, description="Optional crop year")
+
+
+class InvestorSummaryRequest(BaseModel):
+    """Generate investor summary"""
+    farm_name: str = Field(..., description="Farm name")
+    investment_amount: float = Field(..., gt=0, description="Investment amount requested")
+    term_years: int = Field(..., gt=0, description="Investment term in years")
+
+
+# ----- Pydantic Models for Harvest Analytics -----
+
+class HarvestRecordCreate(BaseModel):
+    """Record harvest data"""
+    field_id: str = Field(..., description="Field ID")
+    field_name: str = Field(..., description="Field name")
+    crop: str = Field(..., description="Crop type")
+    crop_year: int = Field(..., description="Crop year")
+    harvest_date: date = Field(..., description="Harvest date")
+    acres_harvested: float = Field(..., gt=0, description="Acres harvested")
+    total_yield: float = Field(..., gt=0, description="Total yield (bushels/lbs)")
+    moisture_pct: float = Field(..., ge=0, le=100, description="Moisture percentage")
+    test_weight: float = Field(0, ge=0, description="Test weight")
+    quality_notes: str = Field("", description="Quality notes")
+    storage_location: str = Field("", description="Storage location")
+
+
+# ----- Pydantic Models for Input Procurement -----
+
+class SupplierCreate(BaseModel):
+    """Add a supplier"""
+    name: str = Field(..., description="Supplier name")
+    categories: List[str] = Field(..., description="Categories (seed, fertilizer, chemical, etc.)")
+    contact_name: str = Field(..., description="Contact name")
+    phone: str = Field(..., description="Phone number")
+    email: str = Field(..., description="Email address")
+    address: str = Field("", description="Address")
+    payment_terms: str = Field("", description="Payment terms")
+    notes: str = Field("", description="Notes")
+
+
+class PriceQuoteCreate(BaseModel):
+    """Add a price quote"""
+    supplier_id: str = Field(..., description="Supplier ID")
+    product_name: str = Field(..., description="Product name")
+    category: str = Field(..., description="Category")
+    unit_price: float = Field(..., gt=0, description="Unit price")
+    unit: str = Field(..., description="Unit (ton, gallon, bag, etc.)")
+    min_quantity: float = Field(0, ge=0, description="Minimum quantity")
+    valid_until: date = Field(..., description="Quote valid until date")
+    notes: str = Field("", description="Notes")
+
+
+class PurchaseOrderCreate(BaseModel):
+    """Create purchase order"""
+    supplier_id: str = Field(..., description="Supplier ID")
+    items: List[Dict[str, Any]] = Field(..., description="Items [{product, quantity, unit_price, unit}]")
+    expected_delivery: date = Field(..., description="Expected delivery date")
+    notes: str = Field("", description="Notes")
+
+
+# ============================================================================
+# MARKET INTELLIGENCE ENDPOINTS
+# ============================================================================
+
+@app.get("/api/v1/market/prices", tags=["Market Intelligence"])
+async def get_market_prices(
+    commodity: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get current commodity prices.
+
+    Returns cash prices, futures prices, and basis for commodities.
+    Optionally filter by specific commodity.
+    """
+    service = get_farm_intelligence_service()
+    return service.get_current_prices(commodity)
+
+
+@app.get("/api/v1/market/basis/{commodity}", tags=["Market Intelligence"])
+async def get_basis_analysis(
+    commodity: str,
+    location: str = "Local",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Analyze current vs historical basis for a commodity.
+
+    Compares current basis to historical averages and provides recommendations.
+    """
+    service = get_farm_intelligence_service()
+    result = service.get_basis_analysis(commodity, location)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/market/contracts", tags=["Market Intelligence"])
+async def create_forward_contract(
+    data: ForwardContractCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a forward contract record.
+
+    Records forward grain sales with pricing and delivery terms.
+    """
+    service = get_farm_intelligence_service()
+    result = service.create_forward_contract(
+        commodity=data.commodity,
+        bushels=data.bushels,
+        contract_price=data.contract_price,
+        delivery_start=data.delivery_start,
+        delivery_end=data.delivery_end,
+        buyer=data.buyer,
+        contract_number=data.contract_number,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/market/summary", tags=["Market Intelligence"])
+async def get_marketing_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get marketing position summary.
+
+    Shows all open contracts by commodity with total bushels and average prices.
+    """
+    service = get_farm_intelligence_service()
+    return service.get_marketing_summary()
+
+
+@app.post("/api/v1/market/plan", tags=["Market Intelligence"])
+async def calculate_marketing_plan(
+    data: MarketingPlanRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate marketing plan to achieve target price.
+
+    Analyzes current position and recommends contracting strategy.
+    """
+    service = get_farm_intelligence_service()
+    result = service.calculate_marketing_plan(
+        commodity=data.commodity,
+        expected_production=data.expected_production,
+        target_avg_price=data.target_avg_price
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/market/commodities", tags=["Market Intelligence"])
+async def get_available_commodities():
+    """Get list of supported commodities"""
+    return {
+        "commodities": [
+            {"id": c.value, "name": c.value.title()}
+            for c in Commodity
+        ]
+    }
+
+
+# ============================================================================
+# CROP INSURANCE ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/insurance/options", tags=["Crop Insurance"])
+async def compare_insurance_options(
+    data: InsuranceOptionsRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare crop insurance coverage options.
+
+    Shows premiums, guarantees, and best value recommendations for all coverage levels.
+    """
+    service = get_farm_intelligence_service()
+    result = service.get_insurance_options(
+        crop=data.crop,
+        acres=data.acres,
+        aph_yield=data.aph_yield,
+        projected_price=data.projected_price
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/insurance/policies", tags=["Crop Insurance"])
+async def create_insurance_policy(
+    data: InsurancePolicyCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create an insurance policy record.
+
+    Records policy details including coverage level, premiums, and guarantees.
+    """
+    service = get_farm_intelligence_service()
+    result = service.create_insurance_policy(
+        crop=data.crop,
+        crop_year=data.crop_year,
+        insurance_type=data.insurance_type,
+        coverage_level=data.coverage_level,
+        acres=data.acres,
+        aph_yield=data.aph_yield,
+        projected_price=data.projected_price
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/insurance/losses", tags=["Crop Insurance"])
+async def record_crop_loss(
+    data: LossRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a crop loss for insurance claim.
+
+    Documents loss with cause, date, and estimated damage for claim filing.
+    """
+    service = get_farm_intelligence_service()
+    result = service.record_loss(
+        policy_id=data.policy_id,
+        field_name=data.field_name,
+        acres_affected=data.acres_affected,
+        cause_of_loss=data.cause_of_loss,
+        date_of_loss=data.date_of_loss,
+        estimated_loss_pct=data.estimated_loss_pct,
+        documentation=data.documentation
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/insurance/indemnity-scenarios", tags=["Crop Insurance"])
+async def calculate_indemnity_scenarios(
+    data: IndemnityScenarioRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate potential indemnity payments for different yield scenarios.
+
+    Projects insurance payments based on various actual yield outcomes.
+    """
+    service = get_farm_intelligence_service()
+    result = service.calculate_indemnity_scenarios(
+        policy_id=data.policy_id,
+        yield_scenarios=data.yield_scenarios,
+        harvest_price=data.harvest_price
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/insurance/types", tags=["Crop Insurance"])
+async def get_insurance_types():
+    """Get list of supported insurance types"""
+    return {
+        "types": [
+            {"id": t.value, "name": t.name, "description": t.value.replace("_", " ").title()}
+            for t in InsuranceType
+        ]
+    }
+
+
+@app.get("/api/v1/insurance/coverage-levels", tags=["Crop Insurance"])
+async def get_coverage_levels():
+    """Get available coverage levels"""
+    return {
+        "levels": [
+            {"id": level.value, "label": f"{level.value}%"}
+            for level in CoverageLevel
+        ]
+    }
+
+
+# ============================================================================
+# SOIL HEALTH ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/soil/tests", tags=["Soil Health"])
+async def record_soil_test(
+    data: SoilTestCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record soil test results.
+
+    Stores comprehensive soil test data with interpretations and recommendations.
+    """
+    service = get_farm_intelligence_service()
+    return service.record_soil_test(
+        field_id=data.field_id,
+        field_name=data.field_name,
+        sample_date=data.sample_date,
+        lab_name=data.lab_name,
+        ph=data.ph,
+        organic_matter_pct=data.organic_matter_pct,
+        phosphorus_ppm=data.phosphorus_ppm,
+        potassium_ppm=data.potassium_ppm,
+        nitrogen_ppm=data.nitrogen_ppm,
+        calcium_ppm=data.calcium_ppm,
+        magnesium_ppm=data.magnesium_ppm,
+        sulfur_ppm=data.sulfur_ppm,
+        zinc_ppm=data.zinc_ppm,
+        cec=data.cec,
+        sample_depth=data.sample_depth
+    )
+
+
+@app.get("/api/v1/soil/trend/{field_id}", tags=["Soil Health"])
+async def get_soil_health_trend(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get soil health trends over time for a field.
+
+    Shows multi-year trends in pH, organic matter, nutrients with health score.
+    """
+    service = get_farm_intelligence_service()
+    result = service.get_soil_health_trend(field_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+# ============================================================================
+# LENDER/INVESTOR REPORTING ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/reports/lender", tags=["Lender Reporting"])
+async def generate_lender_report(
+    data: LenderReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate professional report for agricultural lenders.
+
+    Creates comprehensive loan package with projections and risk management summary.
+    """
+    service = get_farm_intelligence_service()
+    return service.generate_lender_report(
+        farm_name=data.farm_name,
+        operator_name=data.operator_name,
+        total_acres=data.total_acres,
+        crops=data.crops,
+        year=data.year
+    )
+
+
+@app.post("/api/v1/reports/investor", tags=["Lender Reporting"])
+async def generate_investor_summary(
+    data: InvestorSummaryRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate investment summary for potential farm investors.
+
+    Creates professional investment overview with metrics and strengths.
+    """
+    service = get_farm_intelligence_service()
+    return service.generate_investor_summary(
+        farm_name=data.farm_name,
+        investment_amount=data.investment_amount,
+        term_years=data.term_years
+    )
+
+
+# ============================================================================
+# HARVEST ANALYTICS ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/harvest/records", tags=["Harvest Analytics"])
+async def record_harvest(
+    data: HarvestRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record harvest data for a field.
+
+    Stores yield data with moisture, quality, and benchmark comparisons.
+    """
+    service = get_farm_intelligence_service()
+    result = service.record_harvest(
+        field_id=data.field_id,
+        field_name=data.field_name,
+        crop=data.crop,
+        crop_year=data.crop_year,
+        harvest_date=data.harvest_date,
+        acres_harvested=data.acres_harvested,
+        total_yield=data.total_yield,
+        moisture_pct=data.moisture_pct,
+        test_weight=data.test_weight,
+        quality_notes=data.quality_notes,
+        storage_location=data.storage_location
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/harvest/analytics", tags=["Harvest Analytics"])
+async def get_harvest_analytics(
+    crop_year: int = None,
+    crop: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get harvest analytics summary.
+
+    Shows yields by crop, field rankings, and summary statistics.
+    """
+    service = get_farm_intelligence_service()
+    return service.get_harvest_analytics(crop_year, crop)
+
+
+@app.get("/api/v1/harvest/trend/{field_id}/{crop}", tags=["Harvest Analytics"])
+async def get_yield_trend(
+    field_id: str,
+    crop: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get multi-year yield trend for a field and crop.
+
+    Shows yield history with statistics and trend analysis.
+    """
+    service = get_farm_intelligence_service()
+    result = service.get_yield_trend(field_id, crop)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+# ============================================================================
+# INPUT PROCUREMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/procurement/suppliers", tags=["Input Procurement"])
+async def add_supplier(
+    data: SupplierCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a supplier to the database.
+
+    Records supplier contact info and categories for quote tracking.
+    """
+    service = get_farm_intelligence_service()
+    return service.add_supplier(
+        name=data.name,
+        categories=data.categories,
+        contact_name=data.contact_name,
+        phone=data.phone,
+        email=data.email,
+        address=data.address,
+        payment_terms=data.payment_terms,
+        notes=data.notes
+    )
+
+
+@app.post("/api/v1/procurement/quotes", tags=["Input Procurement"])
+async def add_price_quote(
+    data: PriceQuoteCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a price quote from a supplier.
+
+    Records product pricing for comparison across suppliers.
+    """
+    service = get_farm_intelligence_service()
+    result = service.add_price_quote(
+        supplier_id=data.supplier_id,
+        product_name=data.product_name,
+        category=data.category,
+        unit_price=data.unit_price,
+        unit=data.unit,
+        min_quantity=data.min_quantity,
+        valid_until=data.valid_until,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/procurement/compare", tags=["Input Procurement"])
+async def compare_quotes(
+    product_name: str = None,
+    category: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare quotes across suppliers.
+
+    Finds best prices and potential savings by product.
+    """
+    service = get_farm_intelligence_service()
+    return service.compare_quotes(product_name, category)
+
+
+@app.post("/api/v1/procurement/orders", tags=["Input Procurement"])
+async def create_purchase_order(
+    data: PurchaseOrderCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a purchase order.
+
+    Records order details for tracking deliveries and costs.
+    """
+    service = get_farm_intelligence_service()
+    result = service.create_purchase_order(
+        supplier_id=data.supplier_id,
+        items=data.items,
+        expected_delivery=data.expected_delivery,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/procurement/summary", tags=["Input Procurement"])
+async def get_procurement_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get procurement summary and recommendations.
+
+    Shows supplier count, active quotes, open orders, and action items.
+    """
+    service = get_farm_intelligence_service()
+    return service.get_procurement_summary()
+
+
+@app.get("/api/v1/procurement/categories", tags=["Input Procurement"])
+async def get_procurement_categories():
+    """Get list of input categories"""
+    return {
+        "categories": [
+            {"id": c.value, "name": c.value.replace("_", " ").title()}
+            for c in ProcurementInputCategory
         ]
     }
 
