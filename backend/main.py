@@ -175,6 +175,22 @@ from services.sustainability_service import (
     CarbonSummary,
     WaterSummary
 )
+from services.climate_service import (
+    get_climate_service,
+    GDDRecordCreate,
+    GDDRecordResponse,
+    GDDSummary,
+    GDDEntry,
+    PrecipitationCreate,
+    PrecipitationResponse,
+    PrecipitationSummary,
+    PrecipitationType,
+    ClimateSummary,
+    ClimateComparison,
+    GDD_BASE_TEMPS,
+    CORN_GDD_STAGES,
+    SOYBEAN_GDD_STAGES
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
@@ -6032,6 +6048,217 @@ async def list_carbon_sources():
             for s in CarbonSource
         ]
     }
+
+
+# ============================================================================
+# CLIMATE & WEATHER DATA
+# ============================================================================
+
+@app.post("/api/v1/climate/gdd", response_model=GDDRecordResponse, tags=["Climate"])
+async def record_gdd(
+    data: GDDRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record daily high/low temperatures for GDD tracking.
+
+    Growing Degree Days (GDD) are automatically calculated for:
+    - Corn (base 50°F)
+    - Soybean (base 50°F)
+    - Wheat (base 40°F)
+    """
+    service = get_climate_service()
+    result, error = service.record_gdd(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/climate/gdd", response_model=List[GDDRecordResponse], tags=["Climate"])
+async def list_gdd_records(
+    field_id: int,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List GDD records for a field"""
+    service = get_climate_service()
+    return service.list_gdd_records(field_id, start_date, end_date)
+
+
+@app.get("/api/v1/climate/gdd/accumulated", tags=["Climate"])
+async def get_accumulated_gdd(
+    field_id: int,
+    crop_type: str,
+    planting_date: date,
+    end_date: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get accumulated GDD from planting date.
+
+    Returns total GDD and daily entries with cumulative totals.
+    """
+    service = get_climate_service()
+    accumulated, entries = service.get_accumulated_gdd(field_id, crop_type, planting_date, end_date)
+    return {
+        "field_id": field_id,
+        "crop_type": crop_type,
+        "planting_date": planting_date.isoformat(),
+        "end_date": (end_date or date.today()).isoformat(),
+        "accumulated_gdd": accumulated,
+        "daily_entries": [e.model_dump() for e in entries]
+    }
+
+
+@app.get("/api/v1/climate/gdd/summary", response_model=GDDSummary, tags=["Climate"])
+async def get_gdd_summary(
+    field_id: int,
+    crop_type: str,
+    planting_date: date,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get GDD summary with crop stage predictions.
+
+    Includes current stage, next stage, days to maturity,
+    and projected maturity date based on recent GDD accumulation.
+    """
+    service = get_climate_service()
+    return service.get_gdd_summary(field_id, crop_type, planting_date)
+
+
+@app.get("/api/v1/climate/gdd/stages", tags=["Climate"])
+async def get_crop_gdd_stages(crop_type: str = "corn"):
+    """Get GDD stages for a crop type"""
+    stages = CORN_GDD_STAGES if crop_type.lower() == "corn" else SOYBEAN_GDD_STAGES
+    return {
+        "crop_type": crop_type,
+        "base_temp_f": GDD_BASE_TEMPS.get(crop_type.lower(), 50),
+        "stages": [
+            {"stage": k.replace("_", " ").title(), "gdd_required": v}
+            for k, v in sorted(stages.items(), key=lambda x: x[1])
+        ]
+    }
+
+
+@app.get("/api/v1/climate/gdd/base-temps", tags=["Climate"])
+async def get_gdd_base_temps():
+    """Get base temperatures for all supported crops"""
+    return {
+        "crops": [
+            {"crop": k, "base_temp_f": v}
+            for k, v in GDD_BASE_TEMPS.items()
+        ]
+    }
+
+
+@app.post("/api/v1/climate/precipitation", response_model=PrecipitationResponse, tags=["Climate"])
+async def record_precipitation(
+    data: PrecipitationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a precipitation event"""
+    service = get_climate_service()
+    result, error = service.record_precipitation(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/climate/precipitation", response_model=List[PrecipitationResponse], tags=["Climate"])
+async def list_precipitation(
+    field_id: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List precipitation records with optional filters"""
+    service = get_climate_service()
+    return service.list_precipitation(field_id, start_date, end_date)
+
+
+@app.get("/api/v1/climate/precipitation/summary", response_model=PrecipitationSummary, tags=["Climate"])
+async def get_precipitation_summary(
+    start_date: date,
+    end_date: date,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get precipitation summary for a period.
+
+    Includes total rainfall, rain days, averages, and monthly breakdown.
+    """
+    service = get_climate_service()
+    return service.get_precipitation_summary(start_date, end_date, field_id)
+
+
+@app.get("/api/v1/climate/precipitation/types", tags=["Climate"])
+async def list_precipitation_types():
+    """Get list of precipitation types"""
+    return {
+        "types": [
+            {"value": t.value, "label": t.value.title()}
+            for t in PrecipitationType
+        ]
+    }
+
+
+@app.get("/api/v1/climate/summary", response_model=ClimateSummary, tags=["Climate"])
+async def get_climate_summary(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get annual climate summary.
+
+    Comprehensive climate metrics including:
+    - Temperature statistics (highs, lows, extremes)
+    - Heat and cold stress days
+    - Frost dates and frost-free season
+    - Precipitation totals
+    - GDD accumulation
+    """
+    service = get_climate_service()
+    return service.get_climate_summary(year, field_id)
+
+
+@app.get("/api/v1/climate/compare", response_model=ClimateComparison, tags=["Climate"])
+async def compare_climate_years(
+    years: str,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare climate data across multiple years.
+
+    Pass years as comma-separated values (e.g., "2022,2023,2024").
+    Returns metrics comparison and trends.
+    """
+    year_list = [int(y.strip()) for y in years.split(",")]
+    service = get_climate_service()
+    return service.compare_years(year_list, field_id)
+
+
+@app.get("/api/v1/climate/export", tags=["Climate"])
+async def export_climate_data(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export climate data for research documentation.
+
+    Includes climate summary, GDD records, and precipitation records.
+    """
+    service = get_climate_service()
+    return service.export_climate_data(year, field_id)
 
 
 # ============================================================================
