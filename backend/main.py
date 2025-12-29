@@ -250,13 +250,58 @@ from services.farm_intelligence_service import (
     CURRENT_PRICES,
     INSURANCE_RATES
 )
+from services.enterprise_operations_service import (
+    get_enterprise_operations_service,
+    EmployeeType,
+    EmployeeStatus,
+    PayType,
+    CertificationType,
+    TimeEntryType,
+    LeaseType,
+    LeaseStatus,
+    PaymentFrequency,
+    CashFlowCategory,
+    TransactionStatus,
+    EntityType,
+    CASH_RENT_AVERAGES
+)
+from services.precision_intelligence_service import (
+    get_precision_intelligence_service,
+    PredictionModel,
+    ZoneType,
+    PrescriptionType,
+    RecommendationType as PrecisionRecommendationType,
+    ConfidenceLevel,
+    CropStage
+)
+from services.grain_storage_service import (
+    get_grain_storage_service,
+    GrainType,
+    BinType,
+    BinStatus,
+    DryerType,
+    TransactionType as GrainTransactionType,
+    AlertType as GrainAlertType
+)
+from services.farm_business_service import (
+    get_farm_business_service,
+    AssetType,
+    DepreciationMethod,
+    TaxEntity,
+    TransferMethod,
+    FamilyRole,
+    MilestoneCategory,
+    BenchmarkMetric,
+    DocumentCategory,
+    MACRS_RATES
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, grant compliance, research partnerships, grant operations management, and elite farm intelligence (market intelligence, crop insurance, soil health, lender reporting, harvest analytics, input procurement)",
-    version="3.8.0",
+    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, and complete farm business suite",
+    version="4.2.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -8594,6 +8639,1763 @@ async def get_procurement_categories():
             {"id": c.value, "name": c.value.replace("_", " ").title()}
             for c in ProcurementInputCategory
         ]
+    }
+
+
+# ============================================================================
+# v3.9.0 - ENTERPRISE OPERATIONS SUITE
+# ============================================================================
+
+# ----- Pydantic Models for Entity Management -----
+
+class EntityCreate(BaseModel):
+    """Create a farming entity"""
+    name: str = Field(..., description="Entity name")
+    entity_type: str = Field(..., description="Entity type (sole_proprietor, partnership, llc, etc.)")
+    tax_id: str = Field("", description="Tax ID (EIN or SSN)")
+    state_of_formation: str = Field("LA", description="State of formation")
+    fiscal_year_end: str = Field("12/31", description="Fiscal year end date")
+    owners: List[Dict[str, Any]] = Field(default=[], description="Owners [{name, ownership_pct, role}]")
+    primary_contact: str = Field("", description="Primary contact name")
+    phone: str = Field("", description="Phone number")
+    email: str = Field("", description="Email address")
+
+
+class EntityAllocationCreate(BaseModel):
+    """Create resource allocation between entities"""
+    source_entity_id: str = Field(..., description="Source entity ID")
+    target_entity_id: str = Field(..., description="Target entity ID")
+    resource_type: str = Field(..., description="Resource type (equipment, labor, land)")
+    resource_id: str = Field(..., description="Resource ID")
+    allocation_pct: float = Field(..., ge=0, le=100, description="Allocation percentage")
+    effective_date: date = Field(..., description="Effective date")
+
+
+# ----- Pydantic Models for Labor Management -----
+
+class EmployeeCreate(BaseModel):
+    """Add an employee"""
+    first_name: str = Field(..., description="First name")
+    last_name: str = Field(..., description="Last name")
+    employee_type: str = Field(..., description="Type (full_time, part_time, seasonal, contract, family)")
+    pay_type: str = Field(..., description="Pay type (hourly, salary, piece_rate, share)")
+    pay_rate: float = Field(..., gt=0, description="Pay rate")
+    phone: str = Field("", description="Phone number")
+    email: str = Field("", description="Email address")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+    hire_date: Optional[date] = Field(None, description="Hire date")
+    emergency_contact: str = Field("", description="Emergency contact name")
+    emergency_phone: str = Field("", description="Emergency contact phone")
+
+
+class CertificationCreate(BaseModel):
+    """Add employee certification"""
+    employee_id: str = Field(..., description="Employee ID")
+    cert_type: str = Field(..., description="Certification type")
+    cert_number: str = Field(..., description="Certificate number")
+    issue_date: date = Field(..., description="Issue date")
+    expiration_date: date = Field(..., description="Expiration date")
+    issuing_authority: str = Field("", description="Issuing authority")
+
+
+class TimeEntryCreate(BaseModel):
+    """Record time entry"""
+    employee_id: str = Field(..., description="Employee ID")
+    work_date: date = Field(..., description="Work date")
+    hours: float = Field(..., gt=0, description="Hours worked")
+    task_description: str = Field(..., description="Task description")
+    start_time: str = Field("07:00", description="Start time (HH:MM)")
+    end_time: str = Field("17:00", description="End time (HH:MM)")
+    entry_type: str = Field("regular", description="Entry type (regular, overtime, pto, etc.)")
+    field_id: Optional[str] = Field(None, description="Associated field ID")
+    equipment_id: Optional[str] = Field(None, description="Associated equipment ID")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+
+
+class ScheduleCreate(BaseModel):
+    """Create schedule entry"""
+    employee_id: str = Field(..., description="Employee ID")
+    scheduled_date: date = Field(..., description="Scheduled date")
+    start_time: str = Field(..., description="Start time (HH:MM)")
+    end_time: str = Field(..., description="End time (HH:MM)")
+    task: str = Field(..., description="Task description")
+    field_id: Optional[str] = Field(None, description="Associated field ID")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+
+
+# ----- Pydantic Models for Land/Lease Management -----
+
+class LandownerCreate(BaseModel):
+    """Add a landowner"""
+    name: str = Field(..., description="Landowner name")
+    contact_name: str = Field("", description="Contact name")
+    phone: str = Field("", description="Phone number")
+    email: str = Field("", description="Email address")
+    address: str = Field("", description="Address")
+    payment_method: str = Field("check", description="Payment method")
+    tax_id: str = Field("", description="Tax ID for 1099")
+
+
+class LandParcelCreate(BaseModel):
+    """Add a land parcel"""
+    name: str = Field(..., description="Parcel name")
+    total_acres: float = Field(..., gt=0, description="Total acres")
+    tillable_acres: float = Field(..., gt=0, description="Tillable acres")
+    county: str = Field(..., description="County")
+    ownership_type: str = Field(..., description="Ownership type (cash_rent, crop_share, owned, etc.)")
+    landowner_id: Optional[str] = Field(None, description="Landowner ID if rented")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+    state: str = Field("LA", description="State")
+    fsa_farm_number: str = Field("", description="FSA farm number")
+    fsa_tract_number: str = Field("", description="FSA tract number")
+
+
+class LeaseCreate(BaseModel):
+    """Create a lease"""
+    parcel_id: str = Field(..., description="Parcel ID")
+    landowner_id: str = Field(..., description="Landowner ID")
+    lease_type: str = Field(..., description="Lease type (cash_rent, crop_share, flex_lease)")
+    start_date: date = Field(..., description="Lease start date")
+    end_date: date = Field(..., description="Lease end date")
+    acres: float = Field(..., gt=0, description="Leased acres")
+    cash_rent_per_acre: float = Field(0, ge=0, description="Cash rent per acre")
+    payment_frequency: str = Field("annual", description="Payment frequency")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+    landlord_share_pct: float = Field(0, ge=0, le=100, description="Landlord share % (for crop share)")
+    auto_renew: bool = Field(True, description="Auto renew lease")
+    notice_days: int = Field(90, description="Notice days required")
+
+
+class LeasePaymentCreate(BaseModel):
+    """Record lease payment"""
+    lease_id: str = Field(..., description="Lease ID")
+    payment_date: date = Field(..., description="Payment date")
+    amount: float = Field(..., gt=0, description="Payment amount")
+    payment_type: str = Field("rent", description="Payment type")
+    check_number: str = Field("", description="Check number")
+    notes: str = Field("", description="Notes")
+
+
+# ----- Pydantic Models for Cash Flow -----
+
+class CashFlowEntryCreate(BaseModel):
+    """Add cash flow entry"""
+    category: str = Field(..., description="Category (crop_sales, seed, fertilizer, etc.)")
+    description: str = Field(..., description="Description")
+    amount: float = Field(..., description="Amount (positive for income)")
+    transaction_date: date = Field(..., description="Transaction date")
+    status: str = Field("projected", description="Status (projected, committed, completed)")
+    recurring: bool = Field(False, description="Is recurring")
+    recurrence_pattern: str = Field("", description="Recurrence pattern (monthly, quarterly, annual)")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+
+
+class LoanCreate(BaseModel):
+    """Add a loan"""
+    lender: str = Field(..., description="Lender name")
+    loan_type: str = Field(..., description="Loan type (operating, equipment, real_estate)")
+    original_amount: float = Field(..., gt=0, description="Original loan amount")
+    current_balance: float = Field(..., gt=0, description="Current balance")
+    interest_rate: float = Field(..., ge=0, description="Interest rate (%)")
+    payment_amount: float = Field(..., gt=0, description="Payment amount")
+    payment_frequency: str = Field(..., description="Payment frequency")
+    next_payment_date: date = Field(..., description="Next payment date")
+    maturity_date: date = Field(..., description="Maturity date")
+    entity_id: str = Field("ENTITY-0001", description="Entity ID")
+    collateral: str = Field("", description="Collateral description")
+
+
+class CashFlowForecastRequest(BaseModel):
+    """Request cash flow forecast"""
+    months: int = Field(12, ge=1, le=24, description="Months to forecast")
+    starting_balance: float = Field(0, description="Starting cash balance")
+    entity_id: Optional[str] = Field(None, description="Entity ID filter")
+
+
+# ============================================================================
+# ENTITY MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/entities", tags=["Entity Management"])
+async def create_entity(
+    data: EntityCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a new farming entity.
+
+    Supports sole proprietor, partnership, LLC, S-Corp, C-Corp, trust, and family LP.
+    """
+    service = get_enterprise_operations_service()
+    result = service.create_entity(
+        name=data.name,
+        entity_type=data.entity_type,
+        tax_id=data.tax_id,
+        state_of_formation=data.state_of_formation,
+        fiscal_year_end=data.fiscal_year_end,
+        owners=data.owners,
+        primary_contact=data.primary_contact,
+        phone=data.phone,
+        email=data.email
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/entities", tags=["Entity Management"])
+async def get_entities(
+    active_only: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all farming entities"""
+    service = get_enterprise_operations_service()
+    return service.get_entities(active_only)
+
+
+@app.post("/api/v1/entities/allocations", tags=["Entity Management"])
+async def create_entity_allocation(
+    data: EntityAllocationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create resource allocation between entities.
+
+    Allocates equipment, labor, or land between farming entities.
+    """
+    service = get_enterprise_operations_service()
+    result = service.create_allocation(
+        source_entity_id=data.source_entity_id,
+        target_entity_id=data.target_entity_id,
+        resource_type=data.resource_type,
+        resource_id=data.resource_id,
+        allocation_pct=data.allocation_pct,
+        effective_date=data.effective_date
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/entities/types", tags=["Entity Management"])
+async def get_entity_types():
+    """Get available entity types"""
+    return {
+        "types": [
+            {"id": t.value, "name": t.value.replace("_", " ").title()}
+            for t in EntityType
+        ]
+    }
+
+
+# ============================================================================
+# LABOR MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/labor/employees", tags=["Labor Management"])
+async def add_employee(
+    data: EmployeeCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a new employee.
+
+    Supports full-time, part-time, seasonal, contract, and family workers.
+    """
+    service = get_enterprise_operations_service()
+    result = service.add_employee(
+        first_name=data.first_name,
+        last_name=data.last_name,
+        employee_type=data.employee_type,
+        pay_type=data.pay_type,
+        pay_rate=data.pay_rate,
+        phone=data.phone,
+        email=data.email,
+        entity_id=data.entity_id,
+        hire_date=data.hire_date,
+        emergency_contact=data.emergency_contact,
+        emergency_phone=data.emergency_phone
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/labor/certifications", tags=["Labor Management"])
+async def add_employee_certification(
+    data: CertificationCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add certification to employee.
+
+    Tracks applicator licenses, CDLs, safety certifications, and more.
+    """
+    service = get_enterprise_operations_service()
+    result = service.add_certification(
+        employee_id=data.employee_id,
+        cert_type=data.cert_type,
+        cert_number=data.cert_number,
+        issue_date=data.issue_date,
+        expiration_date=data.expiration_date,
+        issuing_authority=data.issuing_authority
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/labor/time", tags=["Labor Management"])
+async def record_time_entry(
+    data: TimeEntryCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record time entry for employee.
+
+    Tracks regular hours, overtime, PTO, sick time, and holiday pay.
+    """
+    service = get_enterprise_operations_service()
+    result = service.record_time(
+        employee_id=data.employee_id,
+        work_date=data.work_date,
+        hours=data.hours,
+        task_description=data.task_description,
+        start_time=data.start_time,
+        end_time=data.end_time,
+        entry_type=data.entry_type,
+        field_id=data.field_id,
+        equipment_id=data.equipment_id,
+        entity_id=data.entity_id
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/labor/timesheet", tags=["Labor Management"])
+async def get_timesheet(
+    employee_id: str = None,
+    start_date: date = None,
+    end_date: date = None,
+    entity_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get timesheet summary.
+
+    Shows hours worked by employee with approval status.
+    """
+    service = get_enterprise_operations_service()
+    return service.get_timesheet(employee_id, start_date, end_date, entity_id)
+
+
+@app.post("/api/v1/labor/schedule", tags=["Labor Management"])
+async def create_schedule_entry(
+    data: ScheduleCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create work schedule entry.
+
+    Schedules employees for specific tasks and dates.
+    """
+    service = get_enterprise_operations_service()
+    result = service.create_schedule(
+        employee_id=data.employee_id,
+        scheduled_date=data.scheduled_date,
+        start_time=data.start_time,
+        end_time=data.end_time,
+        task=data.task,
+        field_id=data.field_id,
+        entity_id=data.entity_id
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/labor/schedule", tags=["Labor Management"])
+async def get_crew_schedule(
+    start_date: date,
+    end_date: date = None,
+    entity_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get crew schedule for date range"""
+    service = get_enterprise_operations_service()
+    return service.get_crew_schedule(start_date, end_date, entity_id)
+
+
+@app.get("/api/v1/labor/certification-alerts", tags=["Labor Management"])
+async def get_certification_alerts(
+    days_ahead: int = 90,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get certification expiration alerts.
+
+    Shows upcoming and expired certifications requiring attention.
+    """
+    service = get_enterprise_operations_service()
+    return service.get_certification_alerts(days_ahead)
+
+
+@app.get("/api/v1/labor/payroll-summary", tags=["Labor Management"])
+async def generate_payroll_summary(
+    pay_period_start: date,
+    pay_period_end: date,
+    entity_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate payroll summary for pay period.
+
+    Calculates hours, overtime, and gross pay for all employees.
+    """
+    service = get_enterprise_operations_service()
+    return service.generate_payroll_summary(pay_period_start, pay_period_end, entity_id)
+
+
+@app.get("/api/v1/labor/employee-types", tags=["Labor Management"])
+async def get_employee_types():
+    """Get available employee types"""
+    return {
+        "types": [{"id": t.value, "name": t.value.replace("_", " ").title()} for t in EmployeeType]
+    }
+
+
+@app.get("/api/v1/labor/pay-types", tags=["Labor Management"])
+async def get_pay_types():
+    """Get available pay types"""
+    return {
+        "types": [{"id": t.value, "name": t.value.replace("_", " ").title()} for t in PayType]
+    }
+
+
+@app.get("/api/v1/labor/certification-types", tags=["Labor Management"])
+async def get_certification_types():
+    """Get available certification types"""
+    return {
+        "types": [{"id": t.value, "name": t.value.replace("_", " ").title()} for t in CertificationType]
+    }
+
+
+# ============================================================================
+# LAND/LEASE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/land/landowners", tags=["Land Management"])
+async def add_landowner(
+    data: LandownerCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a landowner.
+
+    Records landowner contact info and payment preferences.
+    """
+    service = get_enterprise_operations_service()
+    return service.add_landowner(
+        name=data.name,
+        contact_name=data.contact_name,
+        phone=data.phone,
+        email=data.email,
+        address=data.address,
+        payment_method=data.payment_method,
+        tax_id=data.tax_id
+    )
+
+
+@app.post("/api/v1/land/parcels", tags=["Land Management"])
+async def add_land_parcel(
+    data: LandParcelCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a land parcel.
+
+    Records parcel details including FSA numbers and tillable acres.
+    """
+    service = get_enterprise_operations_service()
+    result = service.add_land_parcel(
+        name=data.name,
+        total_acres=data.total_acres,
+        tillable_acres=data.tillable_acres,
+        county=data.county,
+        ownership_type=data.ownership_type,
+        landowner_id=data.landowner_id,
+        entity_id=data.entity_id,
+        state=data.state,
+        fsa_farm_number=data.fsa_farm_number,
+        fsa_tract_number=data.fsa_tract_number
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/land/leases", tags=["Land Management"])
+async def create_lease(
+    data: LeaseCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a lease agreement.
+
+    Supports cash rent, crop share, and flex lease arrangements.
+    """
+    service = get_enterprise_operations_service()
+    result = service.create_lease(
+        parcel_id=data.parcel_id,
+        landowner_id=data.landowner_id,
+        lease_type=data.lease_type,
+        start_date=data.start_date,
+        end_date=data.end_date,
+        acres=data.acres,
+        cash_rent_per_acre=data.cash_rent_per_acre,
+        payment_frequency=data.payment_frequency,
+        entity_id=data.entity_id,
+        landlord_share_pct=data.landlord_share_pct,
+        auto_renew=data.auto_renew,
+        notice_days=data.notice_days
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/land/lease-payments", tags=["Land Management"])
+async def record_lease_payment(
+    data: LeasePaymentCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a lease payment.
+
+    Tracks rent payments, bonuses, and reimbursements to landowners.
+    """
+    service = get_enterprise_operations_service()
+    result = service.record_lease_payment(
+        lease_id=data.lease_id,
+        payment_date=data.payment_date,
+        amount=data.amount,
+        payment_type=data.payment_type,
+        check_number=data.check_number,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/land/lease-summary", tags=["Land Management"])
+async def get_lease_summary(
+    entity_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get summary of all leases.
+
+    Shows total acres, rent costs, and upcoming expirations.
+    """
+    service = get_enterprise_operations_service()
+    return service.get_lease_summary(entity_id)
+
+
+@app.get("/api/v1/land/payment-schedule", tags=["Land Management"])
+async def get_lease_payment_schedule(
+    year: int = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get payment schedule for all leases.
+
+    Projects payments by month for budgeting.
+    """
+    service = get_enterprise_operations_service()
+    return service.get_lease_payment_schedule(year)
+
+
+@app.get("/api/v1/land/rent-comparison", tags=["Land Management"])
+async def get_rent_comparison(
+    region: str = "delta_region",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare your rents to regional averages.
+
+    Shows how your lease rates compare to area benchmarks.
+    """
+    service = get_enterprise_operations_service()
+    return service.get_rent_comparison(region)
+
+
+@app.get("/api/v1/land/lease-types", tags=["Land Management"])
+async def get_lease_types():
+    """Get available lease types"""
+    return {
+        "types": [{"id": t.value, "name": t.value.replace("_", " ").title()} for t in LeaseType]
+    }
+
+
+@app.get("/api/v1/land/regions", tags=["Land Management"])
+async def get_rent_regions():
+    """Get available regions for rent comparison"""
+    return {
+        "regions": [
+            {"id": r, "averages": CASH_RENT_AVERAGES[r]}
+            for r in CASH_RENT_AVERAGES.keys()
+        ]
+    }
+
+
+# ============================================================================
+# CASH FLOW MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/cashflow/entries", tags=["Cash Flow"])
+async def add_cash_flow_entry(
+    data: CashFlowEntryCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a cash flow entry.
+
+    Records projected or actual income and expenses.
+    """
+    service = get_enterprise_operations_service()
+    result = service.add_cash_flow_entry(
+        category=data.category,
+        description=data.description,
+        amount=data.amount,
+        transaction_date=data.transaction_date,
+        status=data.status,
+        recurring=data.recurring,
+        recurrence_pattern=data.recurrence_pattern,
+        entity_id=data.entity_id
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/cashflow/loans", tags=["Cash Flow"])
+async def add_loan(
+    data: LoanCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a loan record.
+
+    Tracks operating, equipment, and real estate loans.
+    """
+    service = get_enterprise_operations_service()
+    result = service.add_loan(
+        lender=data.lender,
+        loan_type=data.loan_type,
+        original_amount=data.original_amount,
+        current_balance=data.current_balance,
+        interest_rate=data.interest_rate,
+        payment_amount=data.payment_amount,
+        payment_frequency=data.payment_frequency,
+        next_payment_date=data.next_payment_date,
+        maturity_date=data.maturity_date,
+        entity_id=data.entity_id,
+        collateral=data.collateral
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/cashflow/forecast", tags=["Cash Flow"])
+async def generate_cash_flow_forecast(
+    data: CashFlowForecastRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate cash flow forecast.
+
+    Projects income, expenses, and balances for up to 24 months.
+    """
+    service = get_enterprise_operations_service()
+    return service.generate_cash_flow_forecast(
+        months=data.months,
+        starting_balance=data.starting_balance,
+        entity_id=data.entity_id
+    )
+
+
+@app.get("/api/v1/cashflow/loan-summary", tags=["Cash Flow"])
+async def get_loan_summary(
+    entity_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get summary of all loans.
+
+    Shows total debt, annual payments, and maturity dates.
+    """
+    service = get_enterprise_operations_service()
+    return service.get_loan_summary(entity_id)
+
+
+@app.get("/api/v1/cashflow/categories", tags=["Cash Flow"])
+async def get_cash_flow_categories():
+    """Get available cash flow categories"""
+    service = get_enterprise_operations_service()
+    return service.get_cash_flow_categories()
+
+
+# ============================================================================
+# v4.0.0 - PRECISION INTELLIGENCE SUITE
+# ============================================================================
+
+# ----- Pydantic Models for Precision Intelligence -----
+
+class YieldPredictionRequest(BaseModel):
+    field_id: str
+    field_name: str
+    crop: str
+    crop_year: int
+    acres: float
+    historical_yields: Optional[List[float]] = None
+    soil_type: Optional[str] = "default"
+    current_conditions: Optional[Dict[str, Any]] = None
+
+
+class ZoneCreateRequest(BaseModel):
+    field_id: str
+    zone_name: str
+    zone_type: str
+    acres: float
+    avg_yield: float
+    yield_potential: float
+    soil_properties: Optional[Dict[str, float]] = None
+
+
+class SeedingPrescriptionRequest(BaseModel):
+    field_id: str
+    crop: str
+    crop_year: int
+    seed_cost_per_unit: float
+    units_per_bag: int = 80000
+
+
+class NitrogenPrescriptionRequest(BaseModel):
+    field_id: str
+    crop: str
+    crop_year: int
+    target_yield: float
+    nitrogen_cost_per_unit: float
+    units_per_ton: float = 2000
+    soil_credits: float = 0
+
+
+class PlantingRecommendationRequest(BaseModel):
+    field_id: str
+    field_name: str
+    crop: str
+    forecast_temps: List[float]
+    soil_temp: float
+    forecast_precip: List[float]
+
+
+class SprayRecommendationPrecisionRequest(BaseModel):
+    field_id: str
+    field_name: str
+    crop: str
+    growth_stage: str
+    pest_pressure: int = Field(..., ge=1, le=10)
+    forecast_temps: List[float]
+    forecast_wind: List[float]
+    forecast_precip: List[float]
+
+
+class HarvestRecommendationRequest(BaseModel):
+    field_id: str
+    field_name: str
+    crop: str
+    current_moisture: float
+    forecast_temps: List[float]
+    forecast_precip: List[float]
+
+
+# ----- Yield Prediction Endpoints -----
+
+@app.post("/api/v1/precision/yield/predict", tags=["Precision Intelligence"])
+async def predict_yield(
+    data: YieldPredictionRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Predict yield using ML-based models.
+
+    Uses historical data, weather patterns, and soil conditions.
+    """
+    service = get_precision_intelligence_service()
+    return service.predict_yield(
+        field_id=data.field_id,
+        field_name=data.field_name,
+        crop=data.crop,
+        crop_year=data.crop_year,
+        acres=data.acres,
+        historical_yields=data.historical_yields,
+        soil_type=data.soil_type,
+        current_conditions=data.current_conditions
+    )
+
+
+@app.get("/api/v1/precision/yield/history/{field_id}", tags=["Precision Intelligence"])
+async def get_yield_prediction_history(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get yield prediction history for a field"""
+    service = get_precision_intelligence_service()
+    return service.get_prediction_history(field_id)
+
+
+# ----- Management Zone Endpoints -----
+
+@app.post("/api/v1/precision/zones", tags=["Precision Intelligence"])
+async def create_management_zone(
+    data: ZoneCreateRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a management zone within a field.
+
+    Zones enable variable rate applications.
+    """
+    service = get_precision_intelligence_service()
+    return service.create_zone(
+        field_id=data.field_id,
+        zone_name=data.zone_name,
+        zone_type=data.zone_type,
+        acres=data.acres,
+        avg_yield=data.avg_yield,
+        yield_potential=data.yield_potential,
+        soil_properties=data.soil_properties
+    )
+
+
+@app.get("/api/v1/precision/zones/{field_id}", tags=["Precision Intelligence"])
+async def get_field_zones(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all management zones for a field"""
+    service = get_precision_intelligence_service()
+    return service.get_field_zones(field_id)
+
+
+@app.get("/api/v1/precision/zones/types", tags=["Precision Intelligence"])
+async def get_zone_types():
+    """Get available management zone types"""
+    return {
+        "zone_types": [z.value for z in ZoneType],
+        "descriptions": {
+            "high_productivity": "Areas consistently exceeding yield potential",
+            "medium_productivity": "Areas meeting average yield expectations",
+            "low_productivity": "Areas consistently underperforming",
+            "variable": "Areas with inconsistent performance",
+            "problem_area": "Areas requiring investigation/remediation"
+        }
+    }
+
+
+# ----- Prescription Generator Endpoints -----
+
+@app.post("/api/v1/precision/prescriptions/seeding", tags=["Precision Intelligence"])
+async def generate_seeding_prescription(
+    data: SeedingPrescriptionRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate variable rate seeding prescription.
+
+    Adjusts seeding rates based on zone productivity.
+    """
+    service = get_precision_intelligence_service()
+    return service.generate_seeding_prescription(
+        field_id=data.field_id,
+        crop=data.crop,
+        crop_year=data.crop_year,
+        seed_cost_per_unit=data.seed_cost_per_unit,
+        units_per_bag=data.units_per_bag
+    )
+
+
+@app.post("/api/v1/precision/prescriptions/nitrogen", tags=["Precision Intelligence"])
+async def generate_nitrogen_prescription(
+    data: NitrogenPrescriptionRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate variable rate nitrogen prescription.
+
+    Optimizes nitrogen based on yield potential and soil credits.
+    """
+    service = get_precision_intelligence_service()
+    return service.generate_nitrogen_prescription(
+        field_id=data.field_id,
+        crop=data.crop,
+        crop_year=data.crop_year,
+        target_yield=data.target_yield,
+        nitrogen_cost_per_unit=data.nitrogen_cost_per_unit,
+        units_per_ton=data.units_per_ton,
+        soil_credits=data.soil_credits
+    )
+
+
+@app.get("/api/v1/precision/prescriptions/{field_id}", tags=["Precision Intelligence"])
+async def get_field_prescriptions(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all prescriptions for a field"""
+    service = get_precision_intelligence_service()
+    return service.get_field_prescriptions(field_id)
+
+
+@app.get("/api/v1/precision/prescriptions/types", tags=["Precision Intelligence"])
+async def get_prescription_types():
+    """Get available prescription types"""
+    return {
+        "prescription_types": [p.value for p in PrescriptionType]
+    }
+
+
+# ----- Decision Support Endpoints -----
+
+@app.post("/api/v1/precision/decisions/planting", tags=["Precision Intelligence"])
+async def get_planting_recommendation(
+    data: PlantingRecommendationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get AI-powered planting timing recommendation.
+
+    Analyzes soil temp, weather forecast, and conditions.
+    """
+    service = get_precision_intelligence_service()
+    return service.get_planting_recommendation(
+        field_id=data.field_id,
+        field_name=data.field_name,
+        crop=data.crop,
+        forecast_temps=data.forecast_temps,
+        soil_temp=data.soil_temp,
+        forecast_precip=data.forecast_precip
+    )
+
+
+@app.post("/api/v1/precision/decisions/spray", tags=["Precision Intelligence"])
+async def get_spray_recommendation(
+    data: SprayRecommendationPrecisionRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get AI-powered spray timing recommendation.
+
+    Optimizes application timing for efficacy and safety.
+    """
+    service = get_precision_intelligence_service()
+    return service.get_spray_recommendation(
+        field_id=data.field_id,
+        field_name=data.field_name,
+        crop=data.crop,
+        growth_stage=data.growth_stage,
+        pest_pressure=data.pest_pressure,
+        forecast_temps=data.forecast_temps,
+        forecast_wind=data.forecast_wind,
+        forecast_precip=data.forecast_precip
+    )
+
+
+@app.post("/api/v1/precision/decisions/harvest", tags=["Precision Intelligence"])
+async def get_harvest_recommendation(
+    data: HarvestRecommendationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get AI-powered harvest timing recommendation.
+
+    Balances moisture, weather, and drying costs.
+    """
+    service = get_precision_intelligence_service()
+    return service.get_harvest_recommendation(
+        field_id=data.field_id,
+        field_name=data.field_name,
+        crop=data.crop,
+        current_moisture=data.current_moisture,
+        forecast_temps=data.forecast_temps,
+        forecast_precip=data.forecast_precip
+    )
+
+
+@app.get("/api/v1/precision/models", tags=["Precision Intelligence"])
+async def get_prediction_models():
+    """Get available prediction models"""
+    return {
+        "models": [m.value for m in PredictionModel],
+        "descriptions": {
+            "historical_average": "Simple average of past yields",
+            "trend_analysis": "Linear trend projection",
+            "weather_adjusted": "Trend with weather adjustments",
+            "machine_learning": "Advanced ML prediction (future)"
+        }
+    }
+
+
+# ============================================================================
+# v4.1.0 - GRAIN & STORAGE SUITE
+# ============================================================================
+
+# ----- Pydantic Models for Grain Storage -----
+
+class BinCreateRequest(BaseModel):
+    name: str
+    bin_type: str
+    capacity_bushels: float
+    diameter_feet: float
+    height_feet: float
+    has_aeration: bool = True
+    has_dryer: bool = False
+    dryer_type: Optional[str] = None
+    dryer_capacity_bph: float = 0
+    location: str = ""
+    notes: str = ""
+
+
+class BinLoadRequest(BaseModel):
+    bin_id: str
+    grain_type: str
+    bushels: float
+    moisture_pct: float
+    test_weight: float
+    source_field: str
+    temperature: float = 70
+
+
+class BinUnloadRequest(BaseModel):
+    bin_id: str
+    bushels: float
+    destination: str
+    price_per_bushel: Optional[float] = None
+    ticket_number: str = ""
+
+
+class DryingCostRequest(BaseModel):
+    bushels: float
+    initial_moisture: float
+    target_moisture: float
+    dryer_type: str
+    fuel_cost_per_gallon: float
+    electricity_cost_per_kwh: float = 0.12
+
+
+class BasisAlertRequest(BaseModel):
+    grain_type: str
+    target_basis: float
+    bushels: float
+    delivery_location: str
+    delivery_month: str
+    alert_type: str = "basis_target_hit"
+    notes: str = ""
+
+
+# ----- Bin Management Endpoints -----
+
+@app.post("/api/v1/grain/bins", tags=["Grain Storage"])
+async def add_storage_bin(
+    data: BinCreateRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a grain storage bin.
+
+    Tracks capacity, equipment, and conditions.
+    """
+    service = get_grain_storage_service()
+    return service.add_bin(
+        name=data.name,
+        bin_type=data.bin_type,
+        capacity_bushels=data.capacity_bushels,
+        diameter_feet=data.diameter_feet,
+        height_feet=data.height_feet,
+        has_aeration=data.has_aeration,
+        has_dryer=data.has_dryer,
+        dryer_type=data.dryer_type,
+        dryer_capacity_bph=data.dryer_capacity_bph,
+        location=data.location,
+        notes=data.notes
+    )
+
+
+@app.post("/api/v1/grain/bins/load", tags=["Grain Storage"])
+async def load_grain_into_bin(
+    data: BinLoadRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Load grain into a bin.
+
+    Records harvest, calculates weighted averages.
+    """
+    service = get_grain_storage_service()
+    return service.load_bin(
+        bin_id=data.bin_id,
+        grain_type=data.grain_type,
+        bushels=data.bushels,
+        moisture_pct=data.moisture_pct,
+        test_weight=data.test_weight,
+        source_field=data.source_field,
+        temperature=data.temperature
+    )
+
+
+@app.post("/api/v1/grain/bins/unload", tags=["Grain Storage"])
+async def unload_grain_from_bin(
+    data: BinUnloadRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Unload grain from a bin.
+
+    Records sale or transfer with pricing.
+    """
+    service = get_grain_storage_service()
+    return service.unload_bin(
+        bin_id=data.bin_id,
+        bushels=data.bushels,
+        destination=data.destination,
+        price_per_bushel=data.price_per_bushel,
+        ticket_number=data.ticket_number
+    )
+
+
+@app.get("/api/v1/grain/bins", tags=["Grain Storage"])
+async def get_all_bin_status(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get status of all storage bins"""
+    service = get_grain_storage_service()
+    return service.get_bin_status()
+
+
+@app.get("/api/v1/grain/bins/{bin_id}", tags=["Grain Storage"])
+async def get_bin_status(
+    bin_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get status of a specific bin"""
+    service = get_grain_storage_service()
+    result = service.get_bin_status(bin_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/grain/bins/types", tags=["Grain Storage"])
+async def get_bin_types():
+    """Get available bin types"""
+    return {
+        "bin_types": [b.value for b in BinType],
+        "dryer_types": [d.value for d in DryerType]
+    }
+
+
+@app.get("/api/v1/grain/inventory/summary", tags=["Grain Storage"])
+async def get_inventory_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get total grain inventory summary"""
+    service = get_grain_storage_service()
+    return service.get_inventory_summary()
+
+
+# ----- Drying Cost Calculator Endpoints -----
+
+@app.post("/api/v1/grain/drying/calculate", tags=["Grain Storage"])
+async def calculate_drying_cost(
+    data: DryingCostRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate grain drying costs.
+
+    Includes fuel, shrink, and time estimates.
+    """
+    service = get_grain_storage_service()
+    return service.calculate_drying_cost(
+        bushels=data.bushels,
+        initial_moisture=data.initial_moisture,
+        target_moisture=data.target_moisture,
+        dryer_type=data.dryer_type,
+        fuel_cost_per_gallon=data.fuel_cost_per_gallon,
+        electricity_cost_per_kwh=data.electricity_cost_per_kwh
+    )
+
+
+@app.get("/api/v1/grain/drying/rates", tags=["Grain Storage"])
+async def get_drying_rates():
+    """Get standard drying rates and shrink factors"""
+    return {
+        "shrink_factor_per_point": 1.4,
+        "fuel_consumption": {
+            "continuous_flow": "0.02-0.03 gal/bu/point",
+            "batch": "0.025-0.035 gal/bu/point",
+            "in_bin": "0.01-0.015 gal/bu/point"
+        },
+        "target_moisture": {
+            "corn": {"storage": 14.0, "sale": 15.0},
+            "soybeans": {"storage": 13.0, "sale": 13.0},
+            "wheat": {"storage": 13.0, "sale": 13.5}
+        }
+    }
+
+
+# ----- Grain Accounting Endpoints -----
+
+@app.get("/api/v1/grain/transactions", tags=["Grain Storage"])
+async def get_grain_transactions(
+    grain_type: str = None,
+    start_date: date = None,
+    end_date: date = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get grain transactions with optional filters"""
+    service = get_grain_storage_service()
+    return service.get_transactions(grain_type, start_date, end_date)
+
+
+@app.get("/api/v1/grain/accounting/summary", tags=["Grain Storage"])
+async def get_grain_accounting_summary(
+    crop_year: int = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get grain accounting summary for crop year"""
+    service = get_grain_storage_service()
+    return service.get_accounting_summary(crop_year)
+
+
+@app.get("/api/v1/grain/types", tags=["Grain Storage"])
+async def get_grain_types():
+    """Get supported grain types"""
+    return {
+        "grain_types": [g.value for g in GrainType],
+        "test_weights": {
+            "corn": 56,
+            "soybeans": 60,
+            "wheat": 60,
+            "rice": 45,
+            "sorghum": 56,
+            "oats": 32
+        }
+    }
+
+
+# ----- Basis Alert Endpoints -----
+
+@app.post("/api/v1/grain/alerts", tags=["Grain Storage"])
+async def create_basis_alert(
+    data: BasisAlertRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a basis price alert.
+
+    Get notified when target basis/price is hit.
+    """
+    service = get_grain_storage_service()
+    return service.create_basis_alert(
+        grain_type=data.grain_type,
+        target_basis=data.target_basis,
+        bushels=data.bushels,
+        delivery_location=data.delivery_location,
+        delivery_month=data.delivery_month,
+        alert_type=data.alert_type,
+        notes=data.notes
+    )
+
+
+@app.get("/api/v1/grain/alerts", tags=["Grain Storage"])
+async def get_basis_alerts(
+    active_only: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all basis alerts"""
+    service = get_grain_storage_service()
+    return service.get_alerts(active_only)
+
+
+@app.post("/api/v1/grain/alerts/check", tags=["Grain Storage"])
+async def check_basis_alerts(
+    current_prices: Dict[str, float],
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Check alerts against current prices.
+
+    Returns triggered alerts.
+    """
+    service = get_grain_storage_service()
+    return service.check_alerts(current_prices)
+
+
+@app.delete("/api/v1/grain/alerts/{alert_id}", tags=["Grain Storage"])
+async def delete_basis_alert(
+    alert_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a basis alert"""
+    service = get_grain_storage_service()
+    result = service.delete_alert(alert_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+# ============================================================================
+# v4.2.0 - COMPLETE FARM BUSINESS SUITE
+# ============================================================================
+
+# ----- Pydantic Models for Farm Business -----
+
+class DepreciableAssetRequest(BaseModel):
+    name: str
+    asset_type: str
+    purchase_date: date
+    purchase_price: float
+    salvage_value: float = 0
+    useful_life_years: Optional[int] = None
+    depreciation_method: str = "macrs_gds"
+    section_179_amount: float = 0
+    bonus_depreciation_pct: float = 0
+    notes: str = ""
+
+
+class TaxProjectionRequest(BaseModel):
+    tax_year: int
+    entity_type: str = "schedule_f"
+    gross_income: float
+    total_expenses: float
+
+
+class FamilyMemberRequest(BaseModel):
+    name: str
+    role: str
+    birth_date: Optional[date] = None
+    ownership_pct: float = 0
+    involvement_level: str = ""
+    skills: Optional[List[str]] = None
+    notes: str = ""
+
+
+class AssetTransferRequest(BaseModel):
+    asset_name: str
+    asset_value: float
+    transfer_method: str
+    from_member_id: str
+    to_member_id: str
+    target_date: date
+    notes: str = ""
+
+
+class SuccessionMilestoneRequest(BaseModel):
+    title: str
+    category: str
+    description: str
+    target_date: date
+    assigned_to: Optional[str] = None
+
+
+class BenchmarkDataRequest(BaseModel):
+    field_id: str
+    crop: str
+    crop_year: int
+    metrics: Dict[str, float]
+
+
+class DocumentUploadRequest(BaseModel):
+    name: str
+    category: str
+    file_path: str
+    file_type: str
+    document_date: date
+    year: int
+    tags: Optional[List[str]] = None
+    description: str = ""
+    expiration_date: Optional[date] = None
+    related_entity: str = ""
+
+
+# ----- Tax Planning Endpoints -----
+
+@app.post("/api/v1/business/tax/assets", tags=["Farm Business"])
+async def add_depreciable_asset(
+    data: DepreciableAssetRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a depreciable asset.
+
+    Calculates MACRS, Section 179, and bonus depreciation.
+    """
+    service = get_farm_business_service()
+    return service.add_depreciable_asset(
+        name=data.name,
+        asset_type=data.asset_type,
+        purchase_date=data.purchase_date,
+        purchase_price=data.purchase_price,
+        salvage_value=data.salvage_value,
+        useful_life_years=data.useful_life_years,
+        depreciation_method=data.depreciation_method,
+        section_179_amount=data.section_179_amount,
+        bonus_depreciation_pct=data.bonus_depreciation_pct,
+        notes=data.notes
+    )
+
+
+@app.get("/api/v1/business/tax/assets", tags=["Farm Business"])
+async def get_all_assets(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all depreciable assets"""
+    service = get_farm_business_service()
+    return service.get_all_assets()
+
+
+@app.get("/api/v1/business/tax/assets/{asset_id}/schedule", tags=["Farm Business"])
+async def get_depreciation_schedule(
+    asset_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get full depreciation schedule for an asset"""
+    service = get_farm_business_service()
+    result = service.get_depreciation_schedule(asset_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/business/tax/depreciation/{year}", tags=["Farm Business"])
+async def get_annual_depreciation(
+    year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get total depreciation expense for a tax year"""
+    service = get_farm_business_service()
+    return service.get_annual_depreciation(year)
+
+
+@app.post("/api/v1/business/tax/section179/optimize", tags=["Farm Business"])
+async def optimize_section_179(
+    net_income: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Optimize Section 179 deductions.
+
+    Maximizes deductions within income limits.
+    """
+    service = get_farm_business_service()
+    return service.calculate_section_179_optimization(net_income)
+
+
+@app.post("/api/v1/business/tax/projection", tags=["Farm Business"])
+async def project_tax_liability(
+    data: TaxProjectionRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Project tax liability.
+
+    Estimates income tax and self-employment tax.
+    """
+    service = get_farm_business_service()
+    return service.project_tax_liability(
+        tax_year=data.tax_year,
+        entity_type=data.entity_type,
+        gross_income=data.gross_income,
+        total_expenses=data.total_expenses
+    )
+
+
+@app.get("/api/v1/business/tax/types", tags=["Farm Business"])
+async def get_tax_types():
+    """Get available asset types and depreciation methods"""
+    return {
+        "asset_types": [a.value for a in AssetType],
+        "depreciation_methods": [d.value for d in DepreciationMethod],
+        "entity_types": [e.value for e in TaxEntity],
+        "macrs_rates": MACRS_RATES
+    }
+
+
+# ----- Succession Planning Endpoints -----
+
+@app.post("/api/v1/business/succession/family", tags=["Farm Business"])
+async def add_family_member(
+    data: FamilyMemberRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a family member to succession plan.
+
+    Tracks ownership, involvement, and skills.
+    """
+    service = get_farm_business_service()
+    return service.add_family_member(
+        name=data.name,
+        role=data.role,
+        birth_date=data.birth_date,
+        ownership_pct=data.ownership_pct,
+        involvement_level=data.involvement_level,
+        skills=data.skills,
+        notes=data.notes
+    )
+
+
+@app.get("/api/v1/business/succession/family", tags=["Farm Business"])
+async def get_family_members(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all family members in succession plan"""
+    service = get_farm_business_service()
+    return service.get_family_members()
+
+
+@app.post("/api/v1/business/succession/transfers", tags=["Farm Business"])
+async def create_asset_transfer_plan(
+    data: AssetTransferRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create an asset transfer plan.
+
+    Plans transfers via sale, gift, trust, etc.
+    """
+    service = get_farm_business_service()
+    return service.create_asset_transfer_plan(
+        asset_name=data.asset_name,
+        asset_value=data.asset_value,
+        transfer_method=data.transfer_method,
+        from_member_id=data.from_member_id,
+        to_member_id=data.to_member_id,
+        target_date=data.target_date,
+        notes=data.notes
+    )
+
+
+@app.get("/api/v1/business/succession/transfers", tags=["Farm Business"])
+async def get_transfer_plans(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all asset transfer plans"""
+    service = get_farm_business_service()
+    return service.get_transfer_plans()
+
+
+@app.post("/api/v1/business/succession/milestones", tags=["Farm Business"])
+async def add_succession_milestone(
+    data: SuccessionMilestoneRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a succession planning milestone.
+
+    Track progress on transition goals.
+    """
+    service = get_farm_business_service()
+    return service.add_milestone(
+        title=data.title,
+        category=data.category,
+        description=data.description,
+        target_date=data.target_date,
+        assigned_to=data.assigned_to
+    )
+
+
+@app.get("/api/v1/business/succession/milestones", tags=["Farm Business"])
+async def get_succession_milestones(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all succession milestones"""
+    service = get_farm_business_service()
+    return service.get_milestones()
+
+
+@app.put("/api/v1/business/succession/milestones/{milestone_id}/complete", tags=["Farm Business"])
+async def complete_milestone(
+    milestone_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Mark a succession milestone as complete"""
+    service = get_farm_business_service()
+    result = service.complete_milestone(milestone_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/business/succession/summary", tags=["Farm Business"])
+async def get_succession_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get succession planning summary"""
+    service = get_farm_business_service()
+    return service.get_succession_summary()
+
+
+@app.get("/api/v1/business/succession/roles", tags=["Farm Business"])
+async def get_family_roles():
+    """Get available family roles"""
+    return {
+        "roles": [r.value for r in FamilyRole],
+        "transfer_methods": [t.value for t in TransferMethod],
+        "milestone_categories": [m.value for m in MilestoneCategory]
+    }
+
+
+# ----- Benchmarking Dashboard Endpoints -----
+
+@app.post("/api/v1/business/benchmarks", tags=["Farm Business"])
+async def record_benchmark_data(
+    data: BenchmarkDataRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record benchmark data for a field/year.
+
+    Track yields, costs, revenues for comparison.
+    """
+    service = get_farm_business_service()
+    return service.record_benchmark_data(
+        field_id=data.field_id,
+        crop=data.crop,
+        crop_year=data.crop_year,
+        metrics=data.metrics
+    )
+
+
+@app.get("/api/v1/business/benchmarks/{field_id}", tags=["Farm Business"])
+async def get_field_benchmarks(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get benchmark data for a field"""
+    service = get_farm_business_service()
+    return service.get_field_benchmarks(field_id)
+
+
+@app.get("/api/v1/business/benchmarks/compare/{field_id}/{crop_year}", tags=["Farm Business"])
+async def compare_to_regional(
+    field_id: str,
+    crop_year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Compare field performance to regional benchmarks"""
+    service = get_farm_business_service()
+    return service.compare_to_regional(field_id, crop_year)
+
+
+@app.get("/api/v1/business/benchmarks/yoy/{field_id}", tags=["Farm Business"])
+async def get_year_over_year(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get year-over-year comparison for a field"""
+    service = get_farm_business_service()
+    return service.get_yoy_comparison(field_id)
+
+
+@app.get("/api/v1/business/benchmarks/metrics", tags=["Farm Business"])
+async def get_benchmark_metrics():
+    """Get available benchmark metrics"""
+    return {
+        "metrics": [m.value for m in BenchmarkMetric]
+    }
+
+
+# ----- Document Vault Endpoints -----
+
+@app.post("/api/v1/business/documents", tags=["Farm Business"])
+async def add_document(
+    data: DocumentUploadRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Add a document to the vault.
+
+    Organize farm documents with tags and expiration tracking.
+    """
+    service = get_farm_business_service()
+    return service.add_document(
+        name=data.name,
+        category=data.category,
+        file_path=data.file_path,
+        file_type=data.file_type,
+        document_date=data.document_date,
+        year=data.year,
+        tags=data.tags,
+        description=data.description,
+        expiration_date=data.expiration_date,
+        related_entity=data.related_entity
+    )
+
+
+@app.get("/api/v1/business/documents", tags=["Farm Business"])
+async def get_all_documents(
+    category: str = None,
+    year: int = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get documents with optional filters"""
+    service = get_farm_business_service()
+    return service.get_documents(category, year)
+
+
+@app.get("/api/v1/business/documents/search", tags=["Farm Business"])
+async def search_documents(
+    query: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Search documents by name, tags, or description"""
+    service = get_farm_business_service()
+    return service.search_documents(query)
+
+
+@app.get("/api/v1/business/documents/expiring", tags=["Farm Business"])
+async def get_expiring_documents(
+    days: int = 30,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get documents expiring within specified days"""
+    service = get_farm_business_service()
+    return service.get_expiring_documents(days)
+
+
+@app.delete("/api/v1/business/documents/{document_id}", tags=["Farm Business"])
+async def delete_document(
+    document_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a document from the vault"""
+    service = get_farm_business_service()
+    result = service.delete_document(document_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/business/documents/categories", tags=["Farm Business"])
+async def get_document_categories():
+    """Get available document categories"""
+    return {
+        "categories": [c.value for c in DocumentCategory]
     }
 
 
