@@ -191,6 +191,24 @@ from services.climate_service import (
     CORN_GDD_STAGES,
     SOYBEAN_GDD_STAGES
 )
+from services.research_service import (
+    get_research_service,
+    TrialType,
+    ExperimentalDesign,
+    PlotStatus,
+    MeasurementType,
+    TrialCreate,
+    TrialUpdate,
+    TrialResponse,
+    TreatmentCreate,
+    TreatmentResponse,
+    PlotCreate,
+    PlotResponse,
+    MeasurementCreate,
+    MeasurementResponse,
+    TrialAnalysis,
+    ResearchExport
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
@@ -6259,6 +6277,261 @@ async def export_climate_data(
     """
     service = get_climate_service()
     return service.export_climate_data(year, field_id)
+
+
+# ============================================================================
+# FIELD TRIAL & RESEARCH TOOLS
+# ============================================================================
+
+@app.post("/api/v1/research/trials", response_model=TrialResponse, tags=["Research"])
+async def create_trial(
+    data: TrialCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Create a new field trial.
+
+    Supports multiple experimental designs:
+    - Completely Randomized Design (CRD)
+    - Randomized Complete Block Design (RCBD)
+    - Split-plot and Strip-plot designs
+    - Simple paired comparisons
+    """
+    service = get_research_service()
+    result, error = service.create_trial(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/research/trials", response_model=List[TrialResponse], tags=["Research"])
+async def list_trials(
+    year: Optional[int] = None,
+    trial_type: Optional[TrialType] = None,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List field trials with optional filters"""
+    service = get_research_service()
+    return service.list_trials(year, trial_type, field_id)
+
+
+@app.get("/api/v1/research/trials/{trial_id}", response_model=TrialResponse, tags=["Research"])
+async def get_trial(
+    trial_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a specific trial by ID"""
+    service = get_research_service()
+    result = service.get_trial(trial_id)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Trial not found")
+
+    return result
+
+
+@app.put("/api/v1/research/trials/{trial_id}", response_model=TrialResponse, tags=["Research"])
+async def update_trial(
+    trial_id: int,
+    data: TrialUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a trial"""
+    service = get_research_service()
+    result, error = service.update_trial(trial_id, data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.post("/api/v1/research/trials/{trial_id}/treatments", response_model=TreatmentResponse, tags=["Research"])
+async def add_treatment(
+    trial_id: int,
+    data: TreatmentCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add a treatment to a trial"""
+    if data.trial_id != trial_id:
+        data.trial_id = trial_id
+
+    service = get_research_service()
+    result, error = service.add_treatment(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/research/trials/{trial_id}/treatments", response_model=List[TreatmentResponse], tags=["Research"])
+async def list_treatments(
+    trial_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List treatments for a trial"""
+    service = get_research_service()
+    return service.list_treatments(trial_id)
+
+
+@app.post("/api/v1/research/trials/{trial_id}/plots", response_model=PlotResponse, tags=["Research"])
+async def add_plot(
+    trial_id: int,
+    data: PlotCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add a plot to a trial"""
+    if data.trial_id != trial_id:
+        data.trial_id = trial_id
+
+    service = get_research_service()
+    result, error = service.add_plot(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/research/trials/{trial_id}/plots", response_model=List[PlotResponse], tags=["Research"])
+async def list_plots(
+    trial_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List plots for a trial"""
+    service = get_research_service()
+    return service.list_plots(trial_id)
+
+
+@app.post("/api/v1/research/trials/{trial_id}/generate-plots", tags=["Research"])
+async def generate_plots(
+    trial_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Auto-generate plots based on treatments and replications.
+
+    Creates all plots for the trial based on the number of treatments
+    and replications defined in the trial.
+    """
+    service = get_research_service()
+    count, error = service.generate_plots(trial_id, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return {"message": f"Generated {count} plots", "plots_created": count}
+
+
+@app.post("/api/v1/research/measurements", response_model=MeasurementResponse, tags=["Research"])
+async def record_measurement(
+    data: MeasurementCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a measurement for a plot.
+
+    Supports standard measurement types (yield, plant population, etc.)
+    as well as custom measurements.
+    """
+    service = get_research_service()
+    result, error = service.record_measurement(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/research/trials/{trial_id}/measurements", response_model=List[MeasurementResponse], tags=["Research"])
+async def list_measurements(
+    trial_id: int,
+    measurement_type: Optional[MeasurementType] = None,
+    plot_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List measurements for a trial"""
+    service = get_research_service()
+    return service.list_measurements(trial_id, measurement_type, plot_id)
+
+
+@app.get("/api/v1/research/trials/{trial_id}/analyze", response_model=TrialAnalysis, tags=["Research"])
+async def analyze_trial(
+    trial_id: int,
+    measurement_type: MeasurementType,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Perform statistical analysis on trial data.
+
+    Calculates treatment means, performs t-tests for pairwise comparisons,
+    and provides LSD values for significance testing.
+    """
+    service = get_research_service()
+    result = service.analyze_trial(trial_id, measurement_type)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="No data available for analysis")
+
+    return result
+
+
+@app.get("/api/v1/research/trials/{trial_id}/export", tags=["Research"])
+async def export_trial_data(
+    trial_id: int,
+    include_analysis: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export complete trial data for research documentation.
+
+    Includes trial details, treatments, plots, measurements,
+    and optional statistical analysis.
+    """
+    service = get_research_service()
+    result = service.export_trial_data(trial_id, include_analysis)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Trial not found")
+
+    return result.model_dump()
+
+
+@app.get("/api/v1/research/trial-types", tags=["Research"])
+async def list_trial_types():
+    """Get list of available trial types"""
+    return {
+        "types": [
+            {"value": t.value, "label": t.value.replace("_", " ").title()}
+            for t in TrialType
+        ]
+    }
+
+
+@app.get("/api/v1/research/experimental-designs", tags=["Research"])
+async def list_experimental_designs():
+    """Get list of available experimental designs"""
+    return {
+        "designs": [
+            {"value": d.value, "label": d.value.replace("_", " ").title()}
+            for d in ExperimentalDesign
+        ]
+    }
+
+
+@app.get("/api/v1/research/measurement-types", tags=["Research"])
+async def list_measurement_types():
+    """Get list of available measurement types"""
+    return {
+        "types": [
+            {"value": m.value, "label": m.value.replace("_", " ").title()}
+            for m in MeasurementType
+        ]
+    }
 
 
 # ============================================================================
