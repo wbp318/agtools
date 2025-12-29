@@ -53,6 +53,26 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Yield Prediction Model**: ML-based predictions using field inputs and historical data
     - **Smart Expense Categorization**: Auto-categorize expenses with 95%+ accuracy, learns from corrections
     - **Weather-Based Spray AI**: ML-enhanced timing predictions that improve with recorded outcomes
+18. **Enterprise Operations Suite (v3.9.0)**: Complete enterprise farm management:
+    - **Labor & Crew Management**: Employees, certifications, time tracking, payroll calculations
+    - **Land & Lease Management**: Landowners, parcels, leases, payment tracking
+    - **Cash Flow Forecasting**: 24-month projections with loan tracking
+    - **Multi-Entity Support**: Manage multiple farming entities (LLCs, partnerships)
+19. **Precision Intelligence Suite (v4.0.0)**: AI-powered precision agriculture:
+    - **Yield Prediction Engine**: Historical, trend, and weather-adjusted predictions
+    - **Management Zone Analytics**: High/medium/low productivity zone mapping
+    - **Variable Rate Prescriptions**: Zone-based seeding and nitrogen prescriptions
+    - **Decision Support AI**: Planting, spray, and harvest timing recommendations
+20. **Grain & Storage Suite (v4.1.0)**: Complete grain management:
+    - **Bin Management**: Capacity tracking, inventory, moisture monitoring
+    - **Drying Cost Calculator**: Fuel, shrink, and time calculations
+    - **Grain Accounting**: Field-to-sale bushel tracking with transactions
+    - **Basis Price Alerts**: Target price/basis notifications
+21. **Complete Farm Business Suite (v4.2.0)**: Comprehensive business management:
+    - **Tax Planning Tools**: MACRS depreciation, Section 179, tax projections
+    - **Succession Planning**: Family members, asset transfers, milestones
+    - **Benchmarking Dashboard**: Regional comparison, year-over-year trends
+    - **Document Vault**: Centralized storage with expiration tracking
 
 ---
 
@@ -98,7 +118,15 @@ agtools/
 │       ├── crop_health_service.py          # Crop health scoring/NDVI (v3.0)
 │       ├── yield_prediction_service.py     # ML yield predictions (v3.0)
 │       ├── expense_categorization_service.py # Smart expense categorization (v3.0)
-│       └── spray_ai_service.py             # Weather-based spray AI (v3.0)
+│       ├── spray_ai_service.py             # Weather-based spray AI (v3.0)
+│       ├── sustainability_service.py       # Sustainability metrics (v3.2)
+│       ├── climate_service.py              # Climate & weather integration (v3.3)
+│       ├── research_service.py             # Field trial & research (v3.4)
+│       ├── farm_intelligence_service.py    # Elite farm intelligence (v3.8)
+│       ├── enterprise_operations_service.py # Enterprise operations (v3.9)
+│       ├── precision_intelligence_service.py # Precision agriculture (v4.0)
+│       ├── grain_storage_service.py        # Grain & storage management (v4.1)
+│       └── farm_business_service.py        # Complete farm business (v4.2)
 │   ├── middleware/
 │   │   └── auth_middleware.py              # Protected routes (v2.5)
 │   ├── mobile/                             # Mobile Web Interface (v2.6)
@@ -4115,6 +4143,347 @@ POST /api/v1/ai/spray/train
 
 ---
 
+## 🏢 Enterprise Operations Suite (v3.9.0)
+
+Complete enterprise farm management including labor, land, cash flow, and multi-entity support.
+
+### Labor & Crew Management
+
+Track employees, certifications, time entries, scheduling, and payroll.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/labor/employees` | GET/POST | List or add employees |
+| `/api/v1/labor/employees/{id}` | GET/PUT/DELETE | Manage individual employee |
+| `/api/v1/labor/employees/{id}/certifications` | GET/POST | Track certifications (CDL, pesticide, etc.) |
+| `/api/v1/labor/certifications/expiring` | GET | Get expiring certifications |
+| `/api/v1/labor/time-entries` | GET/POST | Track time worked |
+| `/api/v1/labor/schedules` | GET/POST | Manage work schedules |
+| `/api/v1/labor/payroll-summary` | GET | Generate payroll calculations |
+
+**Employee Types:** full_time, part_time, seasonal, contractor
+**Pay Types:** hourly, salary, piece_rate
+**Certification Types:** cdl_class_a, cdl_class_b, pesticide_applicator, commercial_applicator, first_aid, hazmat, forklift, grain_handling
+
+### Land & Lease Management
+
+Track landowners, parcels, leases, and rental payments.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/land/landowners` | GET/POST | Manage landowner contacts |
+| `/api/v1/land/parcels` | GET/POST | Track land parcels with FSA info |
+| `/api/v1/land/leases` | GET/POST | Manage lease agreements |
+| `/api/v1/land/lease-payments` | GET/POST | Track rental payments |
+| `/api/v1/land/leases/expiring` | GET | Get leases expiring within 90 days |
+| `/api/v1/land/rent-comparison` | GET | Compare to regional rent averages |
+
+**Lease Types:** cash_rent, crop_share, flexible_cash, custom
+**Payment Frequencies:** monthly, quarterly, semi_annual, annual
+
+### Cash Flow Forecasting
+
+Project income and expenses for up to 24 months with loan tracking.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/cashflow/entries` | GET/POST | Record income/expenses |
+| `/api/v1/cashflow/loans` | GET/POST | Track operating/equipment loans |
+| `/api/v1/cashflow/forecast` | POST | Generate 12-24 month projection |
+| `/api/v1/cashflow/loan-summary` | GET | Loan payment summary |
+| `/api/v1/cashflow/categories` | GET | Available income/expense categories |
+
+**Income Categories:** crop_sales, government_payments, custom_work, other_income
+**Expense Categories:** seed, fertilizer, chemical, fuel, repairs, labor, land_rent, crop_insurance, interest, utilities, custom_hire, miscellaneous
+
+### Multi-Entity Support
+
+Manage multiple farming entities (LLCs, partnerships, sole proprietorships).
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/entities` | GET/POST | Create and manage entities |
+| `/api/v1/entities/{id}/allocations` | GET/POST | Allocate expenses across entities |
+
+**Entity Types:** sole_proprietor, partnership, s_corp, c_corp, llc, trust
+
+### Files Created (v3.9)
+- `backend/services/enterprise_operations_service.py` (~1100 lines)
+- 35+ API endpoints added to main.py
+
+---
+
+## 🎯 Precision Intelligence Suite (v4.0.0)
+
+AI-powered precision agriculture with yield prediction, zone analytics, prescriptions, and decision support.
+
+### Yield Prediction Engine
+
+Predict yields using historical data, trend analysis, and weather adjustments.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/precision/yield/predict` | POST | Generate yield prediction |
+| `/api/v1/precision/yield/history/{field_id}` | GET | Prediction history |
+| `/api/v1/precision/models` | GET | Available prediction models |
+
+**Prediction Models:**
+- `historical_average` - Simple average of past yields
+- `trend_analysis` - Linear trend projection
+- `weather_adjusted` - Trend with weather adjustments (recommended)
+
+**Confidence Levels:** high (±5%), medium (±10%), low (±15%)
+
+### Management Zone Analytics
+
+Create and manage productivity zones within fields for variable rate applications.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/precision/zones` | POST | Create management zone |
+| `/api/v1/precision/zones/{field_id}` | GET | Get field zones |
+| `/api/v1/precision/zones/types` | GET | Available zone types |
+
+**Zone Types:**
+- `high_productivity` - Consistently exceeds yield potential
+- `medium_productivity` - Meets average expectations
+- `low_productivity` - Consistently underperforms
+- `variable` - Inconsistent performance
+- `problem_area` - Requires investigation/remediation
+
+### Variable Rate Prescriptions
+
+Generate zone-based seeding and fertilizer prescriptions.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/precision/prescriptions/seeding` | POST | Generate VR seeding prescription |
+| `/api/v1/precision/prescriptions/nitrogen` | POST | Generate VR nitrogen prescription |
+| `/api/v1/precision/prescriptions/{field_id}` | GET | Get field prescriptions |
+| `/api/v1/precision/prescriptions/types` | GET | Available prescription types |
+
+**Prescription Types:** seeding, nitrogen, phosphorus, potassium, lime, sulfur, micronutrients
+
+### Decision Support AI
+
+AI-powered recommendations for planting, spraying, and harvest timing.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/precision/decisions/planting` | POST | Get planting timing recommendation |
+| `/api/v1/precision/decisions/spray` | POST | Get spray timing recommendation |
+| `/api/v1/precision/decisions/harvest` | POST | Get harvest timing recommendation |
+
+**Recommendation Types:** PLANT NOW, WAIT, CAUTION (with risk scores and action items)
+
+### Files Created (v4.0)
+- `backend/services/precision_intelligence_service.py` (~1000 lines)
+- 16 API endpoints added to main.py
+
+---
+
+## 🌾 Grain & Storage Suite (v4.1.0)
+
+Complete grain management from harvest to sale including bin management, drying costs, accounting, and basis alerts.
+
+### Bin Management
+
+Track grain storage bins, capacity, inventory, and moisture.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/grain/bins` | GET/POST | List or add storage bins |
+| `/api/v1/grain/bins/{bin_id}` | GET | Get specific bin status |
+| `/api/v1/grain/bins/load` | POST | Load grain into bin |
+| `/api/v1/grain/bins/unload` | POST | Unload/sell grain from bin |
+| `/api/v1/grain/bins/types` | GET | Available bin and dryer types |
+| `/api/v1/grain/inventory/summary` | GET | Total inventory summary |
+
+**Bin Types:** round_steel, flat_storage, concrete, temporary, hopper_bottom
+**Dryer Types:** in_bin, continuous_flow, batch, natural_air
+
+### Drying Cost Calculator
+
+Calculate grain drying costs including fuel, shrink, and time.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/grain/drying/calculate` | POST | Calculate drying costs |
+| `/api/v1/grain/drying/rates` | GET | Standard drying rates |
+
+**Shrink Factor:** 1.4% per point of moisture removed (industry standard)
+
+**Drying Calculator Returns:**
+- Points to remove
+- Shrink loss (bushels)
+- Fuel cost estimate
+- Electricity cost
+- Total drying cost
+- Cost per bushel
+- Dry vs. sell wet recommendation
+
+### Grain Accounting
+
+Track grain from field to sale with bushel-level accounting.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/grain/transactions` | GET | View grain transactions |
+| `/api/v1/grain/accounting/summary` | GET | Crop year accounting summary |
+| `/api/v1/grain/types` | GET | Supported grain types |
+
+**Grain Types:** corn, soybeans, wheat, rice, sorghum, oats
+**Transaction Types:** harvest_in, sale_out, transfer, shrink, feed_use
+
+### Basis Price Alerts
+
+Get notified when basis hits your target price.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/grain/alerts` | GET/POST | Manage basis alerts |
+| `/api/v1/grain/alerts/check` | POST | Check alerts against current prices |
+| `/api/v1/grain/alerts/{alert_id}` | DELETE | Remove alert |
+
+**Alert Types:** basis_target_hit, price_target_hit, basis_widening, price_floor
+
+### Files Created (v4.1)
+- `backend/services/grain_storage_service.py` (~900 lines)
+- 18 API endpoints added to main.py
+
+---
+
+## 💼 Complete Farm Business Suite (v4.2.0)
+
+Comprehensive business management with tax planning, succession planning, benchmarking, and document management.
+
+### Tax Planning Tools
+
+Track depreciation, plan Section 179 elections, and project tax liability.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/business/tax/assets` | GET/POST | Manage depreciable assets |
+| `/api/v1/business/tax/assets/{asset_id}/schedule` | GET | Get depreciation schedule |
+| `/api/v1/business/tax/depreciation/{year}` | GET | Annual depreciation summary |
+| `/api/v1/business/tax/section179/optimize` | POST | Optimize Section 179 election |
+| `/api/v1/business/tax/projection` | POST | Project tax liability |
+| `/api/v1/business/tax/types` | GET | Asset types and depreciation methods |
+
+**Asset Types:** machinery, equipment, vehicle, building, land_improvement, livestock_breeding, computer, office_equipment
+
+**Depreciation Methods:**
+- `straight_line` - Equal annual depreciation
+- `macrs_gds` - Modified Accelerated Cost Recovery System (most common)
+- `macrs_ads` - Alternative Depreciation System
+- `section_179` - Immediate expensing up to $1.16M limit
+- `bonus_depreciation` - Additional first-year depreciation
+
+**MACRS Recovery Periods:**
+- 5-year: vehicles, computers, office equipment
+- 7-year: machinery, farm equipment
+- 15-year: land improvements (drainage, fencing)
+- 20-year: buildings
+
+### Succession Planning
+
+Plan farm transition to the next generation with family tracking, asset transfers, and milestones.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/business/succession/family` | GET/POST | Manage family members |
+| `/api/v1/business/succession/transfers` | GET/POST | Plan asset transfers |
+| `/api/v1/business/succession/milestones` | GET/POST | Track succession milestones |
+| `/api/v1/business/succession/milestones/{id}/complete` | PUT | Complete milestone |
+| `/api/v1/business/succession/summary` | GET | Succession plan summary |
+| `/api/v1/business/succession/roles` | GET | Family roles and transfer methods |
+
+**Family Roles:** owner, operator, spouse, child, grandchild, sibling, in_law, employee, advisor
+
+**Transfer Methods:**
+- `sale` - Fair market value sale
+- `gift` - Gift with gift tax implications
+- `inheritance` - Estate transfer
+- `installment_sale` - Sale over time at AFR rate
+- `lease_purchase` - Lease with option to buy
+- `trust` - Transfer to trust entity
+- `llc_transfer` - Transfer LLC ownership interests
+
+**Milestone Categories:** legal, financial, operational, training, communication, documentation, tax_planning, insurance
+
+### Benchmarking Dashboard
+
+Compare performance to regional averages and track year-over-year trends.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/business/benchmarks` | POST | Record benchmark data |
+| `/api/v1/business/benchmarks/{field_id}` | GET | Get field benchmarks |
+| `/api/v1/business/benchmarks/compare/{field_id}/{crop_year}` | GET | Compare to regional |
+| `/api/v1/business/benchmarks/yoy/{field_id}` | GET | Year-over-year comparison |
+| `/api/v1/business/benchmarks/metrics` | GET | Available metrics |
+
+**Benchmark Metrics:**
+- `yield_per_acre` - Production efficiency
+- `cost_per_acre` - Cost efficiency
+- `revenue_per_acre` - Revenue performance
+- `net_income_per_acre` - Profitability
+- `cost_per_bushel` - Unit cost efficiency
+- `return_on_assets` - Asset utilization
+- `debt_to_asset` - Financial health
+- `working_capital` - Liquidity position
+- `input_cost_ratio` - Input efficiency
+
+### Document Vault
+
+Centralized document storage with organization and expiration tracking.
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/business/documents` | GET/POST | Manage documents |
+| `/api/v1/business/documents/search` | GET | Search by name/tags |
+| `/api/v1/business/documents/expiring` | GET | Get expiring documents |
+| `/api/v1/business/documents/{document_id}` | DELETE | Remove document |
+| `/api/v1/business/documents/categories` | GET | Document categories |
+
+**Document Categories:** tax, legal, insurance, financial, lease, certification, compliance, equipment, contracts, personnel, other
+
+### Files Created (v4.2)
+- `backend/services/farm_business_service.py` (~900 lines)
+- 24 API endpoints added to main.py
+
+---
+
+## 📊 System Statistics (v4.2.0)
+
+| Metric | Count |
+|--------|-------|
+| **Total API Endpoints** | 300+ |
+| **Backend Service Files** | 35+ |
+| **Lines of Backend Code** | 15,000+ |
+| **Pests/Diseases Tracked** | 46 |
+| **Pesticide Products** | 40+ |
+| **AI/ML Features** | 5 |
+| **Major Feature Suites** | 21 |
+
+---
+
 ## ✅ Conclusion
 
 You now have a **professional-grade foundation** for a crop consulting business that can:
@@ -4168,6 +4537,26 @@ You now have a **professional-grade foundation** for a crop consulting business 
   - ML-based yield predictions from field inputs
   - Auto-categorize expenses with 95%+ accuracy
   - Weather-based spray AI that improves with outcomes
+- **Enterprise Operations Suite** for complete business management (v3.9.0):
+  - Labor & crew management with certifications, time tracking, payroll
+  - Land & lease management with landowner contacts, parcels, payments
+  - Cash flow forecasting with 24-month projections and loan tracking
+  - Multi-entity support for LLCs, partnerships, and family operations
+- **Precision Intelligence Suite** for data-driven decisions (v4.0.0):
+  - Yield prediction engine with historical, trend, and weather-adjusted models
+  - Management zone analytics for high/medium/low productivity mapping
+  - Variable rate prescription generator for seeding and nitrogen
+  - Decision support AI for optimal planting, spray, and harvest timing
+- **Grain & Storage Suite** for complete grain management (v4.1.0):
+  - Bin management with capacity tracking, inventory, and moisture monitoring
+  - Drying cost calculator with fuel, shrink, and time estimates
+  - Grain accounting for field-to-sale bushel tracking
+  - Basis price alerts for target price notifications
+- **Complete Farm Business Suite** for financial management (v4.2.0):
+  - Tax planning with MACRS depreciation schedules and Section 179 optimization
+  - Succession planning with family members, asset transfers, and milestones
+  - Benchmarking dashboard with regional comparison and year-over-year trends
+  - Document vault with centralized storage and expiration tracking
 
 This system is **immediately usable** for real consulting work and can be **enhanced incrementally** as you use it in the field.
 
@@ -4190,6 +4579,14 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.8.0 | Dec 2025 | **Profitability Analysis** - Break-even calculations, input ROI ranking, scenario modeling, budget management |
 | 2.9.0 | Dec 2025 | **QuickBooks Import** - Auto-detect QB formats, 73 default account mappings, smart filtering, duplicate detection, saved mappings |
 | 3.0.0 | Dec 2025 | **AI/ML Intelligence Suite** - Image-based pest/disease ID, crop health scoring (NDVI), yield prediction model, smart expense categorization, weather-based spray AI, 28 new endpoints (207 total) |
+| 3.2.0 | Dec 2025 | **Sustainability Metrics Dashboard** - Carbon footprint tracking, input usage monitoring, 14 conservation practices, sustainability scorecard |
+| 3.3.0 | Dec 2025 | **Climate & Weather Integration** - GDD tracking for 8 crops, crop stage prediction, precipitation logging, heat/cold stress analysis |
+| 3.4.0 | Dec 2025 | **Field Trial & Research Tools** - 7 trial types, 5 experimental designs, statistical analysis (t-tests, LSD), research data export |
+| 3.8.0 | Dec 2025 | **Elite Farm Intelligence Suite** - Market intelligence, crop insurance, soil health, lender reporting, harvest analytics, input procurement |
+| 3.9.0 | Dec 2025 | **Enterprise Operations Suite** - Labor/crew management (employees, certifications, time, payroll), land/lease management (landowners, parcels, payments), cash flow forecasting (24-month projections, loans), multi-entity support (35+ endpoints) |
+| 4.0.0 | Dec 2025 | **Precision Intelligence Suite** - Yield prediction engine (historical/trend/weather-adjusted), management zone analytics, variable rate prescriptions (seeding/nitrogen), decision support AI (planting/spray/harvest timing) (16 endpoints) |
+| 4.1.0 | Dec 2025 | **Grain & Storage Suite** - Bin management (capacity, inventory, moisture), drying cost calculator (fuel, shrink, time), grain accounting (field-to-sale tracking), basis price alerts (18 endpoints) |
+| 4.2.0 | Dec 2025 | **Complete Farm Business Suite** - Tax planning (MACRS depreciation, Section 179, tax projections), succession planning (family, transfers, milestones), benchmarking dashboard (regional/YoY comparison), document vault (24 endpoints) |
 | Future | TBD | John Deere Ops Center integration (requires JD Developer Account approval) |
 
 ---

@@ -107,6 +107,31 @@ class SuccessorRole(Enum):
     ADVISOR = "advisor"
 
 
+class FamilyRole(Enum):
+    """Family member roles in farm succession"""
+    OWNER = "owner"
+    OPERATOR = "operator"
+    SPOUSE = "spouse"
+    CHILD = "child"
+    GRANDCHILD = "grandchild"
+    SIBLING = "sibling"
+    IN_LAW = "in_law"
+    EMPLOYEE = "employee"
+    ADVISOR = "advisor"
+
+
+class MilestoneCategory(Enum):
+    """Succession milestone categories"""
+    LEGAL = "legal"
+    FINANCIAL = "financial"
+    OPERATIONAL = "operational"
+    TRAINING = "training"
+    COMMUNICATION = "communication"
+    DOCUMENTATION = "documentation"
+    TAX_PLANNING = "tax_planning"
+    INSURANCE = "insurance"
+
+
 @dataclass
 class FamilyMember:
     """Family member in succession plan"""
@@ -234,6 +259,14 @@ MACRS_RECOVERY_PERIODS = {
 MACRS_7_YEAR = [14.29, 24.49, 17.49, 12.49, 8.93, 8.92, 8.93, 4.46]
 MACRS_5_YEAR = [20.00, 32.00, 19.20, 11.52, 11.52, 5.76]
 MACRS_15_YEAR = [5.00, 9.50, 8.55, 7.70, 6.93, 6.23, 5.90, 5.90, 5.91, 5.90, 5.91, 5.90, 5.91, 5.90, 5.91, 2.95]
+
+# Combined MACRS rates for export
+MACRS_RATES = {
+    "5_year": MACRS_5_YEAR,
+    "7_year": MACRS_7_YEAR,
+    "15_year": MACRS_15_YEAR,
+    "recovery_periods": MACRS_RECOVERY_PERIODS
+}
 
 # Section 179 limits (2024)
 SECTION_179_LIMIT = 1160000

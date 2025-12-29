@@ -43,6 +43,10 @@ Think of AgTools as your **digital agronomist** that:
 26. **Sustainability Dashboard** (v3.2.0) - Track carbon footprint, input usage, and conservation practices with EPA/IPCC-compliant calculations
 27. **Climate Integration** (v3.3.0) - GDD tracking for 8 crops, crop stage prediction, precipitation logging, and heat stress monitoring
 28. **Field Trial Tools** (v3.4.0) - Research-grade trial management with statistical analysis (t-tests, LSD) for variety and treatment trials
+29. **Enterprise Operations** (v3.9.0) - Labor management, land/lease tracking, cash flow forecasting, and multi-entity support
+30. **Precision Intelligence** (v4.0.0) - AI-powered yield prediction, variable rate prescriptions, management zones, and decision support
+31. **Grain & Storage Management** (v4.1.0) - Bin management, drying cost calculator, grain accounting, and basis price alerts
+32. **Complete Farm Business Suite** (v4.2.0) - Tax planning with MACRS depreciation, succession planning, benchmarking dashboard, and document vault
 
 ---
 
@@ -1938,8 +1942,782 @@ A printable table you can take to the field:
 18. **What yield should I expect this year?** (v3.0 - Yield Prediction)
 19. **What category is this expense?** (v3.0 - Smart Categorization)
 20. **When is the best time to spray based on my past results?** (v3.0 - Spray AI)
+21. **How do I manage employees and payroll?** (v3.9.0 - Enterprise Operations)
+22. **What are my land lease payments?** (v3.9.0 - Land & Lease Management)
+23. **What's my cash flow look like for the next year?** (v3.9.0 - Cash Flow Forecasting)
+24. **What yield should I expect based on my history and weather?** (v4.0.0 - Yield Prediction Engine)
+25. **What seeding rate should I use in each zone?** (v4.0.0 - Variable Rate Prescriptions)
+26. **When should I plant, spray, or harvest?** (v4.0.0 - Decision Support AI)
+27. **How much grain is in each bin and what's the moisture?** (v4.1.0 - Grain Storage)
+28. **How much will it cost to dry this grain?** (v4.1.0 - Drying Calculator)
+29. **Alert me when basis hits my target** (v4.1.0 - Basis Alerts)
+30. **What's my depreciation schedule for tax planning?** (v4.2.0 - Tax Tools)
+31. **How do I plan my farm succession?** (v4.2.0 - Succession Planning)
+32. **How do I compare to regional benchmarks?** (v4.2.0 - Benchmarking)
 
 **Every dollar saved on inputs goes straight to your bottom line.**
+
+---
+
+## 🆕 ENTERPRISE OPERATIONS SUITE (NEW in v3.9)
+
+These features help you manage the business side of your farm operation.
+
+### 👷 Labor & Crew Management
+
+**When to use:** Track employees, certifications, time entries, and payroll calculations.
+
+#### Adding Employees
+
+1. Find **"POST /api/v1/labor/employees"**
+2. Fill in employee details:
+```json
+{
+  "name": "John Smith",
+  "email": "john@farm.com",
+  "phone": "555-123-4567",
+  "employee_type": "full_time",
+  "pay_type": "hourly",
+  "pay_rate": 18.50,
+  "hire_date": "2024-01-15",
+  "job_title": "Equipment Operator",
+  "department": "Field Operations"
+}
+```
+3. Click **"Execute"**
+
+**Employee Types:** full_time, part_time, seasonal, contractor
+**Pay Types:** hourly, salary, piece_rate
+
+#### Tracking Certifications
+
+1. Find **"POST /api/v1/labor/employees/{id}/certifications"**
+2. Add certifications like CDL, pesticide applicator license, etc.
+3. System alerts you when certifications are expiring
+
+**Certification Types:** cdl_class_a, cdl_class_b, pesticide_applicator, commercial_applicator, first_aid, hazmat, forklift, grain_handling
+
+#### Time Tracking
+
+1. Find **"POST /api/v1/labor/time-entries"**
+2. Record hours worked:
+```json
+{
+  "employee_id": "EMP-0001",
+  "entry_type": "regular",
+  "date": "2025-03-15",
+  "hours": 10.5,
+  "break_hours": 0.5,
+  "field_id": "FIELD-001",
+  "task_description": "Planting corn",
+  "equipment_used": "JD 8R 340"
+}
+```
+
+**Entry Types:** regular, overtime, travel, training, maintenance
+
+#### Payroll Calculations
+
+1. Find **"GET /api/v1/labor/payroll-summary"**
+2. Set date range and get:
+   - Regular hours and pay by employee
+   - Overtime hours and pay
+   - Total labor costs by department
+   - Cost per acre breakdown
+
+---
+
+### 🏠 Land & Lease Management
+
+**When to use:** Track landowners, parcels, leases, and rental payments.
+
+#### Adding Landowners
+
+1. Find **"POST /api/v1/land/landowners"**
+2. Store contact info:
+```json
+{
+  "name": "Robert Johnson Estate",
+  "contact_person": "Mary Johnson",
+  "phone": "555-987-6543",
+  "email": "mary@email.com",
+  "address": "123 Main St, Ruston, LA",
+  "notes": "Prefer communication via email"
+}
+```
+
+#### Recording Land Parcels
+
+1. Find **"POST /api/v1/land/parcels"**
+2. Record FSA info, legal description, and acres:
+```json
+{
+  "landowner_id": "LO-0001",
+  "parcel_name": "Johnson North 80",
+  "fsa_farm_number": "1234",
+  "fsa_tract_number": "5678",
+  "legal_description": "NW 1/4 Sec 12 T18N R3W",
+  "total_acres": 80.5,
+  "tillable_acres": 75.2,
+  "county": "Lincoln",
+  "state": "LA"
+}
+```
+
+#### Managing Leases
+
+1. Find **"POST /api/v1/land/leases"**
+2. Create cash rent or crop share leases:
+```json
+{
+  "parcel_id": "PARCEL-0001",
+  "lease_type": "cash_rent",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "annual_rent": 15000.00,
+  "payment_frequency": "semi_annual",
+  "first_payment_date": "2025-03-01",
+  "auto_renew": true,
+  "notes": "3% increase annually"
+}
+```
+
+**Lease Types:** cash_rent, crop_share, flexible_cash, custom
+
+#### Tracking Payments
+
+1. Find **"POST /api/v1/land/lease-payments"**
+2. Record each payment
+3. View payment history and upcoming due dates
+4. Get alerts for leases expiring within 90 days
+
+---
+
+### 💵 Cash Flow Forecasting
+
+**When to use:** Project income and expenses for up to 24 months.
+
+#### Recording Cash Flow Entries
+
+1. Find **"POST /api/v1/cashflow/entries"**
+2. Record income or expenses:
+```json
+{
+  "category": "crop_sales",
+  "description": "Corn sale - 5000 bu @ $4.50",
+  "amount": 22500.00,
+  "transaction_date": "2025-09-15",
+  "status": "projected",
+  "recurring": false
+}
+```
+
+**Income Categories:** crop_sales, government_payments, custom_work, other_income
+**Expense Categories:** seed, fertilizer, chemical, fuel, repairs, labor, land_rent, crop_insurance, interest, utilities, custom_hire, miscellaneous
+
+#### Adding Loans
+
+1. Find **"POST /api/v1/cashflow/loans"**
+2. Track operating and equipment loans:
+```json
+{
+  "lender": "Farm Credit",
+  "loan_type": "operating",
+  "original_amount": 200000.00,
+  "current_balance": 175000.00,
+  "interest_rate": 7.5,
+  "payment_amount": 12500.00,
+  "payment_frequency": "monthly",
+  "next_payment_date": "2025-04-01",
+  "maturity_date": "2025-12-31"
+}
+```
+
+#### Generating Forecasts
+
+1. Find **"POST /api/v1/cashflow/forecast"**
+2. Set parameters:
+```json
+{
+  "months": 12,
+  "starting_balance": 50000.00
+}
+```
+3. Get month-by-month projections showing:
+   - Expected income
+   - Expected expenses
+   - Loan payments
+   - Ending balance
+   - Warning flags for negative balances
+
+---
+
+### 🏢 Multi-Entity Support
+
+**When to use:** Manage multiple farming entities (LLCs, partnerships, etc.)
+
+1. Find **"POST /api/v1/entities"**
+2. Create entities:
+```json
+{
+  "name": "Smith Family Farms LLC",
+  "entity_type": "llc",
+  "tax_id": "12-3456789",
+  "state_of_formation": "LA",
+  "formation_date": "2020-01-15"
+}
+```
+
+3. Allocate expenses and income across entities
+4. Generate entity-specific reports
+
+---
+
+## 🆕 PRECISION INTELLIGENCE SUITE (NEW in v4.0)
+
+AI-powered precision agriculture tools for data-driven decisions.
+
+### 📊 Yield Prediction Engine
+
+**When to use:** Predict yields before harvest using historical data and weather.
+
+1. Find **"POST /api/v1/precision/yield/predict"**
+2. Fill in field data:
+```json
+{
+  "field_id": "FIELD-001",
+  "field_name": "North 80",
+  "crop": "corn",
+  "crop_year": 2025,
+  "acres": 80,
+  "historical_yields": [185, 192, 178, 195, 188],
+  "soil_type": "silt_loam",
+  "current_conditions": {
+    "gdd_accumulated": 2400,
+    "rainfall_inches": 18.5,
+    "stress_events": 2
+  }
+}
+```
+
+**What you get:**
+- Predicted yield (e.g., 192 bu/acre)
+- Confidence interval (185-199 bu/acre)
+- Confidence level (high/medium/low)
+- Factors affecting prediction
+- Recommendations to improve yield
+
+**Prediction Models:**
+- `historical_average`: Simple average of past yields
+- `trend_analysis`: Linear trend projection
+- `weather_adjusted`: Trend with weather adjustments
+
+---
+
+### 🗺️ Management Zone Analytics
+
+**When to use:** Create zones within fields for variable rate applications.
+
+#### Creating Zones
+
+1. Find **"POST /api/v1/precision/zones"**
+2. Define each zone:
+```json
+{
+  "field_id": "FIELD-001",
+  "zone_name": "High Yield Zone A",
+  "zone_type": "high_productivity",
+  "acres": 25.5,
+  "avg_yield": 210,
+  "yield_potential": 220,
+  "soil_properties": {
+    "om_pct": 3.2,
+    "ph": 6.5,
+    "cec": 18
+  }
+}
+```
+
+**Zone Types:**
+- `high_productivity`: Consistently exceeds yield potential
+- `medium_productivity`: Meets average yield expectations
+- `low_productivity`: Consistently underperforms
+- `variable`: Inconsistent performance
+- `problem_area`: Requires investigation
+
+---
+
+### 🌱 Variable Rate Prescriptions
+
+**When to use:** Generate zone-based seeding and fertilizer prescriptions.
+
+#### Seeding Prescription
+
+1. Find **"POST /api/v1/precision/prescriptions/seeding"**
+2. Generate prescription:
+```json
+{
+  "field_id": "FIELD-001",
+  "crop": "corn",
+  "crop_year": 2025,
+  "seed_cost_per_unit": 280.00,
+  "units_per_bag": 80000
+}
+```
+
+**What you get:**
+- Zone-by-zone seeding rates
+- High zones: 34,000+ seeds/acre
+- Medium zones: 32,000 seeds/acre
+- Low zones: 30,000 seeds/acre
+- Total bags needed
+- Cost comparison vs. flat rate
+- Savings from variable rate
+
+#### Nitrogen Prescription
+
+1. Find **"POST /api/v1/precision/prescriptions/nitrogen"**
+2. Generate prescription:
+```json
+{
+  "field_id": "FIELD-001",
+  "crop": "corn",
+  "crop_year": 2025,
+  "target_yield": 200,
+  "nitrogen_cost_per_unit": 0.65,
+  "units_per_ton": 2000,
+  "soil_credits": 40
+}
+```
+
+**What you get:**
+- Zone-by-zone N rates based on yield potential
+- Total N needed
+- Estimated cost
+- Comparison to flat rate application
+
+---
+
+### 🤖 Decision Support AI
+
+**When to use:** Get AI-powered recommendations for planting, spraying, and harvest timing.
+
+#### Planting Recommendations
+
+1. Find **"POST /api/v1/precision/decisions/planting"**
+2. Provide conditions:
+```json
+{
+  "field_id": "FIELD-001",
+  "field_name": "North 80",
+  "crop": "corn",
+  "forecast_temps": [58, 62, 65, 68, 70, 72, 74],
+  "soil_temp": 52,
+  "forecast_precip": [0, 0.2, 0, 0, 0.5, 0, 0]
+}
+```
+
+**What you get:**
+- Recommendation: PLANT NOW / WAIT / CAUTION
+- Confidence score
+- Risk factors (soil temp, rain forecast)
+- Optimal planting window
+- Action items
+
+#### Spray Timing Recommendations
+
+1. Find **"POST /api/v1/precision/decisions/spray"**
+2. Provide conditions including wind, temps, and pest pressure
+3. Get optimal spray windows with risk scores
+
+#### Harvest Recommendations
+
+1. Find **"POST /api/v1/precision/decisions/harvest"**
+2. Provide moisture levels and weather forecast
+3. Get harvest timing advice balancing moisture, weather, and drying costs
+
+---
+
+## 🆕 GRAIN & STORAGE SUITE (NEW in v4.1)
+
+Complete grain management from harvest to sale.
+
+### 🏗️ Bin Management
+
+**When to use:** Track grain storage bins, capacity, and inventory.
+
+#### Adding a Storage Bin
+
+1. Find **"POST /api/v1/grain/bins"**
+2. Configure your bin:
+```json
+{
+  "name": "Bin 1 - Main Yard",
+  "bin_type": "round_steel",
+  "capacity_bushels": 50000,
+  "diameter_feet": 36,
+  "height_feet": 32,
+  "has_aeration": true,
+  "has_dryer": true,
+  "dryer_type": "continuous_flow",
+  "dryer_capacity_bph": 1500,
+  "location": "Main storage yard"
+}
+```
+
+**Bin Types:** round_steel, flat_storage, concrete, temporary, hopper_bottom
+**Dryer Types:** in_bin, continuous_flow, batch, natural_air
+
+#### Loading Grain
+
+1. Find **"POST /api/v1/grain/bins/load"**
+2. Record harvest:
+```json
+{
+  "bin_id": "BIN-0001",
+  "grain_type": "corn",
+  "bushels": 8500,
+  "moisture_pct": 18.5,
+  "test_weight": 54.2,
+  "source_field": "North 80",
+  "temperature": 75
+}
+```
+
+**What you get:**
+- Updated inventory with weighted average moisture
+- Percent full calculation
+- Transaction ID for tracking
+
+#### Unloading/Selling Grain
+
+1. Find **"POST /api/v1/grain/bins/unload"**
+2. Record sale:
+```json
+{
+  "bin_id": "BIN-0001",
+  "bushels": 5000,
+  "destination": "ADM Elevator - Monroe",
+  "price_per_bushel": 4.85,
+  "ticket_number": "T-12345"
+}
+```
+
+**What you get:**
+- Transaction recorded with total value
+- Updated inventory
+- Remaining bushels
+
+---
+
+### 💨 Drying Cost Calculator
+
+**When to use:** Calculate costs before deciding to dry or sell wet.
+
+1. Find **"POST /api/v1/grain/drying/calculate"**
+2. Input parameters:
+```json
+{
+  "bushels": 10000,
+  "initial_moisture": 22.0,
+  "target_moisture": 15.0,
+  "dryer_type": "continuous_flow",
+  "fuel_cost_per_gallon": 3.50,
+  "electricity_cost_per_kwh": 0.12
+}
+```
+
+**What you get:**
+- Points to remove (7 points in this example)
+- Shrink loss: 1.4% per point = 9.8% = 980 bushels
+- Fuel cost estimate
+- Electricity cost
+- Total drying cost
+- Cost per bushel
+- **Recommendation:** Dry vs. sell wet comparison
+
+**Shrink Factor:** Industry standard 1.4% shrink per point of moisture removed
+
+---
+
+### 📊 Grain Accounting
+
+**When to use:** Track grain from field to sale with bushel-level accounting.
+
+#### View Transactions
+
+1. Find **"GET /api/v1/grain/transactions"**
+2. Filter by grain type, date range
+3. See complete history:
+   - Harvest In
+   - Sales Out
+   - Transfers
+   - Shrink adjustments
+   - Feed use
+
+#### Accounting Summary
+
+1. Find **"GET /api/v1/grain/accounting/summary"**
+2. Set crop year
+3. Get totals:
+   - Bushels harvested
+   - Bushels sold
+   - Bushels remaining
+   - Average sale price
+   - Total revenue
+
+---
+
+### 🔔 Basis Price Alerts
+
+**When to use:** Get notified when basis hits your target.
+
+#### Creating an Alert
+
+1. Find **"POST /api/v1/grain/alerts"**
+2. Set your target:
+```json
+{
+  "grain_type": "corn",
+  "target_basis": -0.25,
+  "bushels": 10000,
+  "delivery_location": "ADM Monroe",
+  "delivery_month": "December 2025",
+  "alert_type": "basis_target_hit",
+  "notes": "Sell when basis narrows to -25"
+}
+```
+
+#### Checking Alerts
+
+1. Find **"POST /api/v1/grain/alerts/check"**
+2. Input current prices:
+```json
+{
+  "corn": -0.22,
+  "soybeans": -0.35
+}
+```
+3. Get list of triggered alerts
+4. Take action on favorable basis
+
+---
+
+## 🆕 COMPLETE FARM BUSINESS SUITE (NEW in v4.2)
+
+Comprehensive business management tools.
+
+### 📋 Tax Planning Tools
+
+**When to use:** Track depreciation, plan Section 179, and project tax liability.
+
+#### Adding Depreciable Assets
+
+1. Find **"POST /api/v1/business/tax/assets"**
+2. Record equipment purchase:
+```json
+{
+  "name": "John Deere 8R 340 Tractor",
+  "asset_type": "machinery",
+  "purchase_date": "2025-03-15",
+  "purchase_price": 425000.00,
+  "salvage_value": 85000.00,
+  "depreciation_method": "macrs_gds",
+  "section_179_amount": 200000.00,
+  "bonus_depreciation_pct": 60,
+  "notes": "Trade-in value $85,000"
+}
+```
+
+**Asset Types:** machinery, equipment, vehicle, building, land_improvement, livestock_breeding, computer, office_equipment
+
+**Depreciation Methods:**
+- `straight_line`: Equal annual depreciation
+- `macrs_gds`: Modified Accelerated Cost Recovery System (most common)
+- `macrs_ads`: Alternative Depreciation System
+- `section_179`: Immediate expensing up to $1.16M limit
+- `bonus_depreciation`: Additional first-year depreciation
+
+#### Viewing Depreciation Schedules
+
+1. Find **"GET /api/v1/business/tax/assets/{asset_id}/schedule"**
+2. Get year-by-year depreciation:
+   - Year 1: Section 179 + Bonus + MACRS = $285,000
+   - Year 2: MACRS = $28,571
+   - Years 3-7: Declining balance
+   - Book value each year
+
+#### Section 179 Optimization
+
+1. Find **"POST /api/v1/business/tax/section179/optimize"**
+2. Enter net income
+3. Get recommendation on optimal Section 179 election
+4. Shows tax savings at different election amounts
+
+#### Tax Liability Projection
+
+1. Find **"POST /api/v1/business/tax/projection"**
+2. Enter income and expenses:
+```json
+{
+  "tax_year": 2025,
+  "entity_type": "schedule_f",
+  "gross_income": 850000.00,
+  "total_expenses": 680000.00
+}
+```
+
+**What you get:**
+- Net farm income
+- Self-employment tax estimate
+- Estimated income tax
+- Total tax liability
+- Effective tax rate
+
+---
+
+### 👨‍👩‍👧‍👦 Succession Planning
+
+**When to use:** Plan your farm's transition to the next generation.
+
+#### Adding Family Members
+
+1. Find **"POST /api/v1/business/succession/family"**
+2. Record family involvement:
+```json
+{
+  "name": "Michael Smith",
+  "role": "child",
+  "birth_date": "1995-06-15",
+  "ownership_pct": 15.0,
+  "involvement_level": "Full-time operator",
+  "skills": ["equipment operation", "crop planning", "marketing"],
+  "notes": "Taking over field operations 2026"
+}
+```
+
+**Family Roles:** owner, operator, spouse, child, grandchild, sibling, in_law, employee, advisor
+
+#### Creating Asset Transfer Plans
+
+1. Find **"POST /api/v1/business/succession/transfers"**
+2. Plan the transfer:
+```json
+{
+  "asset_name": "North 160 acres",
+  "asset_value": 1200000.00,
+  "transfer_method": "installment_sale",
+  "from_member_id": "FAM-0001",
+  "to_member_id": "FAM-0002",
+  "target_date": "2027-01-01",
+  "notes": "15-year installment at AFR rate"
+}
+```
+
+**Transfer Methods:** sale, gift, inheritance, installment_sale, lease_purchase, trust, llc_transfer
+
+#### Succession Milestones
+
+1. Find **"POST /api/v1/business/succession/milestones"**
+2. Create milestones:
+```json
+{
+  "title": "Update estate plan with attorney",
+  "category": "legal",
+  "description": "Review wills, trusts, and POAs",
+  "target_date": "2025-06-01",
+  "assigned_to": "FAM-0001"
+}
+```
+
+**Milestone Categories:** legal, financial, operational, training, communication, documentation, tax_planning, insurance
+
+---
+
+### 📈 Benchmarking Dashboard
+
+**When to use:** Compare your performance to regional averages and track year-over-year.
+
+#### Recording Benchmark Data
+
+1. Find **"POST /api/v1/business/benchmarks"**
+2. Enter field performance:
+```json
+{
+  "field_id": "FIELD-001",
+  "crop": "corn",
+  "crop_year": 2024,
+  "metrics": {
+    "yield_per_acre": 198,
+    "cost_per_acre": 485,
+    "revenue_per_acre": 891,
+    "cost_per_bushel": 2.45
+  }
+}
+```
+
+**Benchmark Metrics:** yield_per_acre, cost_per_acre, revenue_per_acre, net_income_per_acre, cost_per_bushel, return_on_assets, debt_to_asset, working_capital, input_cost_ratio
+
+#### Compare to Regional Benchmarks
+
+1. Find **"GET /api/v1/business/benchmarks/compare/{field_id}/{crop_year}"**
+2. Get comparison:
+   - Your yield vs. regional average
+   - Your costs vs. regional average
+   - Performance grade (Above/Below average)
+   - Specific areas for improvement
+
+#### Year-Over-Year Comparison
+
+1. Find **"GET /api/v1/business/benchmarks/yoy/{field_id}"**
+2. See multi-year trends:
+   - Yield trend
+   - Cost trend
+   - Profitability trend
+   - Best/worst years
+
+---
+
+### 📁 Document Vault
+
+**When to use:** Centralize all farm documents with organization and expiration tracking.
+
+#### Adding Documents
+
+1. Find **"POST /api/v1/business/documents"**
+2. Upload document info:
+```json
+{
+  "name": "2024 Farm Operating Loan",
+  "category": "financial",
+  "file_path": "/documents/loans/2024_operating.pdf",
+  "file_type": "pdf",
+  "document_date": "2024-01-15",
+  "year": 2024,
+  "tags": ["loan", "farm credit", "operating"],
+  "description": "Annual operating loan agreement",
+  "expiration_date": "2024-12-31",
+  "related_entity": "Smith Family Farms LLC"
+}
+```
+
+**Document Categories:** tax, legal, insurance, financial, lease, certification, compliance, equipment, contracts, personnel, other
+
+#### Searching Documents
+
+1. Find **"GET /api/v1/business/documents/search"**
+2. Search by query (searches name, tags, description)
+3. Get matching documents
+
+#### Expiration Alerts
+
+1. Find **"GET /api/v1/business/documents/expiring"**
+2. Set days parameter (default 30)
+3. Get list of documents expiring soon:
+   - Insurance policies
+   - Certifications
+   - Leases
+   - Contracts
 
 ---
 

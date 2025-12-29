@@ -31,7 +31,31 @@ We offer commercial licensing options:
 
 ## 🌾 Overview
 
-**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, and complete decision support for corn and soybean production.
+**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, and complete decision support for corn and soybean production.
+
+**Version 4.2.0** adds **Complete Farm Business Suite** - Comprehensive business management:
+- **Tax Planning Tools**: MACRS depreciation schedules, Section 179 optimization, tax liability projections
+- **Succession Planning**: Family members, asset transfer planning, milestone tracking
+- **Benchmarking Dashboard**: Regional comparison, year-over-year trends, performance grading
+- **Document Vault**: Centralized storage with categories, tags, and expiration alerts
+
+**Version 4.1.0** adds **Grain & Storage Suite** - Complete grain management:
+- **Bin Management**: Capacity tracking, inventory, moisture monitoring, weighted averages
+- **Drying Cost Calculator**: Fuel, shrink (1.4%/point), time estimates, dry vs. sell wet analysis
+- **Grain Accounting**: Field-to-sale bushel tracking, transaction history
+- **Basis Price Alerts**: Target basis/price notifications with location and month
+
+**Version 4.0.0** adds **Precision Intelligence Suite** - AI-powered precision agriculture:
+- **Yield Prediction Engine**: Historical, trend, and weather-adjusted models with confidence levels
+- **Management Zone Analytics**: High/medium/low productivity zone mapping
+- **Variable Rate Prescriptions**: Zone-based seeding and nitrogen prescriptions
+- **Decision Support AI**: Planting, spray, and harvest timing recommendations
+
+**Version 3.9.0** adds **Enterprise Operations Suite** - Complete enterprise management:
+- **Labor & Crew Management**: Employees, certifications, time tracking, payroll calculations
+- **Land & Lease Management**: Landowners, parcels, leases, payment tracking
+- **Cash Flow Forecasting**: 24-month projections with loan tracking
+- **Multi-Entity Support**: Manage LLCs, partnerships, and family farm entities
 
 **Version 3.4.0** adds **Field Trial & Research Tools** - Research-grade data management:
 - **Trial Management**: 7 trial types (variety, treatment, rate, timing, spacing, fertility, irrigation)
@@ -312,7 +336,11 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Cost Per Acre Tracking** with QuickBooks import (v2.7-2.9)
 - **Profitability Analysis** with break-even and ROI ranking (v2.8)
 - **AI/ML Intelligence** with 5 AI-powered features (v3.0)
-- **274 API Endpoints** covering complete farm operations
+- **Enterprise Operations** with labor, leases, cash flow (v3.9)
+- **Precision Intelligence** with yield prediction, VR prescriptions (v4.0)
+- **Grain Management** with bins, drying, accounting (v4.1)
+- **Farm Business Suite** with tax planning, succession, benchmarking (v4.2)
+- **300+ API Endpoints** covering complete farm operations
 
 ### Example ROI
 
@@ -340,7 +368,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v3.0 - 5000+ lines, 207 endpoints)
+│   ├── main.py                       # FastAPI application (v4.2 - 10,000+ lines, 300+ endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   ├── mobile/                       # Mobile crew interface (NEW v2.6)
 │   │   ├── __init__.py               # Mobile module exports
@@ -392,7 +420,12 @@ agtools/
 │       ├── spray_ai_service.py       # Weather-based spray AI (v3.0)
 │       ├── sustainability_service.py # Sustainability metrics dashboard (v3.2)
 │       ├── climate_service.py        # Climate & weather integration (v3.3)
-│       └── research_service.py       # Field trial & research tools (v3.4)
+│       ├── research_service.py       # Field trial & research tools (v3.4)
+│       ├── farm_intelligence_service.py # Elite farm intelligence (v3.8)
+│       ├── enterprise_operations_service.py # Enterprise operations (v3.9)
+│       ├── precision_intelligence_service.py # Precision agriculture AI (v4.0)
+│       ├── grain_storage_service.py  # Grain & storage management (v4.1)
+│       └── farm_business_service.py  # Complete farm business (v4.2)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -768,6 +801,33 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - 7 trial types with 5 experimental designs
   - Statistical analysis (t-tests, LSD)
   - Research-grade data export
+- **Elite Farm Intelligence Suite** (v3.8):
+  - Market intelligence with price projections
+  - Crop insurance analysis with APH, RP, ARC/PLC
+  - Soil health management with STIR scores
+  - Lender reporting for operating/equipment loans
+  - Harvest analytics with moisture, yield tracking
+  - Input procurement with quote comparison
+- **Enterprise Operations Suite** (v3.9):
+  - Labor management (employees, certifications, payroll)
+  - Land & lease management (landowners, parcels, payments)
+  - Cash flow forecasting (24-month projections)
+  - Multi-entity support (LLCs, partnerships)
+- **Precision Intelligence Suite** (v4.0):
+  - Yield prediction engine (historical, trend, weather)
+  - Management zone analytics (productivity mapping)
+  - Variable rate prescriptions (seeding, nitrogen)
+  - Decision support AI (planting, spray, harvest)
+- **Grain & Storage Suite** (v4.1):
+  - Bin management (capacity, inventory, moisture)
+  - Drying cost calculator (fuel, shrink, timing)
+  - Grain accounting (field-to-sale tracking)
+  - Basis price alerts (target notifications)
+- **Complete Farm Business Suite** (v4.2):
+  - Tax planning (MACRS, Section 179, projections)
+  - Succession planning (family, transfers, milestones)
+  - Benchmarking dashboard (regional, YoY comparison)
+  - Document vault (centralized storage, expiration)
 
 ### 🔄 In Progress
 1. Import 2025 QuickBooks data (waiting on export)
@@ -855,6 +915,11 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 4.2.0 | Dec 2025 | **Complete Farm Business Suite** (tax planning, succession, benchmarking, documents) |
+| 4.1.0 | Dec 2025 | **Grain & Storage Suite** (bins, drying, accounting, basis alerts) |
+| 4.0.0 | Dec 2025 | **Precision Intelligence Suite** (yield prediction, zones, prescriptions, AI decisions) |
+| 3.9.0 | Dec 2025 | **Enterprise Operations Suite** (labor, leases, cash flow, multi-entity) |
+| 3.8.0 | Dec 2025 | Elite Farm Intelligence (market, insurance, soil, lender, harvest, procurement) |
 | 3.4.0 | Dec 2025 | Field trial & research tools (statistical analysis) |
 | 3.3.0 | Dec 2025 | Climate & weather integration (GDD, precipitation) |
 | 3.2.0 | Dec 2025 | Sustainability metrics dashboard (carbon, practices) |
