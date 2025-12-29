@@ -155,13 +155,33 @@ from services.profitability_service import (
     BudgetTrackerRequest,
     BudgetTrackerResponse
 )
+from services.sustainability_service import (
+    get_sustainability_service,
+    InputCategory as SustainabilityInputCategory,
+    CarbonSource,
+    SustainabilityPractice,
+    MetricPeriod,
+    InputUsageCreate,
+    InputUsageResponse,
+    CarbonEntryCreate,
+    CarbonEntryResponse,
+    WaterUsageCreate,
+    WaterUsageResponse,
+    PracticeRecordCreate,
+    PracticeRecordResponse,
+    SustainabilityScorecard,
+    SustainabilityReport,
+    InputSummary,
+    CarbonSummary,
+    WaterSummary
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, and profitability analysis",
-    version="2.9.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, and sustainability metrics",
+    version="3.2.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -5729,6 +5749,288 @@ async def get_export_status():
             "/api/v1/export/custom/{format}",
             "/api/v1/export/full-report/excel"
         ] if EXPORT_SERVICE_AVAILABLE else []
+    }
+
+
+# ============================================================================
+# SUSTAINABILITY METRICS
+# ============================================================================
+
+@app.post("/api/v1/sustainability/inputs", response_model=InputUsageResponse, tags=["Sustainability"])
+async def record_input_usage(
+    data: InputUsageCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record agricultural input usage for sustainability tracking.
+
+    Tracks pesticides, fertilizers, fuel, water, and other inputs.
+    Automatically calculates carbon footprint based on EPA emission factors.
+    """
+    service = get_sustainability_service()
+    result, error = service.record_input_usage(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/sustainability/inputs", response_model=List[InputUsageResponse], tags=["Sustainability"])
+async def list_input_usage(
+    field_id: Optional[int] = None,
+    category: Optional[SustainabilityInputCategory] = None,
+    year: Optional[int] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List input usage records with optional filters"""
+    service = get_sustainability_service()
+    return service.list_input_usage(
+        field_id=field_id,
+        category=category,
+        start_date=start_date,
+        end_date=end_date,
+        year=year
+    )
+
+
+@app.get("/api/v1/sustainability/inputs/summary", response_model=List[InputSummary], tags=["Sustainability"])
+async def get_input_summary(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summarized input usage by category for a year"""
+    service = get_sustainability_service()
+    return service.get_input_summary(year, field_id)
+
+
+@app.post("/api/v1/sustainability/carbon", response_model=CarbonEntryResponse, tags=["Sustainability"])
+async def record_carbon_entry(
+    data: CarbonEntryCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a carbon emission or sequestration event.
+
+    Use positive values for emissions, negative for sequestration.
+    Carbon from inputs is automatically calculated when recording input usage.
+    """
+    service = get_sustainability_service()
+    result, error = service.record_carbon_entry(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/sustainability/carbon/summary", response_model=CarbonSummary, tags=["Sustainability"])
+async def get_carbon_summary(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get carbon footprint summary for a year.
+
+    Includes total emissions, sequestration, net carbon, and breakdown by source.
+    Supports climate-smart agriculture documentation.
+    """
+    service = get_sustainability_service()
+    return service.get_carbon_summary(year, field_id)
+
+
+@app.post("/api/v1/sustainability/water", response_model=WaterUsageResponse, tags=["Sustainability"])
+async def record_water_usage(
+    data: WaterUsageCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record water usage for irrigation tracking"""
+    service = get_sustainability_service()
+    result, error = service.record_water_usage(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/sustainability/water/summary", response_model=WaterSummary, tags=["Sustainability"])
+async def get_water_summary(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get water usage summary with efficiency metrics"""
+    service = get_sustainability_service()
+    return service.get_water_summary(year, field_id)
+
+
+@app.post("/api/v1/sustainability/practices", response_model=PracticeRecordResponse, tags=["Sustainability"])
+async def record_sustainability_practice(
+    data: PracticeRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record adoption of a sustainability practice.
+
+    Supported practices include: cover crops, no-till, reduced tillage,
+    crop rotation, IPM, precision application, variable rate technology,
+    buffer strips, pollinator habitat, and more.
+
+    Carbon benefits are automatically calculated based on USDA/NRCS estimates.
+    """
+    service = get_sustainability_service()
+    result, error = service.record_practice(data, user.id)
+
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    return result
+
+
+@app.get("/api/v1/sustainability/practices", response_model=List[PracticeRecordResponse], tags=["Sustainability"])
+async def list_sustainability_practices(
+    year: Optional[int] = None,
+    field_id: Optional[int] = None,
+    practice: Optional[SustainabilityPractice] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List sustainability practices with optional filters"""
+    service = get_sustainability_service()
+    return service.list_practices(year=year, field_id=field_id, practice=practice)
+
+
+@app.get("/api/v1/sustainability/practices/types", tags=["Sustainability"])
+async def list_practice_types():
+    """Get list of all available sustainability practice types"""
+    return {
+        "practices": [
+            {"value": p.value, "label": p.value.replace("_", " ").title()}
+            for p in SustainabilityPractice
+        ]
+    }
+
+
+@app.get("/api/v1/sustainability/scorecard", response_model=SustainabilityScorecard, tags=["Sustainability"])
+async def get_sustainability_scorecard(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate a comprehensive sustainability scorecard.
+
+    Scores are calculated based on:
+    - Carbon footprint (30% weight)
+    - Input efficiency (25% weight)
+    - Water efficiency (15% weight)
+    - Practice adoption (20% weight)
+    - Biodiversity support (10% weight)
+
+    Includes year-over-year comparison and improvement recommendations.
+    """
+    service = get_sustainability_service()
+    return service.generate_scorecard(year, field_id)
+
+
+@app.get("/api/v1/sustainability/scores/history", tags=["Sustainability"])
+async def get_sustainability_history(
+    field_id: Optional[int] = None,
+    years: int = 5,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get historical sustainability scores for trend analysis"""
+    service = get_sustainability_service()
+    return service.get_historical_scores(field_id, years)
+
+
+@app.get("/api/v1/sustainability/report", response_model=SustainabilityReport, tags=["Sustainability"])
+async def generate_sustainability_report(
+    year: int,
+    field_id: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate a comprehensive sustainability report.
+
+    Includes:
+    - Full sustainability scorecard with grades
+    - Carbon footprint analysis
+    - Input usage summary
+    - Water efficiency metrics
+    - Practice adoption documentation
+    - Historical trends
+    - Research metrics (total managed acres, carbon sequestered, etc.)
+    - Improvement recommendations
+    """
+    service = get_sustainability_service()
+    return service.generate_grant_report(year, field_id)
+
+
+@app.get("/api/v1/sustainability/export", tags=["Sustainability"])
+async def export_sustainability_data(
+    year: int,
+    field_id: Optional[int] = None,
+    format: str = "json",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export sustainability data in research-ready format.
+
+    Designed for academic research and documentation.
+    Includes metadata, summary statistics, and detailed records.
+    """
+    service = get_sustainability_service()
+    return service.export_research_data(year, field_id, format)
+
+
+@app.get("/api/v1/sustainability/carbon-factors", tags=["Sustainability"])
+async def get_carbon_emission_factors():
+    """
+    Get the carbon emission factors used for calculations.
+
+    Sources: EPA, IPCC, USDA
+    """
+    from services.sustainability_service import CARBON_FACTORS
+    return {
+        "factors": CARBON_FACTORS,
+        "sources": [
+            "EPA Emission Factors for Greenhouse Gas Inventories",
+            "IPCC Guidelines for National Greenhouse Gas Inventories",
+            "USDA NRCS Conservation Practice Standards"
+        ],
+        "units": {
+            "fuel": "kg CO2e per gallon",
+            "fertilizer": "kg CO2e per lb of nutrient",
+            "pesticide": "kg CO2e per lb active ingredient",
+            "sequestration": "kg CO2e per acre per year (negative = capture)"
+        }
+    }
+
+
+@app.get("/api/v1/sustainability/input-categories", tags=["Sustainability"])
+async def list_input_categories():
+    """Get list of all input categories for sustainability tracking"""
+    return {
+        "categories": [
+            {"value": c.value, "label": c.value.replace("_", " ").title()}
+            for c in SustainabilityInputCategory
+        ]
+    }
+
+
+@app.get("/api/v1/sustainability/carbon-sources", tags=["Sustainability"])
+async def list_carbon_sources():
+    """Get list of all carbon emission/sequestration sources"""
+    return {
+        "sources": [
+            {"value": s.value, "label": s.value.replace("_", " ").title()}
+            for s in CarbonSource
+        ]
     }
 
 
