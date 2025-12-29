@@ -218,13 +218,23 @@ from services.grant_service import (
     CARBON_PROGRAMS,
     BENCHMARK_DATA
 )
+from services.grant_enhancement_service import (
+    get_grant_enhancement_service,
+    PrecisionAgTechnology,
+    DataCategory,
+    ResearchArea,
+    PartnerType,
+    TECHNOLOGY_BENEFITS,
+    GRANT_DATA_REQUIREMENTS,
+    RESEARCH_PARTNERS
+)
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, and grant compliance support",
-    version="3.5.0",
+    description="Professional-grade crop consulting system with pest/disease management, input cost optimization, dynamic pricing, weather-smart spray timing, yield response economics, profitability analysis, sustainability metrics, grant compliance, and research partnership support",
+    version="3.6.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -7012,6 +7022,363 @@ async def list_resource_concerns():
             {"id": "wildlife_habitat", "name": "Wildlife Habitat", "practices": ["420", "393", "391"]},
             {"id": "air_quality", "name": "Air Quality", "practices": ["329", "345", "340"]}
         ]
+    }
+
+
+# ============================================================================
+# GRANT ENHANCEMENT ROUTES (v3.6.0)
+# ============================================================================
+
+# Pydantic models for Grant Enhancement API
+class TechnologyInvestmentCreate(BaseModel):
+    technology: str = Field(..., description="Technology ID (e.g., 'autosteer', 'section_control_planter')")
+    purchase_year: int
+    purchase_cost: float
+    annual_subscription: float = 0
+    acres_covered: float
+    expected_life_years: int = 10
+    notes: str = ""
+
+
+class TechnologyROIRequest(BaseModel):
+    technology: str
+    acres: float
+    purchase_cost: Optional[float] = None
+    annual_subscription: Optional[float] = None
+    years: int = 5
+    corn_price: float = 5.00
+    soybean_price: float = 12.00
+    base_corn_yield: float = 180
+    base_soybean_yield: float = 50
+
+
+class PortfolioROIRequest(BaseModel):
+    technologies: List[str]
+    acres: float
+    years: int = 5
+
+
+class EconomicImpactReportRequest(BaseModel):
+    farm_name: str
+    technologies: List[str]
+    acres: float
+    years_of_data: int = 3
+
+
+class DataAvailabilityCreate(BaseModel):
+    category: str = Field(..., description="Data category (e.g., 'yield_data', 'soil_tests')")
+    years_available: List[int]
+    completeness_pct: float = Field(..., ge=0, le=100)
+    format: str = Field(..., description="Data format (e.g., 'JD Operations Center', 'CSV')")
+    last_updated: date
+    notes: str = ""
+
+
+class DataQualityReportRequest(BaseModel):
+    farm_name: str
+    target_grants: Optional[List[str]] = None
+
+
+class PartnershipSearchRequest(BaseModel):
+    farm_capabilities: List[str] = Field(..., description="Research areas (e.g., 'precision_agriculture', 'sustainability')")
+    target_grants: Optional[List[str]] = None
+    preferred_partner_types: Optional[List[str]] = None
+    state: str = "LA"
+
+
+class PartnershipReportRequest(BaseModel):
+    farm_name: str
+    farm_capabilities: List[str]
+    target_grants: List[str]
+    state: str = "LA"
+
+
+# ----- Economic Impact Calculator Endpoints -----
+
+@app.get("/api/v1/grants/technologies", tags=["Grant Enhancement"])
+async def get_technology_catalog(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get catalog of precision ag technologies with benefit rates.
+
+    Returns 14 technologies with input savings, yield improvement,
+    time savings, and typical costs.
+    """
+    service = get_grant_enhancement_service()
+    return service.get_technology_catalog()
+
+
+@app.post("/api/v1/grants/technologies/invest", tags=["Grant Enhancement"])
+async def record_technology_investment(
+    data: TechnologyInvestmentCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record a precision ag technology investment.
+
+    Calculates annual benefits, costs, ROI, and payback period.
+    """
+    service = get_grant_enhancement_service()
+    result = service.record_technology_investment(
+        technology=data.technology,
+        purchase_year=data.purchase_year,
+        purchase_cost=data.purchase_cost,
+        annual_subscription=data.annual_subscription,
+        acres_covered=data.acres_covered,
+        expected_life_years=data.expected_life_years,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/grants/technologies/roi", tags=["Grant Enhancement"])
+async def calculate_technology_roi(
+    data: TechnologyROIRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate ROI for a single technology investment.
+
+    Returns detailed breakdown of benefits, multi-year projection,
+    and SBIR-ready summary.
+    """
+    service = get_grant_enhancement_service()
+    result = service.calculate_single_technology_roi(
+        technology=data.technology,
+        acres=data.acres,
+        purchase_cost=data.purchase_cost,
+        annual_subscription=data.annual_subscription,
+        years=data.years,
+        corn_price=data.corn_price,
+        soybean_price=data.soybean_price,
+        base_corn_yield=data.base_corn_yield,
+        base_soybean_yield=data.base_soybean_yield
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/grants/technologies/portfolio-roi", tags=["Grant Enhancement"])
+async def calculate_portfolio_roi(
+    data: PortfolioROIRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Calculate combined ROI for portfolio of precision ag investments.
+
+    Aggregates benefits across technologies and generates SBIR narrative.
+    """
+    service = get_grant_enhancement_service()
+    result = service.calculate_portfolio_roi(
+        technologies=data.technologies,
+        acres=data.acres,
+        years=data.years
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/grants/economic-impact-report", tags=["Grant Enhancement"])
+async def generate_economic_impact_report(
+    data: EconomicImpactReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate comprehensive economic impact report for grant applications.
+
+    Includes executive summary, technology stack analysis, financial projections,
+    methodology documentation, and SBIR-ready narrative.
+    """
+    service = get_grant_enhancement_service()
+    return service.generate_economic_impact_report(
+        farm_name=data.farm_name,
+        technologies=data.technologies,
+        acres=data.acres,
+        years_of_data=data.years_of_data
+    )
+
+
+# ----- Data Quality/Completeness Tracker Endpoints -----
+
+@app.get("/api/v1/grants/data-categories", tags=["Grant Enhancement"])
+async def get_data_categories(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get list of data categories for completeness tracking.
+
+    Returns 12 categories: field boundaries, soil tests, yield data,
+    planting/application/harvest records, weather, financial, equipment,
+    imagery, scouting, sustainability metrics.
+    """
+    service = get_grant_enhancement_service()
+    return service.get_data_categories()
+
+
+@app.post("/api/v1/grants/data-availability", tags=["Grant Enhancement"])
+async def record_data_availability(
+    data: DataAvailabilityCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Record data availability for a category.
+
+    Tracks years available, completeness percentage, format, and last update.
+    """
+    service = get_grant_enhancement_service()
+    result = service.record_data_availability(
+        category=data.category,
+        years_available=data.years_available,
+        completeness_pct=data.completeness_pct,
+        format=data.format,
+        last_updated=data.last_updated,
+        notes=data.notes
+    )
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.get("/api/v1/grants/data-completeness/{grant_program}", tags=["Grant Enhancement"])
+async def assess_data_completeness(
+    grant_program: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Assess data completeness for a specific grant program.
+
+    Returns required/recommended data status, overall score, grade,
+    and prioritized action items.
+
+    Programs: USDA_SBIR, SARE, CIG, EQIP, NSF_SBIR
+    """
+    service = get_grant_enhancement_service()
+    result = service.assess_data_completeness(grant_program)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/api/v1/grants/data-quality-report", tags=["Grant Enhancement"])
+async def generate_data_quality_report(
+    data: DataQualityReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate comprehensive data quality report.
+
+    Assesses readiness across multiple grant programs with
+    data inventory, priority actions, and recommendations.
+    """
+    service = get_grant_enhancement_service()
+    return service.generate_data_quality_report(
+        farm_name=data.farm_name,
+        target_grants=data.target_grants
+    )
+
+
+# ----- Partnership Opportunity Finder Endpoints -----
+
+@app.get("/api/v1/grants/research-areas", tags=["Grant Enhancement"])
+async def get_research_areas(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get list of research areas for partnership matching.
+
+    Returns 12 areas: precision ag, sustainability, soil health,
+    pest management, variety trials, nutrient/water management,
+    cover crops, carbon sequestration, climate adaptation,
+    digital agriculture, economics.
+    """
+    service = get_grant_enhancement_service()
+    return service.get_research_areas()
+
+
+@app.get("/api/v1/grants/partner-types", tags=["Grant Enhancement"])
+async def get_partner_types(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get list of research partner types"""
+    service = get_grant_enhancement_service()
+    return service.get_partner_types()
+
+
+@app.post("/api/v1/grants/find-partners", tags=["Grant Enhancement"])
+async def find_partnership_opportunities(
+    data: PartnershipSearchRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Find matching research partnership opportunities.
+
+    Searches 13 partners (universities, extension, federal agencies,
+    nonprofits, industry, cooperatives) and scores matches based on
+    research area overlap, grant alignment, and location.
+    """
+    service = get_grant_enhancement_service()
+    return service.find_partnership_opportunities(
+        farm_capabilities=data.farm_capabilities,
+        target_grants=data.target_grants,
+        preferred_partner_types=data.preferred_partner_types,
+        state=data.state
+    )
+
+
+@app.get("/api/v1/grants/partners/{partner_name}", tags=["Grant Enhancement"])
+async def get_partner_details(
+    partner_name: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get detailed information about a specific research partner"""
+    service = get_grant_enhancement_service()
+    result = service.get_partner_details(partner_name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Partner '{partner_name}' not found")
+    return result
+
+
+@app.post("/api/v1/grants/partnership-report", tags=["Grant Enhancement"])
+async def generate_partnership_report(
+    data: PartnershipReportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Generate comprehensive partnership opportunity report.
+
+    Includes top opportunities, categorization by partner type and grant program,
+    outreach plan with immediate/short-term/ongoing actions.
+    """
+    service = get_grant_enhancement_service()
+    return service.generate_partnership_report(
+        farm_name=data.farm_name,
+        farm_capabilities=data.farm_capabilities,
+        target_grants=data.target_grants,
+        state=data.state
+    )
+
+
+@app.get("/api/v1/grants/partners", tags=["Grant Enhancement"])
+async def list_all_partners():
+    """Get list of all research partners in the database"""
+    return {
+        "partners": [
+            {
+                "name": p["name"],
+                "type": p["type"].value,
+                "location": p["location"],
+                "research_areas": [a.value for a in p["research_areas"]],
+                "grant_programs": p["grant_programs"],
+                "website": p["website"]
+            }
+            for p in RESEARCH_PARTNERS
+        ],
+        "total": len(RESEARCH_PARTNERS)
     }
 
 

@@ -4,7 +4,100 @@
 
 ---
 
-## Current Version: 3.5.0 (Released - December 29, 2025)
+## Current Version: 3.6.0 (Released - December 29, 2025)
+
+### Latest Session: December 29, 2025
+
+#### v3.6.0 - Grant Enhancement Suite
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Add advanced grant support features including economic impact analysis for precision ag investments, data quality tracking for grant readiness, and research partnership matching.
+
+**What Was Built:**
+
+1. **Grant Enhancement Service** (`backend/services/grant_enhancement_service.py` ~1100 lines)
+
+   - **Economic Impact Calculator:**
+     - 14 precision ag technologies tracked:
+       - GPS Guidance, AutoSteer/AutoTrac
+       - Planter Section Control, Sprayer Section Control
+       - Variable Rate Seeding, VR Fertilizer, VR Irrigation
+       - Yield Monitor, Grid Soil Sampling
+       - Drone Imagery, Satellite Imagery
+       - Telematics, Moisture Sensors, Weather Station
+     - Industry-validated benefit rates per technology
+     - Input savings, yield improvement, time savings calculations
+     - Single technology ROI analysis
+     - Portfolio ROI aggregation across multiple technologies
+     - Multi-year financial projections
+     - SBIR-ready narrative generation
+
+   - **Data Quality/Completeness Tracker:**
+     - 12 data categories tracked:
+       - Field boundaries, soil tests, yield data
+       - Planting/application/harvest records
+       - Weather, financial, equipment records
+       - Imagery, scouting, sustainability metrics
+     - Grant-specific requirements (USDA SBIR, SARE, CIG, EQIP, NSF SBIR)
+     - Required vs recommended vs nice-to-have categorization
+     - Completeness scoring with letter grades (A-F)
+     - Prioritized action items for gap filling
+     - Multi-grant readiness assessment
+
+   - **Partnership Opportunity Finder:**
+     - 13 research partners in database:
+       - Universities: LSU AgCenter, LSU Ag Econ, Southern University, U of Arkansas
+       - Extension: LA Cooperative Extension, MSU Extension
+       - Federal: USDA-ARS Southern Regional Research Center
+       - Nonprofits: Delta F.A.R.M., Sustainability Consortium, Field to Market
+       - Cooperatives: LA Farm Bureau, NCGA, United Soybean Board
+     - 12 research areas for matching
+     - Score-based matching algorithm
+     - Location-aware recommendations (Louisiana focus)
+     - Grant program alignment scoring
+     - Collaboration tips by partner type
+     - Outreach plan generation
+
+2. **API Endpoints** (17 new endpoints under `/api/v1/grants/`)
+   - Economic Impact:
+     - GET /technologies - Technology catalog
+     - POST /technologies/invest - Record investment
+     - POST /technologies/roi - Single tech ROI
+     - POST /technologies/portfolio-roi - Portfolio ROI
+     - POST /economic-impact-report - Full report
+   - Data Quality:
+     - GET /data-categories - Category list
+     - POST /data-availability - Record data
+     - GET /data-completeness/{program} - Assess by grant
+     - POST /data-quality-report - Full report
+   - Partnerships:
+     - GET /research-areas - Research area list
+     - GET /partner-types - Partner type list
+     - POST /find-partners - Search partners
+     - GET /partners/{name} - Partner details
+     - POST /partnership-report - Full report
+     - GET /partners - List all partners
+
+**Example Results:**
+- AutoSteer on 1,500 acres: **$31,688/year benefit**, 0.5 year payback, 956% ROI
+- Partnership matching found **13 potential partners** for precision ag + sustainability
+
+**Files Created:**
+- `backend/services/grant_enhancement_service.py`
+
+**Files Modified:**
+- `backend/main.py` - Added grant enhancement routes, updated to v3.6.0
+
+**Value for Grant Applications:**
+- Document precision ag ROI with SBIR-ready financial projections
+- Assess data completeness to identify gaps before applying
+- Find research partners aligned with your capabilities and target grants
+- Generate comprehensive reports for grant narratives
+
+---
+
+## Previous Version: 3.5.0 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
 
