@@ -33,6 +33,27 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, and complete decision support for corn and soybean production.
 
+**Version 3.4.0** adds **Field Trial & Research Tools** - Research-grade data management:
+- **Trial Management**: 7 trial types (variety, treatment, rate, timing, spacing, fertility, irrigation)
+- **Experimental Designs**: CRD, RCBD, split-plot, strip-plot, factorial support
+- **Plot Management**: GPS coordinates, treatment assignments, status tracking
+- **Statistical Analysis**: Treatment means, t-tests, LSD at 0.05/0.01 levels
+- **Research Export**: JSON format for publication and collaboration
+
+**Version 3.3.0** adds **Climate & Weather Integration** - Precision agriculture tools:
+- **GDD Tracking**: 8 crop types with crop-specific base temperatures
+- **Crop Stage Prediction**: Corn (14 stages) and soybean (9 stages) from GDD
+- **Precipitation Logging**: Daily amounts, type, intensity tracking
+- **Climate Analysis**: Annual summaries, multi-year trends, frost dates
+- **Heat/Cold Stress**: Days >90°F, >100°F, first/last frost monitoring
+
+**Version 3.2.0** adds **Sustainability Metrics Dashboard** - EPA/IPCC-compliant tracking:
+- **Carbon Footprint**: Per-acre CO2e calculations with emission factors
+- **Input Usage Tracking**: Pesticides, fertilizers, fuel, water consumption
+- **Carbon Sequestration**: Cover crops, no-till benefits quantified
+- **Sustainability Score**: Weighted composite with A-F grading
+- **14 Conservation Practices**: Documentation and tracking
+
 **Version 3.0.0** adds **AI/ML Intelligence Suite** - 5 new AI-powered features:
 - **Image-Based Pest/Disease ID**: Upload photos for instant AI identification with confidence scores
 - **Crop Health Scoring**: NDVI analysis from drone/satellite imagery with zone-based health maps
@@ -291,7 +312,7 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Cost Per Acre Tracking** with QuickBooks import (v2.7-2.9)
 - **Profitability Analysis** with break-even and ROI ranking (v2.8)
 - **AI/ML Intelligence** with 5 AI-powered features (v3.0)
-- **207 API Endpoints** covering complete farm operations
+- **274 API Endpoints** covering complete farm operations
 
 ### Example ROI
 
@@ -368,7 +389,10 @@ agtools/
 │       ├── crop_health_service.py    # Crop health scoring (v3.0)
 │       ├── yield_prediction_service.py # Yield prediction model (v3.0)
 │       ├── expense_categorization_service.py # Smart expense categorization (v3.0)
-│       └── spray_ai_service.py       # Weather-based spray AI (v3.0)
+│       ├── spray_ai_service.py       # Weather-based spray AI (v3.0)
+│       ├── sustainability_service.py # Sustainability metrics dashboard (v3.2)
+│       ├── climate_service.py        # Climate & weather integration (v3.3)
+│       └── research_service.py       # Field trial & research tools (v3.4)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -649,6 +673,51 @@ agtools/
 | `POST /api/v1/ai/spray/train` | Train spray AI model |
 | `GET /api/v1/ai/spray/model-status` | Spray model status |
 
+### Sustainability Metrics (NEW in v3.2)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/sustainability/inputs` | **List input usage records** |
+| `POST /api/v1/sustainability/inputs` | Record input usage |
+| `GET /api/v1/sustainability/inputs/summary` | Input usage summary |
+| `GET /api/v1/sustainability/carbon` | **Carbon footprint records** |
+| `POST /api/v1/sustainability/carbon` | Record carbon entry |
+| `GET /api/v1/sustainability/carbon/footprint` | Calculate total footprint |
+| `GET /api/v1/sustainability/practices` | **List conservation practices** |
+| `POST /api/v1/sustainability/practices` | Record practice adoption |
+| `GET /api/v1/sustainability/scorecard` | **Get sustainability scorecard (A-F)** |
+| `GET /api/v1/sustainability/trends` | Year-over-year trends |
+| `POST /api/v1/sustainability/export` | Export sustainability data |
+
+### Climate & Weather (NEW in v3.3)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/climate/gdd` | **GDD records for field** |
+| `POST /api/v1/climate/gdd` | Record daily GDD |
+| `GET /api/v1/climate/gdd/accumulated` | Get accumulated GDD |
+| `GET /api/v1/climate/gdd/crop-stage` | **Predict crop stage from GDD** |
+| `GET /api/v1/climate/precipitation` | Precipitation records |
+| `POST /api/v1/climate/precipitation` | Record precipitation |
+| `GET /api/v1/climate/precipitation/summary` | Precipitation summary |
+| `GET /api/v1/climate/summary` | **Annual climate summary** |
+| `GET /api/v1/climate/frost-dates` | First/last frost dates |
+| `GET /api/v1/climate/heat-stress` | Heat stress analysis |
+| `POST /api/v1/climate/fetch-weather` | Fetch from weather API |
+
+### Field Trials & Research (NEW in v3.4)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/research/trials` | **List research trials** |
+| `POST /api/v1/research/trials` | Create new trial |
+| `GET /api/v1/research/trials/{id}` | Get trial details |
+| `GET /api/v1/research/trials/{id}/treatments` | List treatments |
+| `POST /api/v1/research/trials/{id}/treatments` | Add treatment |
+| `GET /api/v1/research/trials/{id}/plots` | List plots |
+| `POST /api/v1/research/trials/{id}/plots` | Create plot |
+| `POST /api/v1/research/measurements` | **Record measurement** |
+| `GET /api/v1/research/trials/{id}/measurements` | Get measurements |
+| `GET /api/v1/research/trials/{id}/analysis` | **Statistical analysis** |
+| `POST /api/v1/research/trials/{id}/export` | Export trial data |
+
 Visit http://localhost:8000/docs for interactive API documentation.
 Visit http://localhost:8000/m/login for the mobile crew interface.
 
@@ -686,6 +755,19 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - Yield prediction model
   - Smart expense categorization
   - Weather-based spray AI
+- **Sustainability Metrics Dashboard** (v3.2):
+  - Carbon footprint tracking (EPA/IPCC emission factors)
+  - Input usage monitoring (pesticides, fertilizers, fuel)
+  - 14 conservation practices documentation
+  - Sustainability scorecard (A-F grade)
+- **Climate & Weather Integration** (v3.3):
+  - GDD tracking for 8 crops with stage prediction
+  - Precipitation logging and analysis
+  - Frost dates and heat stress monitoring
+- **Field Trial & Research Tools** (v3.4):
+  - 7 trial types with 5 experimental designs
+  - Statistical analysis (t-tests, LSD)
+  - Research-grade data export
 
 ### 🔄 In Progress
 1. Import 2025 QuickBooks data (waiting on export)
@@ -773,6 +855,9 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 3.4.0 | Dec 2025 | Field trial & research tools (statistical analysis) |
+| 3.3.0 | Dec 2025 | Climate & weather integration (GDD, precipitation) |
+| 3.2.0 | Dec 2025 | Sustainability metrics dashboard (carbon, practices) |
 | 3.0.0 | Dec 2025 | AI/ML Intelligence Suite (28 new AI endpoints) |
 | 2.9.0 | Dec 2025 | QuickBooks import with desktop UI |
 | 2.8.0 | Dec 2025 | Profitability analysis, break-even, ROI |

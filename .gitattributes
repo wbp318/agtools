@@ -133,3 +133,7 @@ backend/**/*.py linguist-detectable=true
 frontend/**/*.py linguist-detectable=true
 database/*.py linguist-detectable=true
 tests/*.py linguist-detectable=true
+
+# Documentation folder - don't count toward language stats
+docs/*.md linguist-documentation
+docs/**/*.md linguist-documentation

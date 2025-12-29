@@ -4,9 +4,180 @@
 
 ---
 
-## Current Version: 3.1.0 (Released - December 28, 2025)
+## Current Version: 3.4.0 (Released - December 28, 2025)
 
 ### Latest Session: December 28, 2025
+
+#### v3.4.0 - Field Trial & Research Tools
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Add research-grade field trial management with statistical analysis for agricultural research and grant applications.
+
+**What Was Built:**
+
+1. **Research Service** (`backend/services/research_service.py` ~1500 lines)
+   - **Trial Management:**
+     - 7 trial types: variety, treatment, rate, timing, spacing, fertility, irrigation
+     - 5 experimental designs: CRD, RCBD, split-plot, strip-plot, factorial
+     - Trial status tracking (planned, active, completed, cancelled)
+     - Trial metadata (year, location, crops)
+
+   - **Treatment & Plot Management:**
+     - Treatment definitions with rates, timing, descriptions
+     - Plot assignment with GPS coordinates
+     - Replicate and blocking support
+     - Status tracking per plot
+
+   - **Measurements & Data Collection:**
+     - 11 standard measurement types + custom
+     - Date-stamped observations
+     - Notes and metadata per measurement
+     - Batch data entry support
+
+   - **Statistical Analysis:**
+     - Treatment means with standard error
+     - Coefficient of variation (CV%)
+     - Pairwise t-tests with significance levels
+     - LSD at 0.05 and 0.01 levels
+     - Top performer identification
+     - Automated interpretation
+
+   - **Research Export:**
+     - JSON format for publication
+     - Complete trial data with analysis
+     - Collaboration-ready format
+
+2. **API Endpoints** (15 new endpoints under `/api/v1/research/`)
+   - Trial CRUD operations
+   - Treatment management
+   - Plot management
+   - Measurement recording
+   - Statistical analysis
+   - Data export
+
+**Files Created:**
+- `backend/services/research_service.py`
+
+**Files Modified:**
+- `backend/main.py` - Added research routes
+
+---
+
+#### v3.3.0 - Climate & Weather Integration
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Add comprehensive climate tracking with GDD calculations and crop stage predictions.
+
+**What Was Built:**
+
+1. **Climate Service** (`backend/services/climate_service.py` ~1000 lines)
+   - **GDD Tracking:**
+     - 8 crop types: corn, soybean, wheat, cotton, rice, sorghum, sunflower, canola
+     - Crop-specific base temperatures (50°F corn/soy, 40°F wheat, 60°F cotton)
+     - Daily GDD recording from min/max temps
+     - Accumulated GDD calculations
+
+   - **Crop Stage Prediction:**
+     - Corn: 14 growth stages from emergence (125 GDD) to maturity (2450 GDD)
+     - Soybean: 9 growth stages from emergence (130 GDD) to harvest (1800 GDD)
+     - Days to next stage estimates
+
+   - **Precipitation Tracking:**
+     - Daily amounts with type (rain, snow, ice, mixed)
+     - Intensity levels (light, moderate, heavy)
+     - Monthly and annual totals
+     - Above/below normal analysis
+
+   - **Climate Analysis:**
+     - Annual summaries with averages
+     - First/last frost date tracking
+     - Heat stress monitoring (days >90°F, >100°F)
+     - Multi-year trend comparisons
+
+2. **API Endpoints** (16 new endpoints under `/api/v1/climate/`)
+   - GDD recording and querying
+   - Crop stage predictions
+   - Precipitation logging
+   - Climate summaries
+   - Weather API integration
+
+**Files Created:**
+- `backend/services/climate_service.py`
+
+**Files Modified:**
+- `backend/main.py` - Added climate routes
+
+---
+
+#### v3.2.0 - Sustainability Metrics Dashboard
+
+**Status:** ✅ COMPLETE
+
+**Goal:** Add comprehensive sustainability tracking with EPA/IPCC-compliant carbon accounting.
+
+**What Was Built:**
+
+1. **Sustainability Service** (`backend/services/sustainability_service.py` ~1600 lines)
+   - **Input Usage Tracking:**
+     - Categories: pesticide, fertilizer, fuel, water, seed, electricity, custom
+     - Per-acre calculations with field allocation
+     - Cost tracking alongside usage
+
+   - **Carbon Footprint Calculations:**
+     - EPA/IPCC emission factors:
+       - Fuel: 10.21 kg CO2e/gallon diesel
+       - Nitrogen: 2.63 kg CO2e/lb N
+       - Phosphorus: 0.73 kg CO2e/lb P2O5
+       - Potassium: 0.58 kg CO2e/lb K2O
+       - Pesticides: 6.30 kg CO2e/lb active
+       - Electricity: 0.386 kg CO2e/kWh
+     - Per-acre and total farm footprint
+     - Year-over-year comparisons
+
+   - **Carbon Sequestration:**
+     - Cover crops: 0.5 tons CO2/acre
+     - No-till: 0.3 tons CO2/acre
+     - Reduced tillage: 0.15 tons CO2/acre
+     - Net carbon balance calculations
+
+   - **Conservation Practices (14 tracked):**
+     - Cover crops, no-till, reduced tillage
+     - Crop rotation, IPM, precision application
+     - Variable rate technology, buffer strips
+     - Waterway protection, pollinator habitat
+     - Organic practices, soil testing
+     - Nutrient management, irrigation efficiency
+
+   - **Sustainability Scorecard:**
+     - Weighted composite score
+     - A-F letter grading
+     - Category breakdowns
+     - Improvement recommendations
+
+2. **API Endpoints** (15 new endpoints under `/api/v1/sustainability/`)
+   - Input usage CRUD
+   - Carbon tracking
+   - Practice documentation
+   - Scorecard generation
+   - Trend analysis
+   - Data export
+
+**Files Created:**
+- `backend/services/sustainability_service.py`
+- `docs/GRANT_STRATEGY.md`
+- `docs/TECHNICAL_CAPABILITIES.md`
+- `docs/RESEARCH_IMPACT.md`
+
+**Files Modified:**
+- `backend/main.py` - Added sustainability routes
+
+---
+
+## Previous Version: 3.1.0 (Released - December 28, 2025)
+
+### Session: December 28, 2025
 
 #### v3.1.0 - Desktop Launcher & Bug Fixes
 

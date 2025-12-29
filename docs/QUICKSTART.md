@@ -40,6 +40,9 @@ Think of AgTools as your **digital agronomist** that:
 23. **Yield Prediction** (v3.0.0) - ML-based yield predictions using your field inputs and historical data
 24. **Smart Expense Categorization** (v3.0.0) - Auto-categorize expenses with 95%+ accuracy, learns from your corrections
 25. **Spray AI** (v3.0.0) - ML-enhanced spray timing that learns from your outcomes and improves over time
+26. **Sustainability Dashboard** (v3.2.0) - Track carbon footprint, input usage, and conservation practices with EPA/IPCC-compliant calculations
+27. **Climate Integration** (v3.3.0) - GDD tracking for 8 crops, crop stage prediction, precipitation logging, and heat stress monitoring
+28. **Field Trial Tools** (v3.4.0) - Research-grade trial management with statistical analysis (t-tests, LSD) for variety and treatment trials
 
 ---
 
