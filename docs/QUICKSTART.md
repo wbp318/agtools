@@ -47,6 +47,15 @@ Think of AgTools as your **digital agronomist** that:
 30. **Precision Intelligence** (v4.0.0) - AI-powered yield prediction, variable rate prescriptions, management zones, and decision support
 31. **Grain & Storage Management** (v4.1.0) - Bin management, drying cost calculator, grain accounting, and basis price alerts
 32. **Complete Farm Business Suite** (v4.2.0) - Tax planning with MACRS depreciation, succession planning, benchmarking dashboard, and document vault
+33. **GenFin Financial Management** (v6.0.0) - Complete farm accounting system:
+    - **Chart of Accounts**: 60+ farm-specific accounts with double-entry accounting
+    - **Accounts Payable**: Vendors, bills, payments, purchase orders, 1099 tracking
+    - **Accounts Receivable**: Customers, invoices, estimates, payments, statements
+    - **CHECK PRINTING**: Multiple formats with MICR support - print checks directly!
+    - **ACH/Direct Deposit**: Generate NACHA files for payroll and vendor payments
+    - **Payroll**: Employee management with automatic tax calculations
+    - **Financial Reports**: Profit & Loss, Balance Sheet, Cash Flow, Ratios
+    - **Budgeting**: Budget vs. actual, forecasting, scenario planning
 
 ---
 

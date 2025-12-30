@@ -166,6 +166,61 @@ AgTools is a professional-grade agricultural decision support system combining 3
 | Issue Detection | Water stress, nutrient deficiency, pest damage |
 | Trend Tracking | Historical assessments over time |
 
+### 8. GenFin Financial Management System
+
+**Technology:** Complete double-entry accounting with farm focus
+
+| Feature | Specification |
+|---------|---------------|
+| Chart of Accounts | 60+ pre-configured farm accounts |
+| Account Types | Assets, Liabilities, Equity, Revenue, COGS, Expenses |
+| Journal Entries | Double-entry with debit/credit validation |
+| Fiscal Management | Year-end close, retained earnings |
+
+**Accounts Payable:**
+- Vendor management with 1099 tracking
+- Bills, payments, purchase orders
+- AP aging (current through 90+ days)
+- 1099-MISC and 1099-NEC preparation
+
+**Accounts Receivable:**
+- Customer management with credit terms
+- Invoices, estimates, sales receipts
+- Payment receipts with application
+- AR aging and customer statements
+
+**Banking & Payments:**
+| Feature | Specification |
+|---------|---------------|
+| Bank Accounts | Checking, savings, credit card, LOC |
+| Check Printing | 7 formats including QuickBooks compatible |
+| MICR Support | Bank-ready check formatting |
+| ACH/Direct Deposit | NACHA file generation |
+| Reconciliation | Statement matching, outstanding items |
+
+**Payroll:**
+| Tax Type | Calculation |
+|----------|-------------|
+| Federal Income | 2024 tax brackets by filing status |
+| Social Security | 6.2% up to $168,600 wage base |
+| Medicare | 1.45% + 0.9% additional over $200k |
+| FUTA | 6.0% with 5.4% credit |
+| SUTA | State-configurable rates |
+
+**Financial Reports:**
+- Profit & Loss with period comparison
+- Balance Sheet with Assets = L + E validation
+- Cash Flow Statement (operating, investing, financing)
+- Financial Ratios (liquidity, profitability, leverage)
+- General Ledger detail reports
+
+**Budgeting & Forecasting:**
+- Annual, quarterly, monthly budgets
+- Budget vs. actual variance analysis
+- Financial forecasting (trend, average, seasonal)
+- Scenario planning (what-if analysis)
+- Cash flow projections
+
 ---
 
 ## Data Architecture
@@ -194,7 +249,7 @@ Primary Tables:
 - **Framework:** FastAPI (Python)
 - **Authentication:** JWT token-based
 - **Documentation:** OpenAPI/Swagger
-- **Endpoints:** 274+ RESTful APIs
+- **Endpoints:** 390+ RESTful APIs
 
 ### Data Export Formats
 
@@ -279,6 +334,11 @@ Primary Tables:
 
 | Version | Release | Key Features |
 |---------|---------|--------------|
+| 6.0.0 | Dec 2025 | GenFin financial management (accounting, check printing, ACH, payroll) |
+| 4.2.0 | Dec 2025 | Complete farm business suite |
+| 4.1.0 | Dec 2025 | Grain & storage management |
+| 4.0.0 | Dec 2025 | Precision intelligence suite |
+| 3.9.0 | Dec 2025 | Enterprise operations suite |
 | 3.4.0 | Dec 2025 | Field trial & research tools |
 | 3.3.0 | Dec 2025 | Climate & weather integration |
 | 3.2.0 | Dec 2025 | Sustainability metrics dashboard |

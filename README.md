@@ -31,7 +31,17 @@ We offer commercial licensing options:
 
 ## 🌾 Overview
 
-**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, and complete decision support for corn and soybean production.
+**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, and complete decision support for corn and soybean production.
+
+**Version 6.0.0** adds **GenFin Suite** - Complete Farm Financial Management System:
+- **Chart of Accounts**: 60+ farm-specific accounts with double-entry accounting
+- **Accounts Payable**: Vendors, bills, payments, purchase orders, 1099 tracking
+- **Accounts Receivable**: Customers, invoices, estimates, payments, statements
+- **CHECK PRINTING**: Multiple formats with MICR support (replaces gcformer!)
+- **ACH/Direct Deposit**: NACHA file generation for payroll and vendor payments
+- **Payroll**: Employees, time tracking, tax calculations (Federal, FICA, FUTA, SUTA)
+- **Financial Reports**: P&L, Balance Sheet, Cash Flow, Financial Ratios
+- **Budgeting**: Budget vs. actual, forecasting, scenario planning
 
 **Version 4.2.0** adds **Complete Farm Business Suite** - Comprehensive business management:
 - **Tax Planning Tools**: MACRS depreciation schedules, Section 179 optimization, tax liability projections
@@ -340,7 +350,8 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Precision Intelligence** with yield prediction, VR prescriptions (v4.0)
 - **Grain Management** with bins, drying, accounting (v4.1)
 - **Farm Business Suite** with tax planning, succession, benchmarking (v4.2)
-- **300+ API Endpoints** covering complete farm operations
+- **GenFin Financial Suite** with full accounting, check printing, ACH, payroll (v6.0)
+- **390+ API Endpoints** covering complete farm operations
 
 ### Example ROI
 
@@ -368,7 +379,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v4.2 - 10,000+ lines, 300+ endpoints)
+│   ├── main.py                       # FastAPI application (v6.0 - 11,000+ lines, 390+ endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   ├── mobile/                       # Mobile crew interface (NEW v2.6)
 │   │   ├── __init__.py               # Mobile module exports
@@ -425,7 +436,14 @@ agtools/
 │       ├── enterprise_operations_service.py # Enterprise operations (v3.9)
 │       ├── precision_intelligence_service.py # Precision agriculture AI (v4.0)
 │       ├── grain_storage_service.py  # Grain & storage management (v4.1)
-│       └── farm_business_service.py  # Complete farm business (v4.2)
+│       ├── farm_business_service.py  # Complete farm business (v4.2)
+│       ├── genfin_core_service.py    # Chart of accounts, GL, journal entries (v6.0)
+│       ├── genfin_payables_service.py # Vendors, bills, payments, POs (v6.0)
+│       ├── genfin_receivables_service.py # Customers, invoices, payments (v6.0)
+│       ├── genfin_banking_service.py # Bank accounts, CHECK PRINTING, ACH (v6.0)
+│       ├── genfin_payroll_service.py # Employees, pay runs, taxes (v6.0)
+│       ├── genfin_reports_service.py # P&L, Balance Sheet, Cash Flow (v6.0)
+│       └── genfin_budget_service.py  # Budgets, forecasting, scenarios (v6.0)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -751,6 +769,40 @@ agtools/
 | `GET /api/v1/research/trials/{id}/analysis` | **Statistical analysis** |
 | `POST /api/v1/research/trials/{id}/export` | Export trial data |
 
+### GenFin Financial Management (NEW in v6.0)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/genfin/accounts` | **Chart of accounts** |
+| `POST /api/v1/genfin/journal-entries` | Create journal entries |
+| `GET /api/v1/genfin/trial-balance` | Trial balance report |
+| `GET /api/v1/genfin/vendors` | **List vendors** |
+| `POST /api/v1/genfin/bills` | Create bills |
+| `POST /api/v1/genfin/bill-payments` | Record bill payments |
+| `GET /api/v1/genfin/ap-aging` | AP aging report |
+| `GET /api/v1/genfin/1099-summary` | 1099 preparation |
+| `GET /api/v1/genfin/customers` | **List customers** |
+| `POST /api/v1/genfin/invoices` | Create invoices |
+| `POST /api/v1/genfin/payment-receipts` | Record customer payments |
+| `GET /api/v1/genfin/ar-aging` | AR aging report |
+| `GET /api/v1/genfin/customer-statement` | Customer statements |
+| `GET /api/v1/genfin/bank-accounts` | **Bank accounts** |
+| `POST /api/v1/genfin/print-check` | **PRINT CHECK** |
+| `POST /api/v1/genfin/print-checks-batch` | **BATCH CHECK PRINTING** |
+| `POST /api/v1/genfin/generate-nacha` | **GENERATE ACH/NACHA FILE** |
+| `POST /api/v1/genfin/reconciliation` | Bank reconciliation |
+| `GET /api/v1/genfin/employees` | **Employee management** |
+| `POST /api/v1/genfin/pay-runs` | Process payroll |
+| `POST /api/v1/genfin/calculate-payroll` | Calculate pay with taxes |
+| `GET /api/v1/genfin/reports/profit-loss` | **Profit & Loss statement** |
+| `GET /api/v1/genfin/reports/balance-sheet` | **Balance sheet** |
+| `GET /api/v1/genfin/reports/cash-flow` | **Cash flow statement** |
+| `GET /api/v1/genfin/reports/financial-ratios` | Financial ratios |
+| `GET /api/v1/genfin/budgets` | **Budget management** |
+| `GET /api/v1/genfin/budgets/vs-actual` | Budget vs. actual |
+| `POST /api/v1/genfin/forecasts/project` | Financial forecasting |
+| `POST /api/v1/genfin/scenarios/compare` | Scenario comparison |
+| `GET /api/v1/genfin/cash-projection` | Cash flow projection |
+
 Visit http://localhost:8000/docs for interactive API documentation.
 Visit http://localhost:8000/m/login for the mobile crew interface.
 
@@ -759,6 +811,7 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 - **CHANGELOG.md** - Development changelog (reference at start of new sessions)
 - **QUICKSTART.md** - Get running in 5 minutes with farmer-friendly guide
 - **PROFESSIONAL_SYSTEM_GUIDE.md** - Complete system documentation
+- **docs/GENFIN.md** - GenFin financial management system guide (NEW v6.0)
 - **SMOKE_TEST_RESULTS.md** - Latest test results (29/29 passing)
 - **database/seed_data.py** - View pest/disease knowledge base
 - **database/chemical_database.py** - View product library
@@ -828,6 +881,15 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - Succession planning (family, transfers, milestones)
   - Benchmarking dashboard (regional, YoY comparison)
   - Document vault (centralized storage, expiration)
+- **GenFin Financial Management Suite** (v6.0):
+  - Chart of accounts (60+ farm accounts)
+  - Accounts payable (vendors, bills, POs, 1099s)
+  - Accounts receivable (customers, invoices, statements)
+  - CHECK PRINTING with MICR (replaces gcformer!)
+  - ACH/Direct Deposit (NACHA file generation)
+  - Payroll (employees, tax calculations)
+  - Financial reports (P&L, Balance Sheet, Cash Flow)
+  - Budgeting & forecasting (scenarios, projections)
 
 ### 🔄 In Progress
 1. Import 2025 QuickBooks data (waiting on export)
@@ -915,6 +977,7 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 6.0.0 | Dec 2025 | **GenFin Suite** (full accounting, check printing, ACH, payroll, financial reports) |
 | 4.2.0 | Dec 2025 | **Complete Farm Business Suite** (tax planning, succession, benchmarking, documents) |
 | 4.1.0 | Dec 2025 | **Grain & Storage Suite** (bins, drying, accounting, basis alerts) |
 | 4.0.0 | Dec 2025 | **Precision Intelligence Suite** (yield prediction, zones, prescriptions, AI decisions) |

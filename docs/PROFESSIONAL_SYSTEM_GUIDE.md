@@ -73,6 +73,15 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Succession Planning**: Family members, asset transfers, milestones
     - **Benchmarking Dashboard**: Regional comparison, year-over-year trends
     - **Document Vault**: Centralized storage with expiration tracking
+22. **GenFin Financial Management Suite (v6.0.0)**: Complete farm accounting:
+    - **Chart of Accounts**: 60+ farm-specific accounts with double-entry
+    - **Accounts Payable**: Vendors, bills, payments, POs, 1099 tracking
+    - **Accounts Receivable**: Customers, invoices, estimates, statements
+    - **CHECK PRINTING**: Multiple formats with MICR (replaces gcformer!)
+    - **ACH/Direct Deposit**: NACHA file generation for payroll/vendors
+    - **Payroll**: Employees, time, tax calculations (Federal, FICA, FUTA)
+    - **Financial Reports**: P&L, Balance Sheet, Cash Flow, Ratios
+    - **Budgeting**: Budget vs. actual, forecasting, scenarios
 
 ---
 
@@ -86,7 +95,7 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application (v3.0 - 5000+ lines, 207 endpoints)
+│   ├── main.py                             # FastAPI application (v6.0 - 11,000+ lines, 390+ endpoints)
 │   ├── requirements.txt                    # Backend dependencies
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
@@ -126,7 +135,14 @@ agtools/
 │       ├── enterprise_operations_service.py # Enterprise operations (v3.9)
 │       ├── precision_intelligence_service.py # Precision agriculture (v4.0)
 │       ├── grain_storage_service.py        # Grain & storage management (v4.1)
-│       └── farm_business_service.py        # Complete farm business (v4.2)
+│       ├── farm_business_service.py        # Complete farm business (v4.2)
+│       ├── genfin_core_service.py          # Chart of accounts, GL, journal entries (v6.0)
+│       ├── genfin_payables_service.py      # Vendors, bills, payments, POs (v6.0)
+│       ├── genfin_receivables_service.py   # Customers, invoices, payments (v6.0)
+│       ├── genfin_banking_service.py       # Bank accounts, CHECK PRINTING, ACH (v6.0)
+│       ├── genfin_payroll_service.py       # Employees, pay runs, taxes (v6.0)
+│       ├── genfin_reports_service.py       # P&L, Balance Sheet, Cash Flow (v6.0)
+│       └── genfin_budget_service.py        # Budgets, forecasting, scenarios (v6.0)
 │   ├── middleware/
 │   │   └── auth_middleware.py              # Protected routes (v2.5)
 │   ├── mobile/                             # Mobile Web Interface (v2.6)
