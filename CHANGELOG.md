@@ -4,9 +4,65 @@
 
 ---
 
-## Current Version: 6.3.0 (Released - December 29, 2025)
+## Current Version: 6.3.1 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
+
+#### v6.3.1 - GenFin 90s QuickBooks UI
+
+**Status:** COMPLETE - Retro UI Added
+
+**Goal:** Create a nostalgic 90s QuickBooks-style interface for GenFin with teal blue theme.
+
+**What Was Built:**
+
+1. **GenFin 90s Theme** (`frontend/ui/genfin_styles.py` ~600 lines)
+
+   - **Teal Blue Color Palette:**
+     - Primary: #008080 (classic teal)
+     - Dark: #004D4D, Light: #20B2AA, Bright: #40E0D0
+
+   - **90s Aesthetic:**
+     - Beveled 3D buttons with highlight/shadow edges
+     - Gradient title bars
+     - Windows 95/98 panel borders (outset/inset)
+     - Sunken input fields
+     - Classic scrollbars with arrow buttons
+     - MS Sans Serif / Tahoma fonts
+
+2. **GenFin Screen** (`frontend/ui/screens/genfin.py` ~800 lines)
+
+   - **Home Screen:**
+     - Classic QuickBooks icon grid (20 module buttons)
+     - Quick stats bar (Cash Balance, A/R, A/P, Net Income)
+
+   - **Navigation Sidebar:**
+     - Dark teal with section headers
+     - Money In, Money Out, Banking, Payroll, Reports
+
+   - **List Screens:**
+     - Customers, Vendors, Chart of Accounts
+     - Invoices, Bills, Payroll, Employees
+     - Reports, 1099 Forms
+
+   - **Components:**
+     - 3D beveled toolbar (New, Edit, Delete, Print, Help)
+     - Gradient title bar with logo
+     - Status bar with date and company panels
+
+3. **Integration:**
+   - Added "Accounting" section to sidebar
+   - GenFin accessible via sidebar navigation
+
+**Files Added:**
+- `frontend/ui/genfin_styles.py` (new)
+- `frontend/ui/screens/genfin.py` (new)
+
+**Files Modified:**
+- `frontend/ui/sidebar.py` (added GenFin nav)
+- `frontend/ui/main_window.py` (integrated screen)
+
+---
 
 #### v6.3.0 - Payroll, Multi-Entity, Budgets, 1099 Tracking
 
