@@ -5,6 +5,7 @@ Provides dependency injection for protected routes.
 AgTools v2.5.0
 """
 
+import os
 from typing import Optional, List
 from functools import wraps
 
@@ -19,6 +20,10 @@ from services.auth_service import (
     get_auth_service
 )
 from services.user_service import UserService, UserResponse, get_user_service
+
+# Enable dev mode for local desktop app - no auth required
+# Set AGTOOLS_DEV_MODE=1 to enable
+DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "1") == "1"
 
 
 # ============================================================================
@@ -117,16 +122,29 @@ async def get_current_user(
 
 async def get_current_active_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> AuthenticatedUser:
     """
     Get current active user - raises 401 if not authenticated.
+    In DEV_MODE, returns a default dev user for local desktop use.
 
     Usage:
         @app.get("/protected")
         async def protected_route(user: AuthenticatedUser = Depends(get_current_active_user)):
             return {"user": user.username}
     """
+    # In dev mode, return a dev user for local desktop app
+    if DEV_MODE and not credentials:
+        return AuthenticatedUser(
+            id=1,
+            username="dev_user",
+            email="dev@agtools.local",
+            first_name="Dev",
+            last_name="User",
+            role=UserRole.ADMIN,
+            is_active=True
+        )
+
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

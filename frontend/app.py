@@ -4,6 +4,7 @@ AgTools Application
 PyQt6 application setup and initialization with login flow.
 """
 
+import os
 import sys
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
@@ -14,6 +15,10 @@ from ui.main_window import MainWindow
 from ui.screens.login import LoginScreen
 from api.auth_api import UserInfo, get_auth_api
 from api.client import get_api_client
+
+# Enable dev mode for local desktop app - skip login
+# Set AGTOOLS_DEV_MODE=0 to disable
+DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "1") == "1"
 
 
 class AgToolsApp(QApplication):
@@ -51,6 +56,23 @@ class AgToolsApp(QApplication):
         Returns:
             Exit code from application execution
         """
+        # Dev mode - skip login and use dev user
+        if DEV_MODE:
+            self._current_user = UserInfo(
+                id=1,
+                username="dev_user",
+                email="dev@agtools.local",
+                first_name="Dev",
+                last_name="User",
+                phone=None,
+                role="admin",
+                is_active=True,
+                created_at=None,
+                last_login=None
+            )
+            self._show_main_window()
+            return self.exec()
+
         # Check for existing valid token
         saved_token = self._settings.get("auth_token", "")
         if saved_token:
@@ -99,6 +121,10 @@ class AgToolsApp(QApplication):
 
     def _on_main_window_closed(self) -> None:
         """Handle main window closed (logout or exit)."""
+        # In dev mode, just quit the app on window close
+        if DEV_MODE:
+            return
+
         # Check if we should show login again
         saved_token = self._settings.get("auth_token", "")
         if not saved_token:

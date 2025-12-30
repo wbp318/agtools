@@ -8,6 +8,136 @@
 
 ### Latest Session: December 30, 2025
 
+---
+
+## ROADMAP: Upcoming Features
+
+### v7.0.0 - Windows 95/98 Retro Theme Overhaul
+
+**Status:** PLANNED
+
+**Goal:** Transform the entire AgTools application to a nostalgic Windows 95/98 style interface with classic Excel green theme, while keeping GenFin's teal QuickBooks-style theme.
+
+**Theme Specifications:**
+
+1. **AgTools Main Theme (Excel 97 Green)**
+   - Primary: #217346 (Excel green)
+   - Secondary: #1E5E3A (dark green)
+   - Light: #2E8B57 (sea green)
+   - Accent: #3CB371 (medium sea green)
+   - Window Face: #C0C0C0 (classic silver)
+   - Background: #D4D0C8 (Windows 98 gray)
+
+2. **Visual Style Elements:**
+   - Beveled 3D buttons with raised/sunken states
+   - Classic Windows 95/98 title bars with gradient
+   - Chunky toolbar icons with text labels
+   - MS Sans Serif / Tahoma fonts
+   - Classic scrollbars with 3D arrows
+   - Sunken input fields with white backgrounds
+   - Menu bars with underlined accelerator keys
+   - Status bars with sunken panels
+
+3. **Screens to Update:**
+   - Dashboard (Excel-style grid cards)
+   - Field Management
+   - Equipment Management
+   - Inventory Management
+   - Task Management
+   - Crew Management
+   - Operations Log
+   - Maintenance Schedule
+   - Reports Dashboard
+   - Livestock Management
+   - Seed & Planting
+   - Settings
+   - All dialogs and forms
+
+4. **Keep Separate:**
+   - GenFin Accounting - Keep teal QuickBooks 90s theme
+   - GenFin should feel like a separate embedded app
+
+5. **UI Components to Create:**
+   - `frontend/ui/retro_styles.py` - Excel green theme colors and stylesheet
+   - `frontend/ui/retro_widgets.py` - Reusable 95/98 style widgets
+   - Update all screens to use retro styling
+
+**Files to Create:**
+- `frontend/ui/retro_styles.py` (new)
+- `frontend/ui/retro_widgets.py` (new)
+
+**Files to Modify:**
+- `frontend/ui/styles.py` - Add retro theme option
+- `frontend/ui/sidebar.py` - Retro sidebar styling
+- `frontend/ui/main_window.py` - Retro window chrome
+- All screen files - Apply retro styling
+
+---
+
+### v6.5.0 - GenFin Complete Frontend
+
+**Status:** MOSTLY COMPLETE - 18 of 23 screens built (78%)
+
+**Goal:** Build complete frontend screens for all GenFin backend features to achieve 100% QuickBooks Desktop parity.
+
+**Screens Status (December 30, 2025 Update):**
+
+| Screen | Backend Ready | Frontend Status |
+|--------|--------------|-----------------|
+| Employees | ✅ Yes | ✅ Complete with dialog |
+| Customers | ✅ Yes | ✅ Complete with dialog |
+| Vendors | ✅ Yes | ✅ Complete with dialog |
+| Invoices | ✅ Yes | ✅ Complete with dialog |
+| Bills | ✅ Yes | ✅ Complete with dialog |
+| Chart of Accounts | ✅ Yes | ✅ Complete |
+| **Receive Payments** | ✅ Yes | ✅ **NEW** Complete with dialog |
+| **Pay Bills** | ✅ Yes | ✅ **NEW** Complete with dialog |
+| **Write Checks** | ✅ Yes | ✅ **NEW** Complete with check-style dialog |
+| **Make Deposits** | ✅ Yes | ✅ **NEW** Complete with dialog |
+| Bank Reconciliation | ✅ Yes | 🔄 Placeholder |
+| **Journal Entries** | ✅ Yes | ✅ **NEW** Complete with balanced debit/credit |
+| **Estimates** | ✅ Yes | ✅ **NEW** Complete with line items |
+| **Purchase Orders** | ✅ Yes | ✅ **NEW** Complete with line items |
+| **Sales Receipts** | ✅ Yes | ✅ **NEW** Complete with dialog |
+| **Time Tracking** | ✅ Yes | ✅ **NEW** Complete with billable hours |
+| **Inventory/Items** | ✅ Yes | ✅ **NEW** Complete with full item dialog |
+| Fixed Assets | ✅ Yes | 🔄 Placeholder |
+| Recurring Trans. | ✅ Yes | 🔄 Placeholder |
+| Bank Feeds Import | ✅ Yes | 🔄 Placeholder |
+| Multi-Entity | ✅ Yes | 🔄 Placeholder |
+| 1099 Forms | ✅ Yes | ✅ Basic list done |
+| Budget | ✅ Yes | 🔄 Placeholder |
+| Full Reports (50+) | ✅ Yes | ✅ Report catalog complete |
+| Payroll | ✅ Yes | ✅ Basic list done |
+
+**New Dialogs Added (Dec 30):**
+- `ReceivePaymentDialog` - Full customer payment with invoice application
+- `PayBillsDialog` - Multi-bill selection with amounts
+- `WriteCheckDialog` - Check-style layout with expense allocation
+- `MakeDepositDialog` - Undeposited funds + other deposits
+- `JournalEntryDialog` - Balanced debit/credit entry with validation
+- `EstimateDialog` - Line items with auto-total calculation
+- `PurchaseOrderDialog` - Vendor PO with ship-to options
+- `SalesReceiptDialog` - Point-of-sale receipt creation
+- `TimeEntryDialog` - Billable time tracking
+- `InventoryItemDialog` - Full inventory/service item management
+
+**File Stats:**
+- `genfin.py` now **4,693 lines** (was ~2,000)
+- 10 new dialog classes
+- 5 new screen classes
+- Full QuickBooks-style CRUD workflows
+
+**UI Enhancements:**
+- [x] Keyboard shortcut legend (F1)
+- [x] Working toolbar shortcuts (+, E, X, R, P, ?)
+- [x] Back/Forward navigation (Alt+Left/Right, Backspace)
+- [x] All icon letter shortcuts working (36 shortcuts)
+- [ ] Print previews for checks, invoices, reports
+- [ ] Import/Export dialogs
+
+---
+
 #### Documentation Update (December 30, 2025)
 
 All documentation updated for v6.3.x and v6.4.0 features:

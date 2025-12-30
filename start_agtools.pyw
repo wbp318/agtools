@@ -52,6 +52,7 @@ def start_backend():
 
     env = os.environ.copy()
     env['PYTHONPATH'] = BACKEND_DIR
+    env['AGTOOLS_DEV_MODE'] = '1'  # Enable dev mode for local desktop
 
     # Start uvicorn in background (no window on Windows)
     startupinfo = None
