@@ -398,7 +398,7 @@ from mobile import mobile_router, configure_templates
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system with recurring transactions, bank feeds, and fixed assets",
-    version="6.2.0",
+    version="6.3.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -14683,6 +14683,326 @@ async def get_asset_register_report(
     if as_of_date is None:
         as_of_date = date.today().isoformat()
     return genfin_fixed_assets_service.get_asset_register(as_of_date)
+
+
+# ============================================================================
+# GENFIN v6.3.0 - MULTI-ENTITY ENDPOINTS
+# ============================================================================
+
+from services.genfin_entity_service import get_entity_service, EntityCreate, EntityType
+
+genfin_entity_service = get_entity_service()
+
+@app.get("/api/v1/genfin/entities/summary", tags=["GenFin Entities"])
+async def get_entity_service_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get multi-entity service summary"""
+    return genfin_entity_service.get_service_summary()
+
+@app.get("/api/v1/genfin/entities", tags=["GenFin Entities"])
+async def list_entities(
+    active_only: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all business entities"""
+    return genfin_entity_service.list_entities(active_only)
+
+@app.post("/api/v1/genfin/entities", tags=["GenFin Entities"])
+async def create_entity(
+    name: str,
+    entity_type: str = "farm",
+    legal_name: Optional[str] = None,
+    tax_id: Optional[str] = None,
+    state_of_formation: Optional[str] = None,
+    address_line1: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    zip_code: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new business entity"""
+    data = EntityCreate(
+        name=name,
+        legal_name=legal_name,
+        entity_type=EntityType(entity_type),
+        tax_id=tax_id,
+        state_of_formation=state_of_formation,
+        address_line1=address_line1,
+        city=city,
+        state=state,
+        zip_code=zip_code
+    )
+    entity, error = genfin_entity_service.create_entity(data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return entity
+
+@app.get("/api/v1/genfin/entities/{entity_id}", tags=["GenFin Entities"])
+async def get_entity(
+    entity_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get entity by ID"""
+    entity = genfin_entity_service.get_entity(entity_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return entity
+
+@app.put("/api/v1/genfin/entities/{entity_id}", tags=["GenFin Entities"])
+async def update_entity(
+    entity_id: int,
+    name: Optional[str] = None,
+    legal_name: Optional[str] = None,
+    tax_id: Optional[str] = None,
+    address_line1: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    zip_code: Optional[str] = None,
+    status: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update an entity"""
+    kwargs = {k: v for k, v in {
+        'name': name, 'legal_name': legal_name, 'tax_id': tax_id,
+        'address_line1': address_line1, 'city': city, 'state': state,
+        'zip_code': zip_code, 'status': status
+    }.items() if v is not None}
+
+    entity, error = genfin_entity_service.update_entity(entity_id, **kwargs)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return entity
+
+@app.post("/api/v1/genfin/entities/{entity_id}/set-default", tags=["GenFin Entities"])
+async def set_default_entity(
+    entity_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Set an entity as the default"""
+    success, error = genfin_entity_service.set_default_entity(entity_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"message": "Default entity updated"}
+
+@app.post("/api/v1/genfin/entities/transfer", tags=["GenFin Entities"])
+async def create_inter_entity_transfer(
+    from_entity_id: int,
+    to_entity_id: int,
+    amount: float,
+    description: str,
+    transfer_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a transfer between entities"""
+    from services.genfin_entity_service import InterEntityTransfer
+    from datetime import date as dt_date
+
+    data = InterEntityTransfer(
+        from_entity_id=from_entity_id,
+        to_entity_id=to_entity_id,
+        amount=amount,
+        description=description,
+        transfer_date=dt_date.fromisoformat(transfer_date) if transfer_date else dt_date.today()
+    )
+    transfer, error = genfin_entity_service.create_inter_entity_transfer(data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return transfer
+
+@app.get("/api/v1/genfin/entities/transfers", tags=["GenFin Entities"])
+async def list_inter_entity_transfers(
+    entity_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List inter-entity transfers"""
+    from datetime import date as dt_date
+    return genfin_entity_service.get_inter_entity_transfers(
+        entity_id=entity_id,
+        start_date=dt_date.fromisoformat(start_date) if start_date else None,
+        end_date=dt_date.fromisoformat(end_date) if end_date else None
+    )
+
+@app.get("/api/v1/genfin/entities/consolidated", tags=["GenFin Entities"])
+async def get_consolidated_summary(
+    entity_ids: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get consolidated financial summary across entities"""
+    ids = [int(x) for x in entity_ids.split(",")] if entity_ids else None
+    return genfin_entity_service.get_consolidated_summary(ids)
+
+
+# ============================================================================
+# GENFIN v6.3.0 - 1099 TRACKING ENDPOINTS
+# ============================================================================
+
+from services.genfin_1099_service import get_1099_service, Form1099Type
+
+genfin_1099_service = get_1099_service()
+
+@app.get("/api/v1/genfin/1099/summary", tags=["GenFin 1099"])
+async def get_1099_service_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get 1099 tracking service summary"""
+    return genfin_1099_service.get_service_summary()
+
+@app.get("/api/v1/genfin/1099/year/{tax_year}", tags=["GenFin 1099"])
+async def get_1099_year_summary(
+    tax_year: int,
+    entity_id: int = 1,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get 1099 summary for a tax year"""
+    return genfin_1099_service.get_1099_summary(tax_year, entity_id)
+
+@app.post("/api/v1/genfin/1099/payments", tags=["GenFin 1099"])
+async def record_1099_payment(
+    vendor_id: str,
+    amount: float,
+    payment_date: str,
+    form_type: str = "1099-NEC",
+    box_number: int = 1,
+    payment_id: Optional[str] = None,
+    description: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a payment for 1099 tracking"""
+    from datetime import date as dt_date
+
+    record_id, error = genfin_1099_service.record_1099_payment(
+        vendor_id=vendor_id,
+        amount=amount,
+        payment_date=dt_date.fromisoformat(payment_date),
+        form_type=Form1099Type(form_type),
+        box_number=box_number,
+        payment_id=payment_id,
+        description=description
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"payment_record_id": record_id}
+
+@app.get("/api/v1/genfin/1099/payments/{vendor_id}/{tax_year}", tags=["GenFin 1099"])
+async def get_vendor_1099_payments(
+    vendor_id: str,
+    tax_year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all 1099 payments for a vendor"""
+    return genfin_1099_service.get_vendor_1099_payments(vendor_id, tax_year)
+
+@app.post("/api/v1/genfin/1099/generate", tags=["GenFin 1099"])
+async def generate_1099_forms(
+    tax_year: int,
+    entity_id: int = 1,
+    vendor_ids: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate 1099 forms from payment records"""
+    ids = vendor_ids.split(",") if vendor_ids else None
+    form_ids, error = genfin_1099_service.generate_1099_forms(tax_year, entity_id, ids)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"forms_generated": len(form_ids), "form_ids": form_ids}
+
+@app.get("/api/v1/genfin/1099/forms", tags=["GenFin 1099"])
+async def list_1099_forms(
+    tax_year: int,
+    entity_id: int = 1,
+    form_type: Optional[str] = None,
+    status: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List 1099 forms"""
+    from services.genfin_1099_service import Form1099Status
+    return genfin_1099_service.list_1099_forms(
+        tax_year=tax_year,
+        entity_id=entity_id,
+        form_type=Form1099Type(form_type) if form_type else None,
+        status=Form1099Status(status) if status else None
+    )
+
+@app.get("/api/v1/genfin/1099/forms/{form_id}", tags=["GenFin 1099"])
+async def get_1099_form(
+    form_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a specific 1099 form"""
+    form = genfin_1099_service.get_1099_form(form_id)
+    if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return form
+
+@app.put("/api/v1/genfin/1099/forms/{form_id}", tags=["GenFin 1099"])
+async def update_1099_form(
+    form_id: int,
+    vendor_name: Optional[str] = None,
+    tax_id: Optional[str] = None,
+    address_line1: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    zip_code: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a 1099 form"""
+    form, error = genfin_1099_service.update_1099_form(
+        form_id=form_id,
+        vendor_name=vendor_name,
+        tax_id=tax_id,
+        address_line1=address_line1,
+        city=city,
+        state=state,
+        zip_code=zip_code
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return form
+
+@app.post("/api/v1/genfin/1099/forms/{form_id}/ready", tags=["GenFin 1099"])
+async def mark_1099_ready(
+    form_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Mark a 1099 form as ready for filing"""
+    success, error = genfin_1099_service.mark_form_ready(form_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"message": "Form marked as ready"}
+
+@app.post("/api/v1/genfin/1099/file", tags=["GenFin 1099"])
+async def file_1099_forms(
+    form_ids: str,
+    confirmation_number: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Mark forms as filed with IRS"""
+    ids = [int(x) for x in form_ids.split(",")]
+    success, error = genfin_1099_service.file_forms(ids, confirmation_number)
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"message": f"{len(ids)} forms marked as filed"}
+
+@app.get("/api/v1/genfin/1099/vendors-needing-forms/{tax_year}", tags=["GenFin 1099"])
+async def get_vendors_needing_1099(
+    tax_year: int,
+    entity_id: int = 1,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get vendors who need 1099 forms"""
+    return genfin_1099_service.get_vendors_needing_1099(tax_year, entity_id)
+
+@app.get("/api/v1/genfin/1099/missing-info/{tax_year}", tags=["GenFin 1099"])
+async def get_1099_missing_info(
+    tax_year: int,
+    entity_id: int = 1,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get 1099 forms missing required information"""
+    return genfin_1099_service.get_vendors_missing_info(tax_year, entity_id)
 
 
 # ============================================================================
