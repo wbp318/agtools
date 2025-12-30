@@ -10936,6 +10936,1518 @@ async def get_document_categories():
 
 
 # ============================================================================
+# GRANT-WINNING SUITE v5.0 - Environmental, Climate, Food Safety, Community
+# ============================================================================
+
+# ----- Import Grant-Winning Services -----
+from services.water_quality_service import (
+    water_quality_service,
+    WaterQualityService,
+    NutrientApplication,
+    NutrientSource,
+    WaterSample,
+    WaterBodyType,
+    BufferStrip,
+    BufferType,
+    TileDrainageSystem,
+    SoilDrainageClass
+)
+from services.biodiversity_service import (
+    biodiversity_service,
+    BiodiversityService,
+    HabitatArea,
+    HabitatType,
+    PollinatorObservation,
+    PollinatorGroup,
+    BeneficialInsectSurvey,
+    BeneficialInsectType,
+    PesticideApplication,
+    WildlifeObservation,
+    WildlifeGroup
+)
+from services.climate_resilience_service import (
+    climate_resilience_service,
+    ClimateResilienceService,
+    ClimateRiskType,
+    ClimateEvent,
+    AdaptationPractice,
+    AdaptationCategory
+)
+from services.food_safety_service import (
+    food_safety_service,
+    FoodSafetyService,
+    HarvestLotStatus,
+    WorkerTraining,
+    WaterTest,
+    SanitationLog,
+    FoodSafetyIncident,
+    Audit,
+    AuditType
+)
+from services.grant_assistant_service import (
+    grant_assistant_service,
+    GrantAssistantService,
+    GrantCategory,
+    GrantStatus,
+    GrantApplication
+)
+from services.community_impact_service import (
+    community_impact_service,
+    CommunityImpactService,
+    Employee,
+    LocalSale,
+    LocalMarketChannel,
+    OutreachEvent,
+    OutreachType,
+    Partnership,
+    PartnerType,
+    BeginningFarmerSupport
+)
+
+
+# ----- Water Quality Request Models -----
+
+class NutrientApplicationRequest(BaseModel):
+    field_id: str
+    date: date
+    source: str
+    product_name: str
+    nitrogen_lbs_acre: float
+    phosphorus_lbs_acre: float
+    potassium_lbs_acre: float
+    application_method: str
+    incorporated: bool = False
+    inhibitor_used: bool = False
+    notes: str = ""
+
+class NutrientLossRequest(BaseModel):
+    nitrogen_applied: float
+    phosphorus_applied: float
+    potassium_applied: float
+    drainage_class: str = "moderately_well_drained"
+    incorporated: bool = False
+    inhibitor_used: bool = False
+    annual_precip_inches: float = 50.0
+    slope_percent: float = 2.0
+
+class NutrientEfficiencyRequest(BaseModel):
+    field_id: str
+    crop_year: int
+    yield_achieved: float
+    crop_type: str
+
+class WaterSampleRequest(BaseModel):
+    sample_id: str
+    location_id: str
+    location_name: str
+    water_body_type: str
+    sample_date: datetime
+    sample_depth_inches: float
+    nitrate_n: Optional[float] = None
+    total_phosphorus: Optional[float] = None
+    dissolved_oxygen: Optional[float] = None
+    ph: Optional[float] = None
+    turbidity_ntu: Optional[float] = None
+    lab_name: str = ""
+
+class BufferStripRequest(BaseModel):
+    buffer_id: str
+    field_id: str
+    buffer_type: str
+    length_feet: float
+    average_width_feet: float
+    vegetation_type: str
+    date_established: date
+    nrcs_practice_code: str
+
+class FourRAssessmentRequest(BaseModel):
+    field_id: str
+    crop_year: int
+
+class WatershedAnalysisRequest(BaseModel):
+    field_ids: List[str]
+    crop_year: int
+    watershed_name: str
+    total_watershed_acres: float
+
+
+# ----- Biodiversity Request Models -----
+
+class HabitatAreaRequest(BaseModel):
+    habitat_id: str
+    field_id: str
+    habitat_type: str
+    area_acres: float
+    date_established: date
+    plant_species: List[str]
+    nrcs_practice_code: str
+    management_notes: str = ""
+
+class PollinatorObservationRequest(BaseModel):
+    observation_id: str
+    location_id: str
+    observation_date: datetime
+    pollinator_group: str
+    estimated_count: int
+    plant_species_visited: str
+    weather_conditions: str
+    observer: str
+
+class BeneficialSurveyRequest(BaseModel):
+    survey_id: str
+    field_id: str
+    survey_date: datetime
+    survey_method: str
+    insect_type: str
+    count: int
+    crop_stage: str
+
+class PesticideAppRequest(BaseModel):
+    application_id: str
+    field_id: str
+    application_date: datetime
+    product_name: str
+    active_ingredient: str
+    rate_oz_acre: float
+    application_method: str
+    time_of_day: str
+    blooming_crops_nearby: bool
+    pollinator_precautions: List[str]
+    weather_conditions: str
+
+class IPMScoreRequest(BaseModel):
+    field_id: str
+    crop_year: int
+    practices: Dict[str, bool]
+
+class WildlifeObservationRequest(BaseModel):
+    observation_id: str
+    location_id: str
+    observation_date: datetime
+    wildlife_group: str
+    species: str
+    count: int
+    behavior: str
+    habitat_type: str
+
+
+# ----- Climate Resilience Request Models -----
+
+class ClimateRiskRequest(BaseModel):
+    region: str
+    farm_acres: float
+    crop_types: List[str]
+    has_irrigation: bool = False
+    soil_type: str = "loam"
+    historical_events: Optional[List[Dict]] = None
+
+class DroughtResilienceRequest(BaseModel):
+    field_id: str
+    soil_organic_matter: float
+    soil_water_holding_capacity: str
+    has_irrigation: bool
+    irrigation_capacity_inches: float
+    cover_crop_use: bool
+    tillage_system: str
+    drought_tolerant_varieties: bool
+    crop_insurance: bool
+
+class FloodResilienceRequest(BaseModel):
+    field_id: str
+    in_floodplain: bool
+    flood_history_events: int
+    soil_drainage_class: str
+    has_tile_drainage: bool
+    has_controlled_drainage: bool
+    has_grassed_waterways: bool
+    cover_crop_use: bool
+    tillage_system: str
+    crop_insurance: bool
+
+class ClimateProjectionRequest(BaseModel):
+    region: str
+    crop_type: str
+    projection_year: int = 2050
+
+class ClimateEventRequest(BaseModel):
+    event_id: str
+    event_date: date
+    event_type: str
+    severity: str
+    fields_affected: List[str]
+    acres_affected: float
+    crop_loss_percent: float
+    estimated_financial_loss: float
+    description: str
+
+class AdaptationPracticeRequest(BaseModel):
+    practice_id: str
+    field_id: str
+    category: str
+    practice_name: str
+    implementation_date: date
+    nrcs_practice_code: str
+    cost_total: float
+    cost_share_received: float
+    risk_types_addressed: List[str]
+
+class ResilienceScorecardRequest(BaseModel):
+    farm_id: str
+    region: str
+    drought_data: Dict
+    flood_data: Dict
+    heat_data: Optional[Dict] = None
+
+
+# ----- Food Safety Request Models -----
+
+class HarvestLotRequest(BaseModel):
+    field_id: str
+    field_name: str
+    crop_type: str
+    variety: str
+    harvest_date: date
+    harvest_crew: List[str]
+    quantity_harvested: float
+    unit: str
+    harvest_conditions: str
+    temperature_at_harvest: float
+    equipment_used: List[str]
+    seed_lot: str = ""
+    planting_date: Optional[date] = None
+    pesticide_applications: List[str] = []
+    fertilizer_applications: List[str] = []
+
+class LotStatusUpdateRequest(BaseModel):
+    new_status: str
+    details: Optional[Dict] = None
+
+class WorkerTrainingRequest(BaseModel):
+    training_id: str
+    worker_name: str
+    worker_id: str
+    training_topic: str
+    training_date: date
+    trainer_name: str
+    duration_hours: float
+    passed_assessment: bool
+    certificate_issued: bool
+    expiration_date: Optional[date] = None
+
+class WaterTestRequest(BaseModel):
+    test_id: str
+    sample_date: date
+    sample_location: str
+    water_source: str
+    test_type: str
+    result_value: float
+    result_unit: str
+    acceptable_limit: float
+    pass_fail: str
+    lab_name: str
+    corrective_action: str = ""
+
+class SanitationLogRequest(BaseModel):
+    log_id: str
+    date: date
+    equipment_or_area: str
+    cleaning_method: str
+    sanitizer_used: str
+    concentration: str
+    contact_time_minutes: int
+    performed_by: str
+    verified_by: str = ""
+
+class FoodSafetyIncidentRequest(BaseModel):
+    incident_id: str
+    incident_date: datetime
+    incident_type: str
+    description: str
+    lots_affected: List[str]
+    severity: str
+    root_cause: str
+    corrective_actions: List[str]
+    preventive_actions: List[str]
+    reported_by: str
+
+class RecallRequest(BaseModel):
+    lot_numbers: List[str]
+    reason: str
+    recall_type: str
+    initiated_by: str
+
+
+# ----- Grant Assistant Request Models -----
+
+class FarmCharacteristicsRequest(BaseModel):
+    farm_acres: float
+    years_farming: int
+    annual_revenue: float
+    crops: List[str]
+    has_livestock: bool = False
+    existing_conservation: List[str] = []
+    interests: List[str] = []
+    location: str = ""
+
+class EligibilityAssessmentRequest(BaseModel):
+    program_id: str
+    has_fsn: bool = False
+    has_conservation_plan: bool = False
+    annual_revenue: float = 0
+    years_farming: int = 0
+    current_practices: List[str] = []
+    location: str = ""
+
+class ProposalOutlineRequest(BaseModel):
+    program_id: str
+    project_title: str
+    project_description: str
+    farm_name: str
+    farm_location: str
+    farm_acres: float
+    practices_planned: List[str]
+    expected_outcomes: List[str]
+    budget_estimate: float
+    timeline_months: int
+
+class ProjectImpactRequest(BaseModel):
+    acres: float
+    practices: List[str]
+    budget: float = 10000
+    soil_type: str = "loam"
+
+class ApplicationCreateRequest(BaseModel):
+    grant_program: str
+    project_title: str
+    requested_amount: float
+    match_amount: float
+    deadline: Optional[date] = None
+    contact_person: str = ""
+
+class ApplicationStatusRequest(BaseModel):
+    new_status: str
+    details: Optional[Dict] = None
+
+class SuccessProbabilityRequest(BaseModel):
+    program_id: str
+    eligibility_score: float = 70
+    proposal_completeness: float = 70
+    prior_awards: int = 0
+    partnerships: int = 0
+    data_quality: float = 50
+    innovation: float = 50
+    match_availability: bool = True
+
+
+# ----- Community Impact Request Models -----
+
+class EmployeeRequest(BaseModel):
+    employee_id: str
+    name: str
+    role: str
+    employment_type: str
+    hourly_rate: float
+    hours_per_week: float
+    start_date: date
+    local_resident: bool = True
+    benefits_provided: List[str] = []
+
+class LocalSaleRequest(BaseModel):
+    sale_id: str
+    sale_date: date
+    market_channel: str
+    buyer_name: str
+    buyer_location: str
+    product: str
+    quantity: float
+    unit: str
+    total_value: float
+    miles_to_buyer: float
+
+class OutreachEventRequest(BaseModel):
+    event_id: str
+    event_date: date
+    event_type: str
+    title: str
+    description: str
+    attendees: int
+    target_audience: str
+    topics_covered: List[str]
+    partner_organizations: List[str] = []
+    feedback_score: float = 0
+
+class PartnershipRequest(BaseModel):
+    partnership_id: str
+    partner_name: str
+    partner_type: str
+    contact_person: str
+    start_date: date
+    description: str
+    activities: List[str]
+    value_contributed: float
+    value_received: float
+
+class BeginningFarmerSupportRequest(BaseModel):
+    support_id: str
+    farmer_name: str
+    start_date: date
+    support_type: str
+    hours_provided: float
+    topics_covered: List[str]
+    outcomes: str = ""
+
+class EconomicMultiplierRequest(BaseModel):
+    annual_revenue: float
+    sector: str = "crop_production"
+
+class ComprehensiveImpactRequest(BaseModel):
+    annual_revenue: float
+    year: Optional[int] = None
+
+
+# ============================================================================
+# WATER QUALITY & NUTRIENT MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/water-quality/nutrient-applications", tags=["Water Quality"])
+async def record_nutrient_application(
+    data: NutrientApplicationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a nutrient application event for tracking and analysis"""
+    application = NutrientApplication(
+        field_id=data.field_id,
+        date=data.date,
+        source=NutrientSource(data.source),
+        product_name=data.product_name,
+        nitrogen_lbs_acre=data.nitrogen_lbs_acre,
+        phosphorus_lbs_acre=data.phosphorus_lbs_acre,
+        potassium_lbs_acre=data.potassium_lbs_acre,
+        application_method=data.application_method,
+        incorporated=data.incorporated,
+        inhibitor_used=data.inhibitor_used,
+        notes=data.notes
+    )
+    return water_quality_service.record_nutrient_application(application)
+
+
+@app.post("/api/v1/water-quality/nutrient-loss-estimate", tags=["Water Quality"])
+async def estimate_nutrient_loss(
+    data: NutrientLossRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Estimate potential nutrient losses from applied fertilizer"""
+    return water_quality_service.estimate_nutrient_loss(
+        nitrogen_applied=data.nitrogen_applied,
+        phosphorus_applied=data.phosphorus_applied,
+        potassium_applied=data.potassium_applied,
+        drainage_class=SoilDrainageClass(data.drainage_class),
+        incorporated=data.incorporated,
+        inhibitor_used=data.inhibitor_used,
+        annual_precip_inches=data.annual_precip_inches,
+        slope_percent=data.slope_percent
+    )
+
+
+@app.post("/api/v1/water-quality/nutrient-use-efficiency", tags=["Water Quality"])
+async def calculate_nutrient_efficiency(
+    data: NutrientEfficiencyRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate Nutrient Use Efficiency (NUE) metrics - key for grants"""
+    return water_quality_service.calculate_nutrient_use_efficiency(
+        field_id=data.field_id,
+        crop_year=data.crop_year,
+        yield_achieved=data.yield_achieved,
+        crop_type=data.crop_type
+    )
+
+
+@app.post("/api/v1/water-quality/samples", tags=["Water Quality"])
+async def record_water_sample(
+    data: WaterSampleRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a water quality sample with assessment"""
+    sample = WaterSample(
+        sample_id=data.sample_id,
+        location_id=data.location_id,
+        location_name=data.location_name,
+        water_body_type=WaterBodyType(data.water_body_type),
+        sample_date=data.sample_date,
+        sample_depth_inches=data.sample_depth_inches,
+        nitrate_n=data.nitrate_n,
+        total_phosphorus=data.total_phosphorus,
+        dissolved_oxygen=data.dissolved_oxygen,
+        ph=data.ph,
+        turbidity_ntu=data.turbidity_ntu,
+        lab_name=data.lab_name
+    )
+    return water_quality_service.record_water_sample(sample)
+
+
+@app.post("/api/v1/water-quality/buffers", tags=["Water Quality"])
+async def add_buffer_strip(
+    data: BufferStripRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add a conservation buffer strip"""
+    buffer = BufferStrip(
+        buffer_id=data.buffer_id,
+        field_id=data.field_id,
+        buffer_type=BufferType(data.buffer_type),
+        length_feet=data.length_feet,
+        average_width_feet=data.average_width_feet,
+        vegetation_type=data.vegetation_type,
+        date_established=data.date_established,
+        nrcs_practice_code=data.nrcs_practice_code
+    )
+    return water_quality_service.add_buffer_strip(buffer)
+
+
+@app.get("/api/v1/water-quality/buffers/{field_id}/impact", tags=["Water Quality"])
+async def get_buffer_impact(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate environmental impact of buffer strips for a field"""
+    return water_quality_service.calculate_buffer_impact(field_id)
+
+
+@app.post("/api/v1/water-quality/4r-assessment", tags=["Water Quality"])
+async def assess_4r_compliance(
+    data: FourRAssessmentRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Assess 4R Nutrient Stewardship compliance - essential for grants"""
+    return water_quality_service.assess_4r_compliance(data.field_id, data.crop_year)
+
+
+@app.post("/api/v1/water-quality/watershed-analysis", tags=["Water Quality"])
+async def analyze_watershed_impact(
+    data: WatershedAnalysisRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Analyze cumulative watershed impact from multiple fields"""
+    return water_quality_service.analyze_watershed_impact(
+        field_ids=data.field_ids,
+        crop_year=data.crop_year,
+        watershed_name=data.watershed_name,
+        total_watershed_acres=data.total_watershed_acres
+    )
+
+
+@app.get("/api/v1/water-quality/grant-report/{crop_year}", tags=["Water Quality"])
+async def generate_water_quality_grant_report(
+    crop_year: int,
+    grant_program: str = "EQIP",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate comprehensive water quality report for grant applications"""
+    return water_quality_service.generate_water_quality_grant_report(
+        field_ids=[],
+        crop_year=crop_year,
+        grant_program=grant_program
+    )
+
+
+# ============================================================================
+# BIODIVERSITY & POLLINATOR ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/biodiversity/habitats", tags=["Biodiversity"])
+async def add_habitat_area(
+    data: HabitatAreaRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add a habitat area to the farm"""
+    habitat = HabitatArea(
+        habitat_id=data.habitat_id,
+        field_id=data.field_id,
+        habitat_type=HabitatType(data.habitat_type),
+        area_acres=data.area_acres,
+        date_established=data.date_established,
+        plant_species=data.plant_species,
+        nrcs_practice_code=data.nrcs_practice_code,
+        management_notes=data.management_notes
+    )
+    return biodiversity_service.add_habitat_area(habitat)
+
+
+@app.get("/api/v1/biodiversity/habitat-score/{total_farm_acres}", tags=["Biodiversity"])
+async def get_habitat_score(
+    total_farm_acres: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate comprehensive habitat score for the farm"""
+    return biodiversity_service.calculate_farm_habitat_score(total_farm_acres)
+
+
+@app.get("/api/v1/biodiversity/native-plants", tags=["Biodiversity"])
+async def get_native_plant_recommendations(
+    region: str = "midwest",
+    habitat_type: str = "pollinator",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get native plant recommendations for habitat establishment"""
+    return biodiversity_service.get_native_plant_recommendations(region, habitat_type)
+
+
+@app.post("/api/v1/biodiversity/pollinator-observations", tags=["Biodiversity"])
+async def record_pollinator_observation(
+    data: PollinatorObservationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a pollinator observation"""
+    observation = PollinatorObservation(
+        observation_id=data.observation_id,
+        location_id=data.location_id,
+        observation_date=data.observation_date,
+        pollinator_group=PollinatorGroup(data.pollinator_group),
+        estimated_count=data.estimated_count,
+        plant_species_visited=data.plant_species_visited,
+        weather_conditions=data.weather_conditions,
+        observer=data.observer
+    )
+    return biodiversity_service.record_pollinator_observation(observation)
+
+
+@app.get("/api/v1/biodiversity/pollinator-summary", tags=["Biodiversity"])
+async def get_pollinator_summary(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary of pollinator observations"""
+    return biodiversity_service.get_pollinator_summary(year=year)
+
+
+@app.post("/api/v1/biodiversity/beneficial-surveys", tags=["Biodiversity"])
+async def record_beneficial_survey(
+    data: BeneficialSurveyRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a beneficial insect survey"""
+    survey = BeneficialInsectSurvey(
+        survey_id=data.survey_id,
+        field_id=data.field_id,
+        survey_date=data.survey_date,
+        survey_method=data.survey_method,
+        insect_type=BeneficialInsectType(data.insect_type),
+        count=data.count,
+        crop_stage=data.crop_stage
+    )
+    return biodiversity_service.record_beneficial_survey(survey)
+
+
+@app.get("/api/v1/biodiversity/biological-control/{field_id}", tags=["Biodiversity"])
+async def get_biological_control_potential(
+    field_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate biological control potential for a field"""
+    return biodiversity_service.calculate_biological_control_potential(field_id)
+
+
+@app.post("/api/v1/biodiversity/pesticide-applications", tags=["Biodiversity"])
+async def record_pesticide_for_pollinator_risk(
+    data: PesticideAppRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record pesticide application with pollinator risk assessment"""
+    application = PesticideApplication(
+        application_id=data.application_id,
+        field_id=data.field_id,
+        application_date=data.application_date,
+        product_name=data.product_name,
+        active_ingredient=data.active_ingredient,
+        rate_oz_acre=data.rate_oz_acre,
+        application_method=data.application_method,
+        time_of_day=data.time_of_day,
+        blooming_crops_nearby=data.blooming_crops_nearby,
+        pollinator_precautions=data.pollinator_precautions,
+        weather_conditions=data.weather_conditions
+    )
+    return biodiversity_service.record_pesticide_application(application)
+
+
+@app.get("/api/v1/biodiversity/pollinator-risk/{field_id}/{crop_year}", tags=["Biodiversity"])
+async def get_pollinator_risk_score(
+    field_id: str,
+    crop_year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate cumulative pollinator risk score for a field"""
+    return biodiversity_service.calculate_pollinator_risk_score(field_id, crop_year)
+
+
+@app.post("/api/v1/biodiversity/ipm-score", tags=["Biodiversity"])
+async def calculate_ipm_score(
+    data: IPMScoreRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate Integrated Pest Management (IPM) score - required for many grants"""
+    return biodiversity_service.calculate_ipm_score(
+        field_id=data.field_id,
+        crop_year=data.crop_year,
+        practices=data.practices
+    )
+
+
+@app.post("/api/v1/biodiversity/wildlife-observations", tags=["Biodiversity"])
+async def record_wildlife_observation(
+    data: WildlifeObservationRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a wildlife observation"""
+    observation = WildlifeObservation(
+        observation_id=data.observation_id,
+        location_id=data.location_id,
+        observation_date=data.observation_date,
+        wildlife_group=WildlifeGroup(data.wildlife_group),
+        species=data.species,
+        count=data.count,
+        behavior=data.behavior,
+        habitat_type=HabitatType(data.habitat_type)
+    )
+    return biodiversity_service.record_wildlife_observation(observation)
+
+
+@app.get("/api/v1/biodiversity/wildlife-summary", tags=["Biodiversity"])
+async def get_wildlife_summary(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get wildlife observation summary"""
+    return biodiversity_service.get_wildlife_summary(year)
+
+
+@app.get("/api/v1/biodiversity/ecosystem-value/{total_farm_acres}", tags=["Biodiversity"])
+async def get_ecosystem_services_value(
+    total_farm_acres: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate economic value of ecosystem services - great for grant justification"""
+    return biodiversity_service.calculate_ecosystem_services_value(total_farm_acres)
+
+
+@app.get("/api/v1/biodiversity/grant-report/{crop_year}", tags=["Biodiversity"])
+async def generate_biodiversity_grant_report(
+    crop_year: int,
+    total_farm_acres: float,
+    grant_program: str = "CSP",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate comprehensive biodiversity report for grant applications"""
+    return biodiversity_service.generate_biodiversity_grant_report(
+        total_farm_acres=total_farm_acres,
+        crop_year=crop_year,
+        grant_program=grant_program
+    )
+
+
+# ============================================================================
+# CLIMATE RESILIENCE ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/climate/risk-assessment", tags=["Climate Resilience"])
+async def assess_climate_risk(
+    data: ClimateRiskRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Comprehensive climate risk assessment - essential for climate grants"""
+    return climate_resilience_service.assess_climate_risk(
+        region=data.region,
+        farm_acres=data.farm_acres,
+        crop_types=data.crop_types,
+        has_irrigation=data.has_irrigation,
+        soil_type=data.soil_type,
+        historical_events=data.historical_events
+    )
+
+
+@app.post("/api/v1/climate/drought-resilience", tags=["Climate Resilience"])
+async def calculate_drought_resilience(
+    data: DroughtResilienceRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate drought resilience score for a field"""
+    return climate_resilience_service.calculate_drought_resilience(
+        field_id=data.field_id,
+        soil_organic_matter=data.soil_organic_matter,
+        soil_water_holding_capacity=data.soil_water_holding_capacity,
+        has_irrigation=data.has_irrigation,
+        irrigation_capacity_inches=data.irrigation_capacity_inches,
+        cover_crop_use=data.cover_crop_use,
+        tillage_system=data.tillage_system,
+        drought_tolerant_varieties=data.drought_tolerant_varieties,
+        crop_insurance=data.crop_insurance
+    )
+
+
+@app.post("/api/v1/climate/flood-resilience", tags=["Climate Resilience"])
+async def calculate_flood_resilience(
+    data: FloodResilienceRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate flood resilience score for a field"""
+    return climate_resilience_service.calculate_flood_resilience(
+        field_id=data.field_id,
+        in_floodplain=data.in_floodplain,
+        flood_history_events=data.flood_history_events,
+        soil_drainage_class=data.soil_drainage_class,
+        has_tile_drainage=data.has_tile_drainage,
+        has_controlled_drainage=data.has_controlled_drainage,
+        has_grassed_waterways=data.has_grassed_waterways,
+        cover_crop_use=data.cover_crop_use,
+        tillage_system=data.tillage_system,
+        crop_insurance=data.crop_insurance
+    )
+
+
+@app.post("/api/v1/climate/projections", tags=["Climate Resilience"])
+async def get_climate_projections(
+    data: ClimateProjectionRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get climate projections and crop impact analysis"""
+    return climate_resilience_service.get_climate_projections(
+        region=data.region,
+        crop_type=data.crop_type,
+        projection_year=data.projection_year
+    )
+
+
+@app.post("/api/v1/climate/events", tags=["Climate Resilience"])
+async def record_climate_event(
+    data: ClimateEventRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a climate event and its impacts"""
+    event = ClimateEvent(
+        event_id=data.event_id,
+        event_date=data.event_date,
+        event_type=ClimateRiskType(data.event_type),
+        severity=data.severity,
+        fields_affected=data.fields_affected,
+        acres_affected=data.acres_affected,
+        crop_loss_percent=data.crop_loss_percent,
+        estimated_financial_loss=data.estimated_financial_loss,
+        description=data.description
+    )
+    return climate_resilience_service.record_climate_event(event)
+
+
+@app.get("/api/v1/climate/events/history", tags=["Climate Resilience"])
+async def get_climate_event_history(
+    start_year: int,
+    end_year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Analyze historical climate events"""
+    return climate_resilience_service.analyze_climate_event_history(start_year, end_year)
+
+
+@app.post("/api/v1/climate/adaptations", tags=["Climate Resilience"])
+async def record_adaptation_practice(
+    data: AdaptationPracticeRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record implementation of an adaptation practice"""
+    practice = AdaptationPractice(
+        practice_id=data.practice_id,
+        field_id=data.field_id,
+        category=AdaptationCategory(data.category),
+        practice_name=data.practice_name,
+        implementation_date=data.implementation_date,
+        nrcs_practice_code=data.nrcs_practice_code,
+        cost_total=data.cost_total,
+        cost_share_received=data.cost_share_received,
+        risk_types_addressed=[ClimateRiskType(r) for r in data.risk_types_addressed]
+    )
+    return climate_resilience_service.record_adaptation_practice(practice)
+
+
+@app.get("/api/v1/climate/adaptations/summary", tags=["Climate Resilience"])
+async def get_adaptation_summary(
+    field_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get summary of adaptation practices"""
+    return climate_resilience_service.get_adaptation_summary(field_id)
+
+
+@app.post("/api/v1/climate/resilience-scorecard", tags=["Climate Resilience"])
+async def calculate_resilience_scorecard(
+    data: ResilienceScorecardRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate comprehensive resilience scorecard for grant applications"""
+    return climate_resilience_service.calculate_overall_resilience_score(
+        farm_id=data.farm_id,
+        region=data.region,
+        drought_data=data.drought_data,
+        flood_data=data.flood_data,
+        heat_data=data.heat_data
+    )
+
+
+@app.get("/api/v1/climate/grant-report/{farm_id}", tags=["Climate Resilience"])
+async def generate_climate_grant_report(
+    farm_id: str,
+    region: str,
+    grant_program: str = "Climate-Smart",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate comprehensive climate resilience report for grants"""
+    return climate_resilience_service.generate_climate_resilience_grant_report(
+        farm_id=farm_id,
+        region=region,
+        grant_program=grant_program
+    )
+
+
+# ============================================================================
+# FOOD SAFETY & TRACEABILITY ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/food-safety/lots", tags=["Food Safety"])
+async def create_harvest_lot(
+    data: HarvestLotRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new harvest lot with full traceability"""
+    return food_safety_service.create_harvest_lot(data.dict())
+
+
+@app.put("/api/v1/food-safety/lots/{lot_id}/status", tags=["Food Safety"])
+async def update_lot_status(
+    lot_id: str,
+    data: LotStatusUpdateRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update lot status and chain of custody"""
+    return food_safety_service.update_lot_status(
+        lot_id=lot_id,
+        new_status=HarvestLotStatus(data.new_status),
+        details=data.details
+    )
+
+
+@app.get("/api/v1/food-safety/lots/{lot_number}/trace", tags=["Food Safety"])
+async def trace_lot(
+    lot_number: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate complete traceability report for a lot"""
+    return food_safety_service.trace_lot(lot_number)
+
+
+@app.get("/api/v1/food-safety/lots/by-status/{status}", tags=["Food Safety"])
+async def get_lots_by_status(
+    status: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all lots with a specific status"""
+    return food_safety_service.get_lots_by_status(HarvestLotStatus(status))
+
+
+@app.get("/api/v1/food-safety/fsma-compliance", tags=["Food Safety"])
+async def assess_fsma_compliance(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Assess FSMA Produce Safety Rule compliance"""
+    return food_safety_service.assess_fsma_compliance()
+
+
+@app.post("/api/v1/food-safety/training", tags=["Food Safety"])
+async def record_worker_training(
+    data: WorkerTrainingRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record worker training completion"""
+    training = WorkerTraining(
+        training_id=data.training_id,
+        worker_name=data.worker_name,
+        worker_id=data.worker_id,
+        training_topic=data.training_topic,
+        training_date=data.training_date,
+        trainer_name=data.trainer_name,
+        duration_hours=data.duration_hours,
+        passed_assessment=data.passed_assessment,
+        certificate_issued=data.certificate_issued,
+        expiration_date=data.expiration_date
+    )
+    return food_safety_service.record_worker_training(training)
+
+
+@app.get("/api/v1/food-safety/training/status", tags=["Food Safety"])
+async def get_training_status(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get overall training status"""
+    return food_safety_service.get_training_status()
+
+
+@app.post("/api/v1/food-safety/water-tests", tags=["Food Safety"])
+async def record_water_test(
+    data: WaterTestRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record water quality test result"""
+    test = WaterTest(
+        test_id=data.test_id,
+        sample_date=data.sample_date,
+        sample_location=data.sample_location,
+        water_source=data.water_source,
+        test_type=data.test_type,
+        result_value=data.result_value,
+        result_unit=data.result_unit,
+        acceptable_limit=data.acceptable_limit,
+        pass_fail=data.pass_fail,
+        lab_name=data.lab_name,
+        corrective_action=data.corrective_action
+    )
+    return food_safety_service.record_water_test(test)
+
+
+@app.get("/api/v1/food-safety/water-tests/summary", tags=["Food Safety"])
+async def get_water_quality_summary(
+    source: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get water quality test summary"""
+    return food_safety_service.get_water_quality_summary(source)
+
+
+@app.post("/api/v1/food-safety/sanitation", tags=["Food Safety"])
+async def record_sanitation(
+    data: SanitationLogRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record sanitation/cleaning activity"""
+    log = SanitationLog(
+        log_id=data.log_id,
+        date=data.date,
+        equipment_or_area=data.equipment_or_area,
+        cleaning_method=data.cleaning_method,
+        sanitizer_used=data.sanitizer_used,
+        concentration=data.concentration,
+        contact_time_minutes=data.contact_time_minutes,
+        performed_by=data.performed_by,
+        verified_by=data.verified_by
+    )
+    return food_safety_service.record_sanitation(log)
+
+
+@app.get("/api/v1/food-safety/sanitation/status", tags=["Food Safety"])
+async def get_sanitation_status(
+    equipment: Optional[str] = None,
+    days_back: int = 30,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get sanitation status"""
+    return food_safety_service.get_sanitation_status(equipment, days_back)
+
+
+@app.post("/api/v1/food-safety/incidents", tags=["Food Safety"])
+async def record_incident(
+    data: FoodSafetyIncidentRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a food safety incident"""
+    incident = FoodSafetyIncident(
+        incident_id=data.incident_id,
+        incident_date=data.incident_date,
+        incident_type=data.incident_type,
+        description=data.description,
+        lots_affected=data.lots_affected,
+        severity=data.severity,
+        root_cause=data.root_cause,
+        corrective_actions=data.corrective_actions,
+        preventive_actions=data.preventive_actions,
+        reported_by=data.reported_by
+    )
+    return food_safety_service.record_incident(incident)
+
+
+@app.get("/api/v1/food-safety/incidents/summary", tags=["Food Safety"])
+async def get_incident_summary(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get incident summary"""
+    return food_safety_service.get_incident_summary(year)
+
+
+@app.post("/api/v1/food-safety/recall", tags=["Food Safety"])
+async def initiate_recall(
+    data: RecallRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Initiate a product recall"""
+    return food_safety_service.initiate_recall(
+        lot_numbers=data.lot_numbers,
+        reason=data.reason,
+        recall_type=data.recall_type,
+        initiated_by=data.initiated_by
+    )
+
+
+@app.get("/api/v1/food-safety/mock-recall/{lot_number}", tags=["Food Safety"])
+async def conduct_mock_recall(
+    lot_number: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Conduct a mock recall exercise - required for GAP certification"""
+    return food_safety_service.conduct_mock_recall(lot_number)
+
+
+@app.get("/api/v1/food-safety/gap-readiness", tags=["Food Safety"])
+async def assess_gap_readiness(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Assess readiness for GAP/GHP certification audit"""
+    return food_safety_service.assess_gap_readiness()
+
+
+@app.get("/api/v1/food-safety/audit-history", tags=["Food Safety"])
+async def get_audit_history(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get audit history"""
+    return food_safety_service.get_audit_history()
+
+
+@app.get("/api/v1/food-safety/grant-report", tags=["Food Safety"])
+async def generate_food_safety_grant_report(
+    grant_program: str = "Specialty Crop",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate comprehensive food safety report for grants"""
+    return food_safety_service.generate_food_safety_grant_report(grant_program)
+
+
+# ============================================================================
+# GRANT APPLICATION ASSISTANT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/grants/find-matching", tags=["Grant Assistant"])
+async def find_matching_grants(
+    data: FarmCharacteristicsRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Find grants that match your farm characteristics"""
+    return grant_assistant_service.find_matching_grants(data.dict())
+
+
+@app.get("/api/v1/grants/programs/{program_id}", tags=["Grant Assistant"])
+async def get_program_details(
+    program_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get detailed information about a specific grant program"""
+    return grant_assistant_service.get_program_details(program_id)
+
+
+@app.get("/api/v1/grants/programs", tags=["Grant Assistant"])
+async def list_grant_programs(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all available grant programs"""
+    from services.grant_assistant_service import GRANT_PROGRAMS
+    return {
+        "programs": [
+            {"id": pid, "name": p["name"], "category": p["category"].value}
+            for pid, p in GRANT_PROGRAMS.items()
+        ]
+    }
+
+
+@app.post("/api/v1/grants/eligibility", tags=["Grant Assistant"])
+async def assess_eligibility(
+    data: EligibilityAssessmentRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Detailed eligibility assessment for a specific program"""
+    return grant_assistant_service.assess_eligibility(
+        program_id=data.program_id,
+        applicant_data=data.dict()
+    )
+
+
+@app.post("/api/v1/grants/proposal-outline", tags=["Grant Assistant"])
+async def generate_proposal_outline(
+    data: ProposalOutlineRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a proposal outline with suggested content"""
+    return grant_assistant_service.generate_proposal_outline(
+        program_id=data.program_id,
+        project_data=data.dict()
+    )
+
+
+@app.post("/api/v1/grants/budget-template", tags=["Grant Assistant"])
+async def generate_budget_template(
+    program_id: str,
+    practices: List[str],
+    total_budget: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a budget template for the grant"""
+    return grant_assistant_service.generate_budget_template(
+        program_id=program_id,
+        practices=practices,
+        total_budget=total_budget
+    )
+
+
+@app.post("/api/v1/grants/project-impact", tags=["Grant Assistant"])
+async def calculate_project_impact(
+    data: ProjectImpactRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate expected impact metrics for grant application"""
+    return grant_assistant_service.calculate_project_impact(data.dict())
+
+
+@app.post("/api/v1/grants/applications", tags=["Grant Assistant"])
+async def create_grant_application(
+    data: ApplicationCreateRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new grant application tracking record"""
+    return grant_assistant_service.create_application(data.dict())
+
+
+@app.put("/api/v1/grants/applications/{application_id}/status", tags=["Grant Assistant"])
+async def update_application_status(
+    application_id: str,
+    data: ApplicationStatusRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update application status"""
+    return grant_assistant_service.update_application_status(
+        application_id=application_id,
+        new_status=GrantStatus(data.new_status),
+        details=data.details
+    )
+
+
+@app.get("/api/v1/grants/applications/dashboard", tags=["Grant Assistant"])
+async def get_applications_dashboard(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get overview of all grant applications"""
+    return grant_assistant_service.get_application_dashboard()
+
+
+@app.post("/api/v1/grants/success-probability", tags=["Grant Assistant"])
+async def calculate_success_probability(
+    data: SuccessProbabilityRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate estimated success probability"""
+    return grant_assistant_service.calculate_success_probability(
+        program_id=data.program_id,
+        application_strength=data.dict()
+    )
+
+
+@app.get("/api/v1/grants/portfolio-report", tags=["Grant Assistant"])
+async def generate_portfolio_report(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate comprehensive grant portfolio report"""
+    return grant_assistant_service.generate_grant_portfolio_report()
+
+
+# ============================================================================
+# COMMUNITY & ECONOMIC IMPACT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/v1/community/employees", tags=["Community Impact"])
+async def add_employee(
+    data: EmployeeRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add employee record for impact tracking"""
+    employee = Employee(
+        employee_id=data.employee_id,
+        name=data.name,
+        role=data.role,
+        employment_type=data.employment_type,
+        hourly_rate=data.hourly_rate,
+        hours_per_week=data.hours_per_week,
+        start_date=data.start_date,
+        local_resident=data.local_resident,
+        benefits_provided=data.benefits_provided
+    )
+    return community_impact_service.add_employee(employee)
+
+
+@app.get("/api/v1/community/employment-impact", tags=["Community Impact"])
+async def get_employment_impact(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate farm's employment and economic impact"""
+    return community_impact_service.calculate_employment_impact()
+
+
+@app.post("/api/v1/community/economic-multiplier", tags=["Community Impact"])
+async def calculate_economic_multiplier(
+    data: EconomicMultiplierRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate regional economic impact using multipliers"""
+    return community_impact_service.calculate_economic_multiplier_impact(
+        annual_revenue=data.annual_revenue,
+        sector=data.sector
+    )
+
+
+@app.post("/api/v1/community/local-sales", tags=["Community Impact"])
+async def record_local_sale(
+    data: LocalSaleRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a sale to local market"""
+    sale = LocalSale(
+        sale_id=data.sale_id,
+        sale_date=data.sale_date,
+        market_channel=LocalMarketChannel(data.market_channel),
+        buyer_name=data.buyer_name,
+        buyer_location=data.buyer_location,
+        product=data.product,
+        quantity=data.quantity,
+        unit=data.unit,
+        total_value=data.total_value,
+        miles_to_buyer=data.miles_to_buyer
+    )
+    return community_impact_service.record_local_sale(sale)
+
+
+@app.get("/api/v1/community/local-food-impact", tags=["Community Impact"])
+async def get_local_food_impact(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate local food system impact"""
+    return community_impact_service.calculate_local_food_impact(year)
+
+
+@app.post("/api/v1/community/outreach-events", tags=["Community Impact"])
+async def record_outreach_event(
+    data: OutreachEventRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record educational outreach event"""
+    event = OutreachEvent(
+        event_id=data.event_id,
+        event_date=data.event_date,
+        event_type=OutreachType(data.event_type),
+        title=data.title,
+        description=data.description,
+        attendees=data.attendees,
+        target_audience=data.target_audience,
+        topics_covered=data.topics_covered,
+        partner_organizations=data.partner_organizations,
+        feedback_score=data.feedback_score
+    )
+    return community_impact_service.record_outreach_event(event)
+
+
+@app.get("/api/v1/community/outreach-impact", tags=["Community Impact"])
+async def get_outreach_impact(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate educational outreach impact"""
+    return community_impact_service.calculate_outreach_impact(year)
+
+
+@app.post("/api/v1/community/partnerships", tags=["Community Impact"])
+async def add_partnership(
+    data: PartnershipRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add community partnership"""
+    partnership = Partnership(
+        partnership_id=data.partnership_id,
+        partner_name=data.partner_name,
+        partner_type=PartnerType(data.partner_type),
+        contact_person=data.contact_person,
+        start_date=data.start_date,
+        description=data.description,
+        activities=data.activities,
+        value_contributed=data.value_contributed,
+        value_received=data.value_received
+    )
+    return community_impact_service.add_partnership(partnership)
+
+
+@app.get("/api/v1/community/partnerships/summary", tags=["Community Impact"])
+async def get_partnership_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get partnership summary"""
+    return community_impact_service.get_partnership_summary()
+
+
+@app.post("/api/v1/community/beginning-farmer-support", tags=["Community Impact"])
+async def record_beginning_farmer_support(
+    data: BeginningFarmerSupportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record support provided to beginning farmer"""
+    support = BeginningFarmerSupport(
+        support_id=data.support_id,
+        farmer_name=data.farmer_name,
+        start_date=data.start_date,
+        support_type=data.support_type,
+        hours_provided=data.hours_provided,
+        topics_covered=data.topics_covered,
+        outcomes=data.outcomes
+    )
+    return community_impact_service.record_beginning_farmer_support(support)
+
+
+@app.get("/api/v1/community/beginning-farmer-impact", tags=["Community Impact"])
+async def get_beginning_farmer_impact(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get beginning farmer support impact"""
+    return community_impact_service.get_beginning_farmer_impact()
+
+
+@app.post("/api/v1/community/comprehensive-impact", tags=["Community Impact"])
+async def calculate_comprehensive_impact(
+    data: ComprehensiveImpactRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate comprehensive community and economic impact"""
+    return community_impact_service.calculate_comprehensive_impact(
+        annual_revenue=data.annual_revenue,
+        year=data.year
+    )
+
+
+@app.get("/api/v1/community/grant-report", tags=["Community Impact"])
+async def generate_community_grant_report(
+    annual_revenue: float,
+    grant_program: str = "SARE",
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate comprehensive community impact report for grants"""
+    return community_impact_service.generate_community_impact_grant_report(
+        annual_revenue=annual_revenue,
+        grant_program=grant_program,
+        year=year
+    )
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
