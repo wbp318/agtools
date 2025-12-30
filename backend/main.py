@@ -13211,6 +13211,21 @@ async def get_employee(employee_id: str, user: AuthenticatedUser = Depends(get_c
         raise HTTPException(status_code=404, detail="Employee not found")
     return result
 
+@app.put("/api/v1/genfin/employees/{employee_id}", tags=["GenFin Payroll"])
+async def update_employee(employee_id: str, data: Dict[str, Any], user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update an employee"""
+    return genfin_payroll_service.update_employee(employee_id, **data)
+
+@app.delete("/api/v1/genfin/employees/{employee_id}", tags=["GenFin Payroll"])
+async def delete_employee(employee_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete an employee (sets status to terminated)"""
+    result = genfin_payroll_service.terminate_employee(employee_id,
+        termination_date=datetime.now().strftime("%Y-%m-%d"),
+        reason="Deleted via UI")
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to delete employee"))
+    return {"success": True, "message": "Employee deleted"}
+
 @app.get("/api/v1/genfin/employees/{employee_id}/ytd/{year}", tags=["GenFin Payroll"])
 async def get_employee_ytd(employee_id: str, year: int, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get employee year-to-date earnings"""

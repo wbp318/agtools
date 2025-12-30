@@ -850,10 +850,14 @@ class GenFinPayrollService:
         pay_type: str = "hourly",
         pay_rate: float = 0.0,
         pay_frequency: str = "biweekly",
+        pay_schedule_id: Optional[str] = None,
+        default_hours: float = 80.0,
         ssn: str = "",
         date_of_birth: Optional[str] = None,
         filing_status: str = "single",
         federal_allowances: int = 0,
+        federal_additional_withholding: float = 0.0,
+        state_allowances: int = 0,
         payment_method: str = "check",
         bank_routing_number: str = "",
         bank_account_number: str = "",
@@ -887,10 +891,13 @@ class GenFinPayrollService:
             pay_type=PayType(pay_type),
             pay_rate=pay_rate,
             pay_frequency=PayFrequency(pay_frequency),
+            default_hours=default_hours,
             ssn=ssn,
             date_of_birth=dob,
             filing_status=FilingStatus(filing_status),
             federal_allowances=federal_allowances,
+            federal_additional_withholding=federal_additional_withholding,
+            state_allowances=state_allowances,
             payment_method=PaymentMethod(payment_method),
             bank_routing_number=bank_routing_number,
             bank_account_number=bank_account_number,
@@ -899,6 +906,12 @@ class GenFinPayrollService:
         )
 
         self.employees[employee_id] = employee
+
+        # Auto-assign employee to pay schedule if provided
+        if pay_schedule_id and pay_schedule_id in self.pay_schedules:
+            schedule = self.pay_schedules[pay_schedule_id]
+            if employee_id not in schedule.employee_ids:
+                schedule.employee_ids.append(employee_id)
 
         # Create initial pay rate record
         rate_id = str(uuid.uuid4())
@@ -915,6 +928,7 @@ class GenFinPayrollService:
             "success": True,
             "employee_id": employee_id,
             "employee_number": employee_number,
+            "pay_schedule_id": pay_schedule_id,
             "employee": self._employee_to_dict(employee)
         }
 
@@ -936,6 +950,21 @@ class GenFinPayrollService:
                 rate=kwargs["pay_rate"],
                 reason=kwargs.get("rate_change_reason", "Rate change")
             )
+
+        # Handle pay schedule change
+        if "pay_schedule_id" in kwargs:
+            new_schedule_id = kwargs.pop("pay_schedule_id")
+
+            # Remove from all existing schedules
+            for schedule in self.pay_schedules.values():
+                if employee_id in schedule.employee_ids:
+                    schedule.employee_ids.remove(employee_id)
+
+            # Add to new schedule
+            if new_schedule_id and new_schedule_id in self.pay_schedules:
+                schedule = self.pay_schedules[new_schedule_id]
+                if employee_id not in schedule.employee_ids:
+                    schedule.employee_ids.append(employee_id)
 
         for key, value in kwargs.items():
             if hasattr(employee, key) and value is not None:
@@ -2094,6 +2123,15 @@ NET PAY: ${line.net_pay:,.2f}"""
 
     def _employee_to_dict(self, emp: Employee) -> Dict:
         """Convert Employee to dictionary"""
+        # Find which pay schedule this employee is assigned to
+        pay_schedule_id = None
+        pay_schedule_name = None
+        for schedule in self.pay_schedules.values():
+            if emp.employee_id in schedule.employee_ids:
+                pay_schedule_id = schedule.schedule_id
+                pay_schedule_name = schedule.name
+                break
+
         return {
             "employee_id": emp.employee_id,
             "employee_number": emp.employee_number,
@@ -2103,6 +2141,10 @@ NET PAY: ${line.net_pay:,.2f}"""
             "full_name": f"{emp.first_name} {emp.last_name}",
             "email": emp.email,
             "phone": emp.phone,
+            "address_line1": emp.address_line1,
+            "city": emp.city,
+            "state": emp.state,
+            "zip_code": emp.zip_code,
             "address": f"{emp.address_line1}, {emp.city}, {emp.state} {emp.zip_code}",
             "employee_type": emp.employee_type.value,
             "department": emp.department,
@@ -2112,8 +2154,17 @@ NET PAY: ${line.net_pay:,.2f}"""
             "pay_type": emp.pay_type.value,
             "pay_rate": emp.pay_rate,
             "pay_frequency": emp.pay_frequency.value,
+            "pay_schedule_id": pay_schedule_id,
+            "pay_schedule_name": pay_schedule_name,
+            "default_hours": emp.default_hours,
             "filing_status": emp.filing_status.value,
+            "federal_allowances": emp.federal_allowances,
+            "federal_additional_withholding": emp.federal_additional_withholding,
+            "state_allowances": emp.state_allowances,
             "payment_method": emp.payment_method.value,
+            "bank_routing_number": emp.bank_routing_number,
+            "bank_account_number": emp.bank_account_number[-4:] if emp.bank_account_number else "",  # Last 4 only
+            "bank_account_type": emp.bank_account_type,
             "has_direct_deposit": emp.payment_method in [PaymentMethod.DIRECT_DEPOSIT, PaymentMethod.BOTH],
             "is_owner": emp.is_owner,
             "created_at": emp.created_at.isoformat(),

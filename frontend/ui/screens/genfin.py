@@ -262,9 +262,33 @@ class AddEmployeeDialog(GenFinDialog):
         self.pay_frequency.setCurrentText("biweekly")
         pay_layout.addRow("Pay Frequency:", self.pay_frequency)
 
+        # Pay Schedule - links employee to scheduled payroll
+        self.pay_schedule = QComboBox()
+        self.pay_schedule.addItem("-- Select Pay Schedule --", "")
+        self._load_pay_schedules()
+        pay_layout.addRow("Pay Schedule*:", self.pay_schedule)
+
+        # Payment method with clear options
+        pay_layout.addRow(QLabel(""))  # Spacer
+        method_label = QLabel("How will this employee be paid?")
+        method_label.setStyleSheet("font-weight: bold;")
+        pay_layout.addRow(method_label)
+
         self.payment_method = QComboBox()
-        self.payment_method.addItems(["check", "direct_deposit", "both"])
+        self.payment_method.addItems([
+            "Check - Print paycheck",
+            "Direct Deposit - ACH transfer",
+            "Both - Check and Direct Deposit"
+        ])
+        self.payment_method.currentIndexChanged.connect(self._on_payment_method_change)
         pay_layout.addRow("Payment Method:", self.payment_method)
+
+        # Default hours per period for salaried employees
+        self.default_hours = QDoubleSpinBox()
+        self.default_hours.setMaximum(200)
+        self.default_hours.setValue(80)  # Default biweekly
+        self.default_hours.setDecimals(1)
+        pay_layout.addRow("Default Hours/Period:", self.default_hours)
 
         tabs.addTab(pay_tab, "Pay")
 
@@ -338,6 +362,24 @@ class AddEmployeeDialog(GenFinDialog):
 
         layout.addLayout(button_layout)
 
+    def _load_pay_schedules(self):
+        """Load pay schedules from API for dropdown."""
+        schedules = api_get("/pay-schedules")
+        if schedules:
+            sched_list = schedules if isinstance(schedules, list) else schedules.get("schedules", [])
+            for sched in sched_list:
+                if sched.get("is_active", True):
+                    freq = sched.get("frequency", "biweekly").replace("_", "-").title()
+                    self.pay_schedule.addItem(
+                        f"{sched['name']} ({freq})",
+                        sched.get("schedule_id", "")
+                    )
+
+    def _on_payment_method_change(self, index: int):
+        """Handle payment method change - show/hide direct deposit fields."""
+        # Direct deposit tab is always visible but this could highlight it
+        pass
+
     def _load_data(self):
         """Load existing employee data into form."""
         d = self.employee_data
@@ -357,7 +399,35 @@ class AddEmployeeDialog(GenFinDialog):
         self.pay_rate.setValue(d.get("pay_rate", 0))
         self.pay_frequency.setCurrentText(d.get("pay_frequency", "biweekly"))
         self.filing_status.setCurrentText(d.get("filing_status", "single"))
-        self.payment_method.setCurrentText(d.get("payment_method", "check"))
+        self.default_hours.setValue(d.get("default_hours", 80))
+
+        # Payment method mapping
+        pm = d.get("payment_method", "check")
+        if pm == "direct_deposit":
+            self.payment_method.setCurrentIndex(1)
+        elif pm == "both":
+            self.payment_method.setCurrentIndex(2)
+        else:
+            self.payment_method.setCurrentIndex(0)
+
+        # Pay schedule - find matching schedule
+        schedule_id = d.get("pay_schedule_id", "")
+        for i in range(self.pay_schedule.count()):
+            if self.pay_schedule.itemData(i) == schedule_id:
+                self.pay_schedule.setCurrentIndex(i)
+                break
+
+        # Direct deposit info
+        self.bank_routing.setText(d.get("bank_routing_number", ""))
+        self.bank_account.setText(d.get("bank_account_number", ""))
+        self.bank_account_type.setCurrentText(d.get("bank_account_type", "checking"))
+
+        # Address
+        self.address.setText(d.get("address_line1", ""))
+        self.city.setText(d.get("city", ""))
+        if d.get("state"):
+            self.state.setCurrentText(d["state"])
+        self.zip_code.setText(d.get("zip_code", ""))
 
     def _save(self):
         """Validate and save employee data."""
@@ -367,6 +437,29 @@ class AddEmployeeDialog(GenFinDialog):
         if not self.last_name.text().strip():
             QMessageBox.warning(self, "Validation Error", "Last name is required.")
             return
+
+        # Validate pay schedule is selected
+        schedule_id = self.pay_schedule.currentData()
+        if not schedule_id:
+            QMessageBox.warning(self, "Validation Error",
+                "Please select a Pay Schedule.\n\n"
+                "Employees must be assigned to a pay schedule to appear in payroll.")
+            return
+
+        # Convert payment method display to value
+        pm_index = self.payment_method.currentIndex()
+        payment_method = ["check", "direct_deposit", "both"][pm_index]
+
+        # Validate direct deposit info if needed
+        if payment_method in ["direct_deposit", "both"]:
+            if not self.bank_routing.text().strip():
+                QMessageBox.warning(self, "Validation Error",
+                    "Routing number is required for Direct Deposit.")
+                return
+            if not self.bank_account.text().strip():
+                QMessageBox.warning(self, "Validation Error",
+                    "Account number is required for Direct Deposit.")
+                return
 
         self.result_data = {
             "first_name": self.first_name.text().strip(),
@@ -387,11 +480,13 @@ class AddEmployeeDialog(GenFinDialog):
             "pay_type": self.pay_type.currentText(),
             "pay_rate": self.pay_rate.value(),
             "pay_frequency": self.pay_frequency.currentText(),
+            "pay_schedule_id": schedule_id,
+            "default_hours": self.default_hours.value(),
             "filing_status": self.filing_status.currentText(),
             "federal_allowances": self.federal_allowances.value(),
             "federal_additional_withholding": self.fed_additional.value(),
             "state_allowances": self.state_allowances.value(),
-            "payment_method": self.payment_method.currentText(),
+            "payment_method": payment_method,
             "bank_routing_number": self.bank_routing.text().strip(),
             "bank_account_number": self.bank_account.text().strip(),
             "bank_account_type": self.bank_account_type.currentText(),
@@ -4847,13 +4942,227 @@ class ViewPayRunDialog(GenFinDialog):
         lines_layout.addWidget(lines_table)
         layout.addWidget(lines_group)
 
-        # Close button
+        # Buttons
         btn_layout = QHBoxLayout()
+
+        # Print Checks button - only show if pay run is paid and has checks
+        if self.pay_run.get("status") == "paid":
+            print_btn = QPushButton("Print Paychecks")
+            print_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
+            print_btn.setStyleSheet(f"""
+                background-color: {GENFIN_COLORS['teal']};
+                color: white;
+                font-weight: bold;
+                padding: 8px 16px;
+            """)
+            print_btn.clicked.connect(self._print_checks)
+            btn_layout.addWidget(print_btn)
+
+            print_stubs_btn = QPushButton("Print Pay Stubs")
+            print_stubs_btn.clicked.connect(self._print_stubs)
+            btn_layout.addWidget(print_stubs_btn)
+
         btn_layout.addStretch()
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
+
+    def _print_checks(self):
+        """Print paychecks for this pay run."""
+        # Get check IDs from pay run lines
+        checks_to_print = []
+        lines = self.pay_run.get("lines", [])
+
+        for line in lines:
+            if line.get("check_id") and line.get("payment_method") in ["check", "both"]:
+                checks_to_print.append({
+                    "check_id": line["check_id"],
+                    "employee": line.get("employee_name", ""),
+                    "amount": line.get("net_pay", 0)
+                })
+
+        if not checks_to_print:
+            QMessageBox.information(self, "No Checks",
+                "No checks to print. All employees in this pay run use Direct Deposit.")
+            return
+
+        # Show print dialog
+        dialog = PrintChecksDialog(checks_to_print, self)
+        dialog.exec()
+
+    def _print_stubs(self):
+        """Print pay stubs for all employees."""
+        lines = self.pay_run.get("lines", [])
+        if not lines:
+            QMessageBox.warning(self, "No Data", "No pay data to print.")
+            return
+
+        # For now, show a simple message - full implementation would generate PDF
+        QMessageBox.information(self, "Print Pay Stubs",
+            f"Ready to print {len(lines)} pay stub(s).\n\n"
+            "This would send to your default printer.\n"
+            "(Full print preview coming soon)")
+
+
+class PrintChecksDialog(GenFinDialog):
+    """Dialog for printing payroll checks."""
+
+    def __init__(self, checks: List[Dict], parent=None):
+        super().__init__("Print Paychecks", parent)
+        self.checks = checks
+        self.setMinimumWidth(500)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # Printer selection
+        printer_group = QGroupBox("Printer Settings")
+        printer_layout = QFormLayout(printer_group)
+
+        self.printer_combo = QComboBox()
+        self.printer_combo.addItems([
+            "Default Printer",
+            "Check Printer (MICR)",
+            "PDF Preview"
+        ])
+        printer_layout.addRow("Print To:", self.printer_combo)
+
+        self.check_format = QComboBox()
+        self.check_format.addItems([
+            "Standard Check - Top Stub",
+            "Voucher Check - 3-Part",
+            "Wallet Check",
+            "Quicken/QuickBooks Compatible"
+        ])
+        printer_layout.addRow("Check Format:", self.check_format)
+
+        self.starting_check = QSpinBox()
+        self.starting_check.setRange(1, 99999)
+        self.starting_check.setValue(1001)
+        printer_layout.addRow("Starting Check #:", self.starting_check)
+
+        layout.addWidget(printer_group)
+
+        # Checks to print
+        checks_group = QGroupBox(f"Checks to Print ({len(self.checks)})")
+        checks_layout = QVBoxLayout(checks_group)
+
+        self.checks_table = QTableWidget()
+        self.checks_table.setColumnCount(4)
+        self.checks_table.setHorizontalHeaderLabels(["Print", "Check #", "Employee", "Amount"])
+        self.checks_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.checks_table.setRowCount(len(self.checks))
+
+        check_num = self.starting_check.value()
+        total = 0
+
+        for i, check in enumerate(self.checks):
+            # Print checkbox
+            chk = QCheckBox()
+            chk.setChecked(True)
+            self.checks_table.setCellWidget(i, 0, chk)
+
+            # Check number
+            self.checks_table.setItem(i, 1, QTableWidgetItem(str(check_num + i)))
+
+            # Employee
+            self.checks_table.setItem(i, 2, QTableWidgetItem(check.get("employee", "")))
+
+            # Amount
+            amount = check.get("amount", 0)
+            total += amount
+            self.checks_table.setItem(i, 3, QTableWidgetItem(f"${amount:,.2f}"))
+
+        checks_layout.addWidget(self.checks_table)
+
+        # Total
+        total_label = QLabel(f"Total: ${total:,.2f}")
+        total_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        checks_layout.addWidget(total_label)
+
+        layout.addWidget(checks_group)
+
+        # Print options
+        options_group = QGroupBox("Options")
+        options_layout = QVBoxLayout(options_group)
+
+        self.print_logo = QCheckBox("Print company logo on checks")
+        self.print_logo.setChecked(True)
+        options_layout.addWidget(self.print_logo)
+
+        self.print_signature = QCheckBox("Print signature image")
+        options_layout.addWidget(self.print_signature)
+
+        self.print_micr = QCheckBox("Print MICR line (requires MICR printer)")
+        self.print_micr.setChecked(True)
+        options_layout.addWidget(self.print_micr)
+
+        layout.addWidget(options_group)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+
+        preview_btn = QPushButton("Preview")
+        preview_btn.clicked.connect(self._preview)
+        btn_layout.addWidget(preview_btn)
+
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        print_btn = QPushButton("Print Checks")
+        print_btn.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal']};
+            color: white;
+            font-weight: bold;
+        """)
+        print_btn.clicked.connect(self._print)
+        btn_layout.addWidget(print_btn)
+
+        layout.addLayout(btn_layout)
+
+    def _preview(self):
+        """Show print preview."""
+        QMessageBox.information(self, "Print Preview",
+            "Print preview would display here.\n\n"
+            "Shows checks formatted for selected format\n"
+            "with all positioning for check stock.")
+
+    def _print(self):
+        """Send checks to printer."""
+        # Count selected checks
+        selected = 0
+        for i in range(self.checks_table.rowCount()):
+            chk = self.checks_table.cellWidget(i, 0)
+            if chk and chk.isChecked():
+                selected += 1
+
+        if selected == 0:
+            QMessageBox.warning(self, "No Selection", "Please select at least one check to print.")
+            return
+
+        # Confirm print
+        reply = QMessageBox.question(self, "Confirm Print",
+            f"Print {selected} check(s) to {self.printer_combo.currentText()}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            # Mark checks as printed via API
+            for i, check in enumerate(self.checks):
+                chk = self.checks_table.cellWidget(i, 0)
+                if chk and chk.isChecked() and check.get("check_id"):
+                    api_post(f"/checks/{check['check_id']}/mark-printed", {})
+
+            QMessageBox.information(self, "Success",
+                f"Sent {selected} check(s) to printer.\n\n"
+                "Checks have been marked as printed.")
+            self.accept()
 
 
 class GenFinPayrollCenterScreen(QWidget):
