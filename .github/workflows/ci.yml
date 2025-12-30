@@ -28,6 +28,7 @@ jobs:
           pip install reportlab openpyxl aiosmtplib
           pip install requests python-dateutil
           pip install jinja2 httpx
+          pip install slowapi
 
       - name: Run smoke tests
         env:
@@ -45,6 +46,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install dependencies for lint
+        run: |
+          pip install fastapi pydantic slowapi starlette
 
       - name: Check for syntax errors
         run: python -m py_compile backend/main.py
