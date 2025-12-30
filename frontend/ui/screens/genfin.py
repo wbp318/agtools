@@ -4274,6 +4274,1160 @@ class GenFinInventoryScreen(GenFinListScreen):
                 self.table.setItem(i, 5, QTableWidgetItem(str(qty)))
 
 
+# =============================================================================
+# PAYROLL CENTER - QuickBooks Style Scheduled/Unscheduled Payroll
+# =============================================================================
+
+class AddPayScheduleDialog(GenFinDialog):
+    """Dialog for adding/editing a pay schedule - QuickBooks style."""
+
+    def __init__(self, schedule_data: Optional[Dict] = None, parent=None):
+        title = "Edit Pay Schedule" if schedule_data else "New Pay Schedule"
+        super().__init__(title, parent)
+        self.schedule_data = schedule_data
+        self.result_data = None
+        self._setup_ui()
+        if schedule_data:
+            self._load_data()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # Schedule Info Group
+        info_group = QGroupBox("Schedule Information")
+        info_layout = QFormLayout(info_group)
+        info_layout.setSpacing(8)
+
+        self.name = QLineEdit()
+        self.name.setPlaceholderText("e.g., Weekly Field Crew")
+        info_layout.addRow("Schedule Name*:", self.name)
+
+        self.frequency = QComboBox()
+        self.frequency.addItems(["Weekly", "Biweekly", "Semi-monthly", "Monthly"])
+        self.frequency.currentTextChanged.connect(self._on_frequency_change)
+        info_layout.addRow("Pay Frequency*:", self.frequency)
+
+        layout.addWidget(info_group)
+
+        # Pay Day Settings Group
+        payday_group = QGroupBox("Pay Day Settings")
+        payday_layout = QFormLayout(payday_group)
+        payday_layout.setSpacing(8)
+
+        self.pay_day_of_week = QComboBox()
+        self.pay_day_of_week.addItems([
+            "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+        ])
+        self.pay_day_of_week.setCurrentIndex(4)  # Friday default
+        payday_layout.addRow("Pay Day (Weekly/Biweekly):", self.pay_day_of_week)
+
+        self.pay_day_of_month = QSpinBox()
+        self.pay_day_of_month.setRange(1, 28)
+        self.pay_day_of_month.setValue(15)
+        payday_layout.addRow("Pay Day of Month:", self.pay_day_of_month)
+
+        self.second_pay_day = QSpinBox()
+        self.second_pay_day.setRange(0, 28)
+        self.second_pay_day.setValue(0)
+        self.second_pay_day.setToolTip("For semi-monthly: 0=last day, or specify day")
+        payday_layout.addRow("Second Pay Day (Semi-monthly):", self.second_pay_day)
+
+        layout.addWidget(payday_group)
+
+        # Options Group
+        options_group = QGroupBox("Options")
+        options_layout = QFormLayout(options_group)
+        options_layout.setSpacing(8)
+
+        self.reminder_days = QSpinBox()
+        self.reminder_days.setRange(0, 14)
+        self.reminder_days.setValue(3)
+        options_layout.addRow("Reminder Days Before:", self.reminder_days)
+
+        self.is_active = QCheckBox("Schedule is active")
+        self.is_active.setChecked(True)
+        options_layout.addRow("", self.is_active)
+
+        layout.addWidget(options_group)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        save_btn = QPushButton("Save Schedule")
+        save_btn.clicked.connect(self._on_save)
+        btn_layout.addWidget(save_btn)
+
+        layout.addLayout(btn_layout)
+
+        self._on_frequency_change(self.frequency.currentText())
+
+    def _on_frequency_change(self, frequency: str):
+        """Show/hide appropriate pay day fields based on frequency."""
+        is_weekly = frequency in ["Weekly", "Biweekly"]
+        self.pay_day_of_week.setEnabled(is_weekly)
+        self.pay_day_of_month.setEnabled(not is_weekly)
+        self.second_pay_day.setEnabled(frequency == "Semi-monthly")
+
+    def _load_data(self):
+        """Load existing schedule data into form."""
+        if not self.schedule_data:
+            return
+
+        self.name.setText(self.schedule_data.get("name", ""))
+
+        freq = self.schedule_data.get("frequency", "biweekly")
+        freq_map = {"weekly": 0, "biweekly": 1, "semimonthly": 2, "monthly": 3}
+        self.frequency.setCurrentIndex(freq_map.get(freq, 1))
+
+        self.pay_day_of_week.setCurrentIndex(self.schedule_data.get("pay_day_of_week", 4))
+        self.pay_day_of_month.setValue(self.schedule_data.get("pay_day_of_month", 15))
+        self.second_pay_day.setValue(self.schedule_data.get("second_pay_day", 0))
+        self.reminder_days.setValue(self.schedule_data.get("reminder_days_before", 3))
+        self.is_active.setChecked(self.schedule_data.get("is_active", True))
+
+    def _on_save(self):
+        if not self.name.text().strip():
+            QMessageBox.warning(self, "Required Field", "Please enter a schedule name.")
+            return
+
+        freq_map = {"Weekly": "weekly", "Biweekly": "biweekly",
+                    "Semi-monthly": "semimonthly", "Monthly": "monthly"}
+
+        self.result_data = {
+            "name": self.name.text().strip(),
+            "frequency": freq_map[self.frequency.currentText()],
+            "pay_day_of_week": self.pay_day_of_week.currentIndex(),
+            "pay_day_of_month": self.pay_day_of_month.value(),
+            "second_pay_day": self.second_pay_day.value(),
+            "reminder_days_before": self.reminder_days.value(),
+            "is_active": self.is_active.isChecked()
+        }
+
+        if self.schedule_data:
+            self.result_data["schedule_id"] = self.schedule_data.get("schedule_id")
+
+        self.accept()
+
+
+class RunScheduledPayrollDialog(GenFinDialog):
+    """Dialog for starting a scheduled payroll - QuickBooks style."""
+
+    def __init__(self, schedules: List[Dict], bank_accounts: List[Dict], parent=None):
+        super().__init__("Run Scheduled Payroll", parent)
+        self.schedules = schedules
+        self.bank_accounts = bank_accounts
+        self.result_data = None
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # Info banner
+        banner = QLabel("Select a pay schedule to run payroll for all assigned employees.")
+        banner.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal_light']};
+            color: {GENFIN_COLORS['teal_dark']};
+            padding: 10px;
+            border: 1px solid {GENFIN_COLORS['teal']};
+            font-weight: bold;
+        """)
+        banner.setWordWrap(True)
+        layout.addWidget(banner)
+
+        # Schedule selection
+        schedule_group = QGroupBox("Pay Schedule")
+        schedule_layout = QFormLayout(schedule_group)
+
+        self.schedule_combo = QComboBox()
+        for sched in self.schedules:
+            if sched.get("is_active", True):
+                emp_count = len(sched.get("employee_ids", []))
+                next_date = sched.get("next_pay_date", "N/A")
+                self.schedule_combo.addItem(
+                    f"{sched['name']} ({emp_count} employees) - Next: {next_date}",
+                    sched
+                )
+        self.schedule_combo.currentIndexChanged.connect(self._on_schedule_change)
+        schedule_layout.addRow("Select Schedule:", self.schedule_combo)
+
+        layout.addWidget(schedule_group)
+
+        # Pay period info (auto-populated from schedule)
+        period_group = QGroupBox("Pay Period")
+        period_layout = QFormLayout(period_group)
+
+        self.period_start = QDateEdit()
+        self.period_start.setCalendarPopup(True)
+        self.period_start.setDate(QDate.currentDate().addDays(-14))
+        period_layout.addRow("Period Start:", self.period_start)
+
+        self.period_end = QDateEdit()
+        self.period_end.setCalendarPopup(True)
+        self.period_end.setDate(QDate.currentDate().addDays(-1))
+        period_layout.addRow("Period End:", self.period_end)
+
+        self.pay_date = QDateEdit()
+        self.pay_date.setCalendarPopup(True)
+        self.pay_date.setDate(QDate.currentDate())
+        period_layout.addRow("Pay Date:", self.pay_date)
+
+        layout.addWidget(period_group)
+
+        # Bank account selection
+        bank_group = QGroupBox("Payment Account")
+        bank_layout = QFormLayout(bank_group)
+
+        self.bank_combo = QComboBox()
+        for acct in self.bank_accounts:
+            balance = acct.get("balance", 0)
+            self.bank_combo.addItem(
+                f"{acct['account_name']} (${balance:,.2f})",
+                acct
+            )
+        bank_layout.addRow("Pay From:", self.bank_combo)
+
+        layout.addWidget(bank_group)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        run_btn = QPushButton("Start Payroll")
+        run_btn.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal']};
+            color: white;
+            font-weight: bold;
+        """)
+        run_btn.clicked.connect(self._on_run)
+        btn_layout.addWidget(run_btn)
+
+        layout.addLayout(btn_layout)
+
+        self._on_schedule_change(0)
+
+    def _on_schedule_change(self, index: int):
+        """Update pay period dates when schedule changes."""
+        if index >= 0 and index < self.schedule_combo.count():
+            sched = self.schedule_combo.itemData(index)
+            if sched:
+                # Set dates from schedule
+                if sched.get("next_pay_period_start"):
+                    try:
+                        start = QDate.fromString(sched["next_pay_period_start"], "yyyy-MM-dd")
+                        self.period_start.setDate(start)
+                    except:
+                        pass
+                if sched.get("next_pay_period_end"):
+                    try:
+                        end = QDate.fromString(sched["next_pay_period_end"], "yyyy-MM-dd")
+                        self.period_end.setDate(end)
+                    except:
+                        pass
+                if sched.get("next_pay_date"):
+                    try:
+                        pay = QDate.fromString(sched["next_pay_date"], "yyyy-MM-dd")
+                        self.pay_date.setDate(pay)
+                    except:
+                        pass
+
+    def _on_run(self):
+        if self.schedule_combo.count() == 0:
+            QMessageBox.warning(self, "No Schedule", "No active pay schedules found.")
+            return
+
+        if self.bank_combo.count() == 0:
+            QMessageBox.warning(self, "No Account", "No bank accounts available.")
+            return
+
+        sched = self.schedule_combo.currentData()
+        bank = self.bank_combo.currentData()
+
+        if not sched or not bank:
+            return
+
+        self.result_data = {
+            "schedule_id": sched["schedule_id"],
+            "bank_account_id": bank["account_id"],
+            "pay_period_start": self.period_start.date().toString("yyyy-MM-dd"),
+            "pay_period_end": self.period_end.date().toString("yyyy-MM-dd"),
+            "pay_date": self.pay_date.date().toString("yyyy-MM-dd")
+        }
+
+        self.accept()
+
+
+class RunUnscheduledPayrollDialog(GenFinDialog):
+    """Dialog for running unscheduled/ad-hoc payroll - QuickBooks style."""
+
+    def __init__(self, employees: List[Dict], bank_accounts: List[Dict], parent=None):
+        super().__init__("Run Unscheduled Payroll", parent)
+        self.employees = employees
+        self.bank_accounts = bank_accounts
+        self.result_data = None
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # Info banner
+        banner = QLabel("Unscheduled payroll for bonuses, corrections, emergency advances, "
+                       "commissions, or new hire first paycheck.")
+        banner.setStyleSheet(f"""
+            background-color: #FFF3CD;
+            color: #856404;
+            padding: 10px;
+            border: 1px solid #FFEAA7;
+            font-weight: bold;
+        """)
+        banner.setWordWrap(True)
+        layout.addWidget(banner)
+
+        # Payroll type
+        type_group = QGroupBox("Payroll Type")
+        type_layout = QFormLayout(type_group)
+
+        self.payroll_type = QComboBox()
+        self.payroll_type.addItems([
+            "Bonus", "Commission", "Correction", "Emergency Advance",
+            "New Hire First Paycheck", "Termination Check", "Other"
+        ])
+        type_layout.addRow("Reason:", self.payroll_type)
+
+        self.memo = QLineEdit()
+        self.memo.setPlaceholderText("Optional description")
+        type_layout.addRow("Memo:", self.memo)
+
+        layout.addWidget(type_group)
+
+        # Employee selection
+        emp_group = QGroupBox("Select Employees")
+        emp_layout = QVBoxLayout(emp_group)
+
+        self.emp_list = QTableWidget()
+        self.emp_list.setColumnCount(4)
+        self.emp_list.setHorizontalHeaderLabels(["Select", "Name", "Type", "Pay Rate"])
+        self.emp_list.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.emp_list.setRowCount(len(self.employees))
+
+        for i, emp in enumerate(self.employees):
+            # Checkbox
+            chk = QCheckBox()
+            self.emp_list.setCellWidget(i, 0, chk)
+
+            name = f"{emp.get('first_name', '')} {emp.get('last_name', '')}"
+            self.emp_list.setItem(i, 1, QTableWidgetItem(name))
+            self.emp_list.setItem(i, 2, QTableWidgetItem(emp.get("pay_type", "hourly").title()))
+
+            rate = emp.get("pay_rate", 0)
+            pay_type = emp.get("pay_type", "hourly")
+            rate_str = f"${rate:,.0f}/yr" if pay_type == "salary" else f"${rate:.2f}/hr"
+            self.emp_list.setItem(i, 3, QTableWidgetItem(rate_str))
+
+        emp_layout.addWidget(self.emp_list)
+
+        # Select all/none buttons
+        sel_layout = QHBoxLayout()
+        sel_all = QPushButton("Select All")
+        sel_all.clicked.connect(lambda: self._select_all(True))
+        sel_layout.addWidget(sel_all)
+
+        sel_none = QPushButton("Select None")
+        sel_none.clicked.connect(lambda: self._select_all(False))
+        sel_layout.addWidget(sel_none)
+        sel_layout.addStretch()
+        emp_layout.addLayout(sel_layout)
+
+        layout.addWidget(emp_group)
+
+        # Pay period
+        period_group = QGroupBox("Pay Period")
+        period_layout = QFormLayout(period_group)
+
+        self.period_start = QDateEdit()
+        self.period_start.setCalendarPopup(True)
+        self.period_start.setDate(QDate.currentDate())
+        period_layout.addRow("Period Start:", self.period_start)
+
+        self.period_end = QDateEdit()
+        self.period_end.setCalendarPopup(True)
+        self.period_end.setDate(QDate.currentDate())
+        period_layout.addRow("Period End:", self.period_end)
+
+        self.pay_date = QDateEdit()
+        self.pay_date.setCalendarPopup(True)
+        self.pay_date.setDate(QDate.currentDate())
+        period_layout.addRow("Pay Date:", self.pay_date)
+
+        layout.addWidget(period_group)
+
+        # Bank account
+        bank_group = QGroupBox("Payment Account")
+        bank_layout = QFormLayout(bank_group)
+
+        self.bank_combo = QComboBox()
+        for acct in self.bank_accounts:
+            balance = acct.get("balance", 0)
+            self.bank_combo.addItem(
+                f"{acct['account_name']} (${balance:,.2f})",
+                acct
+            )
+        bank_layout.addRow("Pay From:", self.bank_combo)
+
+        layout.addWidget(bank_group)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        run_btn = QPushButton("Create Unscheduled Payroll")
+        run_btn.setStyleSheet("""
+            background-color: #E67E22;
+            color: white;
+            font-weight: bold;
+        """)
+        run_btn.clicked.connect(self._on_run)
+        btn_layout.addWidget(run_btn)
+
+        layout.addLayout(btn_layout)
+
+    def _select_all(self, selected: bool):
+        for i in range(self.emp_list.rowCount()):
+            chk = self.emp_list.cellWidget(i, 0)
+            if chk:
+                chk.setChecked(selected)
+
+    def _on_run(self):
+        # Get selected employees
+        selected_ids = []
+        for i in range(self.emp_list.rowCount()):
+            chk = self.emp_list.cellWidget(i, 0)
+            if chk and chk.isChecked():
+                selected_ids.append(self.employees[i]["employee_id"])
+
+        if not selected_ids:
+            QMessageBox.warning(self, "No Employees", "Please select at least one employee.")
+            return
+
+        if self.bank_combo.count() == 0:
+            QMessageBox.warning(self, "No Account", "No bank accounts available.")
+            return
+
+        bank = self.bank_combo.currentData()
+
+        type_map = {
+            "Bonus": "bonus",
+            "Commission": "commission",
+            "Correction": "unscheduled",
+            "Emergency Advance": "unscheduled",
+            "New Hire First Paycheck": "unscheduled",
+            "Termination Check": "termination",
+            "Other": "unscheduled"
+        }
+
+        self.result_data = {
+            "pay_run_type": type_map.get(self.payroll_type.currentText(), "unscheduled"),
+            "employee_ids": selected_ids,
+            "bank_account_id": bank["account_id"],
+            "pay_period_start": self.period_start.date().toString("yyyy-MM-dd"),
+            "pay_period_end": self.period_end.date().toString("yyyy-MM-dd"),
+            "pay_date": self.pay_date.date().toString("yyyy-MM-dd"),
+            "memo": self.memo.text().strip() or self.payroll_type.currentText(),
+            "reason": self.payroll_type.currentText()
+        }
+
+        self.accept()
+
+
+class ViewPayRunDialog(GenFinDialog):
+    """Dialog for viewing pay run details."""
+
+    def __init__(self, pay_run: Dict, parent=None):
+        super().__init__(f"Pay Run #{pay_run.get('pay_run_number', 'N/A')}", parent)
+        self.pay_run = pay_run
+        self.setMinimumWidth(700)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        # Header info
+        header_group = QGroupBox("Pay Run Information")
+        header_layout = QFormLayout(header_group)
+
+        status = self.pay_run.get("status", "draft").upper()
+        status_colors = {
+            "DRAFT": "#6C757D",
+            "CALCULATED": "#17A2B8",
+            "APPROVED": "#28A745",
+            "PAID": "#007BFF",
+            "VOIDED": "#DC3545"
+        }
+        status_label = QLabel(status)
+        status_label.setStyleSheet(f"""
+            color: white;
+            background-color: {status_colors.get(status, '#6C757D')};
+            padding: 4px 8px;
+            font-weight: bold;
+        """)
+        header_layout.addRow("Status:", status_label)
+
+        pay_type = self.pay_run.get("pay_run_type", "scheduled").replace("_", " ").title()
+        header_layout.addRow("Type:", QLabel(pay_type))
+
+        period = f"{self.pay_run.get('pay_period_start', '')} to {self.pay_run.get('pay_period_end', '')}"
+        header_layout.addRow("Pay Period:", QLabel(period))
+        header_layout.addRow("Pay Date:", QLabel(self.pay_run.get("pay_date", "")))
+
+        if self.pay_run.get("memo"):
+            header_layout.addRow("Memo:", QLabel(self.pay_run["memo"]))
+
+        layout.addWidget(header_group)
+
+        # Totals
+        totals_group = QGroupBox("Totals")
+        totals_layout = QFormLayout(totals_group)
+
+        gross = self.pay_run.get("total_gross", 0)
+        totals_layout.addRow("Gross Pay:", QLabel(f"${gross:,.2f}"))
+
+        taxes = self.pay_run.get("total_taxes", 0)
+        totals_layout.addRow("Employee Taxes:", QLabel(f"${taxes:,.2f}"))
+
+        deductions = self.pay_run.get("total_deductions", 0)
+        totals_layout.addRow("Deductions:", QLabel(f"${deductions:,.2f}"))
+
+        net = self.pay_run.get("total_net", 0)
+        net_label = QLabel(f"${net:,.2f}")
+        net_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        totals_layout.addRow("Net Pay:", net_label)
+
+        employer_taxes = self.pay_run.get("total_employer_taxes", 0)
+        totals_layout.addRow("Employer Taxes:", QLabel(f"${employer_taxes:,.2f}"))
+
+        layout.addWidget(totals_group)
+
+        # Employee lines
+        lines_group = QGroupBox("Employee Pay")
+        lines_layout = QVBoxLayout(lines_group)
+
+        lines_table = QTableWidget()
+        lines_table.setColumnCount(5)
+        lines_table.setHorizontalHeaderLabels(["Employee", "Gross", "Taxes", "Deductions", "Net"])
+        lines_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+
+        lines = self.pay_run.get("lines", [])
+        lines_table.setRowCount(len(lines))
+
+        for i, line in enumerate(lines):
+            lines_table.setItem(i, 0, QTableWidgetItem(line.get("employee_name", line.get("employee_id", ""))))
+            lines_table.setItem(i, 1, QTableWidgetItem(f"${line.get('gross_pay', 0):,.2f}"))
+            total_tax = line.get("federal_income_tax", 0) + line.get("state_income_tax", 0) + \
+                       line.get("social_security_employee", 0) + line.get("medicare_employee", 0)
+            lines_table.setItem(i, 2, QTableWidgetItem(f"${total_tax:,.2f}"))
+            lines_table.setItem(i, 3, QTableWidgetItem(f"${line.get('total_deductions', 0):,.2f}"))
+            lines_table.setItem(i, 4, QTableWidgetItem(f"${line.get('net_pay', 0):,.2f}"))
+
+        lines_layout.addWidget(lines_table)
+        layout.addWidget(lines_group)
+
+        # Close button
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+
+
+class GenFinPayrollCenterScreen(QWidget):
+    """
+    QuickBooks-style Payroll Center with tabs for:
+    - Pay Schedules management
+    - Scheduled Payroll
+    - Unscheduled Payroll
+    - Pay History
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header with teal styling
+        header_frame = QFrame()
+        header_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {GENFIN_COLORS['teal']};
+                border-bottom: 3px solid {GENFIN_COLORS['teal_dark']};
+            }}
+        """)
+        header_layout = QHBoxLayout(header_frame)
+
+        title = QLabel("PAYROLL CENTER")
+        title.setStyleSheet("""
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            font-family: "Arial Black", sans-serif;
+            padding: 10px;
+        """)
+        header_layout.addWidget(title)
+        header_layout.addStretch()
+
+        layout.addWidget(header_frame)
+
+        # Tab widget for different payroll functions
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {GENFIN_COLORS['bevel_dark']};
+                background: {GENFIN_COLORS['window_face']};
+            }}
+            QTabBar::tab {{
+                background: {GENFIN_COLORS['window_face']};
+                border: 2px solid {GENFIN_COLORS['bevel_dark']};
+                padding: 8px 16px;
+                font-weight: bold;
+            }}
+            QTabBar::tab:selected {{
+                background: {GENFIN_COLORS['teal_light']};
+                border-bottom: 2px solid {GENFIN_COLORS['teal']};
+            }}
+        """)
+
+        # === Pay Schedules Tab ===
+        schedules_tab = QWidget()
+        schedules_layout = QVBoxLayout(schedules_tab)
+        schedules_layout.setSpacing(8)
+
+        # Schedule buttons
+        sched_btn_layout = QHBoxLayout()
+        new_sched_btn = QPushButton("New Schedule")
+        new_sched_btn.clicked.connect(self._new_schedule)
+        sched_btn_layout.addWidget(new_sched_btn)
+
+        edit_sched_btn = QPushButton("Edit Schedule")
+        edit_sched_btn.clicked.connect(self._edit_schedule)
+        sched_btn_layout.addWidget(edit_sched_btn)
+
+        assign_btn = QPushButton("Assign Employees")
+        assign_btn.clicked.connect(self._assign_employees)
+        sched_btn_layout.addWidget(assign_btn)
+
+        sched_btn_layout.addStretch()
+        schedules_layout.addLayout(sched_btn_layout)
+
+        # Schedules table
+        self.schedules_table = QTableWidget()
+        self.schedules_table.setColumnCount(6)
+        self.schedules_table.setHorizontalHeaderLabels([
+            "Schedule Name", "Frequency", "Employees", "Next Pay Date", "Next Period", "Status"
+        ])
+        self.schedules_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.schedules_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        schedules_layout.addWidget(self.schedules_table)
+
+        self.tabs.addTab(schedules_tab, "Pay Schedules")
+
+        # === Scheduled Payroll Tab ===
+        scheduled_tab = QWidget()
+        scheduled_layout = QVBoxLayout(scheduled_tab)
+
+        # Due payrolls section
+        due_label = QLabel("Payrolls Due or Upcoming:")
+        due_label.setStyleSheet("font-weight: bold; font-size: 12px;")
+        scheduled_layout.addWidget(due_label)
+
+        self.due_table = QTableWidget()
+        self.due_table.setColumnCount(5)
+        self.due_table.setHorizontalHeaderLabels([
+            "Schedule", "Pay Date", "Period", "Employees", "Action"
+        ])
+        self.due_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.due_table.setMaximumHeight(200)
+        scheduled_layout.addWidget(self.due_table)
+
+        # Run scheduled payroll button
+        run_sched_btn = QPushButton("Run Scheduled Payroll")
+        run_sched_btn.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal']};
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 12px 24px;
+        """)
+        run_sched_btn.clicked.connect(self._run_scheduled_payroll)
+        scheduled_layout.addWidget(run_sched_btn)
+
+        scheduled_layout.addStretch()
+
+        self.tabs.addTab(scheduled_tab, "Scheduled Payroll")
+
+        # === Unscheduled Payroll Tab ===
+        unsched_tab = QWidget()
+        unsched_layout = QVBoxLayout(unsched_tab)
+
+        unsched_info = QLabel(
+            "Use Unscheduled Payroll for:\n"
+            "- Bonus payments\n"
+            "- Commission payments\n"
+            "- Payroll corrections\n"
+            "- Emergency advances\n"
+            "- New hire first paycheck\n"
+            "- Termination checks"
+        )
+        unsched_info.setStyleSheet(f"""
+            background-color: #FFF3CD;
+            color: #856404;
+            padding: 12px;
+            border: 1px solid #FFEAA7;
+        """)
+        unsched_layout.addWidget(unsched_info)
+
+        run_unsched_btn = QPushButton("Run Unscheduled Payroll")
+        run_unsched_btn.setStyleSheet("""
+            background-color: #E67E22;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 12px 24px;
+        """)
+        run_unsched_btn.clicked.connect(self._run_unscheduled_payroll)
+        unsched_layout.addWidget(run_unsched_btn)
+
+        unsched_layout.addStretch()
+
+        self.tabs.addTab(unsched_tab, "Unscheduled Payroll")
+
+        # === Pay History Tab ===
+        history_tab = QWidget()
+        history_layout = QVBoxLayout(history_tab)
+
+        # Filter row
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filter:"))
+
+        self.history_type_filter = QComboBox()
+        self.history_type_filter.addItems(["All Types", "Scheduled", "Unscheduled", "Bonus", "Termination"])
+        self.history_type_filter.currentTextChanged.connect(self._filter_history)
+        filter_layout.addWidget(self.history_type_filter)
+
+        filter_layout.addWidget(QLabel("Status:"))
+        self.history_status_filter = QComboBox()
+        self.history_status_filter.addItems(["All", "Draft", "Calculated", "Approved", "Paid", "Voided"])
+        self.history_status_filter.currentTextChanged.connect(self._filter_history)
+        filter_layout.addWidget(self.history_status_filter)
+
+        filter_layout.addStretch()
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.load_data)
+        filter_layout.addWidget(refresh_btn)
+
+        history_layout.addLayout(filter_layout)
+
+        # History table
+        self.history_table = QTableWidget()
+        self.history_table.setColumnCount(7)
+        self.history_table.setHorizontalHeaderLabels([
+            "Pay Run #", "Type", "Pay Date", "Period", "Employees", "Net Pay", "Status"
+        ])
+        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.history_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.history_table.doubleClicked.connect(self._view_pay_run)
+        history_layout.addWidget(self.history_table)
+
+        # Action buttons
+        action_layout = QHBoxLayout()
+        view_btn = QPushButton("View Details")
+        view_btn.clicked.connect(self._view_pay_run)
+        action_layout.addWidget(view_btn)
+
+        calc_btn = QPushButton("Calculate")
+        calc_btn.clicked.connect(self._calculate_pay_run)
+        action_layout.addWidget(calc_btn)
+
+        approve_btn = QPushButton("Approve")
+        approve_btn.clicked.connect(self._approve_pay_run)
+        action_layout.addWidget(approve_btn)
+
+        process_btn = QPushButton("Process")
+        process_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        process_btn.clicked.connect(self._process_pay_run)
+        action_layout.addWidget(process_btn)
+
+        action_layout.addStretch()
+        history_layout.addLayout(action_layout)
+
+        self.tabs.addTab(history_tab, "Pay History")
+
+        layout.addWidget(self.tabs)
+
+        # Store data
+        self._schedules = []
+        self._pay_runs = []
+        self._employees = []
+        self._bank_accounts = []
+
+    def load_data(self):
+        """Load all payroll data from API."""
+        # Load pay schedules
+        data = api_get("/pay-schedules")
+        if data is not None:
+            self._schedules = data if isinstance(data, list) else data.get("schedules", [])
+            self._populate_schedules_table()
+
+        # Load due payrolls
+        due_data = api_get("/pay-schedules/due")
+        if due_data is not None:
+            self._populate_due_table(due_data if isinstance(due_data, list) else due_data.get("due", []))
+
+        # Load pay runs history
+        runs_data = api_get("/pay-runs")
+        if runs_data is not None:
+            self._pay_runs = runs_data if isinstance(runs_data, list) else runs_data.get("pay_runs", [])
+            self._populate_history_table()
+
+        # Load employees
+        emp_data = api_get("/employees")
+        if emp_data is not None:
+            self._employees = emp_data if isinstance(emp_data, list) else []
+
+        # Load bank accounts
+        bank_data = api_get("/bank-accounts")
+        if bank_data is not None:
+            self._bank_accounts = bank_data if isinstance(bank_data, list) else []
+
+    def _populate_schedules_table(self):
+        """Populate the pay schedules table."""
+        self.schedules_table.setRowCount(len(self._schedules))
+        for i, sched in enumerate(self._schedules):
+            self.schedules_table.setItem(i, 0, QTableWidgetItem(sched.get("name", "")))
+
+            freq = sched.get("frequency", "biweekly")
+            freq_display = {"weekly": "Weekly", "biweekly": "Bi-weekly",
+                           "semimonthly": "Semi-monthly", "monthly": "Monthly"}.get(freq, freq)
+            self.schedules_table.setItem(i, 1, QTableWidgetItem(freq_display))
+
+            emp_count = len(sched.get("employee_ids", []))
+            self.schedules_table.setItem(i, 2, QTableWidgetItem(str(emp_count)))
+
+            self.schedules_table.setItem(i, 3, QTableWidgetItem(sched.get("next_pay_date", "N/A")))
+
+            period = f"{sched.get('next_pay_period_start', '')} - {sched.get('next_pay_period_end', '')}"
+            self.schedules_table.setItem(i, 4, QTableWidgetItem(period))
+
+            status = "Active" if sched.get("is_active", True) else "Inactive"
+            status_item = QTableWidgetItem(status)
+            if status == "Active":
+                status_item.setForeground(Qt.GlobalColor.darkGreen)
+            else:
+                status_item.setForeground(Qt.GlobalColor.gray)
+            self.schedules_table.setItem(i, 5, status_item)
+
+    def _populate_due_table(self, due_payrolls: List[Dict]):
+        """Populate the due payrolls table."""
+        self.due_table.setRowCount(len(due_payrolls))
+        for i, due in enumerate(due_payrolls):
+            self.due_table.setItem(i, 0, QTableWidgetItem(due.get("schedule_name", "")))
+            self.due_table.setItem(i, 1, QTableWidgetItem(due.get("next_pay_date", "")))
+            period = f"{due.get('next_pay_period_start', '')} - {due.get('next_pay_period_end', '')}"
+            self.due_table.setItem(i, 2, QTableWidgetItem(period))
+            self.due_table.setItem(i, 3, QTableWidgetItem(str(len(due.get("employee_ids", [])))))
+
+            # Run button
+            run_btn = QPushButton("Run Now")
+            run_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+            run_btn.clicked.connect(lambda checked, s=due: self._run_specific_schedule(s))
+            self.due_table.setCellWidget(i, 4, run_btn)
+
+    def _populate_history_table(self):
+        """Populate the pay history table."""
+        runs = self._filter_pay_runs()
+        self.history_table.setRowCount(len(runs))
+
+        for i, run in enumerate(runs):
+            self.history_table.setItem(i, 0, QTableWidgetItem(str(run.get("pay_run_number", ""))))
+
+            run_type = run.get("pay_run_type", "scheduled").replace("_", " ").title()
+            self.history_table.setItem(i, 1, QTableWidgetItem(run_type))
+
+            self.history_table.setItem(i, 2, QTableWidgetItem(run.get("pay_date", "")))
+
+            period = f"{run.get('pay_period_start', '')} - {run.get('pay_period_end', '')}"
+            self.history_table.setItem(i, 3, QTableWidgetItem(period))
+
+            emp_count = len(run.get("lines", []))
+            self.history_table.setItem(i, 4, QTableWidgetItem(str(emp_count)))
+
+            net = run.get("total_net", 0)
+            self.history_table.setItem(i, 5, QTableWidgetItem(f"${net:,.2f}"))
+
+            status = run.get("status", "draft").title()
+            status_item = QTableWidgetItem(status)
+            status_colors = {
+                "Draft": Qt.GlobalColor.gray,
+                "Calculated": Qt.GlobalColor.blue,
+                "Approved": Qt.GlobalColor.darkGreen,
+                "Paid": Qt.GlobalColor.darkBlue,
+                "Voided": Qt.GlobalColor.red
+            }
+            status_item.setForeground(status_colors.get(status, Qt.GlobalColor.black))
+            self.history_table.setItem(i, 6, status_item)
+
+    def _filter_pay_runs(self) -> List[Dict]:
+        """Filter pay runs based on current filter selections."""
+        runs = self._pay_runs
+
+        type_filter = self.history_type_filter.currentText()
+        if type_filter != "All Types":
+            filter_map = {
+                "Scheduled": "scheduled",
+                "Unscheduled": "unscheduled",
+                "Bonus": "bonus",
+                "Termination": "termination"
+            }
+            runs = [r for r in runs if r.get("pay_run_type") == filter_map.get(type_filter)]
+
+        status_filter = self.history_status_filter.currentText()
+        if status_filter != "All":
+            runs = [r for r in runs if r.get("status", "").lower() == status_filter.lower()]
+
+        return runs
+
+    def _filter_history(self, _):
+        """Handle filter change."""
+        self._populate_history_table()
+
+    def _new_schedule(self):
+        """Create a new pay schedule."""
+        dialog = AddPayScheduleDialog(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
+            result = api_post("/pay-schedules", dialog.result_data)
+            if result and result.get("success"):
+                QMessageBox.information(self, "Success", "Pay schedule created!")
+                self.load_data()
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Error", f"Failed to create schedule: {error}")
+
+    def _edit_schedule(self):
+        """Edit selected pay schedule."""
+        row = self.schedules_table.currentRow()
+        if row < 0 or row >= len(self._schedules):
+            QMessageBox.warning(self, "Warning", "Please select a schedule to edit.")
+            return
+
+        schedule = self._schedules[row]
+        dialog = AddPayScheduleDialog(schedule, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            QMessageBox.information(self, "Info", "Schedule updated.")
+            self.load_data()
+
+    def _assign_employees(self):
+        """Open dialog to assign employees to a schedule."""
+        row = self.schedules_table.currentRow()
+        if row < 0 or row >= len(self._schedules):
+            QMessageBox.warning(self, "Warning", "Please select a schedule first.")
+            return
+
+        QMessageBox.information(self, "Info",
+            "Employee assignment dialog coming soon.\n"
+            "Use Employee setup to assign pay schedules for now.")
+
+    def _run_scheduled_payroll(self):
+        """Run a scheduled payroll."""
+        if not self._schedules:
+            QMessageBox.warning(self, "No Schedules", "No pay schedules found. Create one first.")
+            return
+
+        if not self._bank_accounts:
+            QMessageBox.warning(self, "No Accounts", "No bank accounts found.")
+            return
+
+        dialog = RunScheduledPayrollDialog(self._schedules, self._bank_accounts, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
+            result = api_post("/pay-runs/scheduled", dialog.result_data)
+            if result and result.get("success"):
+                QMessageBox.information(self, "Success",
+                    f"Payroll created! Pay Run #{result.get('pay_run_number', 'N/A')}\n"
+                    f"Employees: {result.get('employee_count', 0)}")
+                self.load_data()
+                self.tabs.setCurrentIndex(3)  # Switch to history tab
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Error", f"Failed to create payroll: {error}")
+
+    def _run_unscheduled_payroll(self):
+        """Run an unscheduled payroll."""
+        if not self._employees:
+            QMessageBox.warning(self, "No Employees", "No employees found.")
+            return
+
+        if not self._bank_accounts:
+            QMessageBox.warning(self, "No Accounts", "No bank accounts found.")
+            return
+
+        dialog = RunUnscheduledPayrollDialog(self._employees, self._bank_accounts, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
+            result = api_post("/pay-runs/unscheduled", dialog.result_data)
+            if result and result.get("success"):
+                QMessageBox.information(self, "Success",
+                    f"Unscheduled payroll created! Pay Run #{result.get('pay_run_number', 'N/A')}")
+                self.load_data()
+                self.tabs.setCurrentIndex(3)  # Switch to history tab
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Error", f"Failed to create payroll: {error}")
+
+    def _run_specific_schedule(self, schedule: Dict):
+        """Run payroll for a specific schedule from the due table."""
+        if not self._bank_accounts:
+            QMessageBox.warning(self, "No Accounts", "No bank accounts found.")
+            return
+
+        # Auto-fill the dialog with this schedule
+        result = api_post("/pay-runs/scheduled", {
+            "schedule_id": schedule["schedule_id"],
+            "bank_account_id": self._bank_accounts[0]["account_id"]
+        })
+
+        if result and result.get("success"):
+            QMessageBox.information(self, "Success",
+                f"Payroll started for {schedule.get('name', '')}!\n"
+                f"Pay Run #{result.get('pay_run_number', 'N/A')}")
+            self.load_data()
+        else:
+            error = result.get("error", "Unknown error") if result else "API request failed"
+            QMessageBox.warning(self, "Error", f"Failed to start payroll: {error}")
+
+    def _get_selected_pay_run(self) -> Optional[Dict]:
+        """Get the currently selected pay run from history table."""
+        row = self.history_table.currentRow()
+        runs = self._filter_pay_runs()
+        if row >= 0 and row < len(runs):
+            return runs[row]
+        return None
+
+    def _view_pay_run(self):
+        """View details of selected pay run."""
+        pay_run = self._get_selected_pay_run()
+        if not pay_run:
+            QMessageBox.warning(self, "Warning", "Please select a pay run to view.")
+            return
+
+        # Get full pay run details
+        details = api_get(f"/pay-runs/{pay_run['pay_run_id']}")
+        if details:
+            dialog = ViewPayRunDialog(details, parent=self)
+            dialog.exec()
+        else:
+            dialog = ViewPayRunDialog(pay_run, parent=self)
+            dialog.exec()
+
+    def _calculate_pay_run(self):
+        """Calculate a draft pay run."""
+        pay_run = self._get_selected_pay_run()
+        if not pay_run:
+            QMessageBox.warning(self, "Warning", "Please select a pay run.")
+            return
+
+        if pay_run.get("status") not in ["draft", "calculated"]:
+            QMessageBox.warning(self, "Cannot Calculate",
+                "Only draft or previously calculated pay runs can be calculated.")
+            return
+
+        result = api_post(f"/pay-runs/{pay_run['pay_run_id']}/calculate", {})
+        if result and result.get("success"):
+            QMessageBox.information(self, "Calculated",
+                f"Pay run calculated!\n"
+                f"Total Gross: ${result.get('total_gross', 0):,.2f}\n"
+                f"Total Net: ${result.get('total_net', 0):,.2f}")
+            self.load_data()
+        else:
+            error = result.get("error", "Unknown error") if result else "API request failed"
+            QMessageBox.warning(self, "Error", f"Calculation failed: {error}")
+
+    def _approve_pay_run(self):
+        """Approve a calculated pay run."""
+        pay_run = self._get_selected_pay_run()
+        if not pay_run:
+            QMessageBox.warning(self, "Warning", "Please select a pay run.")
+            return
+
+        if pay_run.get("status") != "calculated":
+            QMessageBox.warning(self, "Cannot Approve",
+                "Only calculated pay runs can be approved. Calculate first.")
+            return
+
+        reply = QMessageBox.question(self, "Confirm Approval",
+            f"Approve Pay Run #{pay_run.get('pay_run_number')}?\n"
+            f"Net Pay: ${pay_run.get('total_net', 0):,.2f}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            result = api_post(f"/pay-runs/{pay_run['pay_run_id']}/approve", {})
+            if result and result.get("success"):
+                QMessageBox.information(self, "Approved", "Pay run approved!")
+                self.load_data()
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Error", f"Approval failed: {error}")
+
+    def _process_pay_run(self):
+        """Process an approved pay run (create checks/ACH)."""
+        pay_run = self._get_selected_pay_run()
+        if not pay_run:
+            QMessageBox.warning(self, "Warning", "Please select a pay run.")
+            return
+
+        if pay_run.get("status") != "approved":
+            QMessageBox.warning(self, "Cannot Process",
+                "Only approved pay runs can be processed.")
+            return
+
+        reply = QMessageBox.question(self, "Confirm Processing",
+            f"Process Pay Run #{pay_run.get('pay_run_number')}?\n"
+            f"This will create checks and/or ACH transactions.\n"
+            f"Net Pay: ${pay_run.get('total_net', 0):,.2f}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            result = api_post(f"/pay-runs/{pay_run['pay_run_id']}/process", {})
+            if result and result.get("success"):
+                checks = result.get("checks_created", [])
+                dd = result.get("direct_deposits", 0)
+                QMessageBox.information(self, "Processed",
+                    f"Pay run processed!\n"
+                    f"Checks created: {len(checks)}\n"
+                    f"Direct deposits: {dd}")
+                self.load_data()
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Error", f"Processing failed: {error}")
+
+
 class GenFinReportsScreen(QWidget):
     """Reports screen with report catalog."""
 
@@ -4482,10 +5636,8 @@ class GenFinScreen(QWidget):
         self._add_screen("time", GenFinTimeTrackingScreen())
         self._add_screen("inventory", GenFinInventoryScreen())
 
-        # Payroll screen
-        payroll = GenFinListScreen("Payroll", ["Pay Run #", "Period", "Employees", "Total", "Status"],
-                                    "/pay-runs", None, "pay_run_id")
-        self._add_screen("payroll", payroll)
+        # Payroll Center - QuickBooks style with scheduled/unscheduled payroll
+        self._add_screen("payroll", GenFinPayrollCenterScreen())
 
         # 1099 screen
         forms_1099 = GenFinListScreen("1099 Forms", ["Vendor", "Tax ID", "Amount", "Status"],

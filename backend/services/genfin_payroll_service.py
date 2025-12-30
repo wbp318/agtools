@@ -53,6 +53,15 @@ class PayRunStatus(Enum):
     VOIDED = "voided"
 
 
+class PayRunType(Enum):
+    """Pay run type - QuickBooks-style scheduled vs unscheduled"""
+    SCHEDULED = "scheduled"  # Regular scheduled payroll
+    UNSCHEDULED = "unscheduled"  # Ad-hoc (bonus, correction, emergency)
+    TERMINATION = "termination"  # Final paycheck for terminated employee
+    BONUS = "bonus"  # Bonus-only run
+    COMMISSION = "commission"  # Commission-only run
+
+
 class PaymentMethod(Enum):
     """Payment method for employee"""
     CHECK = "check"
@@ -267,6 +276,10 @@ class PayRun:
     pay_date: date
     bank_account_id: str
 
+    # QuickBooks-style payroll type
+    pay_run_type: PayRunType = PayRunType.SCHEDULED
+    pay_schedule_id: Optional[str] = None  # Link to schedule for scheduled runs
+
     lines: List[PayRunLine] = field(default_factory=list)
 
     # Totals
@@ -301,6 +314,45 @@ class TaxPayment:
     confirmation_number: str = ""
     memo: str = ""
     created_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class PaySchedule:
+    """
+    Pay Schedule - QuickBooks-style payroll scheduling
+
+    Defines when employees get paid:
+    - Frequency (weekly, biweekly, semi-monthly, monthly)
+    - Pay day (day of week for weekly/biweekly, day of month for monthly)
+    - Which employees are on this schedule
+    - Next scheduled run date
+    """
+    schedule_id: str
+    name: str  # e.g., "Weekly Field Crew", "Monthly Salaried"
+    frequency: PayFrequency
+
+    # For weekly/biweekly - day of week (0=Monday, 6=Sunday)
+    pay_day_of_week: int = 4  # Friday
+
+    # For monthly/semi-monthly - day(s) of month
+    pay_day_of_month: int = 15  # 15th
+    second_pay_day: int = 0  # For semi-monthly (e.g., 15th and last day)
+
+    # Scheduling
+    next_pay_period_start: Optional[date] = None
+    next_pay_period_end: Optional[date] = None
+    next_pay_date: Optional[date] = None
+
+    # Track employees on this schedule
+    employee_ids: List[str] = field(default_factory=list)
+
+    # Settings
+    is_active: bool = True
+    auto_calculate: bool = False  # Auto-calculate when run starts
+    reminder_days_before: int = 3  # Days before pay date to send reminder
+
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
 
 
 # 2024 Federal Tax Brackets
@@ -387,6 +439,7 @@ class GenFinPayrollService:
         self.employee_deductions: Dict[str, EmployeeDeduction] = {}
         self.pay_runs: Dict[str, PayRun] = {}
         self.tax_payments: Dict[str, TaxPayment] = {}
+        self.pay_schedules: Dict[str, PaySchedule] = {}  # QuickBooks-style pay schedules
 
         self.next_employee_number = 1001
         self.next_pay_run_number = 1
@@ -395,6 +448,8 @@ class GenFinPayrollService:
         self._initialize_earning_types()
         # Initialize default deduction types
         self._initialize_deduction_types()
+        # Initialize default pay schedules
+        self._initialize_pay_schedules()
 
         self._initialized = True
 
@@ -451,6 +506,329 @@ class GenFinPayrollService:
                 default_percentage=pct,
                 max_annual_amount=max_amt
             )
+
+    def _initialize_pay_schedules(self):
+        """Set up default pay schedules - QuickBooks style"""
+        # Weekly schedule (for hourly workers)
+        weekly_id = str(uuid.uuid4())
+        self.pay_schedules[weekly_id] = PaySchedule(
+            schedule_id=weekly_id,
+            name="Weekly",
+            frequency=PayFrequency.WEEKLY,
+            pay_day_of_week=4,  # Friday
+            next_pay_period_start=self._calculate_next_period_start(PayFrequency.WEEKLY),
+            next_pay_period_end=self._calculate_next_period_end(PayFrequency.WEEKLY),
+            next_pay_date=self._calculate_next_pay_date(PayFrequency.WEEKLY, 4)
+        )
+
+        # Biweekly schedule (most common)
+        biweekly_id = str(uuid.uuid4())
+        self.pay_schedules[biweekly_id] = PaySchedule(
+            schedule_id=biweekly_id,
+            name="Every Other Week",
+            frequency=PayFrequency.BIWEEKLY,
+            pay_day_of_week=4,  # Friday
+            next_pay_period_start=self._calculate_next_period_start(PayFrequency.BIWEEKLY),
+            next_pay_period_end=self._calculate_next_period_end(PayFrequency.BIWEEKLY),
+            next_pay_date=self._calculate_next_pay_date(PayFrequency.BIWEEKLY, 4)
+        )
+
+        # Semi-monthly schedule (15th and last day)
+        semimonthly_id = str(uuid.uuid4())
+        self.pay_schedules[semimonthly_id] = PaySchedule(
+            schedule_id=semimonthly_id,
+            name="Twice a Month",
+            frequency=PayFrequency.SEMIMONTHLY,
+            pay_day_of_month=15,
+            second_pay_day=0,  # Last day of month
+            next_pay_period_start=self._calculate_next_period_start(PayFrequency.SEMIMONTHLY),
+            next_pay_period_end=self._calculate_next_period_end(PayFrequency.SEMIMONTHLY),
+            next_pay_date=self._calculate_next_pay_date(PayFrequency.SEMIMONTHLY, pay_day_of_month=15)
+        )
+
+        # Monthly schedule (for salaried employees)
+        monthly_id = str(uuid.uuid4())
+        self.pay_schedules[monthly_id] = PaySchedule(
+            schedule_id=monthly_id,
+            name="Monthly",
+            frequency=PayFrequency.MONTHLY,
+            pay_day_of_month=1,  # 1st of month
+            next_pay_period_start=self._calculate_next_period_start(PayFrequency.MONTHLY),
+            next_pay_period_end=self._calculate_next_period_end(PayFrequency.MONTHLY),
+            next_pay_date=self._calculate_next_pay_date(PayFrequency.MONTHLY, pay_day_of_month=1)
+        )
+
+    def _calculate_next_period_start(self, frequency: PayFrequency) -> date:
+        """Calculate the next pay period start date"""
+        today = date.today()
+
+        if frequency == PayFrequency.WEEKLY:
+            # Start of current week (Monday)
+            days_since_monday = today.weekday()
+            return today - timedelta(days=days_since_monday)
+
+        elif frequency == PayFrequency.BIWEEKLY:
+            # Start of current two-week period
+            days_since_monday = today.weekday()
+            week_start = today - timedelta(days=days_since_monday)
+            # Align to biweekly schedule (even weeks from year start)
+            week_num = week_start.isocalendar()[1]
+            if week_num % 2 == 1:
+                week_start -= timedelta(days=7)
+            return week_start
+
+        elif frequency == PayFrequency.SEMIMONTHLY:
+            # 1st-15th or 16th-end of month
+            if today.day <= 15:
+                return date(today.year, today.month, 1)
+            else:
+                return date(today.year, today.month, 16)
+
+        elif frequency == PayFrequency.MONTHLY:
+            return date(today.year, today.month, 1)
+
+        return today
+
+    def _calculate_next_period_end(self, frequency: PayFrequency) -> date:
+        """Calculate the next pay period end date"""
+        start = self._calculate_next_period_start(frequency)
+
+        if frequency == PayFrequency.WEEKLY:
+            return start + timedelta(days=6)
+
+        elif frequency == PayFrequency.BIWEEKLY:
+            return start + timedelta(days=13)
+
+        elif frequency == PayFrequency.SEMIMONTHLY:
+            if start.day == 1:
+                return date(start.year, start.month, 15)
+            else:
+                # Last day of month
+                if start.month == 12:
+                    return date(start.year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    return date(start.year, start.month + 1, 1) - timedelta(days=1)
+
+        elif frequency == PayFrequency.MONTHLY:
+            if start.month == 12:
+                return date(start.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                return date(start.year, start.month + 1, 1) - timedelta(days=1)
+
+        return start
+
+    def _calculate_next_pay_date(self, frequency: PayFrequency, pay_day_of_week: int = 4, pay_day_of_month: int = 15) -> date:
+        """Calculate the next pay date"""
+        today = date.today()
+
+        if frequency in [PayFrequency.WEEKLY, PayFrequency.BIWEEKLY]:
+            # Find next occurrence of pay_day_of_week (0=Mon, 4=Fri)
+            days_ahead = pay_day_of_week - today.weekday()
+            if days_ahead <= 0:
+                days_ahead += 7
+            if frequency == PayFrequency.BIWEEKLY:
+                # Adjust for biweekly
+                week_num = today.isocalendar()[1]
+                if week_num % 2 == 1:
+                    days_ahead += 7
+            return today + timedelta(days=days_ahead)
+
+        elif frequency == PayFrequency.SEMIMONTHLY:
+            if today.day <= 15:
+                return date(today.year, today.month, 15)
+            else:
+                # Last day of month
+                if today.month == 12:
+                    return date(today.year, 12, 31)
+                else:
+                    return date(today.year, today.month + 1, 1) - timedelta(days=1)
+
+        elif frequency == PayFrequency.MONTHLY:
+            if today.day <= pay_day_of_month:
+                return date(today.year, today.month, pay_day_of_month)
+            else:
+                if today.month == 12:
+                    return date(today.year + 1, 1, pay_day_of_month)
+                else:
+                    return date(today.year, today.month + 1, pay_day_of_month)
+
+        return today
+
+    # ==================== PAY SCHEDULE MANAGEMENT ====================
+
+    def create_pay_schedule(
+        self,
+        name: str,
+        frequency: str,
+        pay_day_of_week: int = 4,
+        pay_day_of_month: int = 15,
+        second_pay_day: int = 0
+    ) -> Dict:
+        """Create a new pay schedule"""
+        schedule_id = str(uuid.uuid4())
+        freq = PayFrequency(frequency)
+
+        schedule = PaySchedule(
+            schedule_id=schedule_id,
+            name=name,
+            frequency=freq,
+            pay_day_of_week=pay_day_of_week,
+            pay_day_of_month=pay_day_of_month,
+            second_pay_day=second_pay_day,
+            next_pay_period_start=self._calculate_next_period_start(freq),
+            next_pay_period_end=self._calculate_next_period_end(freq),
+            next_pay_date=self._calculate_next_pay_date(freq, pay_day_of_week, pay_day_of_month)
+        )
+
+        self.pay_schedules[schedule_id] = schedule
+
+        return {
+            "success": True,
+            "schedule_id": schedule_id,
+            "schedule": self._schedule_to_dict(schedule)
+        }
+
+    def assign_employee_to_schedule(self, employee_id: str, schedule_id: str) -> Dict:
+        """Assign an employee to a pay schedule"""
+        if employee_id not in self.employees:
+            return {"success": False, "error": "Employee not found"}
+        if schedule_id not in self.pay_schedules:
+            return {"success": False, "error": "Pay schedule not found"}
+
+        # Remove from any existing schedule
+        for sched in self.pay_schedules.values():
+            if employee_id in sched.employee_ids:
+                sched.employee_ids.remove(employee_id)
+
+        # Add to new schedule
+        self.pay_schedules[schedule_id].employee_ids.append(employee_id)
+
+        # Update employee's pay frequency to match schedule
+        emp = self.employees[employee_id]
+        emp.pay_frequency = self.pay_schedules[schedule_id].frequency
+        emp.updated_at = datetime.now()
+
+        return {
+            "success": True,
+            "message": f"Employee assigned to {self.pay_schedules[schedule_id].name} schedule"
+        }
+
+    def get_pay_schedule(self, schedule_id: str) -> Optional[Dict]:
+        """Get a pay schedule by ID"""
+        if schedule_id not in self.pay_schedules:
+            return None
+        return self._schedule_to_dict(self.pay_schedules[schedule_id])
+
+    def list_pay_schedules(self, active_only: bool = True) -> List[Dict]:
+        """List all pay schedules"""
+        result = []
+        for schedule in self.pay_schedules.values():
+            if active_only and not schedule.is_active:
+                continue
+            result.append(self._schedule_to_dict(schedule))
+        return result
+
+    def get_scheduled_payrolls_due(self) -> List[Dict]:
+        """Get list of scheduled payrolls that are due or upcoming"""
+        today = date.today()
+        due_payrolls = []
+
+        for schedule in self.pay_schedules.values():
+            if not schedule.is_active or not schedule.employee_ids:
+                continue
+
+            days_until = (schedule.next_pay_date - today).days if schedule.next_pay_date else 999
+
+            if days_until <= schedule.reminder_days_before:
+                due_payrolls.append({
+                    "schedule_id": schedule.schedule_id,
+                    "schedule_name": schedule.name,
+                    "frequency": schedule.frequency.value,
+                    "pay_period_start": schedule.next_pay_period_start.isoformat() if schedule.next_pay_period_start else None,
+                    "pay_period_end": schedule.next_pay_period_end.isoformat() if schedule.next_pay_period_end else None,
+                    "pay_date": schedule.next_pay_date.isoformat() if schedule.next_pay_date else None,
+                    "days_until_pay_date": days_until,
+                    "employee_count": len(schedule.employee_ids),
+                    "status": "overdue" if days_until < 0 else "due" if days_until == 0 else "upcoming"
+                })
+
+        return sorted(due_payrolls, key=lambda p: p["days_until_pay_date"])
+
+    def _schedule_to_dict(self, schedule: PaySchedule) -> Dict:
+        """Convert PaySchedule to dictionary"""
+        return {
+            "schedule_id": schedule.schedule_id,
+            "name": schedule.name,
+            "frequency": schedule.frequency.value,
+            "pay_day_of_week": schedule.pay_day_of_week,
+            "pay_day_of_month": schedule.pay_day_of_month,
+            "second_pay_day": schedule.second_pay_day,
+            "next_pay_period_start": schedule.next_pay_period_start.isoformat() if schedule.next_pay_period_start else None,
+            "next_pay_period_end": schedule.next_pay_period_end.isoformat() if schedule.next_pay_period_end else None,
+            "next_pay_date": schedule.next_pay_date.isoformat() if schedule.next_pay_date else None,
+            "employee_count": len(schedule.employee_ids),
+            "employee_ids": schedule.employee_ids,
+            "is_active": schedule.is_active,
+            "auto_calculate": schedule.auto_calculate,
+            "reminder_days_before": schedule.reminder_days_before
+        }
+
+    def _advance_schedule(self, schedule_id: str):
+        """Advance a pay schedule to the next period after payroll is run"""
+        if schedule_id not in self.pay_schedules:
+            return
+
+        schedule = self.pay_schedules[schedule_id]
+
+        # Calculate next period based on frequency
+        if schedule.frequency == PayFrequency.WEEKLY:
+            schedule.next_pay_period_start += timedelta(days=7)
+            schedule.next_pay_period_end += timedelta(days=7)
+            schedule.next_pay_date += timedelta(days=7)
+
+        elif schedule.frequency == PayFrequency.BIWEEKLY:
+            schedule.next_pay_period_start += timedelta(days=14)
+            schedule.next_pay_period_end += timedelta(days=14)
+            schedule.next_pay_date += timedelta(days=14)
+
+        elif schedule.frequency == PayFrequency.SEMIMONTHLY:
+            current_end = schedule.next_pay_period_end
+            if current_end.day <= 15:
+                # Was 1-15, next is 16-end of month
+                schedule.next_pay_period_start = date(current_end.year, current_end.month, 16)
+                if current_end.month == 12:
+                    next_month = date(current_end.year + 1, 1, 1)
+                else:
+                    next_month = date(current_end.year, current_end.month + 1, 1)
+                schedule.next_pay_period_end = next_month - timedelta(days=1)
+                schedule.next_pay_date = schedule.next_pay_period_end
+            else:
+                # Was 16-end, next is 1-15 of next month
+                if current_end.month == 12:
+                    next_month = 1
+                    next_year = current_end.year + 1
+                else:
+                    next_month = current_end.month + 1
+                    next_year = current_end.year
+                schedule.next_pay_period_start = date(next_year, next_month, 1)
+                schedule.next_pay_period_end = date(next_year, next_month, 15)
+                schedule.next_pay_date = schedule.next_pay_period_end
+
+        elif schedule.frequency == PayFrequency.MONTHLY:
+            current_start = schedule.next_pay_period_start
+            if current_start.month == 12:
+                schedule.next_pay_period_start = date(current_start.year + 1, 1, 1)
+                schedule.next_pay_period_end = date(current_start.year + 1, 1, 31)
+                schedule.next_pay_date = date(current_start.year + 1, 1, schedule.pay_day_of_month)
+            else:
+                schedule.next_pay_period_start = date(current_start.year, current_start.month + 1, 1)
+                if current_start.month + 1 == 12:
+                    schedule.next_pay_period_end = date(current_start.year, 12, 31)
+                else:
+                    schedule.next_pay_period_end = date(current_start.year, current_start.month + 2, 1) - timedelta(days=1)
+                schedule.next_pay_date = date(current_start.year, current_start.month + 1, min(schedule.pay_day_of_month, 28))
+
+        schedule.updated_at = datetime.now()
 
     # ==================== EMPLOYEE MANAGEMENT ====================
 
@@ -876,13 +1254,232 @@ class GenFinPayrollService:
 
     # ==================== PAY RUNS ====================
 
+    def start_scheduled_payroll(self, schedule_id: str, bank_account_id: str) -> Dict:
+        """
+        Start a scheduled payroll run - QuickBooks style
+
+        Uses the pay schedule's dates and employees to create a pay run.
+        This is the main way to run regular payroll in QuickBooks.
+        """
+        if schedule_id not in self.pay_schedules:
+            return {"success": False, "error": "Pay schedule not found"}
+
+        schedule = self.pay_schedules[schedule_id]
+
+        if not schedule.employee_ids:
+            return {"success": False, "error": "No employees assigned to this schedule"}
+
+        # Create pay run using schedule's dates
+        result = self.create_pay_run(
+            pay_period_start=schedule.next_pay_period_start.isoformat(),
+            pay_period_end=schedule.next_pay_period_end.isoformat(),
+            pay_date=schedule.next_pay_date.isoformat(),
+            bank_account_id=bank_account_id,
+            employee_ids=schedule.employee_ids,
+            pay_run_type="scheduled",
+            pay_schedule_id=schedule_id
+        )
+
+        if result.get("success"):
+            # Auto-calculate if enabled
+            if schedule.auto_calculate:
+                self.calculate_pay_run(result["pay_run_id"])
+
+        return result
+
+    def create_unscheduled_payroll(
+        self,
+        pay_period_start: str,
+        pay_period_end: str,
+        pay_date: str,
+        bank_account_id: str,
+        employee_ids: List[str],
+        reason: str = ""
+    ) -> Dict:
+        """
+        Create an unscheduled payroll run - QuickBooks style
+
+        Use this for:
+        - Bonuses outside regular schedule
+        - Corrections to previous payroll
+        - Emergency advance payments
+        - Commission payments
+        - New hire's first paycheck before their schedule starts
+        """
+        if not employee_ids:
+            return {"success": False, "error": "Must specify at least one employee"}
+
+        return self.create_pay_run(
+            pay_period_start=pay_period_start,
+            pay_period_end=pay_period_end,
+            pay_date=pay_date,
+            bank_account_id=bank_account_id,
+            employee_ids=employee_ids,
+            pay_run_type="unscheduled",
+            memo=f"Unscheduled payroll: {reason}" if reason else "Unscheduled payroll"
+        )
+
+    def create_termination_check(
+        self,
+        employee_id: str,
+        termination_date: str,
+        pay_date: str,
+        bank_account_id: str,
+        include_pto_payout: bool = True,
+        pto_hours_to_pay: float = 0.0,
+        final_bonus: float = 0.0,
+        reason: str = ""
+    ) -> Dict:
+        """
+        Create a termination/final paycheck - QuickBooks style
+
+        Calculates final pay including:
+        - Regular hours through termination date
+        - Any overtime/other hours
+        - PTO payout (if applicable)
+        - Final bonus (if any)
+        """
+        if employee_id not in self.employees:
+            return {"success": False, "error": "Employee not found"}
+
+        emp = self.employees[employee_id]
+        term_date = datetime.strptime(termination_date, "%Y-%m-%d").date()
+
+        # Find the last pay period end for this employee
+        last_pay_end = None
+        for pay_run in sorted(self.pay_runs.values(), key=lambda x: x.pay_date, reverse=True):
+            if pay_run.status in [PayRunStatus.APPROVED, PayRunStatus.PAID]:
+                for line in pay_run.lines:
+                    if line.employee_id == employee_id:
+                        last_pay_end = pay_run.pay_period_end
+                        break
+            if last_pay_end:
+                break
+
+        # Pay period is from last pay period end (or hire date) to termination date
+        if last_pay_end:
+            period_start = last_pay_end + timedelta(days=1)
+        else:
+            period_start = emp.hire_date or term_date
+
+        # Create the pay run
+        result = self.create_pay_run(
+            pay_period_start=period_start.isoformat(),
+            pay_period_end=termination_date,
+            pay_date=pay_date,
+            bank_account_id=bank_account_id,
+            employee_ids=[employee_id],
+            pay_run_type="termination",
+            memo=f"Final paycheck - Termination: {reason}" if reason else "Final paycheck"
+        )
+
+        if result.get("success"):
+            pay_run = self.pay_runs[result["pay_run_id"]]
+
+            # Add PTO payout and bonus to the line
+            for line in pay_run.lines:
+                if line.employee_id == employee_id:
+                    if include_pto_payout and pto_hours_to_pay > 0:
+                        if emp.pay_type == PayType.HOURLY:
+                            line.vacation_pay = pto_hours_to_pay * emp.pay_rate
+                            line.vacation_hours = pto_hours_to_pay
+                        else:
+                            # For salaried, calculate hourly equivalent
+                            hourly_rate = emp.pay_rate / 2080  # Annual salary / hours per year
+                            line.vacation_pay = pto_hours_to_pay * hourly_rate
+                            line.vacation_hours = pto_hours_to_pay
+
+                    if final_bonus > 0:
+                        line.bonus = final_bonus
+
+                    break
+
+            # Terminate the employee
+            self.terminate_employee(employee_id, termination_date, reason)
+
+        return result
+
+    def create_bonus_payroll(
+        self,
+        bank_account_id: str,
+        pay_date: str,
+        bonus_list: List[Dict],  # [{"employee_id": "...", "amount": 500.00}, ...]
+        memo: str = "Bonus payment"
+    ) -> Dict:
+        """
+        Create a bonus-only payroll run - QuickBooks style
+
+        Quick way to pay bonuses to multiple employees outside regular payroll.
+        Each employee can have a different bonus amount.
+        """
+        if not bonus_list:
+            return {"success": False, "error": "No bonus amounts specified"}
+
+        employee_ids = [b["employee_id"] for b in bonus_list if b.get("employee_id")]
+
+        # Validate employees
+        for eid in employee_ids:
+            if eid not in self.employees:
+                return {"success": False, "error": f"Employee {eid} not found"}
+
+        # Create pay run with just the pay date (no regular period)
+        p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
+
+        pay_run_id = str(uuid.uuid4())
+        pay_run_number = self.next_pay_run_number
+        self.next_pay_run_number += 1
+
+        lines = []
+        for bonus_item in bonus_list:
+            emp_id = bonus_item.get("employee_id")
+            amount = bonus_item.get("amount", 0.0)
+
+            if not emp_id or emp_id not in self.employees or amount <= 0:
+                continue
+
+            emp = self.employees[emp_id]
+
+            line = PayRunLine(
+                line_id=str(uuid.uuid4()),
+                employee_id=emp_id,
+                bonus=amount,
+                payment_method=emp.payment_method
+            )
+            lines.append(line)
+
+        pay_run = PayRun(
+            pay_run_id=pay_run_id,
+            pay_run_number=pay_run_number,
+            pay_period_start=p_date,
+            pay_period_end=p_date,
+            pay_date=p_date,
+            bank_account_id=bank_account_id,
+            pay_run_type=PayRunType.BONUS,
+            lines=lines,
+            memo=memo
+        )
+
+        self.pay_runs[pay_run_id] = pay_run
+
+        return {
+            "success": True,
+            "pay_run_id": pay_run_id,
+            "pay_run_number": pay_run_number,
+            "pay_run_type": "bonus",
+            "employee_count": len(lines),
+            "total_bonus": sum(b.get("amount", 0) for b in bonus_list)
+        }
+
     def create_pay_run(
         self,
         pay_period_start: str,
         pay_period_end: str,
         pay_date: str,
         bank_account_id: str,
-        employee_ids: List[str] = None  # None = all active employees
+        employee_ids: List[str] = None,  # None = all active employees
+        pay_run_type: str = "scheduled",
+        pay_schedule_id: Optional[str] = None,
+        memo: str = ""
     ) -> Dict:
         """Create a new pay run"""
         pay_run_id = str(uuid.uuid4())
@@ -940,6 +1537,14 @@ class GenFinPayrollService:
 
             lines.append(line)
 
+        # Convert pay_run_type string to enum
+        run_type = PayRunType.SCHEDULED
+        if pay_run_type:
+            try:
+                run_type = PayRunType(pay_run_type.lower())
+            except ValueError:
+                run_type = PayRunType.SCHEDULED
+
         pay_run = PayRun(
             pay_run_id=pay_run_id,
             pay_run_number=pay_run_number,
@@ -947,7 +1552,10 @@ class GenFinPayrollService:
             pay_period_end=p_end,
             pay_date=p_date,
             bank_account_id=bank_account_id,
-            lines=lines
+            pay_run_type=run_type,
+            pay_schedule_id=pay_schedule_id,
+            lines=lines,
+            memo=memo
         )
 
         self.pay_runs[pay_run_id] = pay_run
@@ -1223,11 +1831,16 @@ class GenFinPayrollService:
         pay_run.paid_at = datetime.now()
         pay_run.updated_at = datetime.now()
 
+        # Advance the pay schedule if this was a scheduled payroll
+        if pay_run.pay_schedule_id and pay_run.pay_run_type == PayRunType.SCHEDULED:
+            self._advance_schedule(pay_run.pay_schedule_id)
+
         return {
             "success": True,
             "checks_created": checks_created,
             "direct_deposits": len(ach_entries),
-            "ach_batch_id": pay_run.ach_batch_id
+            "ach_batch_id": pay_run.ach_batch_id,
+            "pay_run_type": pay_run.pay_run_type.value
         }
 
     def _generate_pay_stub(self, line: PayRunLine, emp: Employee) -> str:

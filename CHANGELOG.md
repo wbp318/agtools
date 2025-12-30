@@ -108,7 +108,7 @@
 | 1099 Forms | ✅ Yes | ✅ Basic list done |
 | Budget | ✅ Yes | 🔄 Placeholder |
 | Full Reports (50+) | ✅ Yes | ✅ Report catalog complete |
-| Payroll | ✅ Yes | ✅ Basic list done |
+| **Payroll Center** | ✅ Yes | ✅ **NEW** Full QuickBooks-style Payroll Center |
 
 **New Dialogs Added (Dec 30):**
 - `ReceivePaymentDialog` - Full customer payment with invoice application
@@ -121,11 +121,25 @@
 - `SalesReceiptDialog` - Point-of-sale receipt creation
 - `TimeEntryDialog` - Billable time tracking
 - `InventoryItemDialog` - Full inventory/service item management
+- `AddPayScheduleDialog` - Create/edit pay schedules with frequency settings
+- `RunScheduledPayrollDialog` - Start scheduled payroll with date picker
+- `RunUnscheduledPayrollDialog` - Ad-hoc payroll for bonuses/corrections
+- `ViewPayRunDialog` - View pay run details and totals
+
+**QuickBooks-Style Payroll Center Features:**
+- **Pay Schedules Tab** - Weekly, Biweekly, Semi-monthly, Monthly schedules
+- **Scheduled Payroll Tab** - Due payrolls list with "Run Now" buttons
+- **Unscheduled Payroll Tab** - Bonus, Commission, Correction, Termination checks
+- **Pay History Tab** - Filter by type/status, Calculate/Approve/Process workflow
+- Backend: PayRunType enum (Scheduled, Unscheduled, Termination, Bonus, Commission)
+- Backend: PaySchedule with auto-advance after processing
+- 10 new API endpoints for schedules and payroll workflow
 
 **File Stats:**
-- `genfin.py` now **4,693 lines** (was ~2,000)
-- 10 new dialog classes
-- 5 new screen classes
+- `genfin.py` now **~5,800 lines** (added ~1,100 lines for Payroll Center)
+- `genfin_payroll_service.py` now **~2,000 lines** (added pay schedule management)
+- 14 new dialog classes
+- 6 new screen classes
 - Full QuickBooks-style CRUD workflows
 
 **UI Enhancements:**

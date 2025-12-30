@@ -13289,6 +13289,101 @@ async def get_tax_liability(period: str, year: int, user: AuthenticatedUser = De
     return genfin_payroll_service.get_tax_liability(period, year)
 
 
+# ------------ GenFin Pay Schedules - QuickBooks Style ------------
+
+@app.get("/api/v1/genfin/pay-schedules", tags=["GenFin Payroll"])
+async def list_pay_schedules(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List all pay schedules"""
+    return genfin_payroll_service.list_pay_schedules()
+
+@app.post("/api/v1/genfin/pay-schedules", tags=["GenFin Payroll"])
+async def create_pay_schedule(data: Dict[str, Any], user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new pay schedule"""
+    return genfin_payroll_service.create_pay_schedule(
+        name=data.get("name"),
+        frequency=data.get("frequency"),
+        pay_day_of_week=data.get("pay_day_of_week", 4),
+        pay_day_of_month=data.get("pay_day_of_month", 15),
+        second_pay_day=data.get("second_pay_day", 0),
+        reminder_days_before=data.get("reminder_days_before", 3)
+    )
+
+@app.get("/api/v1/genfin/pay-schedules/due", tags=["GenFin Payroll"])
+async def get_due_payrolls(
+    days_ahead: int = 7,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get scheduled payrolls due or upcoming within specified days"""
+    return genfin_payroll_service.get_scheduled_payrolls_due(days_ahead)
+
+@app.get("/api/v1/genfin/pay-schedules/{schedule_id}", tags=["GenFin Payroll"])
+async def get_pay_schedule(schedule_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get pay schedule by ID"""
+    result = genfin_payroll_service.get_pay_schedule(schedule_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Pay schedule not found")
+    return result
+
+@app.post("/api/v1/genfin/pay-schedules/{schedule_id}/assign", tags=["GenFin Payroll"])
+async def assign_employee_to_schedule(
+    schedule_id: str,
+    data: Dict[str, Any],
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Assign an employee to a pay schedule"""
+    return genfin_payroll_service.assign_employee_to_schedule(
+        schedule_id=schedule_id,
+        employee_id=data.get("employee_id")
+    )
+
+
+# ------------ GenFin Scheduled/Unscheduled Payroll - QuickBooks Style ------------
+
+@app.post("/api/v1/genfin/pay-runs/scheduled", tags=["GenFin Payroll"])
+async def start_scheduled_payroll(data: Dict[str, Any], user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Start a scheduled payroll run - QuickBooks style"""
+    return genfin_payroll_service.start_scheduled_payroll(
+        schedule_id=data.get("schedule_id"),
+        bank_account_id=data.get("bank_account_id")
+    )
+
+@app.post("/api/v1/genfin/pay-runs/unscheduled", tags=["GenFin Payroll"])
+async def create_unscheduled_payroll(data: Dict[str, Any], user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create an unscheduled/ad-hoc payroll - QuickBooks style (bonus, correction, etc.)"""
+    return genfin_payroll_service.create_unscheduled_payroll(
+        pay_period_start=data.get("pay_period_start"),
+        pay_period_end=data.get("pay_period_end"),
+        pay_date=data.get("pay_date"),
+        bank_account_id=data.get("bank_account_id"),
+        employee_ids=data.get("employee_ids", []),
+        reason=data.get("reason", "")
+    )
+
+@app.post("/api/v1/genfin/pay-runs/bonus", tags=["GenFin Payroll"])
+async def create_bonus_payroll(data: Dict[str, Any], user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a bonus-only payroll run"""
+    return genfin_payroll_service.create_bonus_payroll(
+        bank_account_id=data.get("bank_account_id"),
+        pay_date=data.get("pay_date"),
+        bonus_list=data.get("bonus_list", []),
+        memo=data.get("memo", "Bonus payment")
+    )
+
+@app.post("/api/v1/genfin/pay-runs/termination", tags=["GenFin Payroll"])
+async def create_termination_check(data: Dict[str, Any], user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a termination check for an employee"""
+    return genfin_payroll_service.create_termination_check(
+        employee_id=data.get("employee_id"),
+        termination_date=data.get("termination_date"),
+        pay_date=data.get("pay_date"),
+        bank_account_id=data.get("bank_account_id"),
+        include_pto_payout=data.get("include_pto_payout", True),
+        pto_hours_to_pay=data.get("pto_hours_to_pay", 0),
+        final_bonus=data.get("final_bonus", 0),
+        reason=data.get("reason", "")
+    )
+
+
 # ------------ GenFin Reports - Financial Statements ------------
 
 @app.get("/api/v1/genfin/reports/profit-loss", tags=["GenFin Reports"])
