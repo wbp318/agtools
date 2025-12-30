@@ -153,6 +153,10 @@ class Sidebar(QFrame):
         nav_layout.addWidget(SectionHeader("Import"))
         self._add_nav_item(nav_layout, "QuickBooks", icon="\u21E9")  # Download arrow
 
+        # Accounting Section (GenFin v6.3)
+        nav_layout.addWidget(SectionHeader("Accounting"))
+        self._add_nav_item(nav_layout, "GenFin", icon="\u0024")  # Dollar sign
+
         # Spacer
         nav_layout.addSpacerItem(
             QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)

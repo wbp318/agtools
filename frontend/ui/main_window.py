@@ -35,6 +35,7 @@ from ui.screens.inventory_management import InventoryManagementScreen
 from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
 from ui.screens.reports_dashboard import ReportsDashboardScreen
 from ui.screens.quickbooks_import import QuickBooksImportScreen
+from ui.screens.genfin import GenFinScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -450,6 +451,10 @@ class MainWindow(QMainWindow):
         qb_import_screen = QuickBooksImportScreen(current_user=self._current_user)
         self._add_screen("quickbooks", qb_import_screen)
 
+        # GenFin Accounting Screen (v6.3) - All users
+        genfin_screen = GenFinScreen()
+        self._add_screen("genfin", genfin_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -531,6 +536,7 @@ class MainWindow(QMainWindow):
                 "maintenance": "Maintenance Schedule",
                 "reports": "Reports & Analytics",
                 "quickbooks": "QuickBooks Import",
+                "genfin": "GenFin Accounting",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",
