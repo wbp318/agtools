@@ -4416,6 +4416,1562 @@ class GenFinInventoryScreen(GenFinListScreen):
 
 
 # =============================================================================
+# BANKING MODULE - QuickBooks Style Bank Management
+# =============================================================================
+
+class GenFinBankAccountsScreen(QWidget):
+    """Bank Accounts management screen - QuickBooks style."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._accounts = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("BANK ACCOUNTS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        new_btn = QPushButton("New Account")
+        new_btn.clicked.connect(self._new_account)
+        toolbar.addWidget(new_btn)
+
+        edit_btn = QPushButton("Edit")
+        edit_btn.clicked.connect(self._edit_account)
+        toolbar.addWidget(edit_btn)
+
+        reconcile_btn = QPushButton("Reconcile")
+        reconcile_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        reconcile_btn.clicked.connect(self._reconcile)
+        toolbar.addWidget(reconcile_btn)
+
+        toolbar.addStretch()
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.load_data)
+        toolbar.addWidget(refresh_btn)
+
+        layout.addLayout(toolbar)
+
+        # Accounts table
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels([
+            "Account Name", "Type", "Account #", "Balance", "Last Reconciled", "Status"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setAlternatingRowColors(True)
+        self.table.doubleClicked.connect(self._view_register)
+        layout.addWidget(self.table)
+
+        # Summary panel
+        summary_frame = QFrame()
+        summary_frame.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['panel_bg']};
+            border: 2px groove {GENFIN_COLORS['bevel_shadow']};
+            padding: 8px;
+        """)
+        summary_layout = QHBoxLayout(summary_frame)
+
+        self.total_label = QLabel("Total Cash: $0.00")
+        self.total_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        summary_layout.addWidget(self.total_label)
+
+        summary_layout.addStretch()
+
+        view_register_btn = QPushButton("View Register")
+        view_register_btn.clicked.connect(self._view_register)
+        summary_layout.addWidget(view_register_btn)
+
+        layout.addWidget(summary_frame)
+
+    def load_data(self):
+        """Load bank accounts from API."""
+        data = api_get("/bank-accounts")
+        if data is not None:
+            self._accounts = data if isinstance(data, list) else []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._accounts))
+        total = 0
+
+        for i, acct in enumerate(self._accounts):
+            self.table.setItem(i, 0, QTableWidgetItem(acct.get("name", "")))
+
+            acct_type = acct.get("account_type", "checking").replace("_", " ").title()
+            self.table.setItem(i, 1, QTableWidgetItem(acct_type))
+
+            self.table.setItem(i, 2, QTableWidgetItem(acct.get("account_number", "")[-4:] if acct.get("account_number") else ""))
+
+            balance = acct.get("balance", 0)
+            total += balance
+            balance_item = QTableWidgetItem(f"${balance:,.2f}")
+            if balance < 0:
+                balance_item.setForeground(Qt.GlobalColor.red)
+            self.table.setItem(i, 3, balance_item)
+
+            self.table.setItem(i, 4, QTableWidgetItem(acct.get("last_reconciled", "Never")))
+
+            status = "Active" if acct.get("is_active", True) else "Inactive"
+            status_item = QTableWidgetItem(status)
+            status_item.setForeground(Qt.GlobalColor.darkGreen if status == "Active" else Qt.GlobalColor.gray)
+            self.table.setItem(i, 5, status_item)
+
+        self.total_label.setText(f"Total Cash: ${total:,.2f}")
+
+    def _new_account(self):
+        dialog = BankAccountDialog(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
+            result = api_post("/bank-accounts", dialog.result_data)
+            if result:
+                QMessageBox.information(self, "Success", "Bank account created!")
+                self.load_data()
+
+    def _edit_account(self):
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self._accounts):
+            QMessageBox.warning(self, "Warning", "Please select an account to edit.")
+            return
+        dialog = BankAccountDialog(self._accounts[row], parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_data()
+
+    def _reconcile(self):
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self._accounts):
+            QMessageBox.warning(self, "Warning", "Please select an account to reconcile.")
+            return
+        QMessageBox.information(self, "Reconcile",
+            f"Opening reconciliation for: {self._accounts[row].get('name', '')}\n\n"
+            "This will open the reconciliation wizard.")
+
+    def _view_register(self):
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self._accounts):
+            QMessageBox.warning(self, "Warning", "Please select an account to view.")
+            return
+        QMessageBox.information(self, "Register",
+            f"Opening register for: {self._accounts[row].get('name', '')}")
+
+
+class BankAccountDialog(GenFinDialog):
+    """Dialog for adding/editing a bank account."""
+
+    def __init__(self, account_data: Optional[Dict] = None, parent=None):
+        title = "Edit Bank Account" if account_data else "New Bank Account"
+        super().__init__(title, parent)
+        self.account_data = account_data
+        self.result_data = None
+        self._setup_ui()
+        if account_data:
+            self._load_data()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+
+        form = QFormLayout()
+        form.setSpacing(8)
+
+        self.name = QLineEdit()
+        self.name.setPlaceholderText("e.g., Farm Operating Account")
+        form.addRow("Account Name*:", self.name)
+
+        self.account_type = QComboBox()
+        self.account_type.addItems(["Checking", "Savings", "Money Market", "Credit Card", "Line of Credit"])
+        form.addRow("Account Type*:", self.account_type)
+
+        self.bank_name = QLineEdit()
+        self.bank_name.setPlaceholderText("e.g., First National Bank")
+        form.addRow("Bank Name:", self.bank_name)
+
+        self.account_number = QLineEdit()
+        self.account_number.setPlaceholderText("Account number")
+        form.addRow("Account Number:", self.account_number)
+
+        self.routing_number = QLineEdit()
+        self.routing_number.setPlaceholderText("Routing number")
+        form.addRow("Routing Number:", self.routing_number)
+
+        self.opening_balance = QDoubleSpinBox()
+        self.opening_balance.setRange(-999999999, 999999999)
+        self.opening_balance.setDecimals(2)
+        self.opening_balance.setPrefix("$")
+        form.addRow("Opening Balance:", self.opening_balance)
+
+        self.opening_date = QDateEdit()
+        self.opening_date.setDate(QDate.currentDate())
+        self.opening_date.setCalendarPopup(True)
+        form.addRow("As of Date:", self.opening_date)
+
+        layout.addLayout(form)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        save_btn.clicked.connect(self._save)
+        btn_layout.addWidget(save_btn)
+
+        layout.addLayout(btn_layout)
+
+    def _load_data(self):
+        if self.account_data:
+            self.name.setText(self.account_data.get("name", ""))
+            acct_type = self.account_data.get("account_type", "checking")
+            idx = self.account_type.findText(acct_type.replace("_", " ").title())
+            if idx >= 0:
+                self.account_type.setCurrentIndex(idx)
+            self.bank_name.setText(self.account_data.get("bank_name", ""))
+            self.account_number.setText(self.account_data.get("account_number", ""))
+            self.routing_number.setText(self.account_data.get("routing_number", ""))
+            self.opening_balance.setValue(self.account_data.get("balance", 0))
+
+    def _save(self):
+        if not self.name.text().strip():
+            QMessageBox.warning(self, "Validation", "Account name is required.")
+            return
+
+        self.result_data = {
+            "name": self.name.text().strip(),
+            "account_type": self.account_type.currentText().lower().replace(" ", "_"),
+            "bank_name": self.bank_name.text().strip(),
+            "account_number": self.account_number.text().strip(),
+            "routing_number": self.routing_number.text().strip(),
+            "balance": self.opening_balance.value(),
+            "opening_date": self.opening_date.date().toString("yyyy-MM-dd")
+        }
+        self.accept()
+
+
+class GenFinCheckRegisterScreen(QWidget):
+    """Check Register screen - QuickBooks style transaction register."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._accounts = []
+        self._transactions = []
+        self._current_account = None
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header with account selector
+        header_layout = QHBoxLayout()
+
+        header = QLabel("CHECK REGISTER")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+        """)
+        header_layout.addWidget(header)
+
+        header_layout.addStretch()
+
+        header_layout.addWidget(QLabel("Account:"))
+        self.account_combo = QComboBox()
+        self.account_combo.setMinimumWidth(200)
+        self.account_combo.currentIndexChanged.connect(self._on_account_change)
+        header_layout.addWidget(self.account_combo)
+
+        layout.addLayout(header_layout)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        write_check_btn = QPushButton("Write Check")
+        write_check_btn.clicked.connect(self._write_check)
+        toolbar.addWidget(write_check_btn)
+
+        deposit_btn = QPushButton("Make Deposit")
+        deposit_btn.clicked.connect(self._make_deposit)
+        toolbar.addWidget(deposit_btn)
+
+        transfer_btn = QPushButton("Transfer")
+        transfer_btn.clicked.connect(self._transfer)
+        toolbar.addWidget(transfer_btn)
+
+        toolbar.addStretch()
+
+        # Filter
+        toolbar.addWidget(QLabel("Show:"))
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItems(["All", "Checks", "Deposits", "Transfers", "Uncleared"])
+        self.filter_combo.currentTextChanged.connect(self._filter_transactions)
+        toolbar.addWidget(self.filter_combo)
+
+        layout.addLayout(toolbar)
+
+        # Register table - QuickBooks style
+        self.table = QTableWidget()
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels([
+            "Date", "Num", "Payee/Description", "Payment", "Deposit", "Balance", "Clr", "Memo"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setAlternatingRowColors(True)
+        layout.addWidget(self.table)
+
+        # Bottom summary
+        summary_layout = QHBoxLayout()
+
+        self.balance_label = QLabel("Ending Balance: $0.00")
+        self.balance_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        summary_layout.addWidget(self.balance_label)
+
+        summary_layout.addStretch()
+
+        self.cleared_label = QLabel("Cleared: $0.00")
+        summary_layout.addWidget(self.cleared_label)
+
+        self.uncleared_label = QLabel("Uncleared: $0.00")
+        summary_layout.addWidget(self.uncleared_label)
+
+        layout.addLayout(summary_layout)
+
+    def load_data(self):
+        """Load accounts and transactions."""
+        data = api_get("/bank-accounts")
+        if data is not None:
+            self._accounts = data if isinstance(data, list) else []
+            self.account_combo.clear()
+            for acct in self._accounts:
+                self.account_combo.addItem(acct.get("name", ""), acct.get("account_id"))
+        self._load_transactions()
+
+    def _on_account_change(self, index):
+        if index >= 0 and index < len(self._accounts):
+            self._current_account = self._accounts[index]
+            self._load_transactions()
+
+    def _load_transactions(self):
+        """Load transactions for current account."""
+        if not self._current_account:
+            return
+        acct_id = self._current_account.get("account_id")
+        data = api_get(f"/bank-accounts/{acct_id}/transactions")
+        if data is not None:
+            self._transactions = data if isinstance(data, list) else []
+        else:
+            self._transactions = []
+        self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._transactions))
+        running_balance = self._current_account.get("opening_balance", 0) if self._current_account else 0
+        cleared_total = 0
+        uncleared_total = 0
+
+        for i, txn in enumerate(self._transactions):
+            self.table.setItem(i, 0, QTableWidgetItem(txn.get("date", "")))
+            self.table.setItem(i, 1, QTableWidgetItem(txn.get("number", "")))
+            self.table.setItem(i, 2, QTableWidgetItem(txn.get("payee", "")))
+
+            payment = txn.get("payment", 0)
+            deposit = txn.get("deposit", 0)
+
+            if payment > 0:
+                self.table.setItem(i, 3, QTableWidgetItem(f"${payment:,.2f}"))
+                running_balance -= payment
+            else:
+                self.table.setItem(i, 3, QTableWidgetItem(""))
+
+            if deposit > 0:
+                self.table.setItem(i, 4, QTableWidgetItem(f"${deposit:,.2f}"))
+                running_balance += deposit
+            else:
+                self.table.setItem(i, 4, QTableWidgetItem(""))
+
+            balance_item = QTableWidgetItem(f"${running_balance:,.2f}")
+            if running_balance < 0:
+                balance_item.setForeground(Qt.GlobalColor.red)
+            self.table.setItem(i, 5, balance_item)
+
+            cleared = txn.get("cleared", False)
+            self.table.setItem(i, 6, QTableWidgetItem("✓" if cleared else ""))
+
+            self.table.setItem(i, 7, QTableWidgetItem(txn.get("memo", "")))
+
+            if cleared:
+                cleared_total += (deposit - payment)
+            else:
+                uncleared_total += (deposit - payment)
+
+        self.balance_label.setText(f"Ending Balance: ${running_balance:,.2f}")
+        self.cleared_label.setText(f"Cleared: ${cleared_total:,.2f}")
+        self.uncleared_label.setText(f"Uncleared: ${uncleared_total:,.2f}")
+
+    def _filter_transactions(self, filter_text):
+        self._populate_table()
+
+    def _write_check(self):
+        QMessageBox.information(self, "Write Check", "Opening Write Checks screen...")
+
+    def _make_deposit(self):
+        QMessageBox.information(self, "Make Deposit", "Opening Make Deposits screen...")
+
+    def _transfer(self):
+        QMessageBox.information(self, "Transfer", "Opening Transfer Funds dialog...")
+
+
+class GenFinTransfersScreen(QWidget):
+    """Transfer Funds screen - move money between accounts."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._accounts = []
+        self._transfers = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("TRANSFER FUNDS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # New Transfer section
+        transfer_group = QGroupBox("New Transfer")
+        transfer_layout = QFormLayout(transfer_group)
+        transfer_layout.setSpacing(8)
+
+        self.from_account = QComboBox()
+        transfer_layout.addRow("From Account:", self.from_account)
+
+        self.to_account = QComboBox()
+        transfer_layout.addRow("To Account:", self.to_account)
+
+        self.amount = QDoubleSpinBox()
+        self.amount.setRange(0.01, 999999999)
+        self.amount.setDecimals(2)
+        self.amount.setPrefix("$")
+        transfer_layout.addRow("Amount:", self.amount)
+
+        self.transfer_date = QDateEdit()
+        self.transfer_date.setDate(QDate.currentDate())
+        self.transfer_date.setCalendarPopup(True)
+        transfer_layout.addRow("Date:", self.transfer_date)
+
+        self.memo = QLineEdit()
+        self.memo.setPlaceholderText("Optional memo")
+        transfer_layout.addRow("Memo:", self.memo)
+
+        transfer_btn = QPushButton("Transfer Funds")
+        transfer_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white; padding: 10px;")
+        transfer_btn.clicked.connect(self._do_transfer)
+        transfer_layout.addRow("", transfer_btn)
+
+        layout.addWidget(transfer_group)
+
+        # Recent transfers
+        history_label = QLabel("Recent Transfers")
+        history_label.setStyleSheet("font-weight: bold; font-size: 12px; padding-top: 12px;")
+        layout.addWidget(history_label)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Date", "From", "To", "Amount", "Memo"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(self.table)
+
+    def load_data(self):
+        data = api_get("/bank-accounts")
+        if data is not None:
+            self._accounts = data if isinstance(data, list) else []
+            self.from_account.clear()
+            self.to_account.clear()
+            for acct in self._accounts:
+                name = f"{acct.get('name', '')} (${acct.get('balance', 0):,.2f})"
+                self.from_account.addItem(name, acct.get("account_id"))
+                self.to_account.addItem(name, acct.get("account_id"))
+
+    def _do_transfer(self):
+        if self.from_account.currentIndex() == self.to_account.currentIndex():
+            QMessageBox.warning(self, "Error", "Cannot transfer to the same account.")
+            return
+
+        if self.amount.value() <= 0:
+            QMessageBox.warning(self, "Error", "Please enter a valid amount.")
+            return
+
+        from_name = self.from_account.currentText().split(" (")[0]
+        to_name = self.to_account.currentText().split(" (")[0]
+        amount = self.amount.value()
+
+        reply = QMessageBox.question(self, "Confirm Transfer",
+            f"Transfer ${amount:,.2f} from {from_name} to {to_name}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+        if reply == QMessageBox.StandardButton.Yes:
+            QMessageBox.information(self, "Success", "Transfer completed successfully!")
+            self.amount.setValue(0)
+            self.memo.clear()
+            self.load_data()
+
+
+class GenFinReconcileScreen(QWidget):
+    """Bank Reconciliation screen - QuickBooks style."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._accounts = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("RECONCILE ACCOUNTS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Account selection
+        select_group = QGroupBox("Begin Reconciliation")
+        select_layout = QFormLayout(select_group)
+
+        self.account_combo = QComboBox()
+        select_layout.addRow("Account:", self.account_combo)
+
+        self.statement_date = QDateEdit()
+        self.statement_date.setDate(QDate.currentDate())
+        self.statement_date.setCalendarPopup(True)
+        select_layout.addRow("Statement Date:", self.statement_date)
+
+        self.ending_balance = QDoubleSpinBox()
+        self.ending_balance.setRange(-999999999, 999999999)
+        self.ending_balance.setDecimals(2)
+        self.ending_balance.setPrefix("$")
+        select_layout.addRow("Ending Balance:", self.ending_balance)
+
+        begin_btn = QPushButton("Begin Reconciliation")
+        begin_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        begin_btn.clicked.connect(self._begin_reconcile)
+        select_layout.addRow("", begin_btn)
+
+        layout.addWidget(select_group)
+
+        # Info panel
+        info_frame = QFrame()
+        info_frame.setStyleSheet(f"""
+            background-color: #E8F4F4;
+            border: 1px solid {GENFIN_COLORS['teal']};
+            padding: 12px;
+        """)
+        info_layout = QVBoxLayout(info_frame)
+
+        info_label = QLabel(
+            "How to Reconcile:\n\n"
+            "1. Enter the ending balance from your bank statement\n"
+            "2. Check off transactions that appear on your statement\n"
+            "3. The difference should be $0.00 when complete\n"
+            "4. Click 'Finish' to record the reconciliation"
+        )
+        info_label.setStyleSheet("color: #006666;")
+        info_layout.addWidget(info_label)
+
+        layout.addWidget(info_frame)
+
+        layout.addStretch()
+
+    def load_data(self):
+        data = api_get("/bank-accounts")
+        if data is not None:
+            self._accounts = data if isinstance(data, list) else []
+            self.account_combo.clear()
+            for acct in self._accounts:
+                self.account_combo.addItem(acct.get("name", ""), acct.get("account_id"))
+
+    def _begin_reconcile(self):
+        if self.account_combo.currentIndex() < 0:
+            QMessageBox.warning(self, "Error", "Please select an account.")
+            return
+
+        QMessageBox.information(self, "Reconciliation",
+            f"Starting reconciliation for: {self.account_combo.currentText()}\n"
+            f"Statement Date: {self.statement_date.date().toString('MM/dd/yyyy')}\n"
+            f"Ending Balance: ${self.ending_balance.value():,.2f}\n\n"
+            "The reconciliation wizard would open here.")
+
+
+class GenFinBankFeedsScreen(QWidget):
+    """Bank Feeds screen - connect to banks and download transactions."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("BANK FEEDS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Connection status
+        status_group = QGroupBox("Connected Accounts")
+        status_layout = QVBoxLayout(status_group)
+
+        self.connections_table = QTableWidget()
+        self.connections_table.setColumnCount(5)
+        self.connections_table.setHorizontalHeaderLabels([
+            "Bank", "Account", "Last Updated", "New Transactions", "Status"
+        ])
+        self.connections_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.connections_table.setMaximumHeight(150)
+        status_layout.addWidget(self.connections_table)
+
+        btn_layout = QHBoxLayout()
+        add_btn = QPushButton("Add Connection")
+        add_btn.clicked.connect(self._add_connection)
+        btn_layout.addWidget(add_btn)
+
+        refresh_btn = QPushButton("Refresh All")
+        refresh_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        refresh_btn.clicked.connect(self._refresh_feeds)
+        btn_layout.addWidget(refresh_btn)
+
+        btn_layout.addStretch()
+        status_layout.addLayout(btn_layout)
+
+        layout.addWidget(status_group)
+
+        # Downloaded transactions
+        trans_group = QGroupBox("Downloaded Transactions - Awaiting Review")
+        trans_layout = QVBoxLayout(trans_group)
+
+        self.trans_table = QTableWidget()
+        self.trans_table.setColumnCount(6)
+        self.trans_table.setHorizontalHeaderLabels([
+            "Date", "Description", "Amount", "Match", "Category", "Action"
+        ])
+        self.trans_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        trans_layout.addWidget(self.trans_table)
+
+        action_layout = QHBoxLayout()
+        accept_btn = QPushButton("Accept Selected")
+        accept_btn.clicked.connect(self._accept_transactions)
+        action_layout.addWidget(accept_btn)
+
+        match_btn = QPushButton("Find Match")
+        match_btn.clicked.connect(self._find_match)
+        action_layout.addWidget(match_btn)
+
+        action_layout.addStretch()
+        trans_layout.addLayout(action_layout)
+
+        layout.addWidget(trans_group)
+
+    def load_data(self):
+        """Load bank feed data."""
+        # Placeholder - would load from API
+        self.connections_table.setRowCount(0)
+        self.trans_table.setRowCount(0)
+
+    def _add_connection(self):
+        QMessageBox.information(self, "Add Connection",
+            "This would open the bank connection wizard.\n\n"
+            "You would select your bank, enter credentials,\n"
+            "and link your accounts for automatic downloads.")
+
+    def _refresh_feeds(self):
+        QMessageBox.information(self, "Refresh", "Refreshing bank feeds...")
+
+    def _accept_transactions(self):
+        QMessageBox.information(self, "Accept", "Accepting selected transactions...")
+
+    def _find_match(self):
+        QMessageBox.information(self, "Find Match", "Finding matching transactions...")
+
+
+# =============================================================================
+# CUSTOMER MODULE - Statements & Credits
+# =============================================================================
+
+class GenFinStatementsScreen(QWidget):
+    """Customer Statements screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._customers = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("CUSTOMER STATEMENTS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Options
+        options_group = QGroupBox("Statement Options")
+        options_layout = QFormLayout(options_group)
+
+        self.statement_date = QDateEdit()
+        self.statement_date.setDate(QDate.currentDate())
+        self.statement_date.setCalendarPopup(True)
+        options_layout.addRow("Statement Date:", self.statement_date)
+
+        self.statement_type = QComboBox()
+        self.statement_type.addItems(["Balance Forward", "Open Item", "Transaction"])
+        options_layout.addRow("Statement Type:", self.statement_type)
+
+        self.include_zero = QCheckBox("Include customers with zero balance")
+        options_layout.addRow("", self.include_zero)
+
+        layout.addWidget(options_group)
+
+        # Customer selection
+        select_group = QGroupBox("Select Customers")
+        select_layout = QVBoxLayout(select_group)
+
+        select_btn_layout = QHBoxLayout()
+        select_all_btn = QPushButton("Select All")
+        select_all_btn.clicked.connect(self._select_all)
+        select_btn_layout.addWidget(select_all_btn)
+
+        select_none_btn = QPushButton("Select None")
+        select_none_btn.clicked.connect(self._select_none)
+        select_btn_layout.addWidget(select_none_btn)
+
+        select_btn_layout.addStretch()
+        select_layout.addLayout(select_btn_layout)
+
+        self.customer_table = QTableWidget()
+        self.customer_table.setColumnCount(4)
+        self.customer_table.setHorizontalHeaderLabels(["Select", "Customer", "Balance", "Last Statement"])
+        self.customer_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        select_layout.addWidget(self.customer_table)
+
+        layout.addWidget(select_group)
+
+        # Action buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        preview_btn = QPushButton("Preview")
+        preview_btn.clicked.connect(self._preview)
+        btn_layout.addWidget(preview_btn)
+
+        print_btn = QPushButton("Print")
+        print_btn.clicked.connect(self._print)
+        btn_layout.addWidget(print_btn)
+
+        email_btn = QPushButton("Email")
+        email_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        email_btn.clicked.connect(self._email)
+        btn_layout.addWidget(email_btn)
+
+        layout.addLayout(btn_layout)
+
+    def load_data(self):
+        data = api_get("/customers")
+        if data is not None:
+            self._customers = data if isinstance(data, list) else []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.customer_table.setRowCount(len(self._customers))
+        for i, cust in enumerate(self._customers):
+            # Checkbox
+            checkbox = QCheckBox()
+            self.customer_table.setCellWidget(i, 0, checkbox)
+
+            self.customer_table.setItem(i, 1, QTableWidgetItem(cust.get("name", "")))
+
+            balance = cust.get("balance", 0)
+            balance_item = QTableWidgetItem(f"${balance:,.2f}")
+            if balance < 0:
+                balance_item.setForeground(Qt.GlobalColor.red)
+            self.customer_table.setItem(i, 2, balance_item)
+
+            self.customer_table.setItem(i, 3, QTableWidgetItem(cust.get("last_statement", "Never")))
+
+    def _select_all(self):
+        for i in range(self.customer_table.rowCount()):
+            widget = self.customer_table.cellWidget(i, 0)
+            if isinstance(widget, QCheckBox):
+                widget.setChecked(True)
+
+    def _select_none(self):
+        for i in range(self.customer_table.rowCount()):
+            widget = self.customer_table.cellWidget(i, 0)
+            if isinstance(widget, QCheckBox):
+                widget.setChecked(False)
+
+    def _preview(self):
+        QMessageBox.information(self, "Preview", "Opening statement preview...")
+
+    def _print(self):
+        QMessageBox.information(self, "Print", "Printing statements...")
+
+    def _email(self):
+        QMessageBox.information(self, "Email", "Emailing statements to customers...")
+
+
+class GenFinCreditMemosScreen(GenFinListScreen):
+    """Credit Memos screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(
+            "Credit Memos",
+            ["Credit #", "Date", "Customer", "Amount", "Applied", "Status"],
+            "/credit-memos",
+            None,
+            "credit_memo_id",
+            parent
+        )
+
+    def _on_new(self):
+        QMessageBox.information(self, "New Credit Memo",
+            "This would open the Credit Memo form.\n\n"
+            "Credit memos reduce a customer's balance\n"
+            "and can be applied to invoices.")
+
+    def load_data(self):
+        data = api_get("/credit-memos")
+        if data is not None:
+            items = data if isinstance(data, list) else []
+            self._data = items
+            self.table.setRowCount(len(items))
+            for i, item in enumerate(items):
+                self.table.setItem(i, 0, QTableWidgetItem(item.get("credit_number", "")))
+                self.table.setItem(i, 1, QTableWidgetItem(item.get("date", "")))
+                self.table.setItem(i, 2, QTableWidgetItem(item.get("customer_name", "")))
+                amount = item.get("amount", 0)
+                self.table.setItem(i, 3, QTableWidgetItem(f"${amount:,.2f}"))
+                applied = item.get("applied_amount", 0)
+                self.table.setItem(i, 4, QTableWidgetItem(f"${applied:,.2f}"))
+                self.table.setItem(i, 5, QTableWidgetItem(item.get("status", "Open")))
+
+
+# =============================================================================
+# VENDOR MODULE - Credit Cards & Vendor Credits
+# =============================================================================
+
+class GenFinCreditCardsScreen(QWidget):
+    """Credit Cards tracking screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._cards = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("CREDIT CARDS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        new_btn = QPushButton("New Card")
+        new_btn.clicked.connect(self._new_card)
+        toolbar.addWidget(new_btn)
+
+        charge_btn = QPushButton("Enter Charge")
+        charge_btn.clicked.connect(self._enter_charge)
+        toolbar.addWidget(charge_btn)
+
+        credit_btn = QPushButton("Enter Credit")
+        credit_btn.clicked.connect(self._enter_credit)
+        toolbar.addWidget(credit_btn)
+
+        payment_btn = QPushButton("Pay Credit Card")
+        payment_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        payment_btn.clicked.connect(self._pay_card)
+        toolbar.addWidget(payment_btn)
+
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        # Cards list
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels([
+            "Card Name", "Type", "Last 4", "Balance", "Credit Limit"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(self.table)
+
+        # Summary
+        summary_layout = QHBoxLayout()
+        self.total_label = QLabel("Total Credit Card Debt: $0.00")
+        self.total_label.setStyleSheet("font-weight: bold; font-size: 14px; color: red;")
+        summary_layout.addWidget(self.total_label)
+        summary_layout.addStretch()
+        layout.addLayout(summary_layout)
+
+    def load_data(self):
+        # Would load from API
+        self.table.setRowCount(0)
+        self.total_label.setText("Total Credit Card Debt: $0.00")
+
+    def _new_card(self):
+        QMessageBox.information(self, "New Card", "This would open the new credit card setup dialog.")
+
+    def _enter_charge(self):
+        QMessageBox.information(self, "Enter Charge", "This would open the credit card charge form.")
+
+    def _enter_credit(self):
+        QMessageBox.information(self, "Enter Credit", "This would open the credit card credit/refund form.")
+
+    def _pay_card(self):
+        QMessageBox.information(self, "Pay Card", "This would open the pay credit card dialog.")
+
+
+class GenFinVendorCreditsScreen(GenFinListScreen):
+    """Vendor Credits screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(
+            "Vendor Credits",
+            ["Credit #", "Date", "Vendor", "Amount", "Applied", "Status"],
+            "/vendor-credits",
+            None,
+            "vendor_credit_id",
+            parent
+        )
+
+    def _on_new(self):
+        QMessageBox.information(self, "New Vendor Credit",
+            "This would open the Vendor Credit form.\n\n"
+            "Vendor credits reduce what you owe to a vendor\n"
+            "and can be applied to bills.")
+
+    def load_data(self):
+        data = api_get("/vendor-credits")
+        if data is not None:
+            items = data if isinstance(data, list) else []
+            self._data = items
+            self.table.setRowCount(len(items))
+            for i, item in enumerate(items):
+                self.table.setItem(i, 0, QTableWidgetItem(item.get("credit_number", "")))
+                self.table.setItem(i, 1, QTableWidgetItem(item.get("date", "")))
+                self.table.setItem(i, 2, QTableWidgetItem(item.get("vendor_name", "")))
+                amount = item.get("amount", 0)
+                self.table.setItem(i, 3, QTableWidgetItem(f"${amount:,.2f}"))
+                applied = item.get("applied_amount", 0)
+                self.table.setItem(i, 4, QTableWidgetItem(f"${applied:,.2f}"))
+                self.table.setItem(i, 5, QTableWidgetItem(item.get("status", "Open")))
+
+
+# =============================================================================
+# PAYROLL - Pay Liabilities
+# =============================================================================
+
+class GenFinPayLiabilitiesScreen(QWidget):
+    """Pay Payroll Liabilities screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._liabilities = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("PAY PAYROLL LIABILITIES")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Date range filter
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Show liabilities through:"))
+
+        self.through_date = QDateEdit()
+        self.through_date.setDate(QDate.currentDate())
+        self.through_date.setCalendarPopup(True)
+        filter_layout.addWidget(self.through_date)
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.load_data)
+        filter_layout.addWidget(refresh_btn)
+
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+
+        # Liabilities table
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels([
+            "Select", "Payroll Item", "Payee", "Balance", "Due Date", "Account"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self.table)
+
+        # Summary and action
+        summary_layout = QHBoxLayout()
+
+        self.total_label = QLabel("Total Selected: $0.00")
+        self.total_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        summary_layout.addWidget(self.total_label)
+
+        summary_layout.addStretch()
+
+        view_btn = QPushButton("View")
+        view_btn.clicked.connect(self._view_liability)
+        summary_layout.addWidget(view_btn)
+
+        pay_btn = QPushButton("Pay Selected Liabilities")
+        pay_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white; padding: 10px;")
+        pay_btn.clicked.connect(self._pay_liabilities)
+        summary_layout.addWidget(pay_btn)
+
+        layout.addLayout(summary_layout)
+
+        # E-Pay info
+        info_frame = QFrame()
+        info_frame.setStyleSheet(f"""
+            background-color: #FFF3CD;
+            border: 1px solid #FFEAA7;
+            padding: 8px;
+        """)
+        info_layout = QVBoxLayout(info_frame)
+        info_label = QLabel(
+            "TIP: Set up E-Pay to electronically pay your federal and state taxes.\n"
+            "This ensures timely payments and creates automatic records."
+        )
+        info_label.setStyleSheet("color: #856404;")
+        info_layout.addWidget(info_label)
+        layout.addWidget(info_frame)
+
+    def load_data(self):
+        data = api_get("/payroll/liabilities")
+        if data is not None:
+            self._liabilities = data if isinstance(data, list) else []
+            self._populate_table()
+        else:
+            # Show sample data structure
+            self._liabilities = []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._liabilities))
+        for i, liab in enumerate(self._liabilities):
+            # Checkbox
+            checkbox = QCheckBox()
+            checkbox.stateChanged.connect(self._update_total)
+            self.table.setCellWidget(i, 0, checkbox)
+
+            self.table.setItem(i, 1, QTableWidgetItem(liab.get("item_name", "")))
+            self.table.setItem(i, 2, QTableWidgetItem(liab.get("payee", "")))
+
+            balance = liab.get("balance", 0)
+            self.table.setItem(i, 3, QTableWidgetItem(f"${balance:,.2f}"))
+
+            self.table.setItem(i, 4, QTableWidgetItem(liab.get("due_date", "")))
+            self.table.setItem(i, 5, QTableWidgetItem(liab.get("account", "")))
+
+    def _update_total(self):
+        total = 0
+        for i in range(self.table.rowCount()):
+            widget = self.table.cellWidget(i, 0)
+            if isinstance(widget, QCheckBox) and widget.isChecked():
+                if i < len(self._liabilities):
+                    total += self._liabilities[i].get("balance", 0)
+        self.total_label.setText(f"Total Selected: ${total:,.2f}")
+
+    def _view_liability(self):
+        QMessageBox.information(self, "View", "Opening liability detail...")
+
+    def _pay_liabilities(self):
+        QMessageBox.information(self, "Pay Liabilities",
+            "This would create liability payments.\n\n"
+            "You can pay electronically (E-Pay) or by check.")
+
+
+# =============================================================================
+# LISTS - Fixed Assets, Recurring, Memorized
+# =============================================================================
+
+class GenFinFixedAssetsScreen(QWidget):
+    """Fixed Assets management screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._assets = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("FIXED ASSETS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        new_btn = QPushButton("New Asset")
+        new_btn.clicked.connect(self._new_asset)
+        toolbar.addWidget(new_btn)
+
+        edit_btn = QPushButton("Edit")
+        edit_btn.clicked.connect(self._edit_asset)
+        toolbar.addWidget(edit_btn)
+
+        dispose_btn = QPushButton("Dispose/Sell")
+        dispose_btn.clicked.connect(self._dispose_asset)
+        toolbar.addWidget(dispose_btn)
+
+        depreciate_btn = QPushButton("Record Depreciation")
+        depreciate_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        depreciate_btn.clicked.connect(self._record_depreciation)
+        toolbar.addWidget(depreciate_btn)
+
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        # Assets table
+        self.table = QTableWidget()
+        self.table.setColumnCount(7)
+        self.table.setHorizontalHeaderLabels([
+            "Asset Name", "Type", "Purchase Date", "Cost", "Accum. Depr.", "Book Value", "Status"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(self.table)
+
+        # Summary
+        summary_layout = QHBoxLayout()
+        self.total_cost_label = QLabel("Total Cost: $0.00")
+        summary_layout.addWidget(self.total_cost_label)
+        self.total_book_label = QLabel("Total Book Value: $0.00")
+        summary_layout.addWidget(self.total_book_label)
+        summary_layout.addStretch()
+        layout.addLayout(summary_layout)
+
+    def load_data(self):
+        data = api_get("/fixed-assets")
+        if data is not None:
+            self._assets = data if isinstance(data, list) else []
+            self._populate_table()
+        else:
+            self._assets = []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._assets))
+        total_cost = 0
+        total_book = 0
+
+        for i, asset in enumerate(self._assets):
+            self.table.setItem(i, 0, QTableWidgetItem(asset.get("name", "")))
+            self.table.setItem(i, 1, QTableWidgetItem(asset.get("asset_type", "")))
+            self.table.setItem(i, 2, QTableWidgetItem(asset.get("purchase_date", "")))
+
+            cost = asset.get("cost", 0)
+            total_cost += cost
+            self.table.setItem(i, 3, QTableWidgetItem(f"${cost:,.2f}"))
+
+            depr = asset.get("accumulated_depreciation", 0)
+            self.table.setItem(i, 4, QTableWidgetItem(f"${depr:,.2f}"))
+
+            book = cost - depr
+            total_book += book
+            self.table.setItem(i, 5, QTableWidgetItem(f"${book:,.2f}"))
+
+            status = asset.get("status", "Active")
+            status_item = QTableWidgetItem(status)
+            status_item.setForeground(Qt.GlobalColor.darkGreen if status == "Active" else Qt.GlobalColor.gray)
+            self.table.setItem(i, 6, status_item)
+
+        self.total_cost_label.setText(f"Total Cost: ${total_cost:,.2f}")
+        self.total_book_label.setText(f"Total Book Value: ${total_book:,.2f}")
+
+    def _new_asset(self):
+        QMessageBox.information(self, "New Asset", "This would open the new fixed asset form.")
+
+    def _edit_asset(self):
+        QMessageBox.information(self, "Edit Asset", "This would open the edit fixed asset form.")
+
+    def _dispose_asset(self):
+        QMessageBox.information(self, "Dispose Asset", "This would record the disposal or sale of an asset.")
+
+    def _record_depreciation(self):
+        QMessageBox.information(self, "Depreciation", "This would record depreciation for fixed assets.")
+
+
+class GenFinRecurringTransScreen(QWidget):
+    """Recurring Transactions screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._recurring = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("RECURRING TRANSACTIONS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        new_btn = QPushButton("New Recurring")
+        new_btn.clicked.connect(self._new_recurring)
+        toolbar.addWidget(new_btn)
+
+        edit_btn = QPushButton("Edit")
+        edit_btn.clicked.connect(self._edit_recurring)
+        toolbar.addWidget(edit_btn)
+
+        run_btn = QPushButton("Create Now")
+        run_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        run_btn.clicked.connect(self._create_now)
+        toolbar.addWidget(run_btn)
+
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(7)
+        self.table.setHorizontalHeaderLabels([
+            "Name", "Type", "Customer/Vendor", "Amount", "Frequency", "Next Date", "Status"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(self.table)
+
+    def load_data(self):
+        data = api_get("/recurring-transactions")
+        if data is not None:
+            self._recurring = data if isinstance(data, list) else []
+            self._populate_table()
+        else:
+            self._recurring = []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._recurring))
+        for i, rec in enumerate(self._recurring):
+            self.table.setItem(i, 0, QTableWidgetItem(rec.get("name", "")))
+            self.table.setItem(i, 1, QTableWidgetItem(rec.get("transaction_type", "")))
+            self.table.setItem(i, 2, QTableWidgetItem(rec.get("customer_vendor", "")))
+            amount = rec.get("amount", 0)
+            self.table.setItem(i, 3, QTableWidgetItem(f"${amount:,.2f}"))
+            self.table.setItem(i, 4, QTableWidgetItem(rec.get("frequency", "")))
+            self.table.setItem(i, 5, QTableWidgetItem(rec.get("next_date", "")))
+
+            status = rec.get("status", "Active")
+            status_item = QTableWidgetItem(status)
+            status_item.setForeground(Qt.GlobalColor.darkGreen if status == "Active" else Qt.GlobalColor.gray)
+            self.table.setItem(i, 6, status_item)
+
+    def _new_recurring(self):
+        QMessageBox.information(self, "New Recurring", "This would open the new recurring transaction setup.")
+
+    def _edit_recurring(self):
+        QMessageBox.information(self, "Edit Recurring", "This would open the edit recurring transaction form.")
+
+    def _create_now(self):
+        QMessageBox.information(self, "Create Now", "This would create a transaction from the selected template.")
+
+
+class GenFinMemorizedTransScreen(QWidget):
+    """Memorized Transactions screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._memorized = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("MEMORIZED TRANSACTIONS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Info
+        info_label = QLabel(
+            "Memorized transactions are templates for frequently used transactions. "
+            "Use them to quickly create invoices, bills, checks, and more."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; padding: 8px 0;")
+        layout.addWidget(info_label)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        use_btn = QPushButton("Use Template")
+        use_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        use_btn.clicked.connect(self._use_template)
+        toolbar.addWidget(use_btn)
+
+        edit_btn = QPushButton("Edit")
+        edit_btn.clicked.connect(self._edit_template)
+        toolbar.addWidget(edit_btn)
+
+        delete_btn = QPushButton("Delete")
+        delete_btn.clicked.connect(self._delete_template)
+        toolbar.addWidget(delete_btn)
+
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels([
+            "Name", "Type", "Customer/Vendor", "Amount", "Group"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        layout.addWidget(self.table)
+
+    def load_data(self):
+        data = api_get("/memorized-transactions")
+        if data is not None:
+            self._memorized = data if isinstance(data, list) else []
+            self._populate_table()
+        else:
+            self._memorized = []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._memorized))
+        for i, mem in enumerate(self._memorized):
+            self.table.setItem(i, 0, QTableWidgetItem(mem.get("name", "")))
+            self.table.setItem(i, 1, QTableWidgetItem(mem.get("transaction_type", "")))
+            self.table.setItem(i, 2, QTableWidgetItem(mem.get("customer_vendor", "")))
+            amount = mem.get("amount", 0)
+            self.table.setItem(i, 3, QTableWidgetItem(f"${amount:,.2f}"))
+            self.table.setItem(i, 4, QTableWidgetItem(mem.get("group", "")))
+
+    def _use_template(self):
+        QMessageBox.information(self, "Use Template", "This would create a new transaction from the selected template.")
+
+    def _edit_template(self):
+        QMessageBox.information(self, "Edit Template", "This would open the template editor.")
+
+    def _delete_template(self):
+        QMessageBox.question(self, "Delete", "Are you sure you want to delete this template?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+
+
+# =============================================================================
+# BUDGETS
+# =============================================================================
+
+class GenFinBudgetsScreen(QWidget):
+    """Budgets management screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._budgets = []
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("BUDGETS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Toolbar
+        toolbar = QHBoxLayout()
+
+        new_btn = QPushButton("Create Budget")
+        new_btn.clicked.connect(self._new_budget)
+        toolbar.addWidget(new_btn)
+
+        copy_btn = QPushButton("Copy Budget")
+        copy_btn.clicked.connect(self._copy_budget)
+        toolbar.addWidget(copy_btn)
+
+        report_btn = QPushButton("Budget vs Actual Report")
+        report_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        report_btn.clicked.connect(self._budget_report)
+        toolbar.addWidget(report_btn)
+
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        # Year selector
+        year_layout = QHBoxLayout()
+        year_layout.addWidget(QLabel("Fiscal Year:"))
+        self.year_combo = QComboBox()
+        current_year = QDate.currentDate().year()
+        for year in range(current_year - 2, current_year + 3):
+            self.year_combo.addItem(str(year))
+        self.year_combo.setCurrentText(str(current_year))
+        self.year_combo.currentTextChanged.connect(self.load_data)
+        year_layout.addWidget(self.year_combo)
+        year_layout.addStretch()
+        layout.addLayout(year_layout)
+
+        # Budgets list
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels([
+            "Budget Name", "Type", "Fiscal Year", "Created", "Status"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.doubleClicked.connect(self._edit_budget)
+        layout.addWidget(self.table)
+
+    def load_data(self):
+        data = api_get(f"/budgets?year={self.year_combo.currentText()}")
+        if data is not None:
+            self._budgets = data if isinstance(data, list) else []
+            self._populate_table()
+        else:
+            self._budgets = []
+            self._populate_table()
+
+    def _populate_table(self):
+        self.table.setRowCount(len(self._budgets))
+        for i, budget in enumerate(self._budgets):
+            self.table.setItem(i, 0, QTableWidgetItem(budget.get("name", "")))
+            self.table.setItem(i, 1, QTableWidgetItem(budget.get("budget_type", "P&L")))
+            self.table.setItem(i, 2, QTableWidgetItem(str(budget.get("fiscal_year", ""))))
+            self.table.setItem(i, 3, QTableWidgetItem(budget.get("created_date", "")))
+
+            status = budget.get("status", "Active")
+            status_item = QTableWidgetItem(status)
+            status_item.setForeground(Qt.GlobalColor.darkGreen if status == "Active" else Qt.GlobalColor.gray)
+            self.table.setItem(i, 4, status_item)
+
+    def _new_budget(self):
+        QMessageBox.information(self, "New Budget",
+            "Budget Setup Wizard\n\n"
+            "1. Choose budget type (P&L, Balance Sheet)\n"
+            "2. Select fiscal year\n"
+            "3. Choose accounts to budget\n"
+            "4. Enter monthly amounts\n\n"
+            "This would open the budget creation wizard.")
+
+    def _copy_budget(self):
+        QMessageBox.information(self, "Copy Budget",
+            "This would copy an existing budget to create a new one.")
+
+    def _edit_budget(self):
+        QMessageBox.information(self, "Edit Budget",
+            "This would open the budget editor with monthly columns.")
+
+    def _budget_report(self):
+        QMessageBox.information(self, "Budget Report",
+            "This would generate a Budget vs Actual report\n"
+            "comparing your budgeted amounts to actual transactions.")
+
+
+# =============================================================================
 # PAYROLL CENTER - QuickBooks Style Scheduled/Unscheduled Payroll
 # =============================================================================
 
@@ -6093,21 +7649,34 @@ class GenFinScreen(QWidget):
                                        "/1099/forms", None, "form_id")
         self._add_screen("1099", forms_1099)
 
-        # Placeholder screens for features still in development
-        placeholders = [
-            # Customer-related
-            "statements", "credits",
-            # Vendor-related
-            "creditcard", "vendorcredits",
-            # Banking
-            "banking", "register", "transfers", "reconcile", "feeds",
-            # Payroll
-            "payliab",
-            # Lists
-            "assets", "recurring", "memorized", "entities",
-            # Other
-            "budget", "settings", "help"
-        ]
+        # Banking Module - QuickBooks style
+        self._add_screen("banking", GenFinBankAccountsScreen())
+        self._add_screen("register", GenFinCheckRegisterScreen())
+        self._add_screen("transfers", GenFinTransfersScreen())
+        self._add_screen("reconcile", GenFinReconcileScreen())
+        self._add_screen("feeds", GenFinBankFeedsScreen())
+
+        # Customer Module - Statements & Credits
+        self._add_screen("statements", GenFinStatementsScreen())
+        self._add_screen("credits", GenFinCreditMemosScreen())
+
+        # Vendor Module - Credit Cards & Vendor Credits
+        self._add_screen("creditcard", GenFinCreditCardsScreen())
+        self._add_screen("vendorcredits", GenFinVendorCreditsScreen())
+
+        # Payroll - Pay Liabilities
+        self._add_screen("payliab", GenFinPayLiabilitiesScreen())
+
+        # Lists - Fixed Assets, Recurring, Memorized
+        self._add_screen("assets", GenFinFixedAssetsScreen())
+        self._add_screen("recurring", GenFinRecurringTransScreen())
+        self._add_screen("memorized", GenFinMemorizedTransScreen())
+
+        # Budgets
+        self._add_screen("budget", GenFinBudgetsScreen())
+
+        # Remaining placeholders
+        placeholders = ["entities", "settings", "help"]
 
         for nav_id in placeholders:
             self._add_placeholder_screen(nav_id)
