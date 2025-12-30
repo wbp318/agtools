@@ -47,7 +47,7 @@ Think of AgTools as your **digital agronomist** that:
 30. **Precision Intelligence** (v4.0.0) - AI-powered yield prediction, variable rate prescriptions, management zones, and decision support
 31. **Grain & Storage Management** (v4.1.0) - Bin management, drying cost calculator, grain accounting, and basis price alerts
 32. **Complete Farm Business Suite** (v4.2.0) - Tax planning with MACRS depreciation, succession planning, benchmarking dashboard, and document vault
-33. **GenFin Financial Management** (v6.0.0) - Complete farm accounting system:
+33. **GenFin Financial Management** (v6.0.0-6.3.x) - Complete farm accounting system:
     - **Chart of Accounts**: 60+ farm-specific accounts with double-entry accounting
     - **Accounts Payable**: Vendors, bills, payments, purchase orders, 1099 tracking
     - **Accounts Receivable**: Customers, invoices, estimates, payments, statements
@@ -56,6 +56,19 @@ Think of AgTools as your **digital agronomist** that:
     - **Payroll**: Employee management with automatic tax calculations
     - **Financial Reports**: Profit & Loss, Balance Sheet, Cash Flow, Ratios
     - **Budgeting**: Budget vs. actual, forecasting, scenario planning
+    - **90s QuickBooks UI** (v6.3.1): Nostalgic teal blue theme with beveled 3D buttons
+    - **Multi-Entity Support** (v6.3.0): Manage multiple business entities (Farm, LLC, Corp)
+    - **1099 Tracking** (v6.3.0): 1099-NEC and 1099-MISC preparation with threshold monitoring
+34. **Farm Operations Suite** (v6.4.0) - Comprehensive farm operations management:
+    - **Livestock Management**: Track cattle, hogs, poultry, sheep, goats with health records
+    - **Group/Batch Tracking**: Manage poultry flocks and hog groups
+    - **Health Records**: Vaccinations, treatments, vet visits with due date alerts
+    - **Breeding Records**: Gestation tracking, expected birth dates, offspring counts
+    - **Weight Tracking**: Weight history with ADG (average daily gain) calculations
+    - **Sale Records**: Buyer tracking, price/lb, profit calculation
+    - **Seed Inventory**: Variety tracking, traits, lot numbers, storage locations
+    - **Planting Records**: Field planting with rates, populations, costs
+    - **Emergence Monitoring**: Stand counts, uniformity scores, growth stages
 
 ---
 

@@ -176,6 +176,9 @@ AgTools is a professional-grade agricultural decision support system combining 3
 | Account Types | Assets, Liabilities, Equity, Revenue, COGS, Expenses |
 | Journal Entries | Double-entry with debit/credit validation |
 | Fiscal Management | Year-end close, retained earnings |
+| Multi-Entity Support | Multiple business entities (Farm, LLC, Corp) |
+| 1099 Tracking | 1099-NEC and 1099-MISC preparation |
+| 90s QuickBooks UI | Nostalgic teal theme with beveled buttons |
 
 **Accounts Payable:**
 - Vendor management with 1099 tracking
@@ -246,6 +249,46 @@ AgTools is a professional-grade agricultural decision support system combining 3
 - Chart generation (bar, line, pie, area)
 - Predefined date ranges
 
+### 9. Livestock Management System (NEW v6.4)
+
+**Technology:** Comprehensive livestock tracking with breeding and health management
+
+| Feature | Specification |
+|---------|---------------|
+| Species Supported | Cattle, Hogs, Poultry, Sheep, Goats |
+| Individual Tracking | Tag numbers, lineage, birth dates |
+| Group/Batch Tracking | Poultry flocks, hog batches |
+| Health Records | Vaccinations, treatments, vet visits |
+| Breeding Records | Gestation tracking, expected births |
+| Weight Tracking | ADG (Average Daily Gain) calculations |
+| Sale Records | Buyer tracking, profit calculation |
+
+**Gestation Days by Species:**
+- Cattle: 283 days
+- Hogs: 114 days
+- Sheep: 152 days
+- Goats: 150 days
+
+**Common Breeds:** 50+ breeds across all species
+
+### 10. Seed & Planting Management (NEW v6.4)
+
+**Technology:** Seed inventory and planting record management
+
+| Feature | Specification |
+|---------|---------------|
+| Crop Types | 12 (corn, soybean, wheat, cotton, etc.) |
+| Seed Inventory | Variety, brand, trait package, lot tracking |
+| Trait Packages | RR2X, VT2P, Enlist, XtendFlex, etc. |
+| Planting Records | Field-based with rates, populations |
+| Rate Units | seeds/acre, lbs/acre, bu/acre |
+| Emergence Tracking | Stand counts, uniformity scores |
+| Cost Calculation | Per-acre seed costs |
+
+**Seed Treatment Types:**
+- Fungicide, Insecticide, Nematicide
+- Inoculant, Biological, Other
+
 ---
 
 ## Data Architecture
@@ -266,7 +309,17 @@ Primary Tables:
 ├── research_trials (experiment management)
 ├── research_treatments (treatment definitions)
 ├── research_plots (plot locations)
-└── research_measurements (data collection)
+├── research_measurements (data collection)
+├── livestock_animals (individual livestock)
+├── livestock_groups (flocks/batches)
+├── livestock_health_records (vaccinations, treatments)
+├── livestock_breeding_records (breeding, gestation)
+├── livestock_weights (weight tracking)
+├── livestock_sales (sale records)
+├── seed_inventory (seed varieties)
+├── seed_treatments (seed treatments)
+├── planting_records (field plantings)
+└── emergence_records (stand counts)
 ```
 
 ### API Architecture
@@ -274,7 +327,7 @@ Primary Tables:
 - **Framework:** FastAPI (Python)
 - **Authentication:** JWT token-based
 - **Documentation:** OpenAPI/Swagger
-- **Endpoints:** 490+ RESTful APIs
+- **Endpoints:** 525+ RESTful APIs
 
 ### Data Export Formats
 
@@ -359,6 +412,10 @@ Primary Tables:
 
 | Version | Release | Key Features |
 |---------|---------|--------------|
+| 6.4.0 | Dec 2025 | Farm Operations Suite (livestock, seed & planting management) |
+| 6.3.1 | Dec 2025 | GenFin 90s QuickBooks UI (teal theme, beveled buttons) |
+| 6.3.0 | Dec 2025 | GenFin Enterprise (payroll, multi-entity, 1099 tracking) |
+| 6.2.0 | Dec 2025 | GenFin Extensions (recurring transactions, bank feeds, fixed assets) |
 | 6.1.0 | Dec 2025 | GenFin QuickBooks parity (inventory, classes, projects, 50+ reports) |
 | 6.0.0 | Dec 2025 | GenFin financial management (accounting, check printing, ACH, payroll) |
 | 4.2.0 | Dec 2025 | Complete farm business suite |

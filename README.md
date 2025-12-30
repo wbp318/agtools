@@ -31,7 +31,18 @@ We offer commercial licensing options:
 
 ## 🌾 Overview
 
-**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, and complete decision support for corn and soybean production.
+**AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
+
+**Version 6.4.0** adds **Farm Operations Suite** - Comprehensive farm operations management:
+- **Livestock Management**: Track cattle, hogs, poultry, sheep, goats with health records, breeding, weights
+- **Seed & Planting**: Seed inventory, trait packages, planting records, emergence tracking
+- **Coming Soon**: Harvest module, Soil & Fertility, Crop Planning + FSA programs
+
+**Version 6.3.x** adds **GenFin Enterprise Features**:
+- **90s QuickBooks UI**: Nostalgic teal blue theme with beveled 3D buttons
+- **Payroll Processing**: Federal/state tax calculations, pay runs, direct deposit
+- **Multi-Entity Support**: Manage multiple business entities (Farm, LLC, Corp)
+- **1099 Tracking**: 1099-NEC and 1099-MISC preparation with threshold monitoring
 
 **Version 6.1.0** adds **GenFin QuickBooks Parity** - Full QuickBooks-style features:
 - **Inventory & Items**: 11 item types, FIFO/LIFO/Average costing, assemblies with BOM
@@ -357,8 +368,10 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Precision Intelligence** with yield prediction, VR prescriptions (v4.0)
 - **Grain Management** with bins, drying, accounting (v4.1)
 - **Farm Business Suite** with tax planning, succession, benchmarking (v4.2)
-- **GenFin Financial Suite** with full accounting, check printing, ACH, payroll (v6.0)
-- **390+ API Endpoints** covering complete farm operations
+- **GenFin Financial Suite** with full accounting, check printing, ACH, payroll (v6.0-6.3)
+- **Livestock Management** with animals, health, breeding, weights, sales (v6.4)
+- **Seed & Planting** with inventory, treatments, planting records, emergence (v6.4)
+- **425+ API Endpoints** covering complete farm operations
 
 ### Example ROI
 
@@ -386,7 +399,7 @@ agtools/
 │   └── chemical_database.py          # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                       # FastAPI application (v6.0 - 11,000+ lines, 390+ endpoints)
+│   ├── main.py                       # FastAPI application (v6.4 - 12,000+ lines, 425+ endpoints)
 │   ├── requirements.txt              # Python dependencies
 │   ├── mobile/                       # Mobile crew interface (NEW v2.6)
 │   │   ├── __init__.py               # Mobile module exports
@@ -450,7 +463,11 @@ agtools/
 │       ├── genfin_banking_service.py # Bank accounts, CHECK PRINTING, ACH (v6.0)
 │       ├── genfin_payroll_service.py # Employees, pay runs, taxes (v6.0)
 │       ├── genfin_reports_service.py # P&L, Balance Sheet, Cash Flow (v6.0)
-│       └── genfin_budget_service.py  # Budgets, forecasting, scenarios (v6.0)
+│       ├── genfin_budget_service.py  # Budgets, forecasting, scenarios (v6.0)
+│       ├── genfin_entity_service.py  # Multi-entity management (v6.3)
+│       ├── genfin_1099_service.py    # 1099 tracking & preparation (v6.3)
+│       ├── livestock_service.py      # Livestock management (v6.4)
+│       └── seed_planting_service.py  # Seed & planting management (v6.4)
 │
 ├── frontend/                         # PyQt6 Desktop Application
 │   ├── main.py                       # Entry point
@@ -473,7 +490,9 @@ agtools/
 │   │   ├── equipment_api.py          # Equipment management (v2.5)
 │   │   ├── inventory_api.py          # Inventory management (v2.5)
 │   │   ├── reports_api.py            # Reports & analytics (v2.5)
-│   │   └── quickbooks_api.py         # QuickBooks import (v2.9)
+│   │   ├── quickbooks_api.py         # QuickBooks import (v2.9)
+│   │   ├── livestock_api.py          # Livestock management (v6.4)
+│   │   └── seed_planting_api.py      # Seed & planting (v6.4)
 │   ├── models/                       # Data classes
 │   │   ├── yield_response.py
 │   │   ├── spray.py
@@ -514,7 +533,10 @@ agtools/
 │           ├── disease_identification.py # Disease ID screen
 │           ├── settings.py           # Settings screen
 │           ├── reports_dashboard.py  # Reports & analytics (v2.5)
-│           └── quickbooks_import.py  # QuickBooks import (v2.9)
+│           ├── quickbooks_import.py  # QuickBooks import (v2.9)
+│           ├── genfin.py             # GenFin accounting (v6.3)
+│           ├── livestock_management.py # Livestock tracking (v6.4)
+│           └── seed_planting.py      # Seed & planting (v6.4)
 │
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
@@ -810,6 +832,43 @@ agtools/
 | `POST /api/v1/genfin/scenarios/compare` | Scenario comparison |
 | `GET /api/v1/genfin/cash-projection` | Cash flow projection |
 
+### Livestock Management (NEW in v6.4)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/livestock/animals` | **List all animals** |
+| `POST /api/v1/livestock/animals` | Add new animal |
+| `GET /api/v1/livestock/animals/{id}` | Get animal details |
+| `PUT /api/v1/livestock/animals/{id}` | Update animal |
+| `DELETE /api/v1/livestock/animals/{id}` | Delete animal |
+| `GET /api/v1/livestock/groups` | **List animal groups/flocks** |
+| `POST /api/v1/livestock/groups` | Create group |
+| `GET /api/v1/livestock/health` | **List health records** |
+| `POST /api/v1/livestock/health` | Add health record |
+| `GET /api/v1/livestock/breeding` | **List breeding records** |
+| `POST /api/v1/livestock/breeding` | Add breeding record |
+| `GET /api/v1/livestock/weights` | **List weight records** |
+| `POST /api/v1/livestock/weights` | Record weight |
+| `GET /api/v1/livestock/sales` | **List sales** |
+| `POST /api/v1/livestock/sales` | Record sale |
+| `GET /api/v1/livestock/summary` | **Herd statistics** |
+
+### Seed & Planting (NEW in v6.4)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/v1/seeds` | **List seed inventory** |
+| `POST /api/v1/seeds` | Add seed variety |
+| `GET /api/v1/seeds/{id}` | Get seed details |
+| `PUT /api/v1/seeds/{id}` | Update seed |
+| `DELETE /api/v1/seeds/{id}` | Delete seed |
+| `GET /api/v1/seeds/summary` | Seed statistics |
+| `GET /api/v1/seeds/traits/{crop}` | Trait packages by crop |
+| `GET /api/v1/planting` | **List planting records** |
+| `POST /api/v1/planting` | Create planting record |
+| `GET /api/v1/planting/{id}` | Get planting details |
+| `PUT /api/v1/planting/{id}` | Update planting |
+| `GET /api/v1/planting/{id}/emergence` | **Emergence records** |
+| `POST /api/v1/planting/emergence` | Add emergence check |
+
 Visit http://localhost:8000/docs for interactive API documentation.
 Visit http://localhost:8000/m/login for the mobile crew interface.
 
@@ -888,7 +947,7 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - Succession planning (family, transfers, milestones)
   - Benchmarking dashboard (regional, YoY comparison)
   - Document vault (centralized storage, expiration)
-- **GenFin Financial Management Suite** (v6.0):
+- **GenFin Financial Management Suite** (v6.0-6.3):
   - Chart of accounts (60+ farm accounts)
   - Accounts payable (vendors, bills, POs, 1099s)
   - Accounts receivable (customers, invoices, statements)
@@ -897,6 +956,19 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - Payroll (employees, tax calculations)
   - Financial reports (P&L, Balance Sheet, Cash Flow)
   - Budgeting & forecasting (scenarios, projections)
+  - 90s QuickBooks UI theme (v6.3.1)
+  - Multi-entity management (v6.3.0)
+  - 1099-NEC/MISC tracking (v6.3.0)
+- **Farm Operations Suite** (v6.4):
+  - Livestock management (cattle, hogs, poultry, sheep, goats)
+  - Group/batch tracking (flocks, hog groups)
+  - Health records (vaccinations, treatments, vet visits)
+  - Breeding records with gestation tracking
+  - Weight history with ADG calculations
+  - Sale records with profit tracking
+  - Seed inventory (varieties, traits, lot tracking)
+  - Planting records (rates, populations, costs)
+  - Emergence monitoring (stand counts, uniformity)
 
 ### 🔄 In Progress
 1. Import 2025 QuickBooks data (waiting on export)
@@ -905,13 +977,17 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 4. Generate real cost-per-acre reports
 
 ### 📋 Planned
-1. John Deere Operations Center integration (pending API approval)
-2. PDF report generation for clients
-3. Satellite imagery integration (NDVI from drone/satellite services)
-4. Train custom AI models with your field photos and outcomes
-5. Market price feeds for dynamic economics
-6. Regional disease/pest pressure mapping
-7. React/Vue web application for browser access
+1. **Farm Operations Suite (v6.4.x)**:
+   - Harvest module (scale tickets, moisture, yield tracking, CSV import)
+   - Soil & Fertility (soil tests, lab CSV imports, nutrient recommendations)
+   - Crop Planning + FSA (rotations, budgets, base acres, PLC/ARC, CRP)
+2. John Deere Operations Center integration (pending API approval)
+3. PDF report generation for clients
+4. Satellite imagery integration (NDVI from drone/satellite services)
+5. Train custom AI models with your field photos and outcomes
+6. Market price feeds for dynamic economics
+7. Regional disease/pest pressure mapping
+8. React/Vue web application for browser access
 
 ## 💡 Use Cases
 
@@ -984,6 +1060,11 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 6.4.0 | Dec 2025 | **Farm Operations Suite** (livestock, seed & planting management) |
+| 6.3.1 | Dec 2025 | **GenFin 90s QuickBooks UI** (teal theme, beveled buttons) |
+| 6.3.0 | Dec 2025 | **GenFin Enterprise** (payroll, multi-entity, 1099 tracking) |
+| 6.2.0 | Dec 2025 | **GenFin Extensions** (recurring transactions, bank feeds, fixed assets) |
+| 6.1.0 | Dec 2025 | **GenFin QuickBooks Parity** (inventory, classes, projects, 50+ reports) |
 | 6.0.0 | Dec 2025 | **GenFin Suite** (full accounting, check printing, ACH, payroll, financial reports) |
 | 4.2.0 | Dec 2025 | **Complete Farm Business Suite** (tax planning, succession, benchmarking, documents) |
 | 4.1.0 | Dec 2025 | **Grain & Storage Suite** (bins, drying, accounting, basis alerts) |

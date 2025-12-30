@@ -73,7 +73,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Succession Planning**: Family members, asset transfers, milestones
     - **Benchmarking Dashboard**: Regional comparison, year-over-year trends
     - **Document Vault**: Centralized storage with expiration tracking
-22. **GenFin Financial Management Suite (v6.0.0)**: Complete farm accounting:
+22. **GenFin Financial Management Suite (v6.0.0-6.3.x)**: Complete farm accounting:
     - **Chart of Accounts**: 60+ farm-specific accounts with double-entry
     - **Accounts Payable**: Vendors, bills, payments, POs, 1099 tracking
     - **Accounts Receivable**: Customers, invoices, estimates, statements
@@ -82,6 +82,19 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Payroll**: Employees, time, tax calculations (Federal, FICA, FUTA)
     - **Financial Reports**: P&L, Balance Sheet, Cash Flow, Ratios
     - **Budgeting**: Budget vs. actual, forecasting, scenarios
+    - **90s QuickBooks UI** (v6.3.1): Nostalgic teal theme with beveled 3D buttons
+    - **Multi-Entity Support** (v6.3.0): Manage multiple business entities
+    - **1099 Tracking** (v6.3.0): 1099-NEC/MISC preparation with threshold monitoring
+23. **Farm Operations Suite (v6.4.0)**: Comprehensive farm operations:
+    - **Livestock Management**: Track cattle, hogs, poultry, sheep, goats
+    - **Group/Batch Tracking**: Manage poultry flocks and hog groups
+    - **Health Records**: Vaccinations, treatments, vet visits with alerts
+    - **Breeding Records**: Gestation tracking, expected births, offspring
+    - **Weight Tracking**: Weight history with ADG calculations
+    - **Sale Records**: Buyer tracking, price/lb, profit calculation
+    - **Seed Inventory**: Variety tracking, traits, lot numbers
+    - **Planting Records**: Field planting with rates, populations, costs
+    - **Emergence Monitoring**: Stand counts, uniformity scores, growth stages
 
 ---
 
@@ -95,7 +108,7 @@ agtools/
 │   └── chemical_database.py                # Pesticide products & labels
 │
 ├── backend/
-│   ├── main.py                             # FastAPI application (v6.0 - 11,000+ lines, 390+ endpoints)
+│   ├── main.py                             # FastAPI application (v6.4 - 12,000+ lines, 425+ endpoints)
 │   ├── requirements.txt                    # Backend dependencies
 │   └── services/
 │       ├── pest_identification.py          # Symptom-based pest ID
@@ -142,7 +155,11 @@ agtools/
 │       ├── genfin_banking_service.py       # Bank accounts, CHECK PRINTING, ACH (v6.0)
 │       ├── genfin_payroll_service.py       # Employees, pay runs, taxes (v6.0)
 │       ├── genfin_reports_service.py       # P&L, Balance Sheet, Cash Flow (v6.0)
-│       └── genfin_budget_service.py        # Budgets, forecasting, scenarios (v6.0)
+│       ├── genfin_budget_service.py        # Budgets, forecasting, scenarios (v6.0)
+│       ├── genfin_entity_service.py        # Multi-entity management (v6.3)
+│       ├── genfin_1099_service.py          # 1099 tracking & preparation (v6.3)
+│       ├── livestock_service.py            # Livestock management (v6.4)
+│       └── seed_planting_service.py        # Seed & planting management (v6.4)
 │   ├── middleware/
 │   │   └── auth_middleware.py              # Protected routes (v2.5)
 │   ├── mobile/                             # Mobile Web Interface (v2.6)

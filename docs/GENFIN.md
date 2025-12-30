@@ -1,6 +1,6 @@
 # GenFin - Complete Farm Financial Management System
 
-*Version 6.1.0 | December 2025*
+*Version 6.3.1 | December 2025*
 
 ---
 
@@ -16,6 +16,9 @@
 - **Direct Deposit** - NACHA file generation for ACH payments
 - **Integrated** - Works seamlessly with all AgTools modules
 - **Grant-Ready** - Financial reports formatted for grant applications
+- **90s QuickBooks UI** - Nostalgic teal theme for familiar experience (v6.3.1)
+- **Multi-Entity Support** - Manage multiple business entities (v6.3.0)
+- **1099 Tracking** - Complete 1099-NEC and 1099-MISC preparation (v6.3.0)
 
 ---
 
@@ -1241,6 +1244,62 @@ POST /api/v1/genfin/journal-entries
 - Run year-end close
 - Generate 1099s
 - Prepare for taxes
+
+---
+
+## New in v6.3.x
+
+### 90s QuickBooks UI Theme (v6.3.1)
+
+Experience the nostalgia of classic QuickBooks with our teal blue theme:
+
+- **Teal Blue Color Scheme** - Classic QuickBooks look and feel
+- **Beveled 3D Buttons** - Authentic 90s button styling
+- **Familiar Interface** - Comfortable for long-time QuickBooks users
+- **Professional Appearance** - Clean, business-focused design
+
+### Multi-Entity Management (v6.3.0)
+
+Manage multiple business entities from a single installation:
+
+| Entity Type | Use Case |
+|-------------|----------|
+| Farm | Main farming operation |
+| LLC | Limited liability company |
+| Corporation | S-Corp or C-Corp |
+| Partnership | Family partnership |
+| Trust | Family trust |
+| DBA | Doing business as |
+
+**Features:**
+- Separate chart of accounts per entity
+- Entity-specific financial reports
+- Cross-entity transaction support
+- Consolidated reporting
+- Easy entity switching
+
+### 1099 Tracking & Preparation (v6.3.0)
+
+Complete 1099 preparation for tax compliance:
+
+**1099-NEC (Nonemployee Compensation):**
+- Track payments to contractors
+- $600 threshold monitoring
+- Automatic form generation
+- IRS-ready formatting
+
+**1099-MISC (Miscellaneous Income):**
+- Rent payments tracking
+- Royalties
+- Other income types
+- Multi-box support
+
+**Features:**
+- Vendor 1099 eligibility flags
+- YTD payment tracking
+- Threshold alerts
+- Bulk form generation
+- Export for tax filing
 
 ---
 
