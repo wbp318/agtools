@@ -4,9 +4,82 @@
 
 ---
 
-## Current Version: 6.2.0 (Released - December 29, 2025)
+## Current Version: 6.3.0 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
+
+#### v6.3.0 - Payroll, Multi-Entity, Budgets, 1099 Tracking
+
+**Status:** COMPLETE - Enterprise Features Added
+
+**Goal:** Add payroll processing, multi-entity management, and 1099 tracking to GenFin.
+
+**What Was Built:**
+
+1. **GenFin Multi-Entity Service** (`backend/services/genfin_entity_service.py` ~450 lines)
+
+   - **Entity Types:**
+     - Farm, LLC, Corporation, S-Corp
+     - Partnership, Sole Proprietor, Trust
+
+   - **Features:**
+     - Create and manage multiple business entities
+     - Inter-entity transfers with tracking
+     - User access control per entity
+     - Entity switching
+     - Consolidated reporting across entities
+
+   - **Endpoints:** 10 new endpoints
+
+2. **GenFin 1099 Tracking Service** (`backend/services/genfin_1099_service.py` ~600 lines)
+
+   - **Supported Forms:**
+     - 1099-NEC (Non-employee compensation)
+     - 1099-MISC (Rents, royalties, other income)
+
+   - **Features:**
+     - Track 1099-eligible vendor payments
+     - Payment categorization by box type
+     - IRS threshold monitoring ($600)
+     - Automatic form generation from payments
+     - Missing information detection
+     - Filing status tracking
+     - E-filing preparation
+
+   - **Endpoints:** 12 new endpoints
+
+3. **Payroll Service** (Already existed - `backend/services/genfin_payroll_service.py` ~1500 lines)
+
+   - **Tax Calculations:**
+     - Federal income tax (2024 brackets)
+     - State income tax
+     - Social Security (6.2% up to $168,600)
+     - Medicare (1.45% + 0.9% over $200k)
+     - FUTA/SUTA employer taxes
+
+   - **Features:**
+     - Employee management (hourly/salary)
+     - Pay runs with approval workflow
+     - Pre-tax and post-tax deductions
+     - Direct deposit via ACH
+     - Pay stubs with YTD tracking
+     - Tax liability reports
+
+4. **Budget Service** (Already existed - `backend/services/genfin_budget_service.py`)
+
+   - Annual, quarterly, monthly budgets
+   - Budget vs. actual variance analysis
+   - Rolling forecasts
+
+**API Endpoints Added:** 22 new endpoints
+
+**Test Coverage:** smoke_test_v63.py
+
+**Security:** Rate limiting added, path traversal fixed, security headers added (see SECURITY_AUDIT_v6.2.0.md)
+
+---
+
+## Previous Version: 6.2.0 (Released - December 29, 2025)
 
 #### v6.2.0 - Recurring Transactions, Bank Feeds, Fixed Assets
 
