@@ -1436,14 +1436,78 @@ class PayBillsDialog(GenFinDialog):
 # WRITE CHECK DIALOG
 # =============================================================================
 
+class AccountComboBox(QComboBox):
+    """Editable combobox for account selection with auto-complete."""
+
+    def __init__(self, account_types: List[str] = None, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._accounts = []
+        self._account_types = account_types  # Filter by type if specified
+
+        # Setup completer for auto-complete
+        self.completer().setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        self.completer().setFilterMode(Qt.MatchFlag.MatchContains)
+
+        # Load accounts
+        self._load_accounts()
+
+    def _load_accounts(self):
+        """Load accounts from API."""
+        data = api_get("/accounts")
+        if data:
+            accounts = data if isinstance(data, list) else []
+
+            # Filter by type if specified
+            if self._account_types:
+                accounts = [a for a in accounts if a.get("account_type") in self._account_types]
+
+            self._accounts = accounts
+            self.clear()
+            self.addItem("")  # Empty option
+
+            for acct in accounts:
+                # Format: "Account Name (Type)"
+                name = acct.get("name", "")
+                acct_type = acct.get("account_type", "").replace("_", " ").title()
+                display = f"{name}"
+                self.addItem(display, acct.get("account_id"))
+
+    def get_account_id(self) -> Optional[str]:
+        """Get the selected account ID."""
+        return self.currentData()
+
+    def get_account_name(self) -> str:
+        """Get the selected/entered account name."""
+        return self.currentText().strip()
+
+
 class WriteCheckDialog(GenFinDialog):
-    """Dialog for writing a check."""
+    """Dialog for writing a check - QuickBooks style with editable account combos."""
 
     def __init__(self, parent=None):
         super().__init__("Write Checks", parent)
         self.result_data = None
-        self.setMinimumWidth(650)
+        self.setMinimumWidth(700)
+        self._bank_accounts = []
+        self._expense_accounts = []
+        self._load_accounts()
         self._setup_ui()
+
+    def _load_accounts(self):
+        """Load accounts from API."""
+        data = api_get("/accounts")
+        if data:
+            accounts = data if isinstance(data, list) else []
+            # Bank accounts for the "from" dropdown
+            self._bank_accounts = [a for a in accounts if a.get("account_type") in ["bank", "checking", "savings"]]
+            # Expense accounts for line items
+            self._expense_accounts = [a for a in accounts if a.get("account_type") in
+                                      ["expense", "cost_of_goods_sold", "other_expense"]]
+            # If no expense accounts, use all non-bank accounts
+            if not self._expense_accounts:
+                self._expense_accounts = [a for a in accounts if a.get("account_type") not in ["bank", "checking", "savings"]]
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -1465,7 +1529,15 @@ class WriteCheckDialog(GenFinDialog):
         bank_row = QHBoxLayout()
         bank_row.addWidget(QLabel("Bank Account:"))
         self.bank_account = QComboBox()
-        self.bank_account.addItems(["Checking", "Savings", "Money Market", "Payroll"])
+        self.bank_account.setEditable(True)
+        self.bank_account.setMinimumWidth(200)
+        # Add bank accounts from API
+        if self._bank_accounts:
+            for acct in self._bank_accounts:
+                self.bank_account.addItem(acct.get("name", ""), acct.get("account_id"))
+        else:
+            # Fallback defaults
+            self.bank_account.addItems(["Checking", "Savings", "Money Market", "Payroll"])
         bank_row.addWidget(self.bank_account)
         bank_row.addStretch()
         bank_row.addWidget(QLabel("Check #:"))
@@ -1520,36 +1592,113 @@ class WriteCheckDialog(GenFinDialog):
 
         layout.addWidget(check_frame)
 
-        # Expense details
-        expense_frame = QGroupBox("Expense Details")
+        # Expense details - QuickBooks style with editable account combos
+        expense_frame = QGroupBox("Expenses")
         expense_layout = QVBoxLayout(expense_frame)
 
+        # Add row button
+        add_row_layout = QHBoxLayout()
+        add_row_btn = QPushButton("+ Add Line")
+        add_row_btn.clicked.connect(self._add_expense_row)
+        add_row_layout.addWidget(add_row_btn)
+        add_row_layout.addStretch()
+
+        total_label = QLabel("Total:")
+        total_label.setStyleSheet("font-weight: bold;")
+        add_row_layout.addWidget(total_label)
+        self.expense_total = QLabel("$0.00")
+        self.expense_total.setStyleSheet("font-weight: bold; font-size: 14px;")
+        add_row_layout.addWidget(self.expense_total)
+        expense_layout.addLayout(add_row_layout)
+
         self.expense_table = QTableWidget()
-        self.expense_table.setColumnCount(3)
-        self.expense_table.setHorizontalHeaderLabels(["Account", "Memo", "Amount"])
-        self.expense_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.expense_table.setRowCount(5)
+        self.expense_table.setColumnCount(4)
+        self.expense_table.setHorizontalHeaderLabels(["Account", "Memo", "Amount", ""])
+        self.expense_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.expense_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.expense_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.expense_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.expense_table.setColumnWidth(2, 120)
+        self.expense_table.setColumnWidth(3, 30)
+        self.expense_table.setRowCount(3)
 
-        expense_accounts = ["", "Supplies", "Repairs", "Fuel", "Seed", "Fertilizer",
-                           "Equipment", "Utilities", "Insurance", "Professional Fees", "Other"]
-
-        for row in range(5):
-            account_combo = QComboBox()
-            account_combo.addItems(expense_accounts)
-            self.expense_table.setCellWidget(row, 0, account_combo)
-
-            self.expense_table.setItem(row, 1, QTableWidgetItem(""))
-
-            amount_spin = QDoubleSpinBox()
-            amount_spin.setMaximum(9999999.99)
-            amount_spin.setDecimals(2)
-            amount_spin.setPrefix("$ ")
-            self.expense_table.setCellWidget(row, 2, amount_spin)
+        # Create initial rows with editable account combos
+        for row in range(3):
+            self._setup_expense_row(row)
 
         expense_layout.addWidget(self.expense_table)
         layout.addWidget(expense_frame)
 
         # Buttons
+        self._create_buttons(layout)
+
+    def _setup_expense_row(self, row: int):
+        """Setup a single expense row with editable account combo."""
+        # Editable account combo with auto-complete
+        account_combo = QComboBox()
+        account_combo.setEditable(True)
+        account_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        account_combo.addItem("")  # Empty option first
+
+        # Add accounts from API
+        for acct in self._expense_accounts:
+            account_combo.addItem(acct.get("name", ""), acct.get("account_id"))
+
+        # If no API accounts, add common defaults
+        if not self._expense_accounts:
+            defaults = ["Supplies", "Repairs & Maintenance", "Fuel", "Seed", "Fertilizer",
+                       "Chemicals", "Equipment Rental", "Utilities", "Insurance", "Professional Fees",
+                       "Contract Labor", "Rent", "Interest Expense", "Office Supplies", "Vehicle Expense"]
+            for name in defaults:
+                account_combo.addItem(name)
+
+        self.expense_table.setCellWidget(row, 0, account_combo)
+
+        # Memo
+        self.expense_table.setItem(row, 1, QTableWidgetItem(""))
+
+        # Amount with auto-update
+        amount_spin = QDoubleSpinBox()
+        amount_spin.setMaximum(9999999.99)
+        amount_spin.setDecimals(2)
+        amount_spin.setPrefix("$ ")
+        amount_spin.valueChanged.connect(self._update_expense_total)
+        self.expense_table.setCellWidget(row, 2, amount_spin)
+
+        # Delete button
+        del_btn = QPushButton("×")
+        del_btn.setMaximumWidth(25)
+        del_btn.setStyleSheet("color: red; font-weight: bold;")
+        del_btn.clicked.connect(lambda: self._remove_expense_row(row))
+        self.expense_table.setCellWidget(row, 3, del_btn)
+
+    def _add_expense_row(self):
+        """Add a new expense row."""
+        row = self.expense_table.rowCount()
+        self.expense_table.setRowCount(row + 1)
+        self._setup_expense_row(row)
+
+    def _remove_expense_row(self, row: int):
+        """Remove an expense row."""
+        if self.expense_table.rowCount() > 1:
+            self.expense_table.removeRow(row)
+            self._update_expense_total()
+
+    def _update_expense_total(self):
+        """Update the expense total display."""
+        total = 0.0
+        for row in range(self.expense_table.rowCount()):
+            amount_widget = self.expense_table.cellWidget(row, 2)
+            if isinstance(amount_widget, QDoubleSpinBox):
+                total += amount_widget.value()
+        self.expense_total.setText(f"${total:,.2f}")
+
+        # Also update the check amount if it's less than expenses
+        if self.amount.value() < total:
+            self.amount.setValue(total)
+
+    def _create_buttons(self, layout):
+        """Create dialog buttons."""
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
@@ -3357,27 +3506,111 @@ class GenFinHomeScreen(QWidget):
     """90s QuickBooks-style home screen with icon grid."""
 
     navigate_to = pyqtSignal(str)
+    company_changed = pyqtSignal(str)  # Emits entity_id when company changes
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._current_entity_id = None
+        self._entities = []
         self._setup_ui()
+        QTimer.singleShot(100, self._load_entities)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(16)
 
+        # Company Switcher at top
+        company_frame = QFrame()
+        company_frame.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {GENFIN_COLORS['teal_dark']},
+                    stop:1 {GENFIN_COLORS['teal_medium']});
+                border: 2px outset {GENFIN_COLORS['teal_light']};
+                border-radius: 4px;
+                padding: 4px;
+            }}
+        """)
+        company_layout = QHBoxLayout(company_frame)
+        company_layout.setContentsMargins(12, 8, 12, 8)
+        company_layout.setSpacing(12)
+
+        company_icon = QLabel("🏢")
+        company_icon.setStyleSheet("font-size: 20px; background: transparent; border: none;")
+        company_layout.addWidget(company_icon)
+
+        company_label = QLabel("Company:")
+        company_label.setStyleSheet(f"""
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            background: transparent;
+            border: none;
+        """)
+        company_layout.addWidget(company_label)
+
+        self.company_combo = QComboBox()
+        self.company_combo.setMinimumWidth(250)
+        self.company_combo.setStyleSheet(f"""
+            QComboBox {{
+                background: white;
+                border: 2px inset {GENFIN_COLORS['gray_medium']};
+                padding: 4px 8px;
+                font-size: 12px;
+                font-weight: bold;
+                color: {GENFIN_COLORS['teal_dark']};
+            }}
+            QComboBox:hover {{
+                border-color: {GENFIN_COLORS['teal_medium']};
+            }}
+            QComboBox::drop-down {{
+                border-left: 1px solid {GENFIN_COLORS['gray_medium']};
+                width: 20px;
+            }}
+        """)
+        self.company_combo.currentIndexChanged.connect(self._on_company_changed)
+        company_layout.addWidget(self.company_combo)
+
+        company_layout.addStretch()
+
+        # Quick action buttons
+        new_company_btn = QPushButton("+ New Company")
+        new_company_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ffffff, stop:1 {GENFIN_COLORS['gray_light']});
+                border: 2px outset {GENFIN_COLORS['gray_medium']};
+                padding: 4px 12px;
+                font-size: 10px;
+                font-weight: bold;
+                color: {GENFIN_COLORS['teal_dark']};
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {GENFIN_COLORS['teal_light']}, stop:1 {GENFIN_COLORS['teal_medium']});
+                color: white;
+            }}
+            QPushButton:pressed {{
+                border-style: inset;
+            }}
+        """)
+        new_company_btn.clicked.connect(self._add_new_company)
+        company_layout.addWidget(new_company_btn)
+
+        layout.addWidget(company_frame)
+
         welcome_frame = QFrame()
         welcome_frame.setProperty("class", "genfin-panel-raised")
         welcome_layout = QVBoxLayout(welcome_frame)
 
-        welcome = QLabel("Welcome to GenFin Accounting")
-        welcome.setStyleSheet(f"""
+        self.welcome_label = QLabel("Welcome to GenFin Accounting")
+        self.welcome_label.setStyleSheet(f"""
             color: {GENFIN_COLORS['teal_dark']};
             font-size: 18px;
             font-weight: bold;
         """)
-        welcome_layout.addWidget(welcome)
+        welcome_layout.addWidget(self.welcome_label)
 
         subtitle = QLabel("Your Complete Farm & Business Accounting Solution")
         subtitle.setProperty("class", "genfin-label")
@@ -3503,6 +3736,162 @@ class GenFinHomeScreen(QWidget):
             ap = self.stats_frame.findChild(QLabel, "A/P_Outstanding")
             if ap:
                 ap.setText(f"${summary.get('ap_balance', 0):,.2f}")
+
+    def _load_entities(self):
+        """Load entities/companies from API."""
+        self.company_combo.blockSignals(True)
+        self.company_combo.clear()
+
+        # Always add a default company
+        self.company_combo.addItem("New Generation Farms (Default)", "default")
+
+        # Load entities from API
+        result = api_get("/entities")
+        if result and isinstance(result, dict):
+            entities = result.get("entities", [])
+            self._entities = entities
+            for entity in entities:
+                name = entity.get("name", "Unknown")
+                entity_type = entity.get("entity_type", "").upper()
+                entity_id = entity.get("id", "")
+                display = f"{name} ({entity_type})" if entity_type else name
+                self.company_combo.addItem(display, entity_id)
+
+        # Set to default or first entity
+        if self._current_entity_id:
+            for i in range(self.company_combo.count()):
+                if self.company_combo.itemData(i) == self._current_entity_id:
+                    self.company_combo.setCurrentIndex(i)
+                    break
+
+        self.company_combo.blockSignals(False)
+        self._update_welcome_message()
+
+    def _on_company_changed(self, index: int):
+        """Handle company selection change."""
+        entity_id = self.company_combo.itemData(index)
+        if entity_id and entity_id != self._current_entity_id:
+            self._current_entity_id = entity_id
+            company_name = self.company_combo.currentText()
+            self._update_welcome_message()
+            self.company_changed.emit(entity_id)
+            # Reload stats for the new company
+            self._load_stats()
+
+    def _update_welcome_message(self):
+        """Update welcome label with current company name."""
+        company_name = self.company_combo.currentText()
+        if company_name:
+            # Extract just the name without the type in parentheses
+            if " (" in company_name:
+                company_name = company_name.split(" (")[0]
+            self.welcome_label.setText(f"Welcome to {company_name}")
+
+    def _add_new_company(self):
+        """Show dialog to add a new company/entity."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add New Company")
+        dialog.setFixedWidth(400)
+        dialog.setStyleSheet(GENFIN_STYLESHEET)
+
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(12)
+
+        # Company Name
+        name_label = QLabel("Company Name:")
+        name_label.setProperty("class", "genfin-label")
+        layout.addWidget(name_label)
+
+        name_input = QLineEdit()
+        name_input.setProperty("class", "genfin-input")
+        name_input.setPlaceholderText("e.g., North Farm LLC")
+        layout.addWidget(name_input)
+
+        # Legal Name
+        legal_label = QLabel("Legal Name:")
+        legal_label.setProperty("class", "genfin-label")
+        layout.addWidget(legal_label)
+
+        legal_input = QLineEdit()
+        legal_input.setProperty("class", "genfin-input")
+        legal_input.setPlaceholderText("Full legal name")
+        layout.addWidget(legal_input)
+
+        # Entity Type
+        type_label = QLabel("Entity Type:")
+        type_label.setProperty("class", "genfin-label")
+        layout.addWidget(type_label)
+
+        type_combo = QComboBox()
+        type_combo.setProperty("class", "genfin-combo")
+        type_combo.addItems(["Farm", "LLC", "Corporation", "S-Corp", "Partnership", "Trust", "Sole Proprietorship"])
+        layout.addWidget(type_combo)
+
+        # Tax ID
+        tax_label = QLabel("Tax ID (EIN):")
+        tax_label.setProperty("class", "genfin-label")
+        layout.addWidget(tax_label)
+
+        tax_input = QLineEdit()
+        tax_input.setProperty("class", "genfin-input")
+        tax_input.setPlaceholderText("XX-XXXXXXX")
+        layout.addWidget(tax_input)
+
+        # State
+        state_label = QLabel("State of Formation:")
+        state_label.setProperty("class", "genfin-label")
+        layout.addWidget(state_label)
+
+        state_input = QLineEdit()
+        state_input.setProperty("class", "genfin-input")
+        state_input.setPlaceholderText("e.g., LA")
+        state_input.setMaxLength(2)
+        layout.addWidget(state_input)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setProperty("class", "genfin-button")
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+
+        save_btn = QPushButton("Create Company")
+        save_btn.setProperty("class", "genfin-button-primary")
+        button_layout.addWidget(save_btn)
+
+        layout.addLayout(button_layout)
+
+        def save_company():
+            name = name_input.text().strip()
+            if not name:
+                QMessageBox.warning(dialog, "Required", "Company name is required.")
+                return
+
+            data = {
+                "name": name,
+                "legal_name": legal_input.text().strip() or name,
+                "entity_type": type_combo.currentText().lower().replace(" ", "_").replace("-", ""),
+                "tax_id": tax_input.text().strip(),
+                "state_of_formation": state_input.text().strip().upper()
+            }
+
+            result = api_post("/entities", data)
+            if result:
+                dialog.accept()
+                self._load_entities()
+                # Select the new company
+                for i in range(self.company_combo.count()):
+                    if self.company_combo.itemText(i).startswith(name):
+                        self.company_combo.setCurrentIndex(i)
+                        break
+                QMessageBox.information(self, "Success", f"Company '{name}' created successfully!")
+            else:
+                QMessageBox.warning(dialog, "Error", "Failed to create company.")
+
+        save_btn.clicked.connect(save_company)
+        dialog.exec()
 
 
 class GenFinListScreen(QWidget):
