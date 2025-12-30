@@ -1,7 +1,7 @@
 """
 AgTools Sidebar Navigation
 
-Professional sidebar with grouped navigation items.
+Windows 98 Retro Style with Turquoise Theme.
 """
 
 from PyQt6.QtWidgets import (
@@ -11,11 +11,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QFont
 
-from ui.styles import set_widget_class, COLORS
+from ui.retro_styles import RETRO_COLORS
 
 
 class NavButton(QPushButton):
-    """Navigation button for sidebar items."""
+    """Windows 98 style navigation button for sidebar items."""
 
     def __init__(self, text: str, icon: str = "", parent=None):
         super().__init__(parent)
@@ -24,41 +24,76 @@ class NavButton(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setCheckable(True)
         self._nav_id = text.lower().replace(" ", "_")
+        self._apply_style(False)
 
     @property
     def nav_id(self) -> str:
         return self._nav_id
 
+    def _apply_style(self, active: bool) -> None:
+        """Apply Windows 98 beveled button style."""
+        c = RETRO_COLORS
+        if active:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background: {c['turquoise_pale']};
+                    color: #003030;
+                    border: 2px solid;
+                    border-top-color: #003030;
+                    border-left-color: #003030;
+                    border-bottom-color: {c['turquoise_light']};
+                    border-right-color: {c['turquoise_light']};
+                    text-align: left;
+                    padding: 6px 12px;
+                    font-size: 11px;
+                    font-weight: bold;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: #002020;
+                    border: none;
+                    text-align: left;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: {c['turquoise_pale']};
+                    color: #003030;
+                    border-left: 3px solid #003030;
+                }}
+            """)
+
     def set_active(self, active: bool) -> None:
         """Set the active state of this nav button."""
         self.setChecked(active)
-        if active:
-            set_widget_class(self, "active")
-        else:
-            self.setProperty("class", "")
-            self.style().unpolish(self)
-            self.style().polish(self)
+        self._apply_style(active)
 
 
 class SectionHeader(QLabel):
-    """Section header label for grouping nav items."""
+    """Windows 98 style section header for grouping nav items."""
 
     def __init__(self, text: str, parent=None):
         super().__init__(text.upper(), parent)
+        c = RETRO_COLORS
         font = QFont()
-        font.setPointSize(9)
-        font.setWeight(QFont.Weight.DemiBold)
+        font.setPointSize(8)
+        font.setWeight(QFont.Weight.Bold)
         self.setFont(font)
         self.setStyleSheet(f"""
-            color: {COLORS['text_disabled']};
-            padding: 16px 16px 8px 16px;
+            color: #001515;
+            padding: 14px 12px 4px 12px;
             background: transparent;
+            letter-spacing: 1px;
         """)
 
 
 class Sidebar(QFrame):
     """
-    Main sidebar navigation component.
+    Windows 98 Retro Sidebar Navigation.
 
     Signals:
         navigation_clicked(str): Emitted when a nav item is clicked, with the nav_id
@@ -71,12 +106,12 @@ class Sidebar(QFrame):
         self._nav_buttons: dict[str, NavButton] = {}
         self._current_nav: str = ""
         self._setup_ui()
-
-        set_widget_class(self, "sidebar")
+        self._apply_retro_style()
 
     def _setup_ui(self) -> None:
         """Initialize the sidebar UI."""
-        self.setFixedWidth(200)
+        c = RETRO_COLORS
+        self.setFixedWidth(220)
         self.setMinimumHeight(400)
 
         # Main layout
@@ -84,21 +119,28 @@ class Sidebar(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Logo/Title area
+        # Logo/Title area - Windows 98 style title bar
         title_frame = QFrame()
+        title_frame.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {c['turquoise_dark']},
+                    stop:1 {c['turquoise_medium']});
+                border-bottom: 2px groove rgba(255,255,255,0.3);
+            }}
+        """)
         title_layout = QVBoxLayout(title_frame)
-        title_layout.setContentsMargins(16, 16, 16, 16)
+        title_layout.setContentsMargins(12, 12, 12, 12)
 
         title_label = QLabel("AgTools")
-        title_font = QFont()
-        title_font.setPointSize(18)
+        title_font = QFont("Segoe UI", 16)
         title_font.setWeight(QFont.Weight.Bold)
         title_label.setFont(title_font)
-        title_label.setStyleSheet(f"color: {COLORS['primary_light']};")
+        title_label.setStyleSheet(f"color: {c['text_white']}; background: transparent;")
         title_layout.addWidget(title_label)
 
-        subtitle_label = QLabel("Professional")
-        subtitle_label.setStyleSheet(f"color: {COLORS['sidebar_text']}; font-size: 10pt;")
+        subtitle_label = QLabel("Professional v6.5")
+        subtitle_label.setStyleSheet(f"color: {c['turquoise_pale']}; font-size: 9pt; background: transparent;")
         title_layout.addWidget(subtitle_label)
 
         layout.addWidget(title_frame)
@@ -107,7 +149,23 @@ class Sidebar(QFrame):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setStyleSheet(f"""
+            QScrollArea {{ border: none; background: transparent; }}
+            QScrollBar:vertical {{
+                background: {c['turquoise_dark']};
+                width: 12px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {c['turquoise_medium']};
+                border-radius: 4px;
+                margin: 2px;
+                min-height: 20px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """)
 
         nav_widget = QWidget()
         nav_layout = QVBoxLayout(nav_widget)
@@ -174,15 +232,31 @@ class Sidebar(QFrame):
         scroll.setWidget(nav_widget)
         layout.addWidget(scroll, 1)
 
-        # Version info at bottom
-        version_label = QLabel("v2.5.0")
+        # Version info at bottom - Windows 98 sunken panel style
+        version_label = QLabel("v6.5.2")
         version_label.setStyleSheet(f"""
-            color: {COLORS['text_disabled']};
-            padding: 8px 16px;
+            color: {c['turquoise_pale']};
+            background: {c['turquoise_dark']};
+            padding: 6px 16px;
             font-size: 9pt;
+            border-top: 1px solid rgba(0,0,0,0.3);
         """)
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version_label)
+
+    def _apply_retro_style(self) -> None:
+        """Apply Windows 98 retro turquoise theme to sidebar."""
+        c = RETRO_COLORS
+        self.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {c['turquoise_dark']},
+                    stop:0.5 {c['turquoise']},
+                    stop:1 {c['turquoise_dark']});
+                border-right: 3px solid;
+                border-right-color: {c['bevel_darker']};
+            }}
+        """)
 
     def _add_nav_item(self, layout: QVBoxLayout, text: str, icon: str = "") -> None:
         """Add a navigation item to the sidebar."""

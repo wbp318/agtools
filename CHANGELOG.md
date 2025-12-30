@@ -1,8 +1,28 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.5.1 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.5.2 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.5.2 (December 30, 2025)
+
+### Windows 98 Retro Theme - Turquoise Edition
+
+**Visual Overhaul:**
+- **New retro_styles.py** - Complete Windows 98 aesthetic with turquoise color scheme
+- **Sidebar** - Dark teal text on turquoise gradient, 3D beveled active states
+- **Main content** - Warm cream/beige background (classic CRT monitor look)
+- **Buttons** - Authentic Windows 98 3D beveled style with light/dark borders
+- **Tables/Headers** - Turquoise gradient headers with pale cyan alternating rows
+- **Input fields** - Sunken 3D border effect (dark top-left, light bottom-right)
+- **Scrollbars** - Rounded turquoise handles on pale background
+
+**Theme Colors:**
+- Primary: Turquoise (#00CED1) with dark (#00868B) and light (#40E0D0) variants
+- Background: Cream (#F5F5DC) for warm retro feel
+- Window face: Classic #D4D0C8 for toolbars and dialogs
 
 ---
 

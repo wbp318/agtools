@@ -16,6 +16,7 @@ from PyQt6.QtGui import QFont
 
 from config import APP_NAME, APP_VERSION, get_settings
 from ui.styles import COLORS, get_stylesheet
+from ui.retro_styles import RETRO_COLORS, get_retro_stylesheet
 from ui.sidebar import Sidebar
 from ui.screens.dashboard import DashboardScreen
 from ui.screens.yield_response import YieldResponseScreen
@@ -303,8 +304,8 @@ class MainWindow(QMainWindow):
             self._settings.ui.default_height
         )
 
-        # Apply stylesheet
-        self.setStyleSheet(get_stylesheet(self._settings.ui.theme))
+        # Apply Windows 98 retro stylesheet
+        self.setStyleSheet(get_retro_stylesheet())
 
     def _setup_ui(self) -> None:
         """Initialize the main UI layout."""
@@ -321,30 +322,31 @@ class MainWindow(QMainWindow):
         self._sidebar = Sidebar()
         main_layout.addWidget(self._sidebar)
 
-        # Content area with splitter for responsiveness
+        # Content area - warm cream background like old monitors
         content_frame = QFrame()
-        content_frame.setStyleSheet(f"background-color: {COLORS['background']};")
+        content_frame.setStyleSheet(f"background-color: {RETRO_COLORS['cream']};")
         content_layout = QVBoxLayout(content_frame)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        # Top bar with status
+        # Top bar - Windows 98 style with 3D bevel
         top_bar = QFrame()
         top_bar.setStyleSheet(f"""
-            background-color: {COLORS['surface']};
-            border-bottom: 1px solid {COLORS['border']};
+            background-color: {RETRO_COLORS['window_face']};
+            border-bottom: 2px solid;
+            border-bottom-color: {RETRO_COLORS['bevel_dark']};
         """)
-        top_bar.setFixedHeight(48)
+        top_bar.setFixedHeight(36)
 
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(16, 0, 16, 0)
 
-        # Page title (dynamic)
+        # Page title (dynamic) - Windows 98 style
         self._page_title = QLabel("Dashboard")
-        title_font = QFont()
-        title_font.setPointSize(14)
-        title_font.setWeight(QFont.Weight.DemiBold)
+        title_font = QFont("Tahoma", 11)
+        title_font.setWeight(QFont.Weight.Bold)
         self._page_title.setFont(title_font)
+        self._page_title.setStyleSheet(f"color: {RETRO_COLORS['text_black']}; background: transparent;")
         top_layout.addWidget(self._page_title)
 
         top_layout.addStretch()
@@ -491,21 +493,42 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(screen)
 
     def _setup_status_bar(self) -> None:
-        """Setup the status bar with sync info."""
+        """Setup the status bar - Windows 98 style."""
         status_bar = QStatusBar()
+        status_bar.setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {RETRO_COLORS['window_face']};
+                border-top: 1px solid {RETRO_COLORS['bevel_light']};
+            }}
+            QStatusBar::item {{
+                border: none;
+            }}
+        """)
         self.setStatusBar(status_bar)
 
         # Ready message
         status_bar.showMessage("Ready")
 
-        # Last sync time
+        # Last sync time - sunken panel look
         self._last_sync_label = QLabel("Last sync: Never")
-        self._last_sync_label.setStyleSheet(f"color: {COLORS['text_secondary']}; margin-right: 16px;")
+        self._last_sync_label.setStyleSheet(f"""
+            color: {RETRO_COLORS['text_black']};
+            background: {RETRO_COLORS['cream']};
+            border: 1px solid {RETRO_COLORS['bevel_dark']};
+            padding: 2px 8px;
+            font-size: 10px;
+        """)
         status_bar.addPermanentWidget(self._last_sync_label)
 
-        # Version info on right
+        # Version info - sunken panel
         version_label = QLabel(f"v{APP_VERSION}")
-        version_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
+        version_label.setStyleSheet(f"""
+            color: {RETRO_COLORS['text_black']};
+            background: {RETRO_COLORS['cream']};
+            border: 1px solid {RETRO_COLORS['bevel_dark']};
+            padding: 2px 8px;
+            font-weight: bold;
+        """)
         status_bar.addPermanentWidget(version_label)
 
     def _setup_connections(self) -> None:
