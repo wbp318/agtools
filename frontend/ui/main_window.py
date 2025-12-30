@@ -36,6 +36,8 @@ from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
 from ui.screens.reports_dashboard import ReportsDashboardScreen
 from ui.screens.quickbooks_import import QuickBooksImportScreen
 from ui.screens.genfin import GenFinScreen
+from ui.screens.livestock_management import LivestockManagementScreen
+from ui.screens.seed_planting import SeedPlantingScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -455,6 +457,14 @@ class MainWindow(QMainWindow):
         genfin_screen = GenFinScreen()
         self._add_screen("genfin", genfin_screen)
 
+        # Livestock Management Screen (v6.4.0) - All users
+        livestock_screen = LivestockManagementScreen(current_user=self._current_user)
+        self._add_screen("livestock", livestock_screen)
+
+        # Seed & Planting Screen (v6.4.0) - All users
+        seed_planting_screen = SeedPlantingScreen(current_user=self._current_user)
+        self._add_screen("seeds", seed_planting_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -537,6 +547,8 @@ class MainWindow(QMainWindow):
                 "reports": "Reports & Analytics",
                 "quickbooks": "QuickBooks Import",
                 "genfin": "GenFin Accounting",
+                "livestock": "Livestock Management",
+                "seeds": "Seed & Planting",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",

@@ -15006,6 +15006,575 @@ async def get_1099_missing_info(
 
 
 # ============================================================================
+# LIVESTOCK MANAGEMENT (v6.4.0)
+# ============================================================================
+
+from services.livestock_service import (
+    get_livestock_service, Species, Sex, AnimalStatus, GroupStatus,
+    HealthRecordType, BreedingStatus, WeightType, SaleType,
+    AnimalCreate, AnimalUpdate, GroupCreate, GroupUpdate,
+    HealthRecordCreate, BreedingRecordCreate, BreedingRecordUpdate,
+    WeightRecordCreate, SaleRecordCreate
+)
+
+livestock_service = get_livestock_service()
+
+
+@app.get("/api/v1/livestock/summary", tags=["Livestock"])
+async def get_livestock_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get livestock summary statistics"""
+    summary, error = livestock_service.get_summary()
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return summary
+
+
+@app.get("/api/v1/livestock/breeds/{species}", tags=["Livestock"])
+async def get_breeds_for_species(
+    species: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get common breeds for a species"""
+    try:
+        species_enum = Species(species)
+        breeds = livestock_service.get_breeds_for_species(species_enum)
+        return {"breeds": breeds}
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid species: {species}")
+
+
+# --- Groups ---
+
+@app.get("/api/v1/livestock/groups", tags=["Livestock"])
+async def list_livestock_groups(
+    species: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List livestock groups"""
+    species_enum = Species(species) if species else None
+    status_enum = GroupStatus(status) if status else None
+    groups, error = livestock_service.list_groups(species_enum, status_enum, search)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"groups": [g.model_dump() for g in groups], "count": len(groups)}
+
+
+@app.get("/api/v1/livestock/groups/{group_id}", tags=["Livestock"])
+async def get_livestock_group(
+    group_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a livestock group by ID"""
+    group, error = livestock_service.get_group(group_id)
+    if error:
+        raise HTTPException(status_code=404, detail=error)
+    return group.model_dump()
+
+
+@app.post("/api/v1/livestock/groups", tags=["Livestock"])
+async def create_livestock_group(
+    data: GroupCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new livestock group"""
+    group, error = livestock_service.create_group(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return group.model_dump()
+
+
+@app.put("/api/v1/livestock/groups/{group_id}", tags=["Livestock"])
+async def update_livestock_group(
+    group_id: int,
+    data: GroupUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a livestock group"""
+    group, error = livestock_service.update_group(group_id, data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return group.model_dump()
+
+
+@app.delete("/api/v1/livestock/groups/{group_id}", tags=["Livestock"])
+async def delete_livestock_group(
+    group_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a livestock group"""
+    success, error = livestock_service.delete_group(group_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": success}
+
+
+# --- Animals ---
+
+@app.get("/api/v1/livestock", tags=["Livestock"])
+async def list_animals(
+    species: Optional[str] = None,
+    status: Optional[str] = None,
+    group_id: Optional[int] = None,
+    sex: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List livestock animals"""
+    species_enum = Species(species) if species else None
+    status_enum = AnimalStatus(status) if status else None
+    sex_enum = Sex(sex) if sex else None
+    animals, error = livestock_service.list_animals(
+        species_enum, status_enum, group_id, sex_enum, search, limit, offset
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"animals": [a.model_dump() for a in animals], "count": len(animals)}
+
+
+@app.get("/api/v1/livestock/{animal_id}", tags=["Livestock"])
+async def get_animal(
+    animal_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get an animal by ID"""
+    animal, error = livestock_service.get_animal(animal_id)
+    if error:
+        raise HTTPException(status_code=404, detail=error)
+    return animal.model_dump()
+
+
+@app.post("/api/v1/livestock", tags=["Livestock"])
+async def create_animal(
+    data: AnimalCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new animal"""
+    animal, error = livestock_service.create_animal(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return animal.model_dump()
+
+
+@app.put("/api/v1/livestock/{animal_id}", tags=["Livestock"])
+async def update_animal(
+    animal_id: int,
+    data: AnimalUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update an animal"""
+    animal, error = livestock_service.update_animal(animal_id, data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return animal.model_dump()
+
+
+@app.delete("/api/v1/livestock/{animal_id}", tags=["Livestock"])
+async def delete_animal(
+    animal_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete an animal"""
+    success, error = livestock_service.delete_animal(animal_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": success}
+
+
+# --- Health Records ---
+
+@app.get("/api/v1/livestock/health", tags=["Livestock"])
+async def list_health_records(
+    animal_id: Optional[int] = None,
+    group_id: Optional[int] = None,
+    record_type: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List health records"""
+    from datetime import date as dt_date
+    type_enum = HealthRecordType(record_type) if record_type else None
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    records, error = livestock_service.list_health_records(
+        animal_id, group_id, type_enum, from_dt, to_dt
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.get("/api/v1/livestock/health/alerts", tags=["Livestock"])
+async def get_health_alerts(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get upcoming health alerts"""
+    alerts, error = livestock_service.get_health_alerts()
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"alerts": [a.model_dump() for a in alerts], "count": len(alerts)}
+
+
+@app.post("/api/v1/livestock/health", tags=["Livestock"])
+async def create_health_record(
+    data: HealthRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a health record"""
+    record, error = livestock_service.create_health_record(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return record.model_dump()
+
+
+# --- Breeding Records ---
+
+@app.get("/api/v1/livestock/breeding", tags=["Livestock"])
+async def list_breeding_records(
+    female_id: Optional[int] = None,
+    status: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List breeding records"""
+    from datetime import date as dt_date
+    status_enum = BreedingStatus(status) if status else None
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    records, error = livestock_service.list_breeding_records(
+        female_id, status_enum, from_dt, to_dt
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.get("/api/v1/livestock/breeding/due", tags=["Livestock"])
+async def get_upcoming_due_dates(
+    days: int = 60,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get breeding records with upcoming due dates"""
+    records, error = livestock_service.get_upcoming_due_dates(days)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.post("/api/v1/livestock/breeding", tags=["Livestock"])
+async def create_breeding_record(
+    data: BreedingRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a breeding record"""
+    record, error = livestock_service.create_breeding_record(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return record.model_dump()
+
+
+@app.put("/api/v1/livestock/breeding/{record_id}", tags=["Livestock"])
+async def update_breeding_record(
+    record_id: int,
+    data: BreedingRecordUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a breeding record"""
+    record, error = livestock_service.update_breeding_record(record_id, data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return record.model_dump()
+
+
+# --- Weight Records ---
+
+@app.get("/api/v1/livestock/weights", tags=["Livestock"])
+async def list_weight_records(
+    animal_id: Optional[int] = None,
+    group_id: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List weight records"""
+    from datetime import date as dt_date
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    records, error = livestock_service.list_weight_records(
+        animal_id, group_id, from_dt, to_dt
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.post("/api/v1/livestock/weights", tags=["Livestock"])
+async def create_weight_record(
+    data: WeightRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a weight record"""
+    record, error = livestock_service.create_weight_record(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return record.model_dump()
+
+
+# --- Sales Records ---
+
+@app.get("/api/v1/livestock/sales", tags=["Livestock"])
+async def list_sale_records(
+    animal_id: Optional[int] = None,
+    group_id: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    sale_type: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List sale records"""
+    from datetime import date as dt_date
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    type_enum = SaleType(sale_type) if sale_type else None
+    records, error = livestock_service.list_sale_records(
+        animal_id, group_id, from_dt, to_dt, type_enum
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.post("/api/v1/livestock/sales", tags=["Livestock"])
+async def create_sale_record(
+    data: SaleRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a sale record"""
+    record, error = livestock_service.create_sale_record(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return record.model_dump()
+
+
+# ============================================================================
+# SEED & PLANTING MANAGEMENT (v6.4.0)
+# ============================================================================
+
+from services.seed_planting_service import (
+    get_seed_planting_service, CropType as SeedCropType, QuantityUnit,
+    TreatmentType, RateUnit, SoilMoisture, PlantingStatus, CountUnit,
+    SeedInventoryCreate, SeedInventoryUpdate, SeedTreatmentCreate,
+    PlantingRecordCreate, PlantingRecordUpdate, EmergenceRecordCreate
+)
+
+seed_planting_service = get_seed_planting_service()
+
+
+@app.get("/api/v1/seeds/summary", tags=["Seeds & Planting"])
+async def get_seed_planting_summary(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get seed & planting summary statistics"""
+    summary, error = seed_planting_service.get_summary(year)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return summary
+
+
+@app.get("/api/v1/seeds/traits/{crop_type}", tags=["Seeds & Planting"])
+async def get_traits_for_crop(
+    crop_type: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get trait packages for a crop type"""
+    try:
+        crop_enum = SeedCropType(crop_type)
+        traits = seed_planting_service.get_traits_for_crop(crop_enum)
+        return {"traits": traits}
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid crop type: {crop_type}")
+
+
+# --- Seed Inventory ---
+
+@app.get("/api/v1/seeds", tags=["Seeds & Planting"])
+async def list_seeds(
+    crop_type: Optional[str] = None,
+    brand: Optional[str] = None,
+    search: Optional[str] = None,
+    in_stock_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List seed inventory"""
+    crop_enum = SeedCropType(crop_type) if crop_type else None
+    seeds, error = seed_planting_service.list_seeds(crop_enum, brand, search, in_stock_only)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"seeds": [s.model_dump() for s in seeds], "count": len(seeds)}
+
+
+@app.get("/api/v1/seeds/{seed_id}", tags=["Seeds & Planting"])
+async def get_seed(
+    seed_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a seed inventory item"""
+    seed, error = seed_planting_service.get_seed(seed_id)
+    if error:
+        raise HTTPException(status_code=404, detail=error)
+    return seed.model_dump()
+
+
+@app.post("/api/v1/seeds", tags=["Seeds & Planting"])
+async def create_seed(
+    data: SeedInventoryCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a seed inventory item"""
+    seed, error = seed_planting_service.create_seed(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return seed.model_dump()
+
+
+@app.put("/api/v1/seeds/{seed_id}", tags=["Seeds & Planting"])
+async def update_seed(
+    seed_id: int,
+    data: SeedInventoryUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a seed inventory item"""
+    seed, error = seed_planting_service.update_seed(seed_id, data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return seed.model_dump()
+
+
+@app.delete("/api/v1/seeds/{seed_id}", tags=["Seeds & Planting"])
+async def delete_seed(
+    seed_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a seed inventory item"""
+    success, error = seed_planting_service.delete_seed(seed_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": success}
+
+
+# --- Seed Treatments ---
+
+@app.get("/api/v1/seeds/{seed_id}/treatments", tags=["Seeds & Planting"])
+async def list_seed_treatments(
+    seed_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List treatments for a seed"""
+    treatments, error = seed_planting_service.list_treatments(seed_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"treatments": [t.model_dump() for t in treatments], "count": len(treatments)}
+
+
+@app.post("/api/v1/seeds/treatments", tags=["Seeds & Planting"])
+async def create_seed_treatment(
+    data: SeedTreatmentCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a seed treatment record"""
+    treatment, error = seed_planting_service.create_treatment(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return treatment.model_dump()
+
+
+# --- Planting Records ---
+
+@app.get("/api/v1/planting", tags=["Seeds & Planting"])
+async def list_plantings(
+    field_id: Optional[int] = None,
+    crop_type: Optional[str] = None,
+    status: Optional[str] = None,
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List planting records"""
+    crop_enum = SeedCropType(crop_type) if crop_type else None
+    status_enum = PlantingStatus(status) if status else None
+    plantings, error = seed_planting_service.list_plantings(field_id, crop_enum, status_enum, year)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"plantings": [p.model_dump() for p in plantings], "count": len(plantings)}
+
+
+@app.get("/api/v1/planting/{planting_id}", tags=["Seeds & Planting"])
+async def get_planting(
+    planting_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a planting record"""
+    planting, error = seed_planting_service.get_planting(planting_id)
+    if error:
+        raise HTTPException(status_code=404, detail=error)
+    return planting.model_dump()
+
+
+@app.post("/api/v1/planting", tags=["Seeds & Planting"])
+async def create_planting(
+    data: PlantingRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a planting record"""
+    planting, error = seed_planting_service.create_planting(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return planting.model_dump()
+
+
+@app.put("/api/v1/planting/{planting_id}", tags=["Seeds & Planting"])
+async def update_planting(
+    planting_id: int,
+    data: PlantingRecordUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a planting record"""
+    planting, error = seed_planting_service.update_planting(planting_id, data)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return planting.model_dump()
+
+
+# --- Emergence Records ---
+
+@app.get("/api/v1/planting/{planting_id}/emergence", tags=["Seeds & Planting"])
+async def list_emergence_records(
+    planting_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List emergence records for a planting"""
+    records, error = seed_planting_service.list_emergence(planting_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.post("/api/v1/planting/emergence", tags=["Seeds & Planting"])
+async def create_emergence_record(
+    data: EmergenceRecordCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create an emergence record"""
+    record, error = seed_planting_service.create_emergence(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return record.model_dump()
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 

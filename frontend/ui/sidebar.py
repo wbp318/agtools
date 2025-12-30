@@ -157,6 +157,11 @@ class Sidebar(QFrame):
         nav_layout.addWidget(SectionHeader("Accounting"))
         self._add_nav_item(nav_layout, "GenFin", icon="\u0024")  # Dollar sign
 
+        # Farm Operations Section (v6.4.0)
+        nav_layout.addWidget(SectionHeader("Farm Ops"))
+        self._add_nav_item(nav_layout, "Livestock", icon="\u2618")  # Animal-like
+        self._add_nav_item(nav_layout, "Seeds", icon="\u2619")  # Seed/plant
+
         # Spacer
         nav_layout.addSpacerItem(
             QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)

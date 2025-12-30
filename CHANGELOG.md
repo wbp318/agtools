@@ -4,7 +4,216 @@
 
 ---
 
-## Current Version: 6.3.1 (Released - December 29, 2025)
+## Current Version: 6.4.0 (Released - December 30, 2025)
+
+### Latest Session: December 30, 2025
+
+#### v6.4.0 - Farm Operations Suite (Modules 1-2)
+
+**Status:** IN PROGRESS - 2 of 5 Farm Operations Modules Complete
+
+**Goal:** Add comprehensive farm operations management to AgTools with 5 new modules.
+
+**Completed Modules:**
+
+### Module 1: Livestock Management
+
+**Full-featured livestock tracking for all major species.**
+
+1. **Database Migration** (`database/migrations/007_livestock.sql` ~200 lines)
+
+   - **Tables:**
+     - `livestock_animals` - Individual animal records
+     - `livestock_groups` - Batch/flock tracking (poultry, hogs)
+     - `livestock_health_records` - Vaccinations, treatments, vet visits
+     - `livestock_breeding_records` - Breeding, gestation, births
+     - `livestock_weights` - Weight history, ADG calculations
+     - `livestock_sales` - Sale records with buyer tracking
+     - `livestock_feed_records` - Feed consumption tracking
+
+   - **Supported Species:**
+     - Cattle, Hogs, Poultry, Sheep, Goats
+
+2. **Backend Service** (`backend/services/livestock_service.py` ~1,100 lines)
+
+   - **Enums:**
+     - Species, Sex, AnimalStatus, GroupStatus
+     - HealthRecordType, BreedingMethod, BreedingStatus
+     - WeightType, SaleType
+
+   - **Features:**
+     - Individual animal CRUD with lineage tracking
+     - Group/batch management for poultry flocks
+     - Health record logging with due date alerts
+     - Breeding records with gestation calculation
+     - Weight tracking with ADG (average daily gain)
+     - Sale records with profit/loss tracking
+     - Herd summary statistics
+
+   - **Gestation Days by Species:**
+     - Cattle: 283, Hogs: 114, Sheep: 152, Goats: 150
+
+   - **Common Breeds:** 50+ breeds across all species
+
+3. **Frontend API** (`frontend/api/livestock_api.py` ~600 lines)
+
+   - Dataclasses for all record types
+   - Display property helpers (age, weight, status)
+   - Full CRUD operations
+
+4. **Frontend Screen** (`frontend/ui/screens/livestock_management.py` ~750 lines)
+
+   - **Tabs:**
+     - Animals - Individual animal management
+     - Groups - Batch/flock tracking
+     - Health Records - Vaccinations, treatments
+     - Weights - Weight history tracking
+     - Sales - Sale record management
+
+   - **Dialogs:**
+     - AddAnimalDialog, AddGroupDialog
+     - HealthRecordDialog, WeightRecordDialog
+     - SaleRecordDialog
+
+   - **Summary Cards:**
+     - Total Head, Total Groups, Health Alerts, Avg Weight
+
+5. **API Endpoints** (20 endpoints in main.py)
+
+   - `/api/v1/livestock/animals` - Animal CRUD
+   - `/api/v1/livestock/groups` - Group CRUD
+   - `/api/v1/livestock/health` - Health records
+   - `/api/v1/livestock/breeding` - Breeding records
+   - `/api/v1/livestock/weights` - Weight tracking
+   - `/api/v1/livestock/sales` - Sale records
+   - `/api/v1/livestock/summary` - Herd statistics
+
+---
+
+### Module 2: Seed & Planting
+
+**Comprehensive seed inventory and planting management.**
+
+1. **Database Migration** (`database/migrations/008_seed_planting.sql` ~150 lines)
+
+   - **Tables:**
+     - `seed_inventory` - Seed varieties, traits, quantities
+     - `seed_treatments` - Fungicides, inoculants, etc.
+     - `planting_records` - Field planting logs
+     - `emergence_records` - Stand checks, plant counts
+     - `replant_records` - Replant tracking
+
+   - **Supported Crops:**
+     - Corn, Soybean, Wheat, Cotton, Rice, Sorghum
+     - Alfalfa, Hay, Oats, Barley, Sunflower, Canola
+
+   - **Triggers:**
+     - Auto-deduct seed inventory on planting
+     - Auto-calculate days after planting
+
+2. **Backend Service** (`backend/services/seed_planting_service.py` ~750 lines)
+
+   - **Enums:**
+     - CropType, QuantityUnit, TreatmentType
+     - RateUnit, SoilMoisture, PlantingStatus, CountUnit
+
+   - **Features:**
+     - Seed inventory with lot tracking
+     - Trait package tracking (RR2X, VT2P, Enlist, etc.)
+     - Planting rate calculations
+     - Seed treatment records
+     - Emergence monitoring with stand percentage
+     - Cost per acre calculations
+
+3. **Frontend API** (`frontend/api/seed_planting_api.py` ~380 lines)
+
+   - Dataclasses: SeedInfo, PlantingInfo, EmergenceInfo
+   - Display helpers for crop types, quantities
+   - Full CRUD operations
+
+4. **Frontend Screen** (`frontend/ui/screens/seed_planting.py` ~550 lines)
+
+   - **Tabs:**
+     - Seed Inventory - Variety management
+     - Planting Records - Field planting logs
+     - Emergence Checks - Stand count tracking
+
+   - **Dialogs:**
+     - AddSeedDialog, PlantingRecordDialog
+     - EmergenceCheckDialog
+
+   - **Summary Cards:**
+     - Varieties in Stock, Total Seed Value
+     - Acres Planted, Avg Stand %
+
+   - **Features:**
+     - Crop type color coding
+     - In-stock filtering
+     - Field/crop filtering
+
+5. **API Endpoints** (15 endpoints in main.py)
+
+   - `/api/v1/seeds` - Seed inventory CRUD
+   - `/api/v1/seeds/summary` - Seed statistics
+   - `/api/v1/seeds/traits/{crop}` - Trait packages by crop
+   - `/api/v1/planting` - Planting record CRUD
+   - `/api/v1/planting/{id}/emergence` - Emergence records
+   - `/api/v1/planting/emergence` - Create emergence check
+
+---
+
+### Files Added (v6.4.0)
+
+**Database:**
+- `database/migrations/007_livestock.sql`
+- `database/migrations/008_seed_planting.sql`
+
+**Backend Services:**
+- `backend/services/livestock_service.py`
+- `backend/services/seed_planting_service.py`
+
+**Frontend APIs:**
+- `frontend/api/livestock_api.py`
+- `frontend/api/seed_planting_api.py`
+
+**Frontend Screens:**
+- `frontend/ui/screens/livestock_management.py`
+- `frontend/ui/screens/seed_planting.py`
+
+**Files Modified:**
+- `backend/main.py` (~550 lines added, 35 new endpoints)
+- `frontend/ui/sidebar.py` (added Farm Ops section)
+- `frontend/ui/main_window.py` (integrated screens)
+
+---
+
+### Planned Modules (v6.4.x - Future)
+
+**Module 3: Harvest Management**
+- Scale ticket entry and tracking
+- Moisture adjustment calculations
+- Yield per field/variety analysis
+- CSV import (John Deere Ops Center, Climate FieldView)
+- Delivery and settlement tracking
+
+**Module 4: Soil & Fertility**
+- Soil sample entry and history
+- Lab CSV imports (Ward Labs, A&L, Midwest Labs)
+- Nutrient trend analysis
+- Fertilizer plan creation
+- Application tracking
+
+**Module 5: Crop Planning + FSA**
+- Multi-year crop rotation planning
+- Budget creation with break-even analysis
+- Scenario modeling (what-if)
+- FSA farm/tract registration
+- Base acres and PLC/ARC election tracking
+- CRP contract management
+
+---
+
+## Previous Version: 6.3.1 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
 
