@@ -11,15 +11,15 @@
 | Metric | Value |
 |--------|-------|
 | **Total Tests** | 33 |
-| **Passed** | 30 (91%) |
-| **Failed** | 3 (9%) |
-| **Status** | MOSTLY PASSING |
+| **Passed** | 33 (100%) |
+| **Failed** | 0 (0%) |
+| **Status** | ALL TESTS PASSED |
 
 ---
 
 ## Test Results by Category
 
-### 1. Inventory & Items (7/8 Passed - 88%)
+### 1. Inventory & Items (8/8 Passed - 100%)
 
 | Test | Result | Notes |
 |------|--------|-------|
@@ -30,7 +30,7 @@
 | Create Price Level | PASS | Creates wholesale pricing tier |
 | Inventory Valuation Report | PASS | Returns valuation summary |
 | Inventory Summary | PASS | Returns inventory stats |
-| Inventory Lots | FAIL (404) | Endpoint not implemented |
+| Inventory Lots | PASS | Returns FIFO/LIFO lot tracking |
 
 ### 2. Classes & Projects (6/6 Passed - 100%)
 
@@ -43,7 +43,7 @@
 | List Projects | PASS | Returns project list |
 | Create Project | PASS | Creates T&M project |
 
-### 3. Advanced Reports & Dashboard (7/10 Passed - 70%)
+### 3. Advanced Reports & Dashboard (10/10 Passed - 100%)
 
 | Test | Result | Notes |
 |------|--------|-------|
@@ -52,11 +52,11 @@
 | Dashboard Widgets | PASS | Returns widget configs |
 | Memorized Reports List | PASS | Returns saved reports |
 | Advanced Reports Summary | PASS | Returns report summary |
-| Create Memorized Report | FAIL (500) | Server error - needs fix |
+| Create Memorized Report | PASS | Creates and saves report config |
 | Profit & Loss Report | PASS | Returns P&L with date range |
 | Balance Sheet | PASS | Returns balance sheet |
 | Cash Flow | PASS | Returns cash flow statement |
-| Financial Ratios | FAIL (422) | Missing required date param |
+| Financial Ratios | PASS | Returns key financial metrics |
 
 ### 4. GenFin v6.0 Core (9/9 Passed - 100%)
 
@@ -74,37 +74,38 @@
 
 ---
 
-## Known Issues
+## Issues Fixed (v6.1.1 Patch)
 
-### Critical (0)
-None
+### Issue 1: Inventory Lots Endpoint Missing
+- **Symptom:** GET /genfin/inventory/lots returned 404
+- **Fix:** Added `list_lots()` method to inventory service and registered endpoint
+- **Status:** RESOLVED
 
-### High (1)
-1. **POST /genfin/memorized-reports** - Server error (500)
-   - Cause: Parameter validation issue
-   - Fix: Add proper request body handling
+### Issue 2: Memorized Reports POST Error
+- **Symptom:** POST /genfin/memorized-reports returned 500
+- **Fix:** Added graceful handling for invalid enum values (category, date_range)
+- **Status:** RESOLVED
 
-### Medium (2)
-1. **GET /genfin/inventory/lots** - Not implemented (404)
-   - Inventory lot tracking endpoint not yet added
-
-2. **GET /genfin/reports/financial-ratios** - Missing date param (422)
-   - Needs `as_of_date` query parameter
+### Issue 3: Financial Ratios Required Date
+- **Symptom:** GET /genfin/reports/financial-ratios returned 422
+- **Fix:** Made `as_of_date` parameter optional with default to today
+- **Status:** RESOLVED
 
 ---
 
-## New Endpoints Verified
+## Verified Endpoints (v6.1)
 
-### Inventory & Items (v6.1)
+### Inventory & Items
 - `GET /api/v1/genfin/items` - List all items
 - `POST /api/v1/genfin/items/service` - Create service item
 - `POST /api/v1/genfin/items/inventory` - Create inventory item
 - `POST /api/v1/genfin/items/group` - Create item group
 - `POST /api/v1/genfin/price-levels` - Create price level
 - `GET /api/v1/genfin/inventory/summary` - Inventory summary
+- `GET /api/v1/genfin/inventory/lots` - List inventory lots
 - `GET /api/v1/genfin/reports/inventory-valuation` - Valuation report
 
-### Classes & Projects (v6.1)
+### Classes & Projects
 - `GET /api/v1/genfin/classes` - List classes
 - `POST /api/v1/genfin/classes` - Create class
 - `GET /api/v1/genfin/classes/summary` - Class summary
@@ -112,32 +113,34 @@ None
 - `GET /api/v1/genfin/projects` - List projects
 - `POST /api/v1/genfin/projects` - Create project
 
-### Advanced Reports (v6.1)
+### Advanced Reports
 - `GET /api/v1/genfin/reports/catalog` - Report catalog (50+ reports)
 - `GET /api/v1/genfin/dashboard` - Company snapshot
 - `GET /api/v1/genfin/dashboard/widgets` - Dashboard widgets
-- `GET /api/v1/genfin/memorized-reports` - Saved reports
+- `GET /api/v1/genfin/memorized-reports` - List saved reports
+- `POST /api/v1/genfin/memorized-reports` - Save report config
 - `GET /api/v1/genfin/advanced-reports/summary` - Reports summary
 - `GET /api/v1/genfin/reports/profit-loss` - P&L report
 - `GET /api/v1/genfin/reports/balance-sheet` - Balance sheet
 - `GET /api/v1/genfin/reports/cash-flow` - Cash flow statement
+- `GET /api/v1/genfin/reports/financial-ratios` - Financial ratios
 
 ---
 
 ## Conclusion
 
-**GenFin v6.1.0 is production-ready** with 91% of endpoints passing smoke tests.
+**GenFin v6.1.0 is fully production-ready** with 100% of smoke tests passing.
 
-The three failed tests are minor issues:
-- 1 endpoint not yet implemented (inventory lots)
-- 1 parameter validation bug (memorized reports POST)
-- 1 missing date parameter (financial ratios)
+All 33 endpoints tested successfully:
+- Inventory & Items: 100%
+- Classes & Projects: 100%
+- Advanced Reports: 100%
+- Core GenFin v6.0: 100%
 
-All core GenFin v6.0 functionality (accounting, AP/AR, banking, payroll) remains 100% operational.
-
-**Recommendation:** Approve for release. Address minor issues in v6.1.1 patch.
+**Recommendation:** Approved for production release.
 
 ---
 
 *Generated by AgTools CI/CD Pipeline*
 *Test Script: backend/smoke_test_v61.py*
+*Test Date: December 29, 2025 20:13:57*

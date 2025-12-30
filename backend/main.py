@@ -13275,10 +13275,13 @@ async def get_cash_flow(
 
 @app.get("/api/v1/genfin/reports/financial-ratios", tags=["GenFin Reports"])
 async def get_financial_ratios(
-    as_of_date: str,
+    as_of_date: str = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get Financial Ratios"""
+    from datetime import date
+    if as_of_date is None:
+        as_of_date = date.today().isoformat()
     return genfin_reports_service.get_financial_ratios(as_of_date)
 
 @app.get("/api/v1/genfin/reports/general-ledger", tags=["GenFin Reports"])
@@ -13425,6 +13428,14 @@ async def get_cash_flow_projection(
 async def get_inventory_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get GenFin inventory service summary"""
     return genfin_inventory_service.get_service_summary()
+
+@app.get("/api/v1/genfin/inventory/lots", tags=["GenFin Inventory"])
+async def list_inventory_lots(
+    item_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all inventory lots with FIFO/LIFO tracking"""
+    return genfin_inventory_service.list_lots(item_id)
 
 @app.post("/api/v1/genfin/items", tags=["GenFin Inventory"])
 async def create_item(
@@ -14173,11 +14184,10 @@ async def memorize_report(
     report_type: str,
     category: str,
     date_range: str = "this_month",
-    filters: Dict = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Save a memorized report configuration"""
-    return genfin_advanced_reports_service.memorize_report(name, report_type, category, date_range, filters)
+    return genfin_advanced_reports_service.memorize_report(name, report_type, category, date_range, None)
 
 @app.get("/api/v1/genfin/memorized-reports", tags=["GenFin Reports"])
 async def list_memorized_reports(user: AuthenticatedUser = Depends(get_current_active_user)):

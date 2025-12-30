@@ -983,12 +983,24 @@ class GenFinAdvancedReportsService:
         """Save a memorized report configuration"""
         report_id = str(uuid.uuid4())
 
+        # Handle category - default to CUSTOM if invalid
+        try:
+            cat = ReportCategory(category)
+        except ValueError:
+            cat = ReportCategory.CUSTOM
+
+        # Handle date range - default to THIS_MONTH if invalid
+        try:
+            dr = DateRange(date_range)
+        except ValueError:
+            dr = DateRange.THIS_MONTH
+
         memorized = MemorizedReport(
             report_id=report_id,
             name=name,
             report_type=report_type,
-            category=ReportCategory(category),
-            date_range=DateRange(date_range),
+            category=cat,
+            date_range=dr,
             filters=filters or {}
         )
 

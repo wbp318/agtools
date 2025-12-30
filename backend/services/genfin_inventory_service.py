@@ -1246,6 +1246,43 @@ class GenFinInventoryService:
 
         return result
 
+    def list_lots(self, item_id: Optional[str] = None) -> Dict:
+        """List all inventory lots, optionally filtered by item"""
+        lots_list = []
+
+        for lot in self.lots.values():
+            if item_id and lot.item_id != item_id:
+                continue
+
+            item = self.items.get(lot.item_id)
+            item_name = item.name if item else "Unknown"
+
+            lots_list.append({
+                "lot_id": lot.lot_id,
+                "item_id": lot.item_id,
+                "item_name": item_name,
+                "received_date": lot.received_date.isoformat(),
+                "quantity": lot.quantity,
+                "remaining_quantity": lot.remaining_quantity,
+                "cost_per_unit": round(lot.cost_per_unit, 4),
+                "total_cost": round(lot.total_cost, 2),
+                "vendor_id": lot.vendor_id,
+                "po_number": lot.po_number,
+                "lot_number": lot.lot_number,
+                "location": lot.location
+            })
+
+        # Sort by received date descending
+        lots_list.sort(key=lambda x: x["received_date"], reverse=True)
+
+        total_value = sum(l["remaining_quantity"] * l["cost_per_unit"] for l in lots_list)
+
+        return {
+            "lots": lots_list,
+            "total_lots": len(lots_list),
+            "total_value": round(total_value, 2)
+        }
+
     def get_service_summary(self) -> Dict:
         """Get service summary"""
         stock_status = self.get_inventory_stock_status()
