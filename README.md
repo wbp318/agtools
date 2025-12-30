@@ -33,6 +33,16 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
+**Version 6.5.0** - **GenFin 100% Complete** - Full QuickBooks Desktop Parity:
+- **Zero Placeholders**: Every GenFin screen is now fully functional
+- **Banking Module**: Bank Accounts, Check Register, Transfers, Reconciliation, Bank Feeds
+- **Customer Module**: Statements generator, Credit Memos
+- **Vendor Module**: Credit Cards tracking, Vendor Credits
+- **Payroll Module**: Pay Liabilities with E-Pay, Employees list in Payroll Center
+- **Lists Module**: Fixed Assets with depreciation, Recurring Transactions, Memorized Transactions
+- **Other**: Budgets with Budget vs Actual reports, Entities (Classes/Locations/Names/Terms), Settings, Help Center
+- **UI Fixes**: Dark teal sidebar background, styled scrollbars
+
 **Version 6.4.0** adds **Farm Operations Suite** - Comprehensive farm operations management:
 - **Livestock Management**: Track cattle, hogs, poultry, sheep, goats with health records, breeding, weights
 - **Seed & Planting**: Seed inventory, trait packages, planting records, emergence tracking

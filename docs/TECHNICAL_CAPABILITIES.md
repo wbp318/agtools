@@ -412,6 +412,7 @@ Primary Tables:
 
 | Version | Release | Key Features |
 |---------|---------|--------------|
+| 6.5.0 | Dec 2025 | GenFin 100% Complete (zero placeholders, full QuickBooks parity) |
 | 6.4.0 | Dec 2025 | Farm Operations Suite (livestock, seed & planting management) |
 | 6.3.1 | Dec 2025 | GenFin 90s QuickBooks UI (teal theme, beveled buttons) |
 | 6.3.0 | Dec 2025 | GenFin Enterprise (payroll, multi-entity, 1099 tracking) |
