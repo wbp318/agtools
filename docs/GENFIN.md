@@ -1,6 +1,6 @@
 # GenFin - Complete Farm Financial Management System
 
-*Version 6.0.0 | December 2025*
+*Version 6.1.0 | December 2025*
 
 ---
 
@@ -518,6 +518,410 @@ Scenario: "Corn Price Drop"
 
 ---
 
+## Inventory & Items Management (v6.1)
+
+Full QuickBooks-style inventory tracking with automatic COGS calculation.
+
+### Item Types
+
+| Type | Description |
+|------|-------------|
+| Service | Non-inventory services (custom work, consulting) |
+| Inventory | Physical items with quantity tracking |
+| Non-Inventory | Products purchased for specific jobs |
+| Other Charge | Miscellaneous charges (shipping, handling) |
+| Subtotal | Line item subtotals |
+| Group | Bundle of items sold together |
+| Discount | Percentage or fixed discounts |
+| Payment | Partial payment items |
+| Sales Tax Item | Single tax rate |
+| Sales Tax Group | Combined tax rates |
+| Assembly | Manufactured items with BOM |
+
+### Inventory Valuation Methods
+
+| Method | Description |
+|--------|-------------|
+| FIFO | First In, First Out (recommended) |
+| LIFO | Last In, First Out |
+| Average | Weighted average cost |
+
+**Automatic COGS Calculation:**
+- Tracks cost by lot/receipt
+- Calculates COGS on each sale
+- Maintains inventory layers
+- Adjusts for returns
+
+### Assemblies & Bill of Materials
+
+Create items built from components:
+
+```
+Assembly: "Custom Seed Treatment Package"
+Components:
+  - Seed Treatment (1 gal)     @ $125.00
+  - Application Labor (1 hr)   @  $45.00
+  - Container (1 ea)           @  $12.00
+  ───────────────────────────────────────
+  Total Build Cost:            $182.00
+  Selling Price:               $225.00
+  Profit Margin:                 23.6%
+```
+
+**Features:**
+- Multi-level assemblies (assemblies within assemblies)
+- Build-on-demand or pre-build inventory
+- Component availability checking
+- Auto-update when component costs change
+
+### Physical Inventory Counts
+
+Full cycle count workflow:
+
+1. **Create Count** - Start new physical inventory
+2. **Record Counts** - Enter actual quantities
+3. **Review Variances** - System calculates differences
+4. **Post Adjustments** - Create adjustment entries
+
+```
+Physical Inventory Count - December 31, 2025
+
+Item              Expected    Counted    Variance    Value
+Corn Seed (bag)        150        148         -2    -$340
+Roundup (gal)           45         47         +2    +$156
+Diesel (gal)           500        485        -15    -$52
+```
+
+### Price Levels
+
+Customer-specific pricing tiers:
+
+| Price Level | Type | Adjustment |
+|-------------|------|------------|
+| Retail | Percent | 0% (base price) |
+| Wholesale | Percent | -15% off retail |
+| Preferred | Percent | -20% off retail |
+| Custom Work | Fixed | Specific prices |
+
+Assign price levels to customers for automatic pricing.
+
+### Inventory Reports
+
+| Report | Description |
+|--------|-------------|
+| Inventory Valuation | Current value by item |
+| Stock Status | On-hand vs. reorder point |
+| Reorder Report | Items below minimum |
+| Inventory Adjustment | Adjustment history |
+| Physical Count | Variance summary |
+
+---
+
+## Classes & Projects (v6.1)
+
+QuickBooks-style class tracking for departmental and project accounting.
+
+### Class Types
+
+| Type | Farm Use Example |
+|------|------------------|
+| Department | Office, Field Operations, Shop |
+| Location | North Farm, South Farm, Rented Ground |
+| Division | Row Crops, Livestock, Custom Work |
+| Product Line | Corn, Soybeans, Wheat |
+| Farm | Main Farm, Partnership, Rental |
+| Field | Field 1, Field 2, etc. |
+| Crop | 2025 Corn, 2025 Beans |
+| Custom | Any custom classification |
+
+### Default Farm Classes
+
+Pre-configured for agriculture:
+- **Corn** - All corn-related transactions
+- **Soybeans** - All soybean transactions
+- **Wheat** - All wheat transactions
+- **Equipment** - Equipment operations
+- **Overhead** - General farm overhead
+- **Custom Work** - Custom farming income
+
+### Project/Job Costing
+
+Track profitability by project or job:
+
+```
+Project: "2025 Custom Planting - Johnson Farm"
+Customer: Johnson Family Farms
+Status: In Progress
+
+Estimates vs. Actuals:
+                    Estimated    Actual    Remaining
+Revenue             $45,000     $32,000    $13,000
+Labor                $8,000      $6,500     $1,500
+Equipment           $12,000      $9,800     $2,200
+Supplies             $3,000      $2,400       $600
+───────────────────────────────────────────────────
+Gross Profit        $22,000     $13,300     $8,700
+Margin                48.9%       41.6%
+```
+
+### Billing Methods
+
+| Method | Description |
+|--------|-------------|
+| Fixed | Set price regardless of costs |
+| Time & Materials | Bill for actual time + materials |
+| Percent Complete | Invoice based on completion % |
+
+### Billable Expenses
+
+Track expenses to bill to customers:
+
+```
+Date        Description              Amount    Markup    Billable
+12/15/25    Diesel for planting     $850.00    15%      $977.50
+12/16/25    Seed treatment          $420.00    10%      $462.00
+12/18/25    Equipment rental      $1,200.00    20%    $1,440.00
+───────────────────────────────────────────────────────────────
+Total                             $2,470.00          $2,879.50
+```
+
+### Billable Time Tracking
+
+```
+Employee     Date       Hours    Rate     Billable
+John Doe     12/15/25     8.0    $45.00    $360.00
+John Doe     12/16/25     9.5    $45.00    $427.50
+Bob Smith    12/16/25     8.0    $35.00    $280.00
+───────────────────────────────────────────────────
+Total                    25.5            $1,067.50
+```
+
+### Progress Invoicing
+
+Bill projects incrementally:
+
+**By Percentage:**
+```
+Project Total: $45,000
+Invoice #1: 25% Deposit          $11,250
+Invoice #2: 50% Mid-project      $22,500
+Invoice #3: 25% Completion       $11,250
+```
+
+**By Milestones:**
+```
+Milestone 1: Field Prep Complete      $15,000
+Milestone 2: Planting Complete        $20,000
+Milestone 3: Final Inspection         $10,000
+```
+
+### Class & Project Reports
+
+| Report | Description |
+|--------|-------------|
+| Profit by Class | P&L for each class/department |
+| Project Profitability | Estimates vs. actuals by project |
+| Unbilled Expenses | Expenses not yet invoiced |
+| Unbilled Time | Time entries pending billing |
+| Job Cost Detail | All costs by project |
+
+---
+
+## Advanced Reports & Dashboard (v6.1)
+
+50+ professional reports matching QuickBooks, plus dashboards and charts.
+
+### Report Categories
+
+#### Company & Financial
+| Report | Description |
+|--------|-------------|
+| Profit & Loss | Standard P&L by period |
+| P&L by Class | P&L broken down by class |
+| P&L by Customer | P&L by customer |
+| P&L by Project | P&L by job/project |
+| P&L Comparison | Prior period/year comparison |
+| Balance Sheet | Assets, liabilities, equity |
+| Statement of Cash Flows | Cash flow statement |
+| Trial Balance | Account balances |
+| General Ledger | Transaction detail |
+| Financial Ratios | Key financial metrics |
+
+#### Customers & Receivables
+| Report | Description |
+|--------|-------------|
+| A/R Aging Summary | Aging by customer |
+| A/R Aging Detail | Line item aging |
+| Customer Balance | Current balances |
+| Collections Report | Past due follow-up |
+| Customer Contact List | Customer directory |
+| Invoice List | All invoices |
+| Unbilled Charges | Pending billing |
+
+#### Sales
+| Report | Description |
+|--------|-------------|
+| Sales by Customer | Revenue by customer |
+| Sales by Item | Revenue by product/service |
+| Sales by Class | Revenue by department |
+| Sales by Rep | Revenue by salesperson |
+| Sales Graph | Visual sales trends |
+
+#### Jobs, Time & Mileage
+| Report | Description |
+|--------|-------------|
+| Job Profitability | Profit by project |
+| Job Cost Detail | Costs by project |
+| Job Estimates vs. Actuals | Budget comparison |
+| Unbilled Costs by Job | Pending billing |
+| Time by Employee | Time summary |
+| Time by Job | Time by project |
+
+#### Vendors & Payables
+| Report | Description |
+|--------|-------------|
+| A/P Aging Summary | Aging by vendor |
+| A/P Aging Detail | Line item aging |
+| Vendor Balance | Current balances |
+| 1099 Summary | Annual 1099 amounts |
+| Vendor Contact List | Vendor directory |
+| Unpaid Bills | Outstanding bills |
+| Bill Payment List | Payment history |
+
+#### Purchases
+| Report | Description |
+|--------|-------------|
+| Purchases by Vendor | Spending by vendor |
+| Purchases by Item | Spending by product |
+| Purchases by Class | Spending by department |
+| Purchase Order List | All POs |
+
+#### Employees & Payroll
+| Report | Description |
+|--------|-------------|
+| Payroll Summary | Pay by employee |
+| Payroll Detail | Earnings and deductions |
+| Employee Directory | Contact list |
+| Time Entry Report | Time submissions |
+| Payroll Tax Liability | Tax amounts due |
+
+#### Banking
+| Report | Description |
+|--------|-------------|
+| Deposit Detail | Deposit breakdown |
+| Check Detail | Check register |
+| Reconciliation Report | Reconciliation status |
+| Bank Register | Account activity |
+
+#### Accountant & Taxes
+| Report | Description |
+|--------|-------------|
+| Account Listing | Chart of accounts |
+| Fixed Asset Listing | Depreciable assets |
+| Audit Trail | Change history |
+| Transaction Journal | All transactions |
+| Voided Transactions | Voided items |
+
+#### Budgets & Forecasts
+| Report | Description |
+|--------|-------------|
+| Budget Overview | Annual budget |
+| Budget vs. Actual | Variance analysis |
+| Cash Flow Forecast | Projected cash |
+| Scenario Comparison | What-if analysis |
+
+### Company Snapshot Dashboard
+
+Real-time financial overview:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    FARM FINANCIAL SNAPSHOT                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  INCOME TODAY           ACCOUNT BALANCES                     │
+│  ┌─────────────┐       ┌──────────────────────────┐         │
+│  │   $12,450   │       │ Operating    $125,432.18 │         │
+│  │   +23.4%    │       │ Savings      $250,000.00 │         │
+│  └─────────────┘       │ Credit Line   $45,000.00 │         │
+│                        └──────────────────────────┘         │
+│  INCOME THIS MONTH                                          │
+│  ┌─────────────┐       TOP CUSTOMERS (MTD)                  │
+│  │  $156,789   │       ┌──────────────────────────┐         │
+│  │   Target:   │       │ 1. Local Elevator $45.2K │         │
+│  │   $180,000  │       │ 2. ADM           $32.1K │         │
+│  └─────────────┘       │ 3. Cargill       $28.9K │         │
+│                        └──────────────────────────┘         │
+│  ────────────────────────────────────────────────────────   │
+│                                                              │
+│  OVERDUE INVOICES      BILLS DUE SOON                       │
+│  ┌─────────────┐       ┌──────────────────────────┐         │
+│  │   $8,450    │       │ This Week     $12,340    │         │
+│  │   3 items   │       │ Next Week     $8,200     │         │
+│  └─────────────┘       │ This Month    $45,600    │         │
+│                        └──────────────────────────┘         │
+│                                                              │
+│  ─────────────── MONTHLY INCOME TREND ──────────────────   │
+│                                                              │
+│  $200K │                              ████                  │
+│  $150K │               ████████████████████                │
+│  $100K │     ██████████                                    │
+│   $50K │████                                               │
+│        └──────────────────────────────────────────         │
+│          Jan  Feb  Mar  Apr  May  Jun  Jul  Aug            │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Dashboard Widgets
+
+| Widget Type | Examples |
+|-------------|----------|
+| Metric | Total income, cash balance, overdue amount |
+| Chart | Income trend, expense breakdown, cash flow |
+| List | Top customers, due bills, recent transactions |
+| Alert | Overdue items, low inventory, budget warnings |
+
+### Memorized Reports
+
+Save report configurations for repeated use:
+
+```json
+{
+  "name": "Monthly Management Report",
+  "reports": [
+    "profit_loss",
+    "balance_sheet",
+    "ar_aging_summary",
+    "ap_aging_summary"
+  ],
+  "filters": {
+    "date_range": "this_month",
+    "compare": "prior_year"
+  },
+  "schedule": "first_of_month"
+}
+```
+
+**Features:**
+- Save custom report configurations
+- Set default filters and options
+- Schedule automatic generation
+- Email distribution (future)
+
+### Chart Types
+
+| Type | Best For |
+|------|----------|
+| Bar | Comparing values (sales by customer) |
+| Line | Trends over time (monthly income) |
+| Pie | Proportions (expense breakdown) |
+| Donut | Proportions with center metric |
+| Area | Cumulative trends (cash position) |
+| Stacked Bar | Multiple series comparison |
+
+---
+
 ## API Endpoints
 
 ### GenFin Core
@@ -595,6 +999,72 @@ Scenario: "Corn Price Drop"
 | `/api/v1/genfin/scenarios` | GET/POST | Scenario planning |
 | `/api/v1/genfin/scenarios/compare` | POST | Compare scenarios |
 | `/api/v1/genfin/cash-projection` | GET | Cash projection |
+
+### GenFin Inventory (v6.1)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/genfin/items` | GET/POST | Item management |
+| `/api/v1/genfin/items/{id}` | GET/PUT/DELETE | Item CRUD |
+| `/api/v1/genfin/items/service` | POST | Create service item |
+| `/api/v1/genfin/items/inventory` | POST | Create inventory item |
+| `/api/v1/genfin/items/assembly` | POST | Create assembly |
+| `/api/v1/genfin/items/group` | POST | Create group item |
+| `/api/v1/genfin/items/discount` | POST | Create discount item |
+| `/api/v1/genfin/items/sales-tax` | POST | Create sales tax |
+| `/api/v1/genfin/inventory/receive` | POST | Receive inventory |
+| `/api/v1/genfin/inventory/sell` | POST | Sell inventory |
+| `/api/v1/genfin/inventory/adjust` | POST | Adjust quantities |
+| `/api/v1/genfin/inventory/build-assembly` | POST | Build assembly |
+| `/api/v1/genfin/inventory/adjustments` | GET | Adjustment history |
+| `/api/v1/genfin/inventory/lots` | GET | Inventory lots |
+| `/api/v1/genfin/physical-counts` | GET/POST | Physical counts |
+| `/api/v1/genfin/physical-counts/{id}` | GET/PUT | Count details |
+| `/api/v1/genfin/physical-counts/{id}/record` | POST | Record count |
+| `/api/v1/genfin/physical-counts/{id}/post` | POST | Post adjustments |
+| `/api/v1/genfin/price-levels` | GET/POST | Price levels |
+| `/api/v1/genfin/price-levels/{id}` | GET/PUT/DELETE | Level CRUD |
+| `/api/v1/genfin/sales-tax-codes` | GET/POST | Tax codes |
+| `/api/v1/genfin/reports/inventory-valuation` | GET | Valuation report |
+| `/api/v1/genfin/reports/reorder` | GET | Reorder report |
+| `/api/v1/genfin/reports/stock-status` | GET | Stock status |
+
+### GenFin Classes & Projects (v6.1)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/genfin/classes` | GET/POST | Class management |
+| `/api/v1/genfin/classes/{id}` | GET/PUT/DELETE | Class CRUD |
+| `/api/v1/genfin/classes/initialize-defaults` | POST | Create farm defaults |
+| `/api/v1/genfin/projects` | GET/POST | Project/job management |
+| `/api/v1/genfin/projects/{id}` | GET/PUT/DELETE | Project CRUD |
+| `/api/v1/genfin/projects/{id}/estimates` | POST | Add estimate |
+| `/api/v1/genfin/projects/{id}/actuals` | POST | Record actual |
+| `/api/v1/genfin/billable-expenses` | GET/POST | Billable expenses |
+| `/api/v1/genfin/billable-expenses/{id}` | GET/PUT/DELETE | Expense CRUD |
+| `/api/v1/genfin/billable-expenses/{id}/mark-billed` | POST | Mark as billed |
+| `/api/v1/genfin/billable-time` | GET/POST | Billable time |
+| `/api/v1/genfin/billable-time/{id}` | GET/PUT/DELETE | Time CRUD |
+| `/api/v1/genfin/billable-time/{id}/mark-billed` | POST | Mark as billed |
+| `/api/v1/genfin/project-milestones` | GET/POST | Milestones |
+| `/api/v1/genfin/project-milestones/{id}` | GET/PUT/DELETE | Milestone CRUD |
+| `/api/v1/genfin/progress-billing` | POST | Create progress bill |
+| `/api/v1/genfin/classified-transactions` | GET/POST | Class transactions |
+| `/api/v1/genfin/reports/profitability-by-class` | GET | Class P&L |
+| `/api/v1/genfin/reports/project-profitability` | GET | Project P&L |
+| `/api/v1/genfin/reports/unbilled-summary` | GET | Unbilled items |
+
+### GenFin Advanced Reports (v6.1)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/genfin/reports/catalog` | GET | All available reports |
+| `/api/v1/genfin/reports/category/{category}` | GET | Reports by category |
+| `/api/v1/genfin/reports/generate/{report_id}` | POST | Run report |
+| `/api/v1/genfin/reports/dashboard` | GET | Company snapshot |
+| `/api/v1/genfin/reports/dashboard/widgets` | GET | Dashboard widgets |
+| `/api/v1/genfin/reports/memorized` | GET/POST | Memorized reports |
+| `/api/v1/genfin/reports/memorized/{id}` | GET/PUT/DELETE | Memorized CRUD |
+| `/api/v1/genfin/reports/memorized/{id}/run` | POST | Run memorized |
+| `/api/v1/genfin/reports/chart` | POST | Generate chart |
+| `/api/v1/genfin/reports/date-ranges` | GET | Predefined ranges |
 
 ---
 

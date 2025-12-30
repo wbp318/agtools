@@ -221,6 +221,31 @@ AgTools is a professional-grade agricultural decision support system combining 3
 - Scenario planning (what-if analysis)
 - Cash flow projections
 
+**Inventory & Items (v6.1):**
+| Feature | Specification |
+|---------|---------------|
+| Item Types | 11 (service, inventory, assembly, group, discount, etc.) |
+| Valuation Methods | FIFO, LIFO, Average Cost |
+| Assemblies | Bill of materials with component tracking |
+| Physical Counts | Full inventory count workflow |
+| Price Levels | Customer-specific pricing tiers |
+
+**Classes & Projects (v6.1):**
+| Feature | Specification |
+|---------|---------------|
+| Class Types | 8 (department, location, farm, field, crop, etc.) |
+| Project Billing | Fixed, time & materials, percent complete |
+| Billable Time | Employee time tracking with markup |
+| Billable Expenses | Expense tracking with markup |
+| Progress Invoicing | Percentage and milestone-based |
+
+**Advanced Reports (v6.1):**
+- 50+ reports matching QuickBooks categories
+- Company snapshot dashboard with widgets
+- Memorized reports for repeated use
+- Chart generation (bar, line, pie, area)
+- Predefined date ranges
+
 ---
 
 ## Data Architecture
@@ -249,7 +274,7 @@ Primary Tables:
 - **Framework:** FastAPI (Python)
 - **Authentication:** JWT token-based
 - **Documentation:** OpenAPI/Swagger
-- **Endpoints:** 390+ RESTful APIs
+- **Endpoints:** 490+ RESTful APIs
 
 ### Data Export Formats
 
@@ -334,6 +359,7 @@ Primary Tables:
 
 | Version | Release | Key Features |
 |---------|---------|--------------|
+| 6.1.0 | Dec 2025 | GenFin QuickBooks parity (inventory, classes, projects, 50+ reports) |
 | 6.0.0 | Dec 2025 | GenFin financial management (accounting, check printing, ACH, payroll) |
 | 4.2.0 | Dec 2025 | Complete farm business suite |
 | 4.1.0 | Dec 2025 | Grain & storage management |
