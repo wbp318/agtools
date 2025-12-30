@@ -347,13 +347,32 @@ from services.genfin_budget_service import (
     ForecastMethod
 )
 
+# GenFin v6.1 Enhanced Services
+from services.genfin_inventory_service import (
+    genfin_inventory_service,
+    ItemType,
+    InventoryValuationMethod
+)
+
+from services.genfin_classes_service import (
+    genfin_classes_service,
+    ClassType,
+    ProjectStatus
+)
+
+from services.genfin_advanced_reports_service import (
+    genfin_advanced_reports_service,
+    ReportCategory,
+    DateRange
+)
+
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system",
-    version="6.0.0",
+    version="6.1.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -13396,6 +13415,795 @@ async def get_cash_flow_projection(
 ):
     """Get cash flow projection"""
     return genfin_budget_service.get_cash_flow_projection(start_date, months_ahead, starting_cash)
+
+
+# ============================================================================
+# GENFIN INVENTORY & ITEMS (v6.1)
+# ============================================================================
+
+@app.get("/api/v1/genfin/inventory/summary", tags=["GenFin Inventory"])
+async def get_inventory_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get GenFin inventory service summary"""
+    return genfin_inventory_service.get_service_summary()
+
+@app.post("/api/v1/genfin/items", tags=["GenFin Inventory"])
+async def create_item(
+    item_type: str,
+    name: str,
+    description: str = "",
+    sku: str = "",
+    sales_price: float = 0.0,
+    cost: float = 0.0,
+    quantity_on_hand: float = 0.0,
+    reorder_point: float = 0.0,
+    category: str = "",
+    is_taxable: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new item"""
+    return genfin_inventory_service.create_item(
+        item_type=item_type, name=name, description=description,
+        sku=sku, sales_price=sales_price, cost=cost,
+        quantity_on_hand=quantity_on_hand, reorder_point=reorder_point,
+        category=category, is_taxable=is_taxable
+    )
+
+@app.get("/api/v1/genfin/items", tags=["GenFin Inventory"])
+async def list_items(
+    item_type: Optional[str] = None,
+    category: Optional[str] = None,
+    active_only: bool = True,
+    low_stock_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List items with filtering"""
+    return genfin_inventory_service.list_items(item_type, category, active_only, low_stock_only)
+
+@app.get("/api/v1/genfin/items/{item_id}", tags=["GenFin Inventory"])
+async def get_item(item_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get item by ID"""
+    item = genfin_inventory_service.get_item(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
+
+@app.put("/api/v1/genfin/items/{item_id}", tags=["GenFin Inventory"])
+async def update_item(
+    item_id: str,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    sales_price: Optional[float] = None,
+    cost: Optional[float] = None,
+    reorder_point: Optional[float] = None,
+    is_active: Optional[bool] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update an item"""
+    return genfin_inventory_service.update_item(
+        item_id, name=name, description=description,
+        sales_price=sales_price, cost=cost,
+        reorder_point=reorder_point, is_active=is_active
+    )
+
+@app.post("/api/v1/genfin/items/service", tags=["GenFin Inventory"])
+async def create_service_item(
+    name: str,
+    description: str = "",
+    sales_price: float = 0.0,
+    cost: float = 0.0,
+    is_taxable: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a service item"""
+    return genfin_inventory_service.create_service_item(name, description, sales_price, cost, is_taxable=is_taxable)
+
+@app.post("/api/v1/genfin/items/inventory", tags=["GenFin Inventory"])
+async def create_inventory_item(
+    name: str,
+    description: str = "",
+    sku: str = "",
+    sales_price: float = 0.0,
+    cost: float = 0.0,
+    quantity_on_hand: float = 0.0,
+    reorder_point: float = 0.0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create an inventory item with quantity tracking"""
+    return genfin_inventory_service.create_inventory_item(
+        name, description, sku, sales_price, cost, quantity_on_hand, reorder_point
+    )
+
+@app.post("/api/v1/genfin/items/assembly", tags=["GenFin Inventory"])
+async def create_assembly_item(
+    name: str,
+    description: str = "",
+    sales_price: float = 0.0,
+    components: List[Dict] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create an assembly item (built from components)"""
+    return genfin_inventory_service.create_assembly_item(name, description, components, sales_price)
+
+@app.post("/api/v1/genfin/items/group", tags=["GenFin Inventory"])
+async def create_group_item(
+    name: str,
+    description: str = "",
+    items: List[Dict] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a group item (bundle of items)"""
+    return genfin_inventory_service.create_group_item(name, description, items)
+
+@app.post("/api/v1/genfin/items/discount", tags=["GenFin Inventory"])
+async def create_discount_item(
+    name: str,
+    description: str = "",
+    discount_percent: float = 0.0,
+    discount_amount: float = 0.0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a discount item"""
+    return genfin_inventory_service.create_discount_item(name, description, discount_percent, discount_amount)
+
+@app.post("/api/v1/genfin/items/sales-tax", tags=["GenFin Inventory"])
+async def create_sales_tax_item(
+    name: str,
+    description: str = "",
+    tax_rate: float = 0.0,
+    tax_agency: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a sales tax item"""
+    return genfin_inventory_service.create_sales_tax_item(name, description, tax_rate, tax_agency)
+
+@app.get("/api/v1/genfin/items/search", tags=["GenFin Inventory"])
+async def search_items(query: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Search items by name, SKU, or description"""
+    return genfin_inventory_service.search_items(query)
+
+@app.post("/api/v1/genfin/inventory/receive", tags=["GenFin Inventory"])
+async def receive_inventory(
+    item_id: str,
+    quantity: float,
+    cost_per_unit: float,
+    received_date: str,
+    vendor_id: Optional[str] = None,
+    po_number: str = "",
+    lot_number: str = "",
+    location: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Receive inventory (from purchase)"""
+    return genfin_inventory_service.receive_inventory(
+        item_id, quantity, cost_per_unit, received_date,
+        vendor_id, po_number, lot_number, location
+    )
+
+@app.post("/api/v1/genfin/inventory/sell", tags=["GenFin Inventory"])
+async def sell_inventory(
+    item_id: str,
+    quantity: float,
+    sale_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Sell inventory (reduce quantity, calculate COGS)"""
+    return genfin_inventory_service.sell_inventory(item_id, quantity, sale_date)
+
+@app.post("/api/v1/genfin/inventory/adjust", tags=["GenFin Inventory"])
+async def adjust_inventory(
+    item_id: str,
+    adjustment_type: str,
+    adjustment_date: str,
+    quantity_change: Optional[float] = None,
+    value_change: Optional[float] = None,
+    reason: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Adjust inventory quantity or value"""
+    return genfin_inventory_service.adjust_inventory(
+        item_id, adjustment_type, adjustment_date,
+        quantity_change, value_change, reason
+    )
+
+@app.post("/api/v1/genfin/inventory/build-assembly", tags=["GenFin Inventory"])
+async def build_assembly(
+    item_id: str,
+    quantity_to_build: float,
+    build_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Build assembly items from components"""
+    return genfin_inventory_service.build_assembly(item_id, quantity_to_build, build_date)
+
+@app.post("/api/v1/genfin/inventory/physical-count", tags=["GenFin Inventory"])
+async def start_physical_count(
+    count_date: str,
+    location: str = "",
+    item_ids: List[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Start a physical inventory count"""
+    return genfin_inventory_service.start_physical_count(count_date, location, item_ids)
+
+@app.post("/api/v1/genfin/inventory/physical-count/{count_id}/record", tags=["GenFin Inventory"])
+async def record_count(
+    count_id: str,
+    item_id: str,
+    counted_quantity: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Record a physical count for an item"""
+    return genfin_inventory_service.record_count(count_id, item_id, counted_quantity)
+
+@app.post("/api/v1/genfin/inventory/physical-count/{count_id}/post", tags=["GenFin Inventory"])
+async def post_physical_count(
+    count_id: str,
+    post_adjustments: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Post physical count and optionally adjust inventory"""
+    return genfin_inventory_service.post_physical_count(count_id, post_adjustments)
+
+@app.post("/api/v1/genfin/price-levels", tags=["GenFin Inventory"])
+async def create_price_level(
+    name: str,
+    price_level_type: str = "percent",
+    adjust_percent: float = 0.0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a price level"""
+    return genfin_inventory_service.create_price_level(name, price_level_type, adjust_percent)
+
+@app.post("/api/v1/genfin/price-levels/{price_level_id}/item-price", tags=["GenFin Inventory"])
+async def set_item_price_level(
+    price_level_id: str,
+    item_id: str,
+    custom_price: float,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Set a custom price for an item in a price level"""
+    return genfin_inventory_service.set_item_price_level(price_level_id, item_id, custom_price)
+
+@app.get("/api/v1/genfin/items/{item_id}/price", tags=["GenFin Inventory"])
+async def get_item_price(
+    item_id: str,
+    price_level_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get item price, optionally with price level adjustment"""
+    return genfin_inventory_service.get_item_price(item_id, price_level_id)
+
+@app.get("/api/v1/genfin/inventory/valuation", tags=["GenFin Inventory"])
+async def get_inventory_valuation(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get inventory valuation summary"""
+    return genfin_inventory_service.get_inventory_valuation_report()
+
+@app.get("/api/v1/genfin/inventory/reorder-report", tags=["GenFin Inventory"])
+async def get_reorder_report(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get items needing reorder"""
+    return genfin_inventory_service.get_reorder_report()
+
+@app.get("/api/v1/genfin/inventory/stock-status", tags=["GenFin Inventory"])
+async def get_stock_status(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get overall inventory stock status"""
+    return genfin_inventory_service.get_inventory_stock_status()
+
+
+# ============================================================================
+# GENFIN CLASSES & PROJECTS (v6.1)
+# ============================================================================
+
+@app.get("/api/v1/genfin/classes/summary", tags=["GenFin Classes"])
+async def get_classes_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get GenFin classes service summary"""
+    return genfin_classes_service.get_service_summary()
+
+@app.post("/api/v1/genfin/classes", tags=["GenFin Classes"])
+async def create_class(
+    name: str,
+    class_type: str = "custom",
+    parent_class_id: Optional[str] = None,
+    description: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new class"""
+    return genfin_classes_service.create_class(name, class_type, parent_class_id, description)
+
+@app.get("/api/v1/genfin/classes", tags=["GenFin Classes"])
+async def list_classes(
+    class_type: Optional[str] = None,
+    parent_class_id: Optional[str] = None,
+    active_only: bool = True,
+    include_hierarchy: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List classes with filtering"""
+    return genfin_classes_service.list_classes(class_type, parent_class_id, active_only, include_hierarchy)
+
+@app.get("/api/v1/genfin/classes/hierarchy", tags=["GenFin Classes"])
+async def get_class_hierarchy(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get classes organized as hierarchy"""
+    return genfin_classes_service.get_class_hierarchy()
+
+@app.get("/api/v1/genfin/classes/{class_id}", tags=["GenFin Classes"])
+async def get_class(class_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get class by ID"""
+    cls = genfin_classes_service.get_class(class_id)
+    if not cls:
+        raise HTTPException(status_code=404, detail="Class not found")
+    return cls
+
+@app.put("/api/v1/genfin/classes/{class_id}", tags=["GenFin Classes"])
+async def update_class(
+    class_id: str,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a class"""
+    return genfin_classes_service.update_class(class_id, name=name, description=description, is_active=is_active)
+
+@app.post("/api/v1/genfin/projects", tags=["GenFin Projects"])
+async def create_project(
+    name: str,
+    customer_id: Optional[str] = None,
+    project_number: str = "",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    estimated_revenue: float = 0.0,
+    estimated_cost: float = 0.0,
+    billing_method: str = "fixed",
+    contract_amount: float = 0.0,
+    class_id: Optional[str] = None,
+    description: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new project/job"""
+    return genfin_classes_service.create_project(
+        name, customer_id, project_number, start_date, end_date,
+        estimated_revenue, estimated_cost, billing_method, contract_amount,
+        class_id, description
+    )
+
+@app.get("/api/v1/genfin/projects", tags=["GenFin Projects"])
+async def list_projects(
+    customer_id: Optional[str] = None,
+    status: Optional[str] = None,
+    class_id: Optional[str] = None,
+    active_only: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List projects with filtering"""
+    return genfin_classes_service.list_projects(customer_id, status, class_id, active_only)
+
+@app.get("/api/v1/genfin/projects/{project_id}", tags=["GenFin Projects"])
+async def get_project(project_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get project by ID with full details"""
+    project = genfin_classes_service.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+@app.put("/api/v1/genfin/projects/{project_id}", tags=["GenFin Projects"])
+async def update_project(
+    project_id: str,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    estimated_revenue: Optional[float] = None,
+    estimated_cost: Optional[float] = None,
+    contract_amount: Optional[float] = None,
+    is_active: Optional[bool] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a project"""
+    return genfin_classes_service.update_project(
+        project_id, name=name, description=description,
+        estimated_revenue=estimated_revenue, estimated_cost=estimated_cost,
+        contract_amount=contract_amount, is_active=is_active
+    )
+
+@app.put("/api/v1/genfin/projects/{project_id}/status", tags=["GenFin Projects"])
+async def update_project_status(
+    project_id: str,
+    status: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update project status"""
+    return genfin_classes_service.update_project_status(project_id, status)
+
+@app.post("/api/v1/genfin/projects/{project_id}/billable-expense", tags=["GenFin Projects"])
+async def add_billable_expense(
+    project_id: str,
+    expense_date: str,
+    description: str,
+    amount: float,
+    vendor_id: Optional[str] = None,
+    markup_percent: float = 0.0,
+    notes: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add a billable expense to a project"""
+    return genfin_classes_service.add_billable_expense(
+        project_id, expense_date, description, amount,
+        vendor_id, markup_percent, notes=notes
+    )
+
+@app.get("/api/v1/genfin/projects/{project_id}/billable-expenses", tags=["GenFin Projects"])
+async def get_billable_expenses(
+    project_id: str,
+    unbilled_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get billable expenses for a project"""
+    return genfin_classes_service.get_project_billable_expenses(project_id, unbilled_only)
+
+@app.post("/api/v1/genfin/projects/{project_id}/billable-time", tags=["GenFin Projects"])
+async def add_billable_time(
+    project_id: str,
+    entry_date: str,
+    hours: float,
+    hourly_rate: float = 0.0,
+    employee_name: str = "",
+    is_billable: bool = True,
+    billable_rate: Optional[float] = None,
+    description: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add billable time to a project"""
+    return genfin_classes_service.add_billable_time(
+        project_id, entry_date, hours, hourly_rate,
+        employee_name=employee_name, is_billable=is_billable,
+        billable_rate=billable_rate, description=description
+    )
+
+@app.get("/api/v1/genfin/projects/{project_id}/billable-time", tags=["GenFin Projects"])
+async def get_billable_time(
+    project_id: str,
+    unbilled_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get billable time for a project"""
+    return genfin_classes_service.get_project_billable_time(project_id, unbilled_only)
+
+@app.post("/api/v1/genfin/projects/{project_id}/milestones", tags=["GenFin Projects"])
+async def add_milestone(
+    project_id: str,
+    name: str,
+    amount: float = 0.0,
+    percent_of_total: float = 0.0,
+    due_date: Optional[str] = None,
+    description: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Add a milestone to a project"""
+    return genfin_classes_service.add_milestone(
+        project_id, name, amount, percent_of_total, due_date, description
+    )
+
+@app.post("/api/v1/genfin/milestones/{milestone_id}/complete", tags=["GenFin Projects"])
+async def complete_milestone(
+    milestone_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Mark a milestone as completed"""
+    return genfin_classes_service.complete_milestone(milestone_id)
+
+@app.post("/api/v1/genfin/projects/{project_id}/progress-billing", tags=["GenFin Projects"])
+async def create_progress_billing(
+    project_id: str,
+    billing_date: str,
+    billing_type: str,
+    percent_complete: float = 0.0,
+    amount: float = 0.0,
+    milestone_ids: List[str] = None,
+    description: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a progress billing for a project"""
+    return genfin_classes_service.create_progress_billing(
+        project_id, billing_date, billing_type, percent_complete, amount, milestone_ids, description
+    )
+
+@app.post("/api/v1/genfin/transactions/{transaction_type}/{transaction_id}/assign-class", tags=["GenFin Classes"])
+async def assign_class_to_transaction(
+    transaction_type: str,
+    transaction_id: str,
+    class_id: str,
+    amount: float = 0.0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Assign a class to a transaction"""
+    return genfin_classes_service.assign_class(transaction_type, transaction_id, class_id, amount)
+
+@app.get("/api/v1/genfin/classes/{class_id}/transactions", tags=["GenFin Classes"])
+async def get_class_transactions(
+    class_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get transactions for a class"""
+    return genfin_classes_service.get_class_transactions(class_id, start_date, end_date)
+
+@app.get("/api/v1/genfin/reports/profitability-by-class", tags=["GenFin Classes"])
+async def get_profitability_by_class(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get profitability report by class"""
+    return genfin_classes_service.get_profitability_by_class(start_date, end_date)
+
+@app.get("/api/v1/genfin/projects/{project_id}/profitability", tags=["GenFin Projects"])
+async def get_project_profitability(
+    project_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get detailed profitability for a project"""
+    return genfin_classes_service.get_project_profitability(project_id)
+
+@app.get("/api/v1/genfin/unbilled-summary", tags=["GenFin Projects"])
+async def get_unbilled_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get summary of all unbilled time and expenses"""
+    return genfin_classes_service.get_unbilled_summary()
+
+
+# ============================================================================
+# GENFIN ADVANCED REPORTS (v6.1)
+# ============================================================================
+
+@app.get("/api/v1/genfin/reports/catalog", tags=["GenFin Reports"])
+async def get_report_catalog(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get catalog of all available reports (50+ reports)"""
+    return genfin_advanced_reports_service.get_report_catalog()
+
+@app.get("/api/v1/genfin/dashboard", tags=["GenFin Reports"])
+async def get_company_snapshot(
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get company snapshot dashboard"""
+    return genfin_advanced_reports_service.get_company_snapshot(as_of_date)
+
+@app.get("/api/v1/genfin/dashboard/widgets", tags=["GenFin Reports"])
+async def get_dashboard_widgets(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get full dashboard with widgets and data"""
+    return genfin_advanced_reports_service.get_dashboard()
+
+@app.put("/api/v1/genfin/dashboard/widgets/{widget_id}", tags=["GenFin Reports"])
+async def update_dashboard_widget(
+    widget_id: str,
+    name: Optional[str] = None,
+    is_visible: Optional[bool] = None,
+    position: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a dashboard widget"""
+    return genfin_advanced_reports_service.update_widget(
+        widget_id, name=name, is_visible=is_visible, position=position
+    )
+
+@app.post("/api/v1/genfin/dashboard/reorder", tags=["GenFin Reports"])
+async def reorder_dashboard_widgets(
+    widget_order: List[str],
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Reorder dashboard widgets"""
+    return genfin_advanced_reports_service.reorder_widgets(widget_order)
+
+@app.get("/api/v1/genfin/reports/profit-loss-standard", tags=["GenFin Reports"])
+async def run_profit_loss_report(
+    start_date: str,
+    end_date: str,
+    compare_to: Optional[str] = None,
+    group_by: Optional[str] = None,
+    class_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Profit & Loss report"""
+    return genfin_advanced_reports_service.run_profit_loss(start_date, end_date, compare_to, group_by, class_id)
+
+@app.get("/api/v1/genfin/reports/balance-sheet-standard", tags=["GenFin Reports"])
+async def run_balance_sheet_report(
+    as_of_date: str,
+    compare_to: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Balance Sheet report"""
+    return genfin_advanced_reports_service.run_balance_sheet(as_of_date, compare_to)
+
+@app.get("/api/v1/genfin/reports/trial-balance", tags=["GenFin Reports"])
+async def run_trial_balance_report(
+    as_of_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Trial Balance report"""
+    return genfin_advanced_reports_service.run_trial_balance(as_of_date)
+
+@app.get("/api/v1/genfin/reports/general-ledger", tags=["GenFin Reports"])
+async def run_general_ledger_report(
+    start_date: str,
+    end_date: str,
+    account_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run General Ledger report"""
+    return genfin_advanced_reports_service.run_general_ledger(start_date, end_date, account_id)
+
+@app.get("/api/v1/genfin/reports/ar-aging", tags=["GenFin Reports"])
+async def run_ar_aging_report(
+    as_of_date: str,
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run A/R Aging report"""
+    return genfin_advanced_reports_service.run_ar_aging(as_of_date, detail)
+
+@app.get("/api/v1/genfin/reports/customer-balance", tags=["GenFin Reports"])
+async def run_customer_balance_report(
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Customer Balance report"""
+    return genfin_advanced_reports_service.run_customer_balance(detail)
+
+@app.get("/api/v1/genfin/reports/open-invoices", tags=["GenFin Reports"])
+async def run_open_invoices_report(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Run Open Invoices report"""
+    return genfin_advanced_reports_service.run_open_invoices()
+
+@app.get("/api/v1/genfin/reports/ap-aging", tags=["GenFin Reports"])
+async def run_ap_aging_report(
+    as_of_date: str,
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run A/P Aging report"""
+    return genfin_advanced_reports_service.run_ap_aging(as_of_date, detail)
+
+@app.get("/api/v1/genfin/reports/vendor-balance", tags=["GenFin Reports"])
+async def run_vendor_balance_report(
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Vendor Balance report"""
+    return genfin_advanced_reports_service.run_vendor_balance(detail)
+
+@app.get("/api/v1/genfin/reports/unpaid-bills", tags=["GenFin Reports"])
+async def run_unpaid_bills_report(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Run Unpaid Bills report"""
+    return genfin_advanced_reports_service.run_unpaid_bills()
+
+@app.get("/api/v1/genfin/reports/sales-by-customer", tags=["GenFin Reports"])
+async def run_sales_by_customer_report(
+    start_date: str,
+    end_date: str,
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Sales by Customer report"""
+    return genfin_advanced_reports_service.run_sales_by_customer(start_date, end_date, detail)
+
+@app.get("/api/v1/genfin/reports/sales-by-item", tags=["GenFin Reports"])
+async def run_sales_by_item_report(
+    start_date: str,
+    end_date: str,
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Sales by Item report"""
+    return genfin_advanced_reports_service.run_sales_by_item(start_date, end_date, detail)
+
+@app.get("/api/v1/genfin/reports/purchases-by-vendor", tags=["GenFin Reports"])
+async def run_purchases_by_vendor_report(
+    start_date: str,
+    end_date: str,
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Purchases by Vendor report"""
+    return genfin_advanced_reports_service.run_purchases_by_vendor(start_date, end_date, detail)
+
+@app.get("/api/v1/genfin/reports/purchases-by-item", tags=["GenFin Reports"])
+async def run_purchases_by_item_report(
+    start_date: str,
+    end_date: str,
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Purchases by Item report"""
+    return genfin_advanced_reports_service.run_purchases_by_item(start_date, end_date, detail)
+
+@app.get("/api/v1/genfin/reports/inventory-valuation", tags=["GenFin Reports"])
+async def run_inventory_valuation_report(
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Inventory Valuation report"""
+    return genfin_advanced_reports_service.run_inventory_valuation(detail)
+
+@app.get("/api/v1/genfin/reports/inventory-stock-status", tags=["GenFin Reports"])
+async def run_inventory_stock_status_report(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Run Inventory Stock Status report"""
+    return genfin_advanced_reports_service.run_inventory_stock_status()
+
+@app.get("/api/v1/genfin/reports/payroll-summary", tags=["GenFin Reports"])
+async def run_payroll_summary_report(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Payroll Summary report"""
+    return genfin_advanced_reports_service.run_payroll_summary(start_date, end_date)
+
+@app.get("/api/v1/genfin/reports/payroll-detail", tags=["GenFin Reports"])
+async def run_payroll_detail_report(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Payroll Detail report"""
+    return genfin_advanced_reports_service.run_payroll_detail(start_date, end_date)
+
+@app.get("/api/v1/genfin/reports/job-profitability", tags=["GenFin Reports"])
+async def run_job_profitability_report(
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Job Profitability report"""
+    return genfin_advanced_reports_service.run_job_profitability(detail)
+
+@app.get("/api/v1/genfin/reports/estimates-vs-actuals", tags=["GenFin Reports"])
+async def run_estimates_vs_actuals_report(
+    detail: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run Job Estimates vs Actuals report"""
+    return genfin_advanced_reports_service.run_estimates_vs_actuals(detail)
+
+@app.get("/api/v1/genfin/reports/unbilled-costs", tags=["GenFin Reports"])
+async def run_unbilled_costs_report(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Run Unbilled Costs by Job report"""
+    return genfin_advanced_reports_service.run_unbilled_costs()
+
+@app.post("/api/v1/genfin/memorized-reports", tags=["GenFin Reports"])
+async def memorize_report(
+    name: str,
+    report_type: str,
+    category: str,
+    date_range: str = "this_month",
+    filters: Dict = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Save a memorized report configuration"""
+    return genfin_advanced_reports_service.memorize_report(name, report_type, category, date_range, filters)
+
+@app.get("/api/v1/genfin/memorized-reports", tags=["GenFin Reports"])
+async def list_memorized_reports(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List all memorized reports"""
+    return genfin_advanced_reports_service.list_memorized_reports()
+
+@app.get("/api/v1/genfin/memorized-reports/{report_id}/run", tags=["GenFin Reports"])
+async def run_memorized_report(
+    report_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run a memorized report"""
+    return genfin_advanced_reports_service.run_memorized_report(report_id)
+
+@app.delete("/api/v1/genfin/memorized-reports/{report_id}", tags=["GenFin Reports"])
+async def delete_memorized_report(
+    report_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a memorized report"""
+    return genfin_advanced_reports_service.delete_memorized_report(report_id)
+
+@app.get("/api/v1/genfin/advanced-reports/summary", tags=["GenFin Reports"])
+async def get_advanced_reports_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get advanced reports service summary"""
+    return genfin_advanced_reports_service.get_service_summary()
 
 
 # ============================================================================
