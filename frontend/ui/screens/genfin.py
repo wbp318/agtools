@@ -3526,7 +3526,7 @@ class GenFinHomeScreen(QWidget):
             QFrame {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 {GENFIN_COLORS['teal_dark']},
-                    stop:1 {GENFIN_COLORS['teal_medium']});
+                    stop:1 {GENFIN_COLORS['teal']});
                 border: 2px outset {GENFIN_COLORS['teal_light']};
                 border-radius: 4px;
                 padding: 4px;
@@ -3555,17 +3555,17 @@ class GenFinHomeScreen(QWidget):
         self.company_combo.setStyleSheet(f"""
             QComboBox {{
                 background: white;
-                border: 2px inset {GENFIN_COLORS['gray_medium']};
+                border: 2px inset {GENFIN_COLORS['bevel_shadow']};
                 padding: 4px 8px;
                 font-size: 12px;
                 font-weight: bold;
                 color: {GENFIN_COLORS['teal_dark']};
             }}
             QComboBox:hover {{
-                border-color: {GENFIN_COLORS['teal_medium']};
+                border-color: {GENFIN_COLORS['teal']};
             }}
             QComboBox::drop-down {{
-                border-left: 1px solid {GENFIN_COLORS['gray_medium']};
+                border-left: 1px solid {GENFIN_COLORS['bevel_shadow']};
                 width: 20px;
             }}
         """)
@@ -3579,8 +3579,8 @@ class GenFinHomeScreen(QWidget):
         new_company_btn.setStyleSheet(f"""
             QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #ffffff, stop:1 {GENFIN_COLORS['gray_light']});
-                border: 2px outset {GENFIN_COLORS['gray_medium']};
+                    stop:0 #ffffff, stop:1 {GENFIN_COLORS['window_bg']});
+                border: 2px outset {GENFIN_COLORS['bevel_shadow']};
                 padding: 4px 12px;
                 font-size: 10px;
                 font-weight: bold;
@@ -3588,7 +3588,7 @@ class GenFinHomeScreen(QWidget):
             }}
             QPushButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {GENFIN_COLORS['teal_light']}, stop:1 {GENFIN_COLORS['teal_medium']});
+                    stop:0 {GENFIN_COLORS['teal_light']}, stop:1 {GENFIN_COLORS['teal']});
                 color: white;
             }}
             QPushButton:pressed {{
