@@ -366,13 +366,31 @@ from services.genfin_advanced_reports_service import (
     DateRange
 )
 
+# GenFin v6.2 Enhanced Services
+from services.genfin_recurring_service import (
+    genfin_recurring_service,
+    RecurrenceFrequency,
+    RecurrenceType
+)
+
+from services.genfin_bank_feeds_service import (
+    genfin_bank_feeds_service,
+    ImportFileType
+)
+
+from services.genfin_fixed_assets_service import (
+    genfin_fixed_assets_service,
+    DepreciationMethod,
+    AssetCategory
+)
+
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system",
-    version="6.1.0",
+    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system with recurring transactions, bank feeds, and fixed assets",
+    version="6.2.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -14214,6 +14232,424 @@ async def delete_memorized_report(
 async def get_advanced_reports_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get advanced reports service summary"""
     return genfin_advanced_reports_service.get_service_summary()
+
+
+# ============================================================================
+# GENFIN RECURRING TRANSACTIONS (v6.2)
+# ============================================================================
+
+@app.get("/api/v1/genfin/recurring/summary", tags=["GenFin Recurring"])
+async def get_recurring_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get recurring transactions service summary"""
+    return genfin_recurring_service.get_service_summary()
+
+@app.post("/api/v1/genfin/recurring/invoice", tags=["GenFin Recurring"])
+async def create_recurring_invoice(
+    template_name: str,
+    customer_id: str,
+    frequency: str,
+    base_amount: float,
+    start_date: str,
+    end_date: Optional[str] = None,
+    description: str = "",
+    items: Optional[List[dict]] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a recurring invoice template"""
+    return genfin_recurring_service.create_recurring_invoice(
+        template_name, customer_id, frequency, base_amount,
+        start_date, end_date, description, items
+    )
+
+@app.post("/api/v1/genfin/recurring/bill", tags=["GenFin Recurring"])
+async def create_recurring_bill(
+    template_name: str,
+    vendor_id: str,
+    frequency: str,
+    base_amount: float,
+    start_date: str,
+    end_date: Optional[str] = None,
+    description: str = "",
+    expense_account: str = "6000",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a recurring bill template"""
+    return genfin_recurring_service.create_recurring_bill(
+        template_name, vendor_id, frequency, base_amount,
+        start_date, end_date, description, expense_account
+    )
+
+@app.post("/api/v1/genfin/recurring/journal-entry", tags=["GenFin Recurring"])
+async def create_recurring_journal_entry(
+    template_name: str,
+    frequency: str,
+    debit_account: str,
+    credit_account: str,
+    amount: float,
+    start_date: str,
+    end_date: Optional[str] = None,
+    description: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a recurring journal entry template"""
+    return genfin_recurring_service.create_recurring_journal_entry(
+        template_name, frequency, debit_account, credit_account,
+        amount, start_date, end_date, description
+    )
+
+@app.get("/api/v1/genfin/recurring", tags=["GenFin Recurring"])
+async def list_recurring_templates(
+    transaction_type: Optional[str] = None,
+    status: Optional[str] = "active",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all recurring templates"""
+    return genfin_recurring_service.list_templates(recurrence_type=transaction_type, status=status)
+
+@app.get("/api/v1/genfin/recurring/{template_id}", tags=["GenFin Recurring"])
+async def get_recurring_template(
+    template_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a recurring template by ID"""
+    template = genfin_recurring_service.get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Recurring template not found")
+    return template
+
+@app.put("/api/v1/genfin/recurring/{template_id}", tags=["GenFin Recurring"])
+async def update_recurring_template(
+    template_id: str,
+    template_name: Optional[str] = None,
+    frequency: Optional[str] = None,
+    base_amount: Optional[float] = None,
+    is_active: Optional[bool] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a recurring template"""
+    return genfin_recurring_service.update_template(
+        template_id, template_name=template_name, frequency=frequency,
+        base_amount=base_amount, is_active=is_active, end_date=end_date
+    )
+
+@app.delete("/api/v1/genfin/recurring/{template_id}", tags=["GenFin Recurring"])
+async def delete_recurring_template(
+    template_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a recurring template"""
+    return genfin_recurring_service.delete_template(template_id)
+
+@app.post("/api/v1/genfin/recurring/{template_id}/generate", tags=["GenFin Recurring"])
+async def generate_from_template(
+    template_id: str,
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate transactions from a recurring template"""
+    from datetime import date
+    if as_of_date is None:
+        as_of_date = date.today().isoformat()
+    return genfin_recurring_service.generate_from_template(template_id, as_of_date)
+
+@app.post("/api/v1/genfin/recurring/generate-all", tags=["GenFin Recurring"])
+async def generate_all_due_transactions(
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate all due recurring transactions"""
+    from datetime import date
+    if as_of_date is None:
+        as_of_date = date.today().isoformat()
+    return genfin_recurring_service.generate_all_due(as_of_date)
+
+@app.get("/api/v1/genfin/recurring/{template_id}/history", tags=["GenFin Recurring"])
+async def get_recurring_history(
+    template_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get generation history for a recurring template"""
+    return genfin_recurring_service.get_generation_history(template_id)
+
+
+# ============================================================================
+# GENFIN BANK FEEDS (v6.2)
+# ============================================================================
+
+@app.get("/api/v1/genfin/bank-feeds/summary", tags=["GenFin Bank Feeds"])
+async def get_bank_feeds_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get bank feeds service summary"""
+    return genfin_bank_feeds_service.get_service_summary()
+
+@app.post("/api/v1/genfin/bank-feeds/import", tags=["GenFin Bank Feeds"])
+async def import_bank_file(
+    file_content: str,
+    file_type: str = "ofx",
+    bank_account_id: str = "1000",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Import bank transactions from OFX/QFX/QBO/CSV file"""
+    return genfin_bank_feeds_service.import_ofx_content(file_content, f"import.{file_type}")
+
+@app.get("/api/v1/genfin/bank-feeds/imports", tags=["GenFin Bank Feeds"])
+async def list_import_files(
+    bank_account_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all import files"""
+    return genfin_bank_feeds_service.get_import_files()
+
+@app.get("/api/v1/genfin/bank-feeds/imports/{import_id}", tags=["GenFin Bank Feeds"])
+async def get_import_file(
+    import_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get an import file by ID"""
+    import_file = genfin_bank_feeds_service.get_import(import_id)
+    if not import_file:
+        raise HTTPException(status_code=404, detail="Import file not found")
+    return import_file
+
+@app.get("/api/v1/genfin/bank-feeds/transactions", tags=["GenFin Bank Feeds"])
+async def list_imported_transactions(
+    import_id: Optional[str] = None,
+    status: Optional[str] = None,
+    bank_account_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List imported transactions"""
+    return genfin_bank_feeds_service.get_transactions(import_id, status, bank_account_id)
+
+@app.get("/api/v1/genfin/bank-feeds/transactions/{transaction_id}", tags=["GenFin Bank Feeds"])
+async def get_imported_transaction(
+    transaction_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get an imported transaction by ID"""
+    txn = genfin_bank_feeds_service.get_transaction(transaction_id)
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return txn
+
+@app.put("/api/v1/genfin/bank-feeds/transactions/{transaction_id}/categorize", tags=["GenFin Bank Feeds"])
+async def categorize_transaction(
+    transaction_id: str,
+    category_account: str,
+    memo: str = "",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Categorize an imported transaction"""
+    return genfin_bank_feeds_service.categorize_transaction(transaction_id, category_account, memo)
+
+@app.put("/api/v1/genfin/bank-feeds/transactions/{transaction_id}/match", tags=["GenFin Bank Feeds"])
+async def match_transaction(
+    transaction_id: str,
+    matched_transaction_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Match an imported transaction to an existing transaction"""
+    return genfin_bank_feeds_service.match_transaction(transaction_id, matched_transaction_id)
+
+@app.post("/api/v1/genfin/bank-feeds/transactions/{transaction_id}/accept", tags=["GenFin Bank Feeds"])
+async def accept_transaction(
+    transaction_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Accept an imported transaction into the register"""
+    return genfin_bank_feeds_service.accept_transaction(transaction_id)
+
+@app.delete("/api/v1/genfin/bank-feeds/transactions/{transaction_id}", tags=["GenFin Bank Feeds"])
+async def exclude_transaction(
+    transaction_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Exclude/ignore an imported transaction"""
+    return genfin_bank_feeds_service.exclude_transaction(transaction_id)
+
+@app.post("/api/v1/genfin/bank-feeds/rules", tags=["GenFin Bank Feeds"])
+async def create_category_rule(
+    rule_name: str,
+    pattern: str,
+    category_account: str,
+    pattern_type: str = "contains",
+    match_field: str = "description",
+    priority: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create an auto-categorization rule"""
+    return genfin_bank_feeds_service.create_category_rule(
+        rule_name, pattern, category_account, pattern_type, match_field, priority
+    )
+
+@app.get("/api/v1/genfin/bank-feeds/rules", tags=["GenFin Bank Feeds"])
+async def list_category_rules(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List all auto-categorization rules"""
+    return genfin_bank_feeds_service.list_category_rules()
+
+@app.delete("/api/v1/genfin/bank-feeds/rules/{rule_id}", tags=["GenFin Bank Feeds"])
+async def delete_category_rule(
+    rule_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete an auto-categorization rule"""
+    return genfin_bank_feeds_service.delete_rule(rule_id)
+
+@app.post("/api/v1/genfin/bank-feeds/auto-categorize", tags=["GenFin Bank Feeds"])
+async def auto_categorize_transactions(
+    import_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Apply auto-categorization rules to pending transactions"""
+    return genfin_bank_feeds_service.auto_categorize_all(import_id)
+
+
+# ============================================================================
+# GENFIN FIXED ASSETS (v6.2)
+# ============================================================================
+
+@app.get("/api/v1/genfin/fixed-assets/summary", tags=["GenFin Fixed Assets"])
+async def get_fixed_assets_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get fixed assets service summary"""
+    return genfin_fixed_assets_service.get_service_summary()
+
+@app.post("/api/v1/genfin/fixed-assets", tags=["GenFin Fixed Assets"])
+async def create_fixed_asset(
+    name: str,
+    purchase_date: str,
+    original_cost: float,
+    category: str = "equipment",
+    depreciation_method: str = "macrs_7",
+    salvage_value: float = 0.0,
+    useful_life_years: int = 7,
+    asset_account: str = "1500",
+    depreciation_account: str = "1550",
+    expense_account: str = "6200",
+    description: str = "",
+    serial_number: str = "",
+    location: str = "",
+    vendor_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new fixed asset"""
+    return genfin_fixed_assets_service.create_asset(
+        name=name,
+        purchase_date=purchase_date,
+        purchase_price=original_cost,
+        category=category,
+        depreciation_method=depreciation_method,
+        salvage_value=salvage_value,
+        useful_life_years=useful_life_years,
+        description=description,
+        serial_number=serial_number,
+        location=location,
+        vendor_id=vendor_id,
+        asset_account_id=asset_account,
+        accumulated_depreciation_account_id=depreciation_account,
+        depreciation_expense_account_id=expense_account
+    )
+
+@app.get("/api/v1/genfin/fixed-assets", tags=["GenFin Fixed Assets"])
+async def list_fixed_assets(
+    category: Optional[str] = None,
+    is_active: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all fixed assets"""
+    return genfin_fixed_assets_service.list_assets(category, is_active)
+
+@app.get("/api/v1/genfin/fixed-assets/{asset_id}", tags=["GenFin Fixed Assets"])
+async def get_fixed_asset(
+    asset_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a fixed asset by ID"""
+    asset = genfin_fixed_assets_service.get_asset(asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Fixed asset not found")
+    return asset
+
+@app.put("/api/v1/genfin/fixed-assets/{asset_id}", tags=["GenFin Fixed Assets"])
+async def update_fixed_asset(
+    asset_id: str,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    serial_number: Optional[str] = None,
+    location: Optional[str] = None,
+    salvage_value: Optional[float] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a fixed asset"""
+    return genfin_fixed_assets_service.update_asset(
+        asset_id, name=name, description=description,
+        serial_number=serial_number, location=location, salvage_value=salvage_value
+    )
+
+@app.get("/api/v1/genfin/fixed-assets/{asset_id}/depreciation-schedule", tags=["GenFin Fixed Assets"])
+async def get_depreciation_schedule(
+    asset_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get full depreciation schedule for an asset"""
+    return genfin_fixed_assets_service.get_depreciation_schedule(asset_id)
+
+@app.post("/api/v1/genfin/fixed-assets/{asset_id}/run-depreciation", tags=["GenFin Fixed Assets"])
+async def run_asset_depreciation(
+    asset_id: str,
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run depreciation for a specific asset and year"""
+    from datetime import date
+    if year is None:
+        year = date.today().year
+    return genfin_fixed_assets_service.run_depreciation(asset_id, year)
+
+@app.post("/api/v1/genfin/fixed-assets/run-depreciation-all", tags=["GenFin Fixed Assets"])
+async def run_all_depreciation(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Run depreciation for all active assets"""
+    from datetime import date
+    if year is None:
+        year = date.today().year
+    return genfin_fixed_assets_service.run_all_depreciation(year)
+
+@app.post("/api/v1/genfin/fixed-assets/{asset_id}/dispose", tags=["GenFin Fixed Assets"])
+async def dispose_fixed_asset(
+    asset_id: str,
+    disposal_date: str,
+    sale_price: float = 0.0,
+    disposal_reason: str = "sold",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Dispose of a fixed asset (sell, scrap, trade-in)"""
+    return genfin_fixed_assets_service.dispose_asset(
+        asset_id, disposal_date, sale_price, disposal_reason
+    )
+
+@app.get("/api/v1/genfin/fixed-assets/reports/depreciation-summary", tags=["GenFin Fixed Assets"])
+async def get_depreciation_summary_report(
+    year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get depreciation summary report for tax year"""
+    from datetime import date
+    if year is None:
+        year = date.today().year
+    return genfin_fixed_assets_service.get_depreciation_report(year)
+
+@app.get("/api/v1/genfin/fixed-assets/reports/asset-register", tags=["GenFin Fixed Assets"])
+async def get_asset_register_report(
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get fixed asset register as of date"""
+    from datetime import date
+    if as_of_date is None:
+        as_of_date = date.today().isoformat()
+    return genfin_fixed_assets_service.get_asset_register(as_of_date)
 
 
 # ============================================================================

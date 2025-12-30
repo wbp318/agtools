@@ -4,9 +4,87 @@
 
 ---
 
-## Current Version: 6.1.0 (Released - December 29, 2025)
+## Current Version: 6.2.0 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
+
+#### v6.2.0 - Recurring Transactions, Bank Feeds, Fixed Assets
+
+**Status:** COMPLETE - 100% Smoke Tests Passing (21/21)
+
+**Goal:** Add the three highest-priority QuickBooks features to GenFin.
+
+**What Was Built:**
+
+1. **GenFin Recurring Transactions Service** (`backend/services/genfin_recurring_service.py` ~750 lines)
+
+   - **Recurring Template Types:**
+     - Invoice, Bill, Journal Entry, Check, Deposit, Transfer
+     - Sales Receipt, Credit Memo, Vendor Credit, Paycheck
+
+   - **Frequencies:**
+     - Daily, Weekly, Bi-Weekly, Semi-Monthly
+     - Monthly, Quarterly, Semi-Annually, Annually
+
+   - **Features:**
+     - Automatic transaction generation
+     - Days-in-advance scheduling
+     - End date and max occurrences
+     - Complete generation history audit trail
+
+2. **GenFin Bank Feeds Import Service** (`backend/services/genfin_bank_feeds_service.py` ~900 lines)
+
+   - **Supported File Formats:**
+     - OFX (Open Financial Exchange)
+     - QFX (Quicken Financial Exchange)
+     - QBO (QuickBooks Online)
+     - CSV (Custom bank exports)
+
+   - **Auto-Categorization Rules:**
+     - Pattern matching (contains, starts with, exact match, regex)
+     - Match on description, payee name, or amount
+     - Priority-based rule ordering
+
+   - **Transaction Matching:**
+     - Duplicate detection via FIT ID
+     - Fuzzy matching by amount/date/payee
+     - Match score ranking
+     - Accept/Exclude workflow
+
+3. **GenFin Fixed Assets Manager** (`backend/services/genfin_fixed_assets_service.py` ~750 lines)
+
+   - **Depreciation Methods:**
+     - Straight Line
+     - MACRS 3, 5, 7, 10, 15, 20 Year (IRS tables included)
+     - Section 179 Immediate Expense
+     - Bonus Depreciation (100%)
+
+   - **Asset Categories:**
+     - Farm Machinery & Equipment
+     - Vehicles
+     - Buildings
+     - Land Improvements
+     - Office Equipment
+     - Livestock (breeding stock)
+
+   - **Features:**
+     - Full depreciation schedules
+     - Annual depreciation calculation
+     - Asset disposal with gain/loss
+     - Cost basis tracking (after 179/bonus)
+
+   - **Reports:**
+     - Depreciation Summary by Tax Year
+     - Fixed Asset Register
+     - Depreciation History
+
+**API Endpoints Added:** 36 new endpoints across 3 services
+
+**Test Coverage:** smoke_test_v62.py - 21 tests, 100% passing
+
+---
+
+## Previous Version: 6.1.0 (Released - December 29, 2025)
 
 #### v6.1.0 - GenFin QuickBooks Feature Parity
 
@@ -127,6 +205,48 @@
 - `backend/main.py` (updated with 100+ endpoints)
 - `docs/GENFIN.md` (updated with v6.1 features)
 - `docs/SMOKE_TEST_v6.1.0.md` (new)
+
+---
+
+### GenFin Roadmap: Remaining QuickBooks Features
+
+The following features are planned to achieve full QuickBooks feature parity:
+
+#### HIGH PRIORITY - Core Features (v6.2.0)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Recurring Transactions** | Auto-generate bills, invoices, journal entries on schedule (daily, weekly, monthly, yearly) | PLANNED |
+| **Bank Feeds Import** | Import OFX/QFX/QBO files from banks, auto-match transactions | PLANNED |
+| **Fixed Asset Manager** | Asset register, MACRS/straight-line depreciation, disposal tracking | PLANNED |
+| **Loan Manager** | Amortization schedules, payment tracking, interest calculations | PLANNED |
+| **Sales Orders** | Track orders before converting to invoices | PLANNED |
+| **Attachments** | Attach receipts/documents to any transaction | PLANNED |
+
+#### MEDIUM PRIORITY - Enhanced Workflows (v6.3.0)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Credit Memos/Refunds** | Process customer refunds, apply credits | PLANNED |
+| **Customer Deposits** | Handle prepayments, retainers, deposit applications | PLANNED |
+| **Statement Charges** | Add charges directly to customer statements | PLANNED |
+| **Delayed Charges** | Hold charges for later billing | PLANNED |
+| **Multi-Location Inventory** | Track inventory across multiple locations/bins | PLANNED |
+| **Mileage Tracking** | Vehicle mileage tracking for tax deductions | PLANNED |
+| **Enhanced Bank Reconciliation** | Auto-matching, rule-based categorization | PLANNED |
+
+#### LOWER PRIORITY - Advanced Features (v6.4.0+)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Letter Templates** | Collection letters, payment reminders, thank you notes | PLANNED |
+| **To-Do/Reminders** | Task management integrated with accounting | PLANNED |
+| **Custom Report Builder** | User-defined custom reports | PLANNED |
+| **Multi-Currency** | Foreign currency transactions and reporting | PLANNED |
+| **Audit Log** | Track all changes with user, timestamp, old/new values | PLANNED |
+| **Customer Portal** | Let customers view invoices and pay online | PLANNED |
+| **Vendor Portal** | Let vendors submit invoices electronically | PLANNED |
+| **Sales Tax Automation** | Auto-calculate sales tax by jurisdiction | PLANNED |
 
 ---
 
