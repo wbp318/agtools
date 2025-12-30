@@ -5972,6 +5972,505 @@ class GenFinBudgetsScreen(QWidget):
 
 
 # =============================================================================
+# ENTITIES - Classes, Locations, Names
+# =============================================================================
+
+class GenFinEntitiesScreen(QWidget):
+    """Entities management screen - Classes, Locations, and Other Names."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("ENTITIES & LISTS")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Tab widget for different entity types
+        tabs = QTabWidget()
+        tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {GENFIN_COLORS['bevel_dark']};
+                background: {GENFIN_COLORS['window_face']};
+            }}
+            QTabBar::tab {{
+                background: {GENFIN_COLORS['window_face']};
+                border: 2px solid {GENFIN_COLORS['bevel_dark']};
+                padding: 8px 16px;
+                font-weight: bold;
+            }}
+            QTabBar::tab:selected {{
+                background: {GENFIN_COLORS['teal_light']};
+            }}
+        """)
+
+        # Classes Tab
+        classes_tab = QWidget()
+        classes_layout = QVBoxLayout(classes_tab)
+
+        classes_info = QLabel(
+            "Classes help you categorize transactions by department, location, or any other meaningful grouping.\n"
+            "Example: Track income/expenses by farm field, crop type, or business unit."
+        )
+        classes_info.setWordWrap(True)
+        classes_info.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; padding: 8px;")
+        classes_layout.addWidget(classes_info)
+
+        classes_toolbar = QHBoxLayout()
+        new_class_btn = QPushButton("New Class")
+        new_class_btn.clicked.connect(self._new_class)
+        classes_toolbar.addWidget(new_class_btn)
+        classes_toolbar.addStretch()
+        classes_layout.addLayout(classes_toolbar)
+
+        self.classes_table = QTableWidget()
+        self.classes_table.setColumnCount(3)
+        self.classes_table.setHorizontalHeaderLabels(["Class Name", "Parent Class", "Status"])
+        self.classes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        classes_layout.addWidget(self.classes_table)
+
+        tabs.addTab(classes_tab, "Classes")
+
+        # Locations Tab
+        locations_tab = QWidget()
+        locations_layout = QVBoxLayout(locations_tab)
+
+        locations_info = QLabel(
+            "Locations track where transactions occur. Use for multi-location businesses.\n"
+            "Example: Main Farm, North Field, Equipment Shed, Market Stand."
+        )
+        locations_info.setWordWrap(True)
+        locations_info.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; padding: 8px;")
+        locations_layout.addWidget(locations_info)
+
+        locations_toolbar = QHBoxLayout()
+        new_loc_btn = QPushButton("New Location")
+        new_loc_btn.clicked.connect(self._new_location)
+        locations_toolbar.addWidget(new_loc_btn)
+        locations_toolbar.addStretch()
+        locations_layout.addLayout(locations_toolbar)
+
+        self.locations_table = QTableWidget()
+        self.locations_table.setColumnCount(3)
+        self.locations_table.setHorizontalHeaderLabels(["Location Name", "Address", "Status"])
+        self.locations_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        locations_layout.addWidget(self.locations_table)
+
+        tabs.addTab(locations_tab, "Locations")
+
+        # Other Names Tab
+        names_tab = QWidget()
+        names_layout = QVBoxLayout(names_tab)
+
+        names_info = QLabel(
+            "Other Names are for people or businesses that aren't customers, vendors, or employees.\n"
+            "Example: Business owners, partners, shareholders, or government agencies."
+        )
+        names_info.setWordWrap(True)
+        names_info.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; padding: 8px;")
+        names_layout.addWidget(names_info)
+
+        names_toolbar = QHBoxLayout()
+        new_name_btn = QPushButton("New Name")
+        new_name_btn.clicked.connect(self._new_name)
+        names_toolbar.addWidget(new_name_btn)
+        names_toolbar.addStretch()
+        names_layout.addLayout(names_toolbar)
+
+        self.names_table = QTableWidget()
+        self.names_table.setColumnCount(4)
+        self.names_table.setHorizontalHeaderLabels(["Name", "Type", "Phone", "Notes"])
+        self.names_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        names_layout.addWidget(self.names_table)
+
+        tabs.addTab(names_tab, "Other Names")
+
+        # Terms Tab
+        terms_tab = QWidget()
+        terms_layout = QVBoxLayout(terms_tab)
+
+        terms_info = QLabel(
+            "Payment Terms define when invoices are due and any early payment discounts.\n"
+            "Example: Net 30, 2% 10 Net 30, Due on Receipt."
+        )
+        terms_info.setWordWrap(True)
+        terms_info.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; padding: 8px;")
+        terms_layout.addWidget(terms_info)
+
+        terms_toolbar = QHBoxLayout()
+        new_term_btn = QPushButton("New Terms")
+        new_term_btn.clicked.connect(self._new_terms)
+        terms_toolbar.addWidget(new_term_btn)
+        terms_toolbar.addStretch()
+        terms_layout.addLayout(terms_toolbar)
+
+        self.terms_table = QTableWidget()
+        self.terms_table.setColumnCount(4)
+        self.terms_table.setHorizontalHeaderLabels(["Terms Name", "Due Days", "Discount %", "Discount Days"])
+        self.terms_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        terms_layout.addWidget(self.terms_table)
+
+        tabs.addTab(terms_tab, "Payment Terms")
+
+        layout.addWidget(tabs)
+
+    def load_data(self):
+        """Load entities from API."""
+        # Load classes
+        data = api_get("/classes")
+        if data:
+            classes = data if isinstance(data, list) else []
+            self.classes_table.setRowCount(len(classes))
+            for i, cls in enumerate(classes):
+                self.classes_table.setItem(i, 0, QTableWidgetItem(cls.get("name", "")))
+                self.classes_table.setItem(i, 1, QTableWidgetItem(cls.get("parent", "")))
+                self.classes_table.setItem(i, 2, QTableWidgetItem("Active" if cls.get("is_active", True) else "Inactive"))
+
+        # Load locations
+        data = api_get("/locations")
+        if data:
+            locations = data if isinstance(data, list) else []
+            self.locations_table.setRowCount(len(locations))
+            for i, loc in enumerate(locations):
+                self.locations_table.setItem(i, 0, QTableWidgetItem(loc.get("name", "")))
+                self.locations_table.setItem(i, 1, QTableWidgetItem(loc.get("address", "")))
+                self.locations_table.setItem(i, 2, QTableWidgetItem("Active" if loc.get("is_active", True) else "Inactive"))
+
+    def _new_class(self):
+        QMessageBox.information(self, "New Class", "This would open the new class dialog.")
+
+    def _new_location(self):
+        QMessageBox.information(self, "New Location", "This would open the new location dialog.")
+
+    def _new_name(self):
+        QMessageBox.information(self, "New Name", "This would open the new other name dialog.")
+
+    def _new_terms(self):
+        QMessageBox.information(self, "New Terms", "This would open the new payment terms dialog.")
+
+
+# =============================================================================
+# SETTINGS - Company & User Preferences
+# =============================================================================
+
+class GenFinSettingsScreen(QWidget):
+    """Settings screen - Company and user preferences."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("SETTINGS & PREFERENCES")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Settings categories
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(16)
+
+        # Company Information
+        company_group = QGroupBox("Company Information")
+        company_layout = QFormLayout(company_group)
+
+        self.company_name = QLineEdit()
+        self.company_name.setPlaceholderText("Your Company Name")
+        company_layout.addRow("Company Name:", self.company_name)
+
+        self.legal_name = QLineEdit()
+        company_layout.addRow("Legal Name:", self.legal_name)
+
+        self.ein = QLineEdit()
+        self.ein.setPlaceholderText("XX-XXXXXXX")
+        company_layout.addRow("EIN/Tax ID:", self.ein)
+
+        self.address = QLineEdit()
+        company_layout.addRow("Address:", self.address)
+
+        self.city_state_zip = QLineEdit()
+        company_layout.addRow("City, State ZIP:", self.city_state_zip)
+
+        self.phone = QLineEdit()
+        company_layout.addRow("Phone:", self.phone)
+
+        self.email = QLineEdit()
+        company_layout.addRow("Email:", self.email)
+
+        content_layout.addWidget(company_group)
+
+        # Accounting Preferences
+        acct_group = QGroupBox("Accounting Preferences")
+        acct_layout = QFormLayout(acct_group)
+
+        self.fiscal_year_start = QComboBox()
+        self.fiscal_year_start.addItems(["January", "February", "March", "April", "May", "June",
+                                         "July", "August", "September", "October", "November", "December"])
+        acct_layout.addRow("Fiscal Year Starts:", self.fiscal_year_start)
+
+        self.income_tax_form = QComboBox()
+        self.income_tax_form.addItems(["Schedule F (Farm)", "Schedule C (Sole Prop)", "Form 1120 (Corp)",
+                                       "Form 1120S (S-Corp)", "Form 1065 (Partnership)"])
+        acct_layout.addRow("Income Tax Form:", self.income_tax_form)
+
+        self.accrual_basis = QComboBox()
+        self.accrual_basis.addItems(["Cash", "Accrual"])
+        acct_layout.addRow("Accounting Method:", self.accrual_basis)
+
+        self.closing_date = QDateEdit()
+        self.closing_date.setCalendarPopup(True)
+        acct_layout.addRow("Closing Date:", self.closing_date)
+
+        content_layout.addWidget(acct_group)
+
+        # Payroll Settings
+        payroll_group = QGroupBox("Payroll Settings")
+        payroll_layout = QFormLayout(payroll_group)
+
+        self.payroll_service = QComboBox()
+        self.payroll_service.addItems(["Manual Payroll", "Enhanced Payroll", "Full Service Payroll"])
+        payroll_layout.addRow("Payroll Service:", self.payroll_service)
+
+        self.state_unemployment = QLineEdit()
+        self.state_unemployment.setPlaceholderText("e.g., 2.7%")
+        payroll_layout.addRow("State Unemployment Rate:", self.state_unemployment)
+
+        content_layout.addWidget(payroll_group)
+
+        # Invoice Settings
+        invoice_group = QGroupBox("Sales & Invoice Settings")
+        invoice_layout = QFormLayout(invoice_group)
+
+        self.default_terms = QComboBox()
+        self.default_terms.addItems(["Due on Receipt", "Net 15", "Net 30", "Net 60", "2% 10 Net 30"])
+        invoice_layout.addRow("Default Payment Terms:", self.default_terms)
+
+        self.invoice_prefix = QLineEdit()
+        self.invoice_prefix.setPlaceholderText("e.g., INV-")
+        invoice_layout.addRow("Invoice Number Prefix:", self.invoice_prefix)
+
+        self.late_fee = QDoubleSpinBox()
+        self.late_fee.setRange(0, 100)
+        self.late_fee.setSuffix("%")
+        invoice_layout.addRow("Late Fee Percentage:", self.late_fee)
+
+        content_layout.addWidget(invoice_group)
+
+        # Display Settings
+        display_group = QGroupBox("Display Preferences")
+        display_layout = QFormLayout(display_group)
+
+        self.date_format = QComboBox()
+        self.date_format.addItems(["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"])
+        display_layout.addRow("Date Format:", self.date_format)
+
+        self.number_format = QComboBox()
+        self.number_format.addItems(["1,234.56", "1.234,56", "1 234.56"])
+        display_layout.addRow("Number Format:", self.number_format)
+
+        self.show_cents = QCheckBox("Always show cents (.00)")
+        self.show_cents.setChecked(True)
+        display_layout.addRow("", self.show_cents)
+
+        content_layout.addWidget(display_group)
+
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+
+        # Save button
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+
+        save_btn = QPushButton("Save Settings")
+        save_btn.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal']};
+            color: white;
+            font-weight: bold;
+            padding: 12px 24px;
+        """)
+        save_btn.clicked.connect(self._save_settings)
+        btn_layout.addWidget(save_btn)
+
+        layout.addLayout(btn_layout)
+
+    def load_data(self):
+        """Load settings from API or local storage."""
+        # Would load saved settings
+        pass
+
+    def _save_settings(self):
+        QMessageBox.information(self, "Settings Saved",
+            "Your settings have been saved successfully.")
+
+
+# =============================================================================
+# HELP - Help Center
+# =============================================================================
+
+class GenFinHelpScreen(QWidget):
+    """Help Center screen."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("HELP CENTER")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Search bar
+        search_layout = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search help topics...")
+        self.search_input.setStyleSheet(f"""
+            padding: 10px;
+            font-size: 14px;
+            border: 2px solid {GENFIN_COLORS['teal']};
+        """)
+        search_layout.addWidget(self.search_input)
+
+        search_btn = QPushButton("Search")
+        search_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white; padding: 10px 20px;")
+        search_btn.clicked.connect(self._search)
+        search_layout.addWidget(search_btn)
+
+        layout.addLayout(search_layout)
+
+        # Quick Links
+        quick_group = QGroupBox("Quick Links")
+        quick_layout = QGridLayout(quick_group)
+
+        topics = [
+            ("Getting Started", "Learn the basics of GenFin"),
+            ("Invoicing", "Create and manage invoices"),
+            ("Bills & Expenses", "Track what you owe"),
+            ("Banking", "Manage bank accounts"),
+            ("Payroll", "Run payroll and pay employees"),
+            ("Reports", "Generate financial reports"),
+            ("Taxes", "Tax preparation and 1099s"),
+            ("Keyboard Shortcuts", "Work faster with shortcuts"),
+        ]
+
+        for i, (title, desc) in enumerate(topics):
+            btn = QPushButton(title)
+            btn.setStyleSheet(f"""
+                text-align: left;
+                padding: 12px;
+                font-weight: bold;
+            """)
+            btn.setToolTip(desc)
+            btn.clicked.connect(lambda checked, t=title: self._open_topic(t))
+            quick_layout.addWidget(btn, i // 2, i % 2)
+
+        layout.addWidget(quick_group)
+
+        # Video Tutorials
+        video_group = QGroupBox("Video Tutorials")
+        video_layout = QVBoxLayout(video_group)
+
+        videos = [
+            "Introduction to GenFin (5:32)",
+            "Setting Up Your Company (8:15)",
+            "Creating Your First Invoice (4:45)",
+            "Running Payroll (10:22)",
+            "Bank Reconciliation (6:18)",
+            "Year-End Closing (12:40)",
+        ]
+
+        for video in videos:
+            video_btn = QPushButton(f"▶  {video}")
+            video_btn.setStyleSheet("text-align: left; padding: 8px;")
+            video_btn.clicked.connect(lambda checked, v=video: self._play_video(v))
+            video_layout.addWidget(video_btn)
+
+        layout.addWidget(video_group)
+
+        # Contact Support
+        support_frame = QFrame()
+        support_frame.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal_light']};
+            border-radius: 4px;
+            padding: 16px;
+        """)
+        support_layout = QVBoxLayout(support_frame)
+
+        support_header = QLabel("Need More Help?")
+        support_header.setStyleSheet("font-size: 14px; font-weight: bold; color: white;")
+        support_layout.addWidget(support_header)
+
+        support_text = QLabel(
+            "Contact our support team:\n"
+            "Email: support@agtools.com\n"
+            "Phone: 1-800-AGTOOLS\n"
+            "Hours: Mon-Fri 8am-6pm CST"
+        )
+        support_text.setStyleSheet("color: white;")
+        support_layout.addWidget(support_text)
+
+        layout.addWidget(support_frame)
+
+        layout.addStretch()
+
+    def load_data(self):
+        """Nothing to load for help screen."""
+        pass
+
+    def _search(self):
+        query = self.search_input.text()
+        if query:
+            QMessageBox.information(self, "Search",
+                f"Searching help for: {query}\n\n"
+                "This would show matching help articles.")
+
+    def _open_topic(self, topic):
+        QMessageBox.information(self, topic,
+            f"Opening help topic: {topic}\n\n"
+            "This would display the help article.")
+
+    def _play_video(self, video):
+        QMessageBox.information(self, "Video Tutorial",
+            f"Playing: {video}\n\n"
+            "This would open the video tutorial.")
+
+
+# =============================================================================
 # PAYROLL CENTER - QuickBooks Style Scheduled/Unscheduled Payroll
 # =============================================================================
 
@@ -7675,11 +8174,10 @@ class GenFinScreen(QWidget):
         # Budgets
         self._add_screen("budget", GenFinBudgetsScreen())
 
-        # Remaining placeholders
-        placeholders = ["entities", "settings", "help"]
-
-        for nav_id in placeholders:
-            self._add_placeholder_screen(nav_id)
+        # Entities, Settings, Help
+        self._add_screen("entities", GenFinEntitiesScreen())
+        self._add_screen("settings", GenFinSettingsScreen())
+        self._add_screen("help", GenFinHelpScreen())
 
     def _add_placeholder_screen(self, nav_id: str):
         """Add a placeholder screen for features in development."""
