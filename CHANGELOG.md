@@ -4,9 +4,131 @@
 
 ---
 
-## Current Version: 6.0.0 (Released - December 29, 2025)
+## Current Version: 6.1.0 (Released - December 29, 2025)
 
 ### Latest Session: December 29, 2025
+
+#### v6.1.0 - GenFin QuickBooks Feature Parity
+
+**Status:** COMPLETE - 100% Smoke Tests Passing
+
+**Goal:** Bring GenFin to full QuickBooks feature parity with inventory management, class/project tracking, and advanced reporting capabilities.
+
+**What Was Built:**
+
+1. **GenFin Inventory & Items Service** (`backend/services/genfin_inventory_service.py` ~1300 lines)
+
+   - **Item Types (11 total):**
+     - Service - Non-inventory services
+     - Inventory - Physical items with quantity tracking
+     - Non-Inventory - Products for specific jobs
+     - Other Charge - Miscellaneous charges
+     - Subtotal - Line item subtotals
+     - Group - Bundle of items sold together
+     - Discount - Percentage or fixed discounts
+     - Payment - Partial payment items
+     - Sales Tax Item - Single tax rate
+     - Sales Tax Group - Combined tax rates
+     - Assembly - Manufactured items with BOM
+
+   - **Inventory Valuation:**
+     - FIFO (First In, First Out)
+     - LIFO (Last In, First Out)
+     - Average Cost
+     - Automatic COGS calculation
+     - Inventory lot tracking
+
+   - **Assemblies & Bill of Materials:**
+     - Multi-level assemblies
+     - Component tracking
+     - Build-on-demand
+     - Component availability checking
+
+   - **Physical Inventory Counts:**
+     - Create count sessions
+     - Record actual quantities
+     - Calculate variances
+     - Post adjustments
+
+   - **Price Levels:**
+     - Customer-specific pricing
+     - Percentage or fixed adjustments
+     - Wholesale/retail tiers
+
+2. **GenFin Classes & Projects Service** (`backend/services/genfin_classes_service.py` ~850 lines)
+
+   - **Class Types (8 total):**
+     - Department, Location, Division, Product Line
+     - Farm, Field, Crop, Custom
+
+   - **Default Farm Classes:**
+     - Corn, Soybeans, Wheat
+     - Equipment, Overhead, Custom Work
+
+   - **Project/Job Management:**
+     - Billing methods: Fixed, T&M, Percent Complete
+     - Estimates vs. actuals tracking
+     - Project status workflow
+
+   - **Billable Expenses:**
+     - Expense tracking by project
+     - Markup percentages
+     - Mark as billed
+
+   - **Billable Time:**
+     - Time entry by employee
+     - Hourly rate tracking
+     - Billing status
+
+   - **Progress Invoicing:**
+     - Percentage-based billing
+     - Milestone-based billing
+
+3. **GenFin Advanced Reports Service** (`backend/services/genfin_advanced_reports_service.py` ~1050 lines)
+
+   - **50+ Reports by Category:**
+     - Company & Financial (P&L, Balance Sheet, Cash Flow, Ratios)
+     - Customers & Receivables (AR Aging, Customer Balance, Collections)
+     - Sales (by Customer, Item, Class, Rep)
+     - Jobs, Time & Mileage (Job Profitability, Unbilled Costs)
+     - Vendors & Payables (AP Aging, 1099 Summary)
+     - Purchases (by Vendor, Item, Class)
+     - Employees & Payroll (Summary, Detail, Tax Liability)
+     - Banking (Deposits, Checks, Reconciliation)
+     - Accountant & Taxes (Audit Trail, Transaction Journal)
+     - Budgets & Forecasts (Budget vs. Actual, Cash Flow Forecast)
+
+   - **Company Snapshot Dashboard:**
+     - Real-time financial overview
+     - Configurable widgets
+     - Charts and graphs
+
+   - **Memorized Reports:**
+     - Save report configurations
+     - Default filters and date ranges
+     - Quick re-run capability
+
+   - **Chart Types:**
+     - Bar, Line, Pie, Donut, Area, Stacked Bar
+
+**Bug Fixes (v6.1.1 Patch):**
+- Fixed: GET /genfin/inventory/lots - Added missing endpoint
+- Fixed: POST /genfin/memorized-reports - Graceful enum handling
+- Fixed: GET /genfin/reports/financial-ratios - Made date optional
+
+**API Endpoints Added:** 100+ new endpoints (490+ total)
+
+**Smoke Test Results:** 33/33 tests passing (100%)
+
+**Files Changed:**
+- `backend/services/genfin_inventory_service.py` (new)
+- `backend/services/genfin_classes_service.py` (new)
+- `backend/services/genfin_advanced_reports_service.py` (new)
+- `backend/main.py` (updated with 100+ endpoints)
+- `docs/GENFIN.md` (updated with v6.1 features)
+- `docs/SMOKE_TEST_v6.1.0.md` (new)
+
+---
 
 #### v6.0.0 - GenFin Suite: Complete Farm Financial Management System
 
