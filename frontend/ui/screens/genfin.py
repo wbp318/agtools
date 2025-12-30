@@ -3291,9 +3291,31 @@ class GenFinNavSidebar(QFrame):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
+                border: none;
+                background-color: {GENFIN_COLORS['teal_dark']};
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background-color: {GENFIN_COLORS['teal_dark']};
+            }}
+            QScrollBar:vertical {{
+                background-color: {GENFIN_COLORS['teal_dark']};
+                width: 8px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {GENFIN_COLORS['teal']};
+                min-height: 20px;
+                border-radius: 4px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
+        """)
 
         nav_widget = QWidget()
+        nav_widget.setStyleSheet(f"background-color: {GENFIN_COLORS['teal_dark']};")
         nav_layout = QVBoxLayout(nav_widget)
         nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setSpacing(0)
@@ -5283,6 +5305,39 @@ class GenFinPayrollCenterScreen(QWidget):
 
         self.tabs.addTab(schedules_tab, "Pay Schedules")
 
+        # === Employees Tab ===
+        employees_tab = QWidget()
+        employees_layout = QVBoxLayout(employees_tab)
+        employees_layout.setSpacing(8)
+
+        # Employee list header
+        emp_header = QLabel("Employees on Payroll")
+        emp_header.setStyleSheet(f"""
+            font-weight: bold;
+            font-size: 14px;
+            color: {GENFIN_COLORS['teal_dark']};
+            padding: 4px;
+        """)
+        employees_layout.addWidget(emp_header)
+
+        # Employees table
+        self.employees_table = QTableWidget()
+        self.employees_table.setColumnCount(7)
+        self.employees_table.setHorizontalHeaderLabels([
+            "Employee Name", "Employee ID", "Pay Schedule", "Pay Type", "Pay Rate", "Payment Method", "Status"
+        ])
+        self.employees_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.employees_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.employees_table.setAlternatingRowColors(True)
+        employees_layout.addWidget(self.employees_table)
+
+        # Summary info
+        self.emp_summary_label = QLabel("0 employees on payroll")
+        self.emp_summary_label.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; font-style: italic;")
+        employees_layout.addWidget(self.emp_summary_label)
+
+        self.tabs.addTab(employees_tab, "Employees")
+
         # === Scheduled Payroll Tab ===
         scheduled_tab = QWidget()
         scheduled_layout = QVBoxLayout(scheduled_tab)
@@ -5446,6 +5501,7 @@ class GenFinPayrollCenterScreen(QWidget):
         emp_data = api_get("/employees")
         if emp_data is not None:
             self._employees = emp_data if isinstance(emp_data, list) else []
+            self._populate_employees_table()
 
         # Load bank accounts
         bank_data = api_get("/bank-accounts")
@@ -5478,6 +5534,66 @@ class GenFinPayrollCenterScreen(QWidget):
             else:
                 status_item.setForeground(Qt.GlobalColor.gray)
             self.schedules_table.setItem(i, 5, status_item)
+
+    def _populate_employees_table(self):
+        """Populate the employees on payroll table."""
+        # Filter to active employees only
+        active_employees = [e for e in self._employees if e.get("status") == "active"]
+        self.employees_table.setRowCount(len(active_employees))
+
+        # Build schedule lookup
+        schedule_lookup = {s.get("schedule_id"): s.get("name", "N/A") for s in self._schedules}
+
+        for i, emp in enumerate(active_employees):
+            # Employee name
+            name = f"{emp.get('last_name', '')}, {emp.get('first_name', '')}"
+            if emp.get("middle_name"):
+                name += f" {emp.get('middle_name')[0]}."
+            name_item = QTableWidgetItem(name)
+            name_item.setFont(QFont("MS Sans Serif", 11, QFont.Weight.Bold))
+            self.employees_table.setItem(i, 0, name_item)
+
+            # Employee ID
+            self.employees_table.setItem(i, 1, QTableWidgetItem(emp.get("employee_id", "")))
+
+            # Pay Schedule
+            schedule_id = emp.get("pay_schedule_id")
+            schedule_name = schedule_lookup.get(schedule_id, "Not Assigned")
+            schedule_item = QTableWidgetItem(schedule_name)
+            if schedule_name == "Not Assigned":
+                schedule_item.setForeground(Qt.GlobalColor.red)
+            self.employees_table.setItem(i, 2, schedule_item)
+
+            # Pay Type
+            pay_type = emp.get("pay_type", "hourly").title()
+            self.employees_table.setItem(i, 3, QTableWidgetItem(pay_type))
+
+            # Pay Rate
+            rate = emp.get("pay_rate", 0)
+            if emp.get("pay_type") == "salary":
+                rate_text = f"${rate:,.0f}/yr"
+            else:
+                rate_text = f"${rate:.2f}/hr"
+            self.employees_table.setItem(i, 4, QTableWidgetItem(rate_text))
+
+            # Payment Method
+            method = emp.get("payment_method", "check")
+            method_display = {"check": "Check", "direct_deposit": "Direct Deposit", "both": "Both"}.get(method, method)
+            self.employees_table.setItem(i, 5, QTableWidgetItem(method_display))
+
+            # Status
+            status_item = QTableWidgetItem("Active")
+            status_item.setForeground(Qt.GlobalColor.darkGreen)
+            self.employees_table.setItem(i, 6, status_item)
+
+        # Update summary
+        total = len(active_employees)
+        assigned = sum(1 for e in active_employees if e.get("pay_schedule_id"))
+        unassigned = total - assigned
+        summary = f"{total} employee(s) on payroll"
+        if unassigned > 0:
+            summary += f" ({unassigned} not assigned to a schedule)"
+        self.emp_summary_label.setText(summary)
 
     def _populate_due_table(self, due_payrolls: List[Dict]):
         """Populate the due payrolls table."""
