@@ -31,42 +31,56 @@ API_BASE = "http://127.0.0.1:8000/api/v1/genfin"
 def api_get(endpoint: str) -> Optional[Dict]:
     """Make GET request to GenFin API."""
     try:
-        response = requests.get(f"{API_BASE}{endpoint}", timeout=5)
+        url = f"{API_BASE}{endpoint}"
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             return response.json()
+        print(f"API GET {url} returned status {response.status_code}: {response.text[:200]}")
         return None
     except Exception as e:
-        print(f"API GET error: {e}")
+        print(f"API GET error for {endpoint}: {e}")
         return None
 
 
 def api_post(endpoint: str, data: Dict) -> Optional[Dict]:
     """Make POST request to GenFin API."""
     try:
-        response = requests.post(f"{API_BASE}{endpoint}", json=data, timeout=5)
-        return response.json()
+        url = f"{API_BASE}{endpoint}"
+        response = requests.post(url, json=data, timeout=5)
+        if response.status_code in [200, 201]:
+            return response.json()
+        print(f"API POST {url} returned status {response.status_code}: {response.text[:200]}")
+        return response.json() if response.text else None
     except Exception as e:
-        print(f"API POST error: {e}")
+        print(f"API POST error for {endpoint}: {e}")
         return None
 
 
 def api_put(endpoint: str, data: Dict) -> Optional[Dict]:
     """Make PUT request to GenFin API."""
     try:
-        response = requests.put(f"{API_BASE}{endpoint}", json=data, timeout=5)
-        return response.json()
+        url = f"{API_BASE}{endpoint}"
+        response = requests.put(url, json=data, timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        print(f"API PUT {url} returned status {response.status_code}: {response.text[:200]}")
+        return response.json() if response.text else None
     except Exception as e:
-        print(f"API PUT error: {e}")
+        print(f"API PUT error for {endpoint}: {e}")
         return None
 
 
 def api_delete(endpoint: str) -> bool:
     """Make DELETE request to GenFin API."""
     try:
-        response = requests.delete(f"{API_BASE}{endpoint}", timeout=5)
-        return response.status_code in [200, 204]
+        url = f"{API_BASE}{endpoint}"
+        response = requests.delete(url, timeout=5)
+        if response.status_code in [200, 204]:
+            return True
+        print(f"API DELETE {url} returned status {response.status_code}: {response.text[:200]}")
+        return False
     except Exception as e:
-        print(f"API DELETE error: {e}")
+        print(f"API DELETE error for {endpoint}: {e}")
         return False
 
 
@@ -3645,6 +3659,12 @@ class GenFinListScreen(QWidget):
             return
 
         name = item.get("name", item.get("full_name", "this item"))
+        item_id = item.get(self.id_field)
+
+        if not item_id:
+            QMessageBox.warning(self, "Error", f"Cannot delete: No {self.id_field} found in item data.")
+            return
+
         reply = QMessageBox.question(
             self, "Confirm Delete",
             f"Are you sure you want to delete '{name}'?",
@@ -3652,12 +3672,16 @@ class GenFinListScreen(QWidget):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            item_id = item.get(self.id_field)
-            if api_delete(f"{self.api_endpoint}/{item_id}"):
-                QMessageBox.information(self, "Success", "Item deleted successfully!")
+            endpoint = f"{self.api_endpoint}/{item_id}"
+            print(f"Attempting to delete: {endpoint}")  # Debug
+            if api_delete(endpoint):
+                QMessageBox.information(self, "Success", f"'{name}' deleted successfully!")
                 self.load_data()
             else:
-                QMessageBox.warning(self, "Error", "Failed to delete item.")
+                QMessageBox.warning(self, "Error",
+                    f"Failed to delete '{name}'.\n\n"
+                    f"Check console for details.\n"
+                    f"Endpoint: {self.api_endpoint}/{item_id}")
 
     def set_data(self, rows: list):
         """Set table data from list of row tuples (for static data)."""
