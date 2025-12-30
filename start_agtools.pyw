@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """
-AgTools Professional - All-in-One Launcher
+AgTools Professional v6.5.0 - All-in-One Launcher
 
 Starts the backend server and frontend desktop app together.
 The .pyw extension runs without a console window on Windows.
+
+Features:
+- Farm Operations Management
+- GenFin Accounting (100% QuickBooks Parity)
+- Crop Consulting & Pest/Disease ID
+- Precision Agriculture Tools
 """
 
 import sys
