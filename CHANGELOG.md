@@ -31,18 +31,49 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 **Major Milestone:** Zero placeholder screens remaining. Every GenFin feature is fully functional.
 
-**New Screens (17 total):**
+**Complete Screen Parity Checklist:**
 
-| Module | Screens Added |
-|--------|---------------|
-| Banking | Bank Accounts, Check Register, Transfers, Reconcile, Bank Feeds |
-| Customer | Statements (email/print), Credit Memos |
-| Vendor | Credit Cards, Vendor Credits |
-| Payroll | Pay Liabilities (E-Pay), Employees tab in Payroll Center |
-| Lists | Fixed Assets (depreciation), Recurring Transactions, Memorized Transactions |
-| Other | Budgets, Entities (Classes/Locations/Names/Terms), Settings, Help Center |
+| Screen | Status | Screen | Status |
+|--------|--------|--------|--------|
+| Employees | ✅ Complete | Bank Accounts | ✅ Complete |
+| Customers | ✅ Complete | Check Register | ✅ Complete |
+| Vendors | ✅ Complete | Transfers | ✅ Complete |
+| Invoices | ✅ Complete | Bank Reconciliation | ✅ Complete |
+| Bills | ✅ Complete | Bank Feeds | ✅ Complete |
+| Chart of Accounts | ✅ Complete | Fixed Assets | ✅ Complete |
+| Receive Payments | ✅ Complete | Recurring Trans. | ✅ Complete |
+| Pay Bills | ✅ Complete | Memorized Trans. | ✅ Complete |
+| Write Checks | ✅ Complete | Entities/Classes | ✅ Complete |
+| Make Deposits | ✅ Complete | 1099 Forms | ✅ Complete |
+| Journal Entries | ✅ Complete | Budgets | ✅ Complete |
+| Estimates | ✅ Complete | Reports (50+) | ✅ Complete |
+| Purchase Orders | ✅ Complete | Payroll Center | ✅ Complete |
+| Sales Receipts | ✅ Complete | Pay Liabilities | ✅ Complete |
+| Time Tracking | ✅ Complete | Statements | ✅ Complete |
+| Inventory/Items | ✅ Complete | Credit Memos | ✅ Complete |
+| Credit Cards | ✅ Complete | Vendor Credits | ✅ Complete |
+| Settings | ✅ Complete | Help Center | ✅ Complete |
 
-**Stats:** `genfin.py` now ~8,500 lines | 35+ screen/dialog classes
+**Dialogs Built (14 total):**
+- ReceivePaymentDialog, PayBillsDialog, WriteCheckDialog, MakeDepositDialog
+- JournalEntryDialog, EstimateDialog, PurchaseOrderDialog, SalesReceiptDialog
+- TimeEntryDialog, InventoryItemDialog, AddPayScheduleDialog
+- RunScheduledPayrollDialog, RunUnscheduledPayrollDialog, ViewPayRunDialog
+
+**Payroll Center Features:**
+- Pay Schedules (Weekly/Biweekly/Semi-monthly/Monthly)
+- Scheduled Payroll with "Run Now" buttons
+- Unscheduled Payroll (Bonus/Commission/Correction/Termination)
+- Pay History with Calculate/Approve/Process workflow
+- 10 new payroll API endpoints
+
+**UI Enhancements:**
+- [x] Keyboard shortcut legend (F1)
+- [x] Toolbar shortcuts (+, E, X, R, P, ?)
+- [x] Back/Forward navigation (Alt+Left/Right)
+- [x] 36 icon letter shortcuts
+
+**Stats:** `genfin.py` ~8,500 lines | `genfin_payroll_service.py` ~2,000 lines | 35+ classes
 
 ---
 
