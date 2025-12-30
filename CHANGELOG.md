@@ -91,15 +91,73 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ## Roadmap
 
-### v7.0.0 - Windows 95/98 Retro Theme (Planned)
-- Excel 97 green theme for main AgTools screens
-- Keep GenFin's teal QuickBooks theme
-- Beveled 3D buttons, classic scrollbars, MS Sans Serif fonts
+### v7.0.0 - Windows 95/98 Retro Theme Overhaul
 
-### v6.4.x - Farm Operations Continued
-- Module 3: Harvest Management (scale tickets, yield analysis)
-- Module 4: Soil & Fertility (soil tests, nutrient recommendations)
-- Module 5: Crop Planning + FSA (rotations, PLC/ARC, CRP)
+**Goal:** Transform AgTools to nostalgic Windows 95/98 style with Excel 97 green theme.
+
+**Theme Specifications:**
+- **Colors:** Primary #217346 (Excel green), Secondary #1E5E3A, Light #2E8B57, Accent #3CB371
+- **Window:** Face #C0C0C0 (classic silver), Background #D4D0C8 (Windows 98 gray)
+
+**Visual Elements:**
+- Beveled 3D buttons with raised/sunken states
+- Classic Windows 95/98 title bars with gradient
+- Chunky toolbar icons with text labels
+- MS Sans Serif / Tahoma fonts
+- Classic scrollbars with 3D arrows
+- Sunken input fields, menu bars with underlined accelerators
+- Status bars with sunken panels
+
+**Screens to Update:**
+- Dashboard, Field Management, Equipment, Inventory
+- Task Management, Crew Management, Operations Log
+- Maintenance Schedule, Reports Dashboard
+- Livestock Management, Seed & Planting, Settings
+- All dialogs and forms
+
+**Keep Separate:** GenFin stays teal QuickBooks theme (embedded app feel)
+
+**Files to Create:**
+- `frontend/ui/retro_styles.py` - Excel green theme
+- `frontend/ui/retro_widgets.py` - 95/98 style widgets
+
+**Files to Modify:**
+- `frontend/ui/styles.py`, `sidebar.py`, `main_window.py`
+- All screen files - Apply retro styling
+
+---
+
+### v6.4.x - Farm Operations Modules 3-5
+
+**Module 3: Harvest Management**
+- Scale ticket entry and tracking
+- Moisture adjustment calculations
+- Yield per field/variety analysis
+- CSV import (John Deere Ops Center, Climate FieldView)
+- Delivery and settlement tracking
+
+**Module 4: Soil & Fertility**
+- Soil sample entry and history
+- Lab CSV imports (Ward Labs, A&L, Midwest Labs)
+- Nutrient trend analysis
+- Fertilizer plan creation
+- Application tracking
+
+**Module 5: Crop Planning + FSA**
+- Multi-year crop rotation planning
+- Budget creation with break-even analysis
+- Scenario modeling (what-if)
+- FSA farm/tract registration
+- Base acres and PLC/ARC election tracking
+- CRP contract management
+
+---
+
+### GenFin Remaining Tasks
+- [ ] Print previews for checks, invoices, reports
+- [ ] Import/Export dialogs (QIF, CSV, IIF)
+- [ ] Bank feed auto-matching improvements
+- [ ] Batch invoice/statement generation
 
 ---
 
