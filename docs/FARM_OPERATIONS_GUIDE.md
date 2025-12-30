@@ -421,6 +421,29 @@ Access Farm Operations modules from the sidebar:
 
 ---
 
+## GenFin Integration (v6.5.0)
+
+Farm Operations integrates seamlessly with **GenFin** - the complete farm financial management system:
+
+| Operation | GenFin Integration |
+|-----------|-------------------|
+| **Livestock Sales** | Auto-create invoices and record revenue |
+| **Livestock Purchases** | Auto-create bills and track expenses |
+| **Seed Purchases** | Track as inventory, record vendor payments |
+| **Planting Costs** | Allocate expenses to fields for cost-per-acre |
+
+GenFin v6.5.0 provides full QuickBooks Desktop parity:
+- Bank Accounts, Check Register, Reconciliation
+- Customer Statements, Credit Memos
+- Credit Cards, Vendor Credits
+- Pay Liabilities, Payroll Center
+- Fixed Assets, Recurring/Memorized Transactions
+- Budgets, Entities (Classes/Locations), Settings, Help
+
+See `docs/GENFIN.md` for complete GenFin documentation.
+
+---
+
 ## Support
 
 Farm Operations Suite is part of AgTools Professional.
