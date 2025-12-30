@@ -414,8 +414,27 @@ class PhotoService:
         return row["count"] if row else 0
 
     def get_file_path(self, filename: str) -> Optional[Path]:
-        """Get full file path for a photo filename."""
-        file_path = self.photos_dir / filename
+        """
+        Get full file path for a photo filename.
+
+        Includes path traversal protection to prevent directory escape attacks.
+        """
+        # Sanitize: extract just the filename component, reject path separators
+        if '..' in filename or '/' in filename or '\\' in filename:
+            return None
+
+        safe_filename = Path(filename).name
+        if not safe_filename:
+            return None
+
+        file_path = self.photos_dir / safe_filename
+
+        # Double-check: ensure resolved path is within photos_dir
+        try:
+            file_path.resolve().relative_to(self.photos_dir.resolve())
+        except ValueError:
+            return None  # Path escapes photos_dir
+
         if file_path.exists():
             return file_path
         return None

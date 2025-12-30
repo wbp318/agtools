@@ -207,7 +207,8 @@ class UserService:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, ("admin", "admin@farm.local", password_hash, "Farm", "Admin", "admin"))
             conn.commit()
-            print("Created default admin user: admin / admin123 (change this password!)")
+            # SECURITY: Don't log credentials. User should check docs for default password.
+            print("Created default admin user. See documentation for initial credentials.")
 
         conn.close()
 

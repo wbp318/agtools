@@ -13,11 +13,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from enum import Enum
 import uvicorn
+
+# Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
 
 # Auth imports
 from middleware.auth_middleware import (
@@ -395,14 +403,35 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Rate limiting setup
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS middleware for web frontend
+# SECURITY: For production, set AGTOOLS_CORS_ORIGINS environment variable
+# Example: AGTOOLS_CORS_ORIGINS=https://agtools.yourfarm.com,https://app.yourfarm.com
+_cors_origins = os.getenv("AGTOOLS_CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=_cors_origins if _cors_origins != ["*"] else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
+
+# Security headers middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ============================================================================
 # MOBILE WEB INTERFACE (Server-rendered HTML)
@@ -2164,11 +2193,13 @@ class LoginResponse(BaseModel):
 
 
 @app.post("/api/v1/auth/login", response_model=LoginResponse, tags=["Authentication"])
+@limiter.limit("5/minute")  # Prevent brute force attacks
 async def login(request: Request, login_data: LoginRequest):
     """
     Authenticate user and return JWT tokens.
 
     Returns access_token (24h) and refresh_token (7d).
+    Rate limited to 5 attempts per minute per IP.
     """
     user_service = get_user_service()
 
@@ -2251,11 +2282,13 @@ async def update_current_user(
 
 
 @app.post("/api/v1/auth/change-password", tags=["Authentication"])
+@limiter.limit("3/minute")  # Prevent password guessing
 async def change_password(
+    request: Request,
     password_data: PasswordChange,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Change current user's password."""
+    """Change current user's password. Rate limited to 3 attempts per minute."""
     user_service = get_user_service()
 
     success, error = user_service.change_password(

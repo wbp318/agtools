@@ -15,6 +15,11 @@ from datetime import date
 from fastapi import APIRouter, Request, Form, Depends, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+# Rate limiter for mobile routes
+limiter = Limiter(key_func=get_remote_address)
 
 from .auth import (
     get_session_user,
@@ -138,6 +143,7 @@ async def login_page(
 
 
 @router.post("/login", response_class=HTMLResponse)
+@limiter.limit("5/minute")  # Prevent brute force attacks
 async def login_submit(
     request: Request,
     username: str = Form(...),
@@ -146,6 +152,7 @@ async def login_submit(
 ):
     """
     Process login form submission.
+    Rate limited to 5 attempts per minute per IP.
 
     Form fields:
         username: User's username
