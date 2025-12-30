@@ -295,13 +295,65 @@ from services.farm_business_service import (
     DocumentCategory,
     MACRS_RATES
 )
+
+# GenFin - Complete Accounting Suite
+from services.genfin_core_service import (
+    genfin_core_service,
+    AccountType as GenFinAccountType,
+    AccountSubType as GenFinAccountSubType,
+    TransactionStatus as GenFinTransactionStatus
+)
+from services.genfin_payables_service import (
+    genfin_payables_service,
+    VendorStatus,
+    BillStatus,
+    PaymentMethod as APPaymentMethod,
+    PurchaseOrderStatus
+)
+from services.genfin_receivables_service import (
+    genfin_receivables_service,
+    CustomerStatus,
+    InvoiceStatus,
+    EstimateStatus,
+    PaymentMethod as ARPaymentMethod
+)
+from services.genfin_banking_service import (
+    genfin_banking_service,
+    BankAccountType,
+    CheckStatus,
+    CheckFormat,
+    TransactionType as BankTransactionType,
+    ReconciliationStatus
+)
+from services.genfin_payroll_service import (
+    genfin_payroll_service,
+    EmployeeStatus as PayrollEmployeeStatus,
+    EmployeeType as PayrollEmployeeType,
+    PayFrequency,
+    PayType as PayrollPayType,
+    PayRunStatus,
+    FilingStatus,
+    PaymentMethod as PayrollPaymentMethod
+)
+from services.genfin_reports_service import (
+    genfin_reports_service,
+    ReportType,
+    ReportPeriod
+)
+from services.genfin_budget_service import (
+    genfin_budget_service,
+    BudgetType,
+    BudgetStatus,
+    ForecastMethod
+)
+
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
-    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, and professional PDF report generation",
-    version="4.3.0",
+    description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system",
+    version="6.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -12445,6 +12497,905 @@ async def generate_community_grant_report(
         grant_program=grant_program,
         year=year
     )
+
+
+# ============================================================================
+# GENFIN - COMPLETE ACCOUNTING SYSTEM
+# ============================================================================
+
+# ------------ GenFin Pydantic Models ------------
+
+class GenFinAccountCreate(BaseModel):
+    account_number: str
+    name: str
+    account_type: str
+    sub_type: str
+    description: str = ""
+    parent_account_id: Optional[str] = None
+    tax_line: Optional[str] = None
+    opening_balance: float = 0.0
+    opening_balance_date: Optional[str] = None
+
+class GenFinJournalEntryLine(BaseModel):
+    account_id: str
+    description: str = ""
+    debit: float = 0.0
+    credit: float = 0.0
+    tax_code: Optional[str] = None
+    class_id: Optional[str] = None
+    location_id: Optional[str] = None
+
+class GenFinJournalEntryCreate(BaseModel):
+    entry_date: str
+    lines: List[GenFinJournalEntryLine]
+    memo: str = ""
+    source_type: str = "manual"
+    adjusting_entry: bool = False
+    auto_post: bool = False
+
+class GenFinVendorCreate(BaseModel):
+    company_name: str
+    display_name: Optional[str] = None
+    contact_name: str = ""
+    email: str = ""
+    phone: str = ""
+    billing_address_line1: str = ""
+    billing_city: str = ""
+    billing_state: str = ""
+    billing_zip: str = ""
+    tax_id: str = ""
+    is_1099_vendor: bool = False
+    payment_terms: str = "Net 30"
+    vendor_type: str = ""
+    default_expense_account_id: Optional[str] = None
+
+class GenFinBillLineCreate(BaseModel):
+    account_id: str
+    description: str = ""
+    quantity: float = 1.0
+    unit_price: float = 0.0
+    tax_amount: float = 0.0
+    class_id: Optional[str] = None
+
+class GenFinBillCreate(BaseModel):
+    vendor_id: str
+    bill_date: str
+    lines: List[GenFinBillLineCreate]
+    reference_number: str = ""
+    terms: str = "Net 30"
+    memo: str = ""
+
+class GenFinBillPaymentCreate(BaseModel):
+    vendor_id: str
+    payment_date: str
+    bank_account_id: str
+    payment_method: str
+    bills_to_pay: List[Dict]
+    reference_number: str = ""
+    memo: str = ""
+
+class GenFinCustomerCreate(BaseModel):
+    company_name: str
+    display_name: Optional[str] = None
+    contact_name: str = ""
+    email: str = ""
+    phone: str = ""
+    billing_address_line1: str = ""
+    billing_city: str = ""
+    billing_state: str = ""
+    billing_zip: str = ""
+    tax_exempt: bool = False
+    payment_terms: str = "Net 30"
+    customer_type: str = ""
+    credit_limit: float = 0.0
+
+class GenFinInvoiceLineCreate(BaseModel):
+    account_id: str
+    description: str = ""
+    quantity: float = 1.0
+    unit_price: float = 0.0
+    tax_amount: float = 0.0
+    discount_amount: float = 0.0
+    class_id: Optional[str] = None
+
+class GenFinInvoiceCreate(BaseModel):
+    customer_id: str
+    invoice_date: str
+    lines: List[GenFinInvoiceLineCreate]
+    po_number: str = ""
+    terms: str = "Net 30"
+    memo: str = ""
+    message_on_invoice: str = ""
+
+class GenFinPaymentReceivedCreate(BaseModel):
+    customer_id: str
+    payment_date: str
+    deposit_account_id: str
+    payment_method: str
+    total_amount: float
+    invoices_to_apply: List[Dict] = []
+    reference_number: str = ""
+    memo: str = ""
+
+class GenFinBankAccountCreate(BaseModel):
+    account_name: str
+    account_type: str
+    bank_name: str
+    routing_number: str
+    account_number: str
+    gl_account_id: Optional[str] = None
+    starting_balance: float = 0.0
+    starting_check_number: int = 1001
+    check_format: str = "quickbooks_voucher"
+    ach_enabled: bool = False
+    ach_company_id: str = ""
+    ach_company_name: str = ""
+
+class GenFinCheckCreate(BaseModel):
+    bank_account_id: str
+    payee_name: str
+    amount: float
+    check_date: str
+    memo: str = ""
+    payee_address_line1: str = ""
+    payee_city: str = ""
+    payee_state: str = ""
+    payee_zip: str = ""
+    vendor_id: Optional[str] = None
+    bills_paid: List[Dict] = []
+    voucher_description: str = ""
+
+class GenFinACHBatchCreate(BaseModel):
+    bank_account_id: str
+    effective_date: str
+    batch_description: str
+    entries: List[Dict]
+
+class GenFinEmployeeCreate(BaseModel):
+    first_name: str
+    last_name: str
+    middle_name: str = ""
+    email: str = ""
+    phone: str = ""
+    address_line1: str = ""
+    city: str = ""
+    state: str = ""
+    zip_code: str = ""
+    employee_type: str = "full_time"
+    department: str = ""
+    job_title: str = ""
+    hire_date: Optional[str] = None
+    pay_type: str = "hourly"
+    pay_rate: float = 0.0
+    pay_frequency: str = "biweekly"
+    ssn: str = ""
+    date_of_birth: Optional[str] = None
+    filing_status: str = "single"
+    federal_allowances: int = 0
+    payment_method: str = "check"
+    bank_routing_number: str = ""
+    bank_account_number: str = ""
+    bank_account_type: str = "checking"
+    is_owner: bool = False
+
+class GenFinTimeEntryCreate(BaseModel):
+    employee_id: str
+    work_date: str
+    regular_hours: float = 0.0
+    overtime_hours: float = 0.0
+    sick_hours: float = 0.0
+    vacation_hours: float = 0.0
+    holiday_hours: float = 0.0
+    notes: str = ""
+
+class GenFinPayRunCreate(BaseModel):
+    pay_period_start: str
+    pay_period_end: str
+    pay_date: str
+    bank_account_id: str
+    employee_ids: Optional[List[str]] = None
+
+class GenFinBudgetCreate(BaseModel):
+    name: str
+    fiscal_year: int
+    budget_type: str = "annual"
+    description: str = ""
+    copy_from_budget_id: Optional[str] = None
+    copy_from_actuals: bool = False
+
+class GenFinBudgetLineUpdate(BaseModel):
+    budget_id: str
+    account_id: str
+    period_amounts: Dict[str, float]
+    notes: str = ""
+
+class GenFinForecastCreate(BaseModel):
+    name: str
+    start_date: str
+    end_date: str
+    method: str = "trend"
+    base_budget_id: Optional[str] = None
+    assumptions: str = ""
+
+class GenFinScenarioCreate(BaseModel):
+    name: str
+    base_budget_id: str
+    adjustments: Dict[str, float]
+    description: str = ""
+
+
+# ------------ GenFin Core - Chart of Accounts & General Ledger ------------
+
+@app.get("/api/v1/genfin/summary", tags=["GenFin Core"])
+async def get_genfin_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get GenFin system summary"""
+    return {
+        "core": genfin_core_service.get_system_summary(),
+        "payables": genfin_payables_service.get_service_summary(),
+        "receivables": genfin_receivables_service.get_service_summary(),
+        "banking": genfin_banking_service.get_service_summary(),
+        "payroll": genfin_payroll_service.get_service_summary(),
+        "reports": genfin_reports_service.get_service_summary(),
+        "budget": genfin_budget_service.get_service_summary()
+    }
+
+@app.get("/api/v1/genfin/chart-of-accounts", tags=["GenFin Core"])
+async def get_chart_of_accounts(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get complete chart of accounts"""
+    return genfin_core_service.get_chart_of_accounts()
+
+@app.post("/api/v1/genfin/accounts", tags=["GenFin Core"])
+async def create_account(data: GenFinAccountCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new account"""
+    return genfin_core_service.create_account(**data.dict())
+
+@app.get("/api/v1/genfin/accounts", tags=["GenFin Core"])
+async def list_accounts(
+    account_type: Optional[str] = None,
+    active_only: bool = True,
+    include_balances: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List accounts with optional filtering"""
+    return genfin_core_service.list_accounts(account_type, active_only, include_balances)
+
+@app.get("/api/v1/genfin/accounts/{account_id}", tags=["GenFin Core"])
+async def get_account(account_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get account by ID"""
+    result = genfin_core_service.get_account(account_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return result
+
+@app.get("/api/v1/genfin/accounts/{account_id}/balance", tags=["GenFin Core"])
+async def get_account_balance(
+    account_id: str,
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get account balance as of date"""
+    return {"balance": genfin_core_service.get_account_balance(account_id, as_of_date)}
+
+@app.get("/api/v1/genfin/accounts/{account_id}/ledger", tags=["GenFin Core"])
+async def get_account_ledger(
+    account_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get detailed ledger for an account"""
+    return genfin_core_service.get_account_ledger(account_id, start_date, end_date)
+
+@app.post("/api/v1/genfin/journal-entries", tags=["GenFin Core"])
+async def create_journal_entry(data: GenFinJournalEntryCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a journal entry"""
+    lines = [line.dict() for line in data.lines]
+    return genfin_core_service.create_journal_entry(
+        entry_date=data.entry_date,
+        lines=lines,
+        memo=data.memo,
+        source_type=data.source_type,
+        adjusting_entry=data.adjusting_entry,
+        auto_post=data.auto_post
+    )
+
+@app.get("/api/v1/genfin/journal-entries", tags=["GenFin Core"])
+async def list_journal_entries(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    source_type: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List journal entries"""
+    return genfin_core_service.list_journal_entries(start_date, end_date, status, source_type)
+
+@app.post("/api/v1/genfin/journal-entries/{entry_id}/post", tags=["GenFin Core"])
+async def post_journal_entry(entry_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Post a draft journal entry"""
+    return genfin_core_service.post_journal_entry(entry_id)
+
+@app.get("/api/v1/genfin/trial-balance", tags=["GenFin Core"])
+async def get_trial_balance(
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get trial balance"""
+    return genfin_core_service.get_trial_balance(as_of_date)
+
+
+# ------------ GenFin Payables - Vendors, Bills, Payments ------------
+
+@app.post("/api/v1/genfin/vendors", tags=["GenFin Payables"])
+async def create_vendor(data: GenFinVendorCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new vendor"""
+    return genfin_payables_service.create_vendor(**data.dict())
+
+@app.get("/api/v1/genfin/vendors", tags=["GenFin Payables"])
+async def list_vendors(
+    status: Optional[str] = None,
+    vendor_type: Optional[str] = None,
+    is_1099: Optional[bool] = None,
+    search: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List vendors"""
+    return genfin_payables_service.list_vendors(status, vendor_type, is_1099, search)
+
+@app.get("/api/v1/genfin/vendors/{vendor_id}", tags=["GenFin Payables"])
+async def get_vendor(vendor_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get vendor by ID"""
+    result = genfin_payables_service.get_vendor(vendor_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return result
+
+@app.get("/api/v1/genfin/vendors/{vendor_id}/balance", tags=["GenFin Payables"])
+async def get_vendor_balance(vendor_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get vendor balance"""
+    return {"balance": genfin_payables_service.get_vendor_balance(vendor_id)}
+
+@app.post("/api/v1/genfin/bills", tags=["GenFin Payables"])
+async def create_bill(data: GenFinBillCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new bill"""
+    lines = [line.dict() for line in data.lines]
+    return genfin_payables_service.create_bill(
+        vendor_id=data.vendor_id,
+        bill_date=data.bill_date,
+        lines=lines,
+        reference_number=data.reference_number,
+        terms=data.terms,
+        memo=data.memo
+    )
+
+@app.get("/api/v1/genfin/bills", tags=["GenFin Payables"])
+async def list_bills(
+    vendor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    unpaid_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List bills"""
+    return genfin_payables_service.list_bills(vendor_id, status, start_date, end_date, unpaid_only)
+
+@app.post("/api/v1/genfin/bills/{bill_id}/post", tags=["GenFin Payables"])
+async def post_bill(bill_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Post a bill"""
+    return genfin_payables_service.post_bill(bill_id)
+
+@app.post("/api/v1/genfin/bill-payments", tags=["GenFin Payables"])
+async def create_bill_payment(data: GenFinBillPaymentCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a bill payment"""
+    return genfin_payables_service.create_bill_payment(**data.dict())
+
+@app.get("/api/v1/genfin/ap-aging", tags=["GenFin Payables"])
+async def get_ap_aging(
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get AP aging report"""
+    return genfin_payables_service.get_ap_aging(as_of_date)
+
+@app.get("/api/v1/genfin/1099-summary/{year}", tags=["GenFin Payables"])
+async def get_1099_summary(year: int, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get 1099 summary for vendors"""
+    return genfin_payables_service.get_vendor_1099_summary(year)
+
+@app.get("/api/v1/genfin/bills-due", tags=["GenFin Payables"])
+async def get_bills_due(days_ahead: int = 30, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get bills due summary"""
+    return genfin_payables_service.get_bills_due_summary(days_ahead)
+
+
+# ------------ GenFin Receivables - Customers, Invoices, Payments ------------
+
+@app.post("/api/v1/genfin/customers", tags=["GenFin Receivables"])
+async def create_customer(data: GenFinCustomerCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new customer"""
+    return genfin_receivables_service.create_customer(**data.dict())
+
+@app.get("/api/v1/genfin/customers", tags=["GenFin Receivables"])
+async def list_customers(
+    status: Optional[str] = None,
+    customer_type: Optional[str] = None,
+    search: Optional[str] = None,
+    with_balance_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List customers"""
+    return genfin_receivables_service.list_customers(status, customer_type, search, with_balance_only)
+
+@app.get("/api/v1/genfin/customers/{customer_id}", tags=["GenFin Receivables"])
+async def get_customer(customer_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get customer by ID"""
+    result = genfin_receivables_service.get_customer(customer_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return result
+
+@app.get("/api/v1/genfin/customers/{customer_id}/balance", tags=["GenFin Receivables"])
+async def get_customer_balance(customer_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get customer balance"""
+    return {"balance": genfin_receivables_service.get_customer_balance(customer_id)}
+
+@app.get("/api/v1/genfin/customers/{customer_id}/statement", tags=["GenFin Receivables"])
+async def get_customer_statement(
+    customer_id: str,
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get customer statement"""
+    return genfin_receivables_service.get_customer_statement(customer_id, start_date, end_date)
+
+@app.post("/api/v1/genfin/invoices", tags=["GenFin Receivables"])
+async def create_invoice(data: GenFinInvoiceCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new invoice"""
+    lines = [line.dict() for line in data.lines]
+    return genfin_receivables_service.create_invoice(
+        customer_id=data.customer_id,
+        invoice_date=data.invoice_date,
+        lines=lines,
+        po_number=data.po_number,
+        terms=data.terms,
+        memo=data.memo,
+        message_on_invoice=data.message_on_invoice
+    )
+
+@app.get("/api/v1/genfin/invoices", tags=["GenFin Receivables"])
+async def list_invoices(
+    customer_id: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    unpaid_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List invoices"""
+    return genfin_receivables_service.list_invoices(customer_id, status, start_date, end_date, unpaid_only)
+
+@app.post("/api/v1/genfin/invoices/{invoice_id}/send", tags=["GenFin Receivables"])
+async def send_invoice(invoice_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Send an invoice"""
+    return genfin_receivables_service.send_invoice(invoice_id)
+
+@app.post("/api/v1/genfin/payments-received", tags=["GenFin Receivables"])
+async def receive_payment(data: GenFinPaymentReceivedCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Receive a payment"""
+    return genfin_receivables_service.receive_payment(**data.dict())
+
+@app.get("/api/v1/genfin/ar-aging", tags=["GenFin Receivables"])
+async def get_ar_aging(
+    as_of_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get AR aging report"""
+    return genfin_receivables_service.get_ar_aging(as_of_date)
+
+@app.get("/api/v1/genfin/sales-summary", tags=["GenFin Receivables"])
+async def get_sales_summary(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get sales summary"""
+    return genfin_receivables_service.get_sales_summary(start_date, end_date)
+
+
+# ------------ GenFin Banking - Bank Accounts, Checks, ACH ------------
+
+@app.post("/api/v1/genfin/bank-accounts", tags=["GenFin Banking"])
+async def create_bank_account(data: GenFinBankAccountCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a bank account"""
+    return genfin_banking_service.create_bank_account(**data.dict())
+
+@app.get("/api/v1/genfin/bank-accounts", tags=["GenFin Banking"])
+async def list_bank_accounts(active_only: bool = True, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List bank accounts"""
+    return genfin_banking_service.list_bank_accounts(active_only)
+
+@app.get("/api/v1/genfin/bank-accounts/{bank_account_id}", tags=["GenFin Banking"])
+async def get_bank_account(bank_account_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get bank account by ID"""
+    result = genfin_banking_service.get_bank_account(bank_account_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    return result
+
+@app.get("/api/v1/genfin/bank-accounts/{bank_account_id}/register", tags=["GenFin Banking"])
+async def get_bank_register(
+    bank_account_id: str,
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get bank register"""
+    return genfin_banking_service.get_register(bank_account_id, start_date, end_date)
+
+@app.post("/api/v1/genfin/checks", tags=["GenFin Banking"])
+async def create_check(data: GenFinCheckCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a check"""
+    return genfin_banking_service.create_check(**data.dict())
+
+@app.get("/api/v1/genfin/checks", tags=["GenFin Banking"])
+async def list_checks(
+    bank_account_id: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List checks"""
+    return genfin_banking_service.list_checks(bank_account_id, status, start_date, end_date)
+
+@app.get("/api/v1/genfin/checks/{check_id}/print-data", tags=["GenFin Banking"])
+async def get_check_print_data(check_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get check print data"""
+    return genfin_banking_service.get_check_print_data(check_id)
+
+@app.get("/api/v1/genfin/checks/{check_id}/print-layout", tags=["GenFin Banking"])
+async def get_check_print_layout(
+    check_id: str,
+    format_override: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get check print layout with positioning"""
+    return genfin_banking_service.get_check_print_layout(check_id, format_override)
+
+@app.post("/api/v1/genfin/checks/{check_id}/mark-printed", tags=["GenFin Banking"])
+async def mark_check_printed(check_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Mark check as printed"""
+    return genfin_banking_service.mark_check_printed(check_id)
+
+@app.post("/api/v1/genfin/checks/{check_id}/void", tags=["GenFin Banking"])
+async def void_check(check_id: str, reason: str = "", user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Void a check"""
+    return genfin_banking_service.void_check(check_id, reason)
+
+@app.get("/api/v1/genfin/bank-accounts/{bank_account_id}/outstanding-checks", tags=["GenFin Banking"])
+async def get_outstanding_checks(bank_account_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get outstanding checks"""
+    return genfin_banking_service.get_outstanding_checks(bank_account_id)
+
+@app.post("/api/v1/genfin/check-batch", tags=["GenFin Banking"])
+async def create_check_batch(
+    bank_account_id: str,
+    check_ids: List[str],
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a check print batch"""
+    return genfin_banking_service.create_check_batch(bank_account_id, check_ids)
+
+@app.get("/api/v1/genfin/check-batch/{batch_id}/print-data", tags=["GenFin Banking"])
+async def get_check_batch_print_data(batch_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get print data for check batch"""
+    return genfin_banking_service.get_check_batch_print_data(batch_id)
+
+@app.post("/api/v1/genfin/ach-batch", tags=["GenFin Banking"])
+async def create_ach_batch(data: GenFinACHBatchCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create an ACH batch for direct deposit"""
+    return genfin_banking_service.create_ach_batch(**data.dict())
+
+@app.get("/api/v1/genfin/ach-batch/{batch_id}/nacha", tags=["GenFin Banking"])
+async def generate_nacha_file(batch_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Generate NACHA file for ACH batch"""
+    return genfin_banking_service.generate_nacha_file(batch_id)
+
+@app.get("/api/v1/genfin/ach-batches", tags=["GenFin Banking"])
+async def list_ach_batches(
+    bank_account_id: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List ACH batches"""
+    return genfin_banking_service.list_ach_batches(bank_account_id, status, start_date, end_date)
+
+
+# ------------ GenFin Payroll - Employees, Pay Runs, Taxes ------------
+
+@app.post("/api/v1/genfin/employees", tags=["GenFin Payroll"])
+async def create_employee(data: GenFinEmployeeCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new employee"""
+    return genfin_payroll_service.create_employee(**data.dict())
+
+@app.get("/api/v1/genfin/employees", tags=["GenFin Payroll"])
+async def list_employees(
+    status: Optional[str] = None,
+    employee_type: Optional[str] = None,
+    department: Optional[str] = None,
+    active_only: bool = True,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List employees"""
+    return genfin_payroll_service.list_employees(status, employee_type, department, active_only)
+
+@app.get("/api/v1/genfin/employees/{employee_id}", tags=["GenFin Payroll"])
+async def get_employee(employee_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get employee by ID"""
+    result = genfin_payroll_service.get_employee(employee_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return result
+
+@app.get("/api/v1/genfin/employees/{employee_id}/ytd/{year}", tags=["GenFin Payroll"])
+async def get_employee_ytd(employee_id: str, year: int, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get employee year-to-date earnings"""
+    return genfin_payroll_service.get_employee_ytd(employee_id, year)
+
+@app.get("/api/v1/genfin/employees/{employee_id}/deductions", tags=["GenFin Payroll"])
+async def get_employee_deductions(employee_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get employee deductions"""
+    return genfin_payroll_service.get_employee_deductions(employee_id)
+
+@app.post("/api/v1/genfin/time-entries", tags=["GenFin Payroll"])
+async def record_time(data: GenFinTimeEntryCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Record time entry"""
+    return genfin_payroll_service.record_time(**data.dict())
+
+@app.get("/api/v1/genfin/time-entries", tags=["GenFin Payroll"])
+async def get_time_entries(
+    employee_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get time entries"""
+    return genfin_payroll_service.get_time_entries(employee_id, start_date, end_date)
+
+@app.post("/api/v1/genfin/pay-runs", tags=["GenFin Payroll"])
+async def create_pay_run(data: GenFinPayRunCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a pay run"""
+    return genfin_payroll_service.create_pay_run(**data.dict())
+
+@app.get("/api/v1/genfin/pay-runs", tags=["GenFin Payroll"])
+async def list_pay_runs(
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List pay runs"""
+    return genfin_payroll_service.list_pay_runs(status, start_date, end_date)
+
+@app.get("/api/v1/genfin/pay-runs/{pay_run_id}", tags=["GenFin Payroll"])
+async def get_pay_run(pay_run_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get pay run by ID"""
+    result = genfin_payroll_service.get_pay_run(pay_run_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Pay run not found")
+    return result
+
+@app.post("/api/v1/genfin/pay-runs/{pay_run_id}/calculate", tags=["GenFin Payroll"])
+async def calculate_pay_run(pay_run_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Calculate pay run"""
+    return genfin_payroll_service.calculate_pay_run(pay_run_id)
+
+@app.post("/api/v1/genfin/pay-runs/{pay_run_id}/approve", tags=["GenFin Payroll"])
+async def approve_pay_run(pay_run_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Approve pay run"""
+    return genfin_payroll_service.approve_pay_run(pay_run_id, user.username)
+
+@app.post("/api/v1/genfin/pay-runs/{pay_run_id}/process", tags=["GenFin Payroll"])
+async def process_pay_run(pay_run_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Process pay run - create checks and ACH"""
+    return genfin_payroll_service.process_pay_run(pay_run_id)
+
+@app.get("/api/v1/genfin/payroll-summary", tags=["GenFin Payroll"])
+async def get_payroll_summary(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get payroll summary"""
+    return genfin_payroll_service.get_payroll_summary(start_date, end_date)
+
+@app.get("/api/v1/genfin/tax-liability/{period}/{year}", tags=["GenFin Payroll"])
+async def get_tax_liability(period: str, year: int, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get tax liability for period"""
+    return genfin_payroll_service.get_tax_liability(period, year)
+
+
+# ------------ GenFin Reports - Financial Statements ------------
+
+@app.get("/api/v1/genfin/reports/profit-loss", tags=["GenFin Reports"])
+async def get_profit_loss(
+    start_date: str,
+    end_date: str,
+    compare_prior_period: bool = False,
+    compare_prior_year: bool = False,
+    group_by_month: bool = False,
+    class_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Profit & Loss Statement"""
+    return genfin_reports_service.get_profit_loss(
+        start_date, end_date, compare_prior_period, compare_prior_year, group_by_month, class_id
+    )
+
+@app.get("/api/v1/genfin/reports/balance-sheet", tags=["GenFin Reports"])
+async def get_balance_sheet(
+    as_of_date: str,
+    compare_prior_year: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Balance Sheet"""
+    return genfin_reports_service.get_balance_sheet(as_of_date, compare_prior_year=compare_prior_year)
+
+@app.get("/api/v1/genfin/reports/cash-flow", tags=["GenFin Reports"])
+async def get_cash_flow(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Cash Flow Statement"""
+    return genfin_reports_service.get_cash_flow(start_date, end_date)
+
+@app.get("/api/v1/genfin/reports/financial-ratios", tags=["GenFin Reports"])
+async def get_financial_ratios(
+    as_of_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Financial Ratios"""
+    return genfin_reports_service.get_financial_ratios(as_of_date)
+
+@app.get("/api/v1/genfin/reports/general-ledger", tags=["GenFin Reports"])
+async def get_general_ledger_report(
+    start_date: str,
+    end_date: str,
+    account_ids: Optional[List[str]] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get General Ledger Report"""
+    return genfin_reports_service.get_general_ledger(start_date, end_date, account_ids)
+
+@app.get("/api/v1/genfin/reports/income-by-customer", tags=["GenFin Reports"])
+async def get_income_by_customer(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Income by Customer Report"""
+    return genfin_reports_service.get_income_by_customer(start_date, end_date)
+
+@app.get("/api/v1/genfin/reports/expenses-by-vendor", tags=["GenFin Reports"])
+async def get_expenses_by_vendor(
+    start_date: str,
+    end_date: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Expenses by Vendor Report"""
+    return genfin_reports_service.get_expenses_by_vendor(start_date, end_date)
+
+
+# ------------ GenFin Budget - Budgets, Forecasts, Scenarios ------------
+
+@app.post("/api/v1/genfin/budgets", tags=["GenFin Budget"])
+async def create_budget(data: GenFinBudgetCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a budget"""
+    return genfin_budget_service.create_budget(
+        name=data.name,
+        fiscal_year=data.fiscal_year,
+        budget_type=data.budget_type,
+        description=data.description,
+        created_by=user.username,
+        copy_from_budget_id=data.copy_from_budget_id,
+        copy_from_actuals=data.copy_from_actuals
+    )
+
+@app.get("/api/v1/genfin/budgets", tags=["GenFin Budget"])
+async def list_budgets(
+    fiscal_year: Optional[int] = None,
+    status: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List budgets"""
+    return genfin_budget_service.list_budgets(fiscal_year, status)
+
+@app.get("/api/v1/genfin/budgets/{budget_id}", tags=["GenFin Budget"])
+async def get_budget(budget_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get budget by ID"""
+    result = genfin_budget_service.get_budget(budget_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    return result
+
+@app.put("/api/v1/genfin/budgets/line", tags=["GenFin Budget"])
+async def update_budget_line(data: GenFinBudgetLineUpdate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update a budget line"""
+    return genfin_budget_service.update_budget_line(**data.dict())
+
+@app.post("/api/v1/genfin/budgets/{budget_id}/activate", tags=["GenFin Budget"])
+async def activate_budget(budget_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Activate a budget"""
+    return genfin_budget_service.activate_budget(budget_id, user.username)
+
+@app.get("/api/v1/genfin/budgets/{budget_id}/vs-actual", tags=["GenFin Budget"])
+async def get_budget_vs_actual(
+    budget_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    summary_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get budget vs actual comparison"""
+    return genfin_budget_service.get_budget_vs_actual(budget_id, start_date, end_date, summary_only)
+
+@app.get("/api/v1/genfin/budgets/{budget_id}/monthly-variance", tags=["GenFin Budget"])
+async def get_monthly_variance(budget_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get monthly variance analysis"""
+    return genfin_budget_service.get_monthly_variance(budget_id)
+
+@app.post("/api/v1/genfin/forecasts", tags=["GenFin Budget"])
+async def create_forecast(data: GenFinForecastCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a forecast"""
+    return genfin_budget_service.create_forecast(
+        name=data.name,
+        start_date=data.start_date,
+        end_date=data.end_date,
+        method=data.method,
+        base_budget_id=data.base_budget_id,
+        assumptions=data.assumptions,
+        created_by=user.username
+    )
+
+@app.get("/api/v1/genfin/forecasts", tags=["GenFin Budget"])
+async def list_forecasts(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List forecasts"""
+    return genfin_budget_service.list_forecasts()
+
+@app.get("/api/v1/genfin/forecasts/{forecast_id}/summary", tags=["GenFin Budget"])
+async def get_forecast_summary(forecast_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get forecast summary"""
+    return genfin_budget_service.get_forecast_summary(forecast_id)
+
+@app.post("/api/v1/genfin/scenarios", tags=["GenFin Budget"])
+async def create_scenario(data: GenFinScenarioCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a budget scenario"""
+    return genfin_budget_service.create_scenario(**data.dict())
+
+@app.get("/api/v1/genfin/scenarios", tags=["GenFin Budget"])
+async def list_scenarios(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List scenarios"""
+    return genfin_budget_service.list_scenarios()
+
+@app.get("/api/v1/genfin/scenarios/{scenario_id}/run", tags=["GenFin Budget"])
+async def run_scenario(scenario_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Run a scenario and get results"""
+    return genfin_budget_service.run_scenario(scenario_id)
+
+@app.get("/api/v1/genfin/cash-flow-projection", tags=["GenFin Budget"])
+async def get_cash_flow_projection(
+    start_date: str,
+    months_ahead: int = 12,
+    starting_cash: float = 0.0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get cash flow projection"""
+    return genfin_budget_service.get_cash_flow_projection(start_date, months_ahead, starting_cash)
 
 
 # ============================================================================
