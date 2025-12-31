@@ -15,7 +15,9 @@ from PyQt6.QtWidgets import (
     QSizePolicy, QMessageBox, QSpacerItem, QDialog,
     QFormLayout, QTextEdit, QCheckBox, QDialogButtonBox,
     QFileDialog, QProgressDialog, QListWidget, QListWidgetItem,
-    QRadioButton, QButtonGroup, QPlainTextEdit
+    QRadioButton, QButtonGroup, QPlainTextEdit, QMenu,
+    QTreeWidget, QTreeWidgetItem, QCompleter, QStyle,
+    QScrollBar, QTabBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QDate, QTimer, QMarginsF, QSizeF
 from PyQt6.QtWidgets import QApplication
@@ -3776,7 +3778,7 @@ class ReceivePaymentDialog(GenFinDialog):
 
         # === CUSTOMER AND PAYMENT INFO BAR ===
         top_frame = QFrame()
-        top_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['cream']}; border: 1px solid #ccc; padding: 8px;")
+        top_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['panel_bg']}; border: 1px solid #ccc; padding: 8px;")
         top_layout = QHBoxLayout(top_frame)
         top_layout.setContentsMargins(10, 8, 10, 8)
 
@@ -4486,7 +4488,7 @@ class PayBillsDialog(GenFinDialog):
 
         # === TOP SECTION: Select Bills Due ===
         top_frame = QFrame()
-        top_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['cream']}; border: 1px solid #ccc; padding: 8px;")
+        top_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['panel_bg']}; border: 1px solid #ccc; padding: 8px;")
         top_layout = QHBoxLayout(top_frame)
         top_layout.setContentsMargins(10, 8, 10, 8)
 
@@ -9910,7 +9912,7 @@ class SalesOrderDialog(GenFinDialog):
 
         # Right: Totals and Deposit
         totals_frame = QFrame()
-        totals_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['cream']}; border: 1px solid #ccc; padding: 10px;")
+        totals_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['panel_bg']}; border: 1px solid #ccc; padding: 10px;")
         totals_layout = QFormLayout(totals_frame)
 
         self.subtotal = QLabel("$0.00")
@@ -11439,7 +11441,7 @@ class GenFinReconcileScreen(QWidget):
 
         # Totals panel
         totals_frame = QFrame()
-        totals_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['cream']}; border: 1px solid #ccc; padding: 10px;")
+        totals_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['panel_bg']}; border: 1px solid #ccc; padding: 10px;")
         totals_layout = QHBoxLayout(totals_frame)
 
         # Left side totals
@@ -13859,7 +13861,7 @@ class GenFinMemorizedTransScreen(QWidget):
 
         # Bottom info panel
         info_frame = QFrame()
-        info_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['cream']}; border: 1px solid #ccc; padding: 8px;")
+        info_frame.setStyleSheet(f"background-color: {GENFIN_COLORS['panel_bg']}; border: 1px solid #ccc; padding: 8px;")
         info_layout = QHBoxLayout(info_frame)
 
         info_layout.addWidget(QLabel(
