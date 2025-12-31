@@ -193,6 +193,9 @@ class UserService:
 
     def _ensure_admin_exists(self) -> None:
         """Create default admin user if no admin exists."""
+        import secrets
+        import string
+
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -200,15 +203,27 @@ class UserService:
         count = cursor.fetchone()[0]
 
         if count == 0:
-            # Create default admin
-            password_hash = self.auth_service.hash_password("admin123")
+            # SECURITY: Generate a random secure password for default admin
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            random_password = ''.join(secrets.choice(alphabet) for _ in range(16))
+            password_hash = self.auth_service.hash_password(random_password)
+
             cursor.execute("""
                 INSERT INTO users (username, email, password_hash, first_name, last_name, role)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, ("admin", "admin@farm.local", password_hash, "Farm", "Admin", "admin"))
             conn.commit()
-            # SECURITY: Don't log credentials. User should check docs for default password.
-            print("Created default admin user. See documentation for initial credentials.")
+
+            # Display password once - user must save it
+            print("=" * 60)
+            print("  DEFAULT ADMIN ACCOUNT CREATED")
+            print("=" * 60)
+            print(f"  Username: admin")
+            print(f"  Password: {random_password}")
+            print()
+            print("  IMPORTANT: Save this password now!")
+            print("  Use scripts/reset_admin_password.py to reset if lost.")
+            print("=" * 60)
 
         conn.close()
 

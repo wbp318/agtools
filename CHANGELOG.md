@@ -20,6 +20,10 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
   - Or generates a 16-character cryptographically secure random password
   - Enforces minimum 8-character password length
 
+- **Default admin password** - `user_service.py` now generates random password
+  - Was: `admin123` hardcoded for new admin accounts
+  - Now: Generates 16-character secure random password, displayed once at startup
+
 **Medium Fixes:**
 - **CORS restrictive default** - `main.py` CORS now defaults to localhost only
   - Was: `allow_origins=["*"]` (any origin allowed)
@@ -28,6 +32,11 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 - **Hardcoded API URL** - `genfin.py` now uses `APIConfig` from config module
   - Allows changing backend URL via configuration instead of code changes
+
+- **Smoke test credentials** - `smoke_test_v61.py`, `smoke_test_v62.py`, `smoke_test_v63.py`:
+  - Removed hardcoded `admin123` password
+  - Now requires `AGTOOLS_TEST_PASSWORD` environment variable
+  - Added request timeouts for all HTTP calls
 
 ---
 

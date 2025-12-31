@@ -4,11 +4,14 @@ GenFin v6.3.0 Smoke Test
 Tests Multi-Entity, 1099 Tracking, Payroll, and Budgets
 """
 
+import os
 import requests
 import json
 from datetime import datetime, date
 
-BASE_URL = "http://localhost:8000/api/v1"
+BASE_URL = os.environ.get('AGTOOLS_API_URL', 'http://localhost:8000/api/v1')
+TEST_USER = os.environ.get('AGTOOLS_TEST_USER', 'admin')
+TEST_PASS = os.environ.get('AGTOOLS_TEST_PASSWORD')  # No default - must be set
 
 # Authentication - cached token
 _cached_token = None
@@ -19,9 +22,14 @@ def get_auth_token():
     if _cached_token:
         return _cached_token
 
+    if not TEST_PASS:
+        print("ERROR: Set AGTOOLS_TEST_PASSWORD environment variable")
+        return None
+
     response = requests.post(
         f"{BASE_URL}/auth/login",
-        json={"username": "admin", "password": "admin123"}
+        json={"username": TEST_USER, "password": TEST_PASS},
+        timeout=10
     )
     if response.status_code == 200:
         _cached_token = response.json().get("tokens", {}).get("access_token")

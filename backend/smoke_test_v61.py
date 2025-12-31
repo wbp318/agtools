@@ -2,14 +2,21 @@
 GenFin v6.1 Smoke Test Suite
 Tests all new Inventory, Classes/Projects, and Advanced Reports endpoints
 """
+import os
 import requests
 import json
 from datetime import datetime, date
 
-BASE = 'http://127.0.0.1:8000/api/v1'
+BASE = os.environ.get('AGTOOLS_API_URL', 'http://127.0.0.1:8000/api/v1')
+TEST_USER = os.environ.get('AGTOOLS_TEST_USER', 'admin')
+TEST_PASS = os.environ.get('AGTOOLS_TEST_PASSWORD')  # No default - must be set
+
+if not TEST_PASS:
+    print("ERROR: Set AGTOOLS_TEST_PASSWORD environment variable")
+    exit(1)
 
 # Login
-resp = requests.post(f'{BASE}/auth/login', json={'username':'admin','password':'admin123'})
+resp = requests.post(f'{BASE}/auth/login', json={'username': TEST_USER, 'password': TEST_PASS}, timeout=10)
 token = resp.json()['tokens']['access_token']
 headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
