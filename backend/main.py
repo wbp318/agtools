@@ -13710,8 +13710,10 @@ async def list_genfin_inventory(user: AuthenticatedUser = Depends(get_current_ac
 @app.post("/api/v1/genfin/inventory", tags=["GenFin Inventory"])
 async def create_genfin_inventory_item(data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create an inventory item"""
+    # Normalize item_type to lowercase to match enum values
+    item_type = data.get("item_type", "inventory").lower()
     return genfin_inventory_service.create_item(
-        item_type=data.get("item_type", "inventory"),
+        item_type=item_type,
         name=data.get("name", ""),
         description=data.get("description", ""),
         sku=data.get("sku", ""),
@@ -13728,6 +13730,14 @@ async def get_genfin_inventory_item(item_id: str, user: AuthenticatedUser = Depe
     """Get inventory item by ID"""
     result = genfin_inventory_service.get_item(item_id)
     if not result:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return result
+
+@app.put("/api/v1/genfin/inventory/{item_id}", tags=["GenFin Inventory"])
+async def update_genfin_inventory_item(item_id: str, data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update an inventory item"""
+    result = genfin_inventory_service.update_item(item_id, **data)
+    if not result or not result.get("success"):
         raise HTTPException(status_code=404, detail="Item not found")
     return result
 

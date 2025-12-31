@@ -3254,7 +3254,8 @@ class ReceivePaymentDialog(GenFinDialog):
         self.customer.addItem("-- Select Customer --", "")
         for c in self.customers:
             balance = c.get("balance", 0)
-            self.customer.addItem(f"{c.get('name', 'Unknown')} (${balance:,.2f} due)", c.get("customer_id"))
+            name = c.get("display_name") or c.get("company_name") or "Unknown"
+            self.customer.addItem(f"{name} (${balance:,.2f} due)", c.get("customer_id"))
         self.customer.currentIndexChanged.connect(self._load_open_invoices)
         header_layout.addRow("Customer*:", self.customer)
 
@@ -3468,7 +3469,8 @@ class PayBillsDialog(GenFinDialog):
         self.vendor_filter = QComboBox()
         self.vendor_filter.addItem("All Vendors", "")
         for v in self.vendors:
-            self.vendor_filter.addItem(v.get("name", ""), v.get("vendor_id"))
+            name = v.get("display_name") or v.get("company_name") or ""
+            self.vendor_filter.addItem(name, v.get("vendor_id"))
         self.vendor_filter.currentIndexChanged.connect(self._load_open_bills)
         filter_layout.addWidget(self.vendor_filter)
 
@@ -7991,11 +7993,11 @@ class GenFinBankFeedsScreen(QWidget):
         # 3. Match against vendors (for payments)
         if amount < 0:  # Negative = payment
             for vendor in self._vendors:
-                vendor_name = vendor.get('name', '').lower()
+                vendor_name = (vendor.get('display_name') or vendor.get('company_name') or '').lower()
                 similarity = self._string_similarity(description, vendor_name)
 
                 # Also check for partial matches in description
-                if vendor_name in description:
+                if vendor_name and vendor_name in description:
                     similarity = max(similarity, 0.85)
 
                 if similarity > 0.6:
@@ -8004,8 +8006,8 @@ class GenFinBankFeedsScreen(QWidget):
                         best_confidence = confidence
                         best_match = {
                             'type': 'vendor',
-                            'vendor_id': vendor.get('id'),
-                            'vendor_name': vendor.get('name'),
+                            'vendor_id': vendor.get('vendor_id'),
+                            'vendor_name': vendor.get('display_name') or vendor.get('company_name'),
                             'default_account': vendor.get('default_account_id'),
                             'confidence': confidence
                         }
@@ -8013,10 +8015,10 @@ class GenFinBankFeedsScreen(QWidget):
         # 4. Match against customers (for deposits)
         if amount > 0:  # Positive = deposit
             for customer in self._customers:
-                customer_name = customer.get('name', '').lower()
+                customer_name = (customer.get('display_name') or customer.get('company_name') or '').lower()
                 similarity = self._string_similarity(description, customer_name)
 
-                if customer_name in description:
+                if customer_name and customer_name in description:
                     similarity = max(similarity, 0.85)
 
                 if similarity > 0.6:
@@ -8025,8 +8027,8 @@ class GenFinBankFeedsScreen(QWidget):
                         best_confidence = confidence
                         best_match = {
                             'type': 'customer',
-                            'customer_id': customer.get('id'),
-                            'customer_name': customer.get('name'),
+                            'customer_id': customer.get('customer_id'),
+                            'customer_name': customer.get('display_name') or customer.get('company_name'),
                             'default_account': customer.get('default_account_id'),
                             'confidence': confidence
                         }
@@ -8597,7 +8599,8 @@ class FindMatchDialog(GenFinDialog):
         vendor_layout = QVBoxLayout(vendor_widget)
         self.vendor_list = QListWidget()
         for vendor in self.vendors:
-            self.vendor_list.addItem(vendor.get('name', ''))
+            name = vendor.get('display_name') or vendor.get('company_name') or ''
+            self.vendor_list.addItem(name)
         vendor_layout.addWidget(self.vendor_list)
         tabs.addTab(vendor_widget, "Vendors")
 
@@ -8606,7 +8609,8 @@ class FindMatchDialog(GenFinDialog):
         customer_layout = QVBoxLayout(customer_widget)
         self.customer_list = QListWidget()
         for customer in self.customers:
-            self.customer_list.addItem(customer.get('name', ''))
+            name = customer.get('display_name') or customer.get('company_name') or ''
+            self.customer_list.addItem(name)
         customer_layout.addWidget(self.customer_list)
         tabs.addTab(customer_widget, "Customers")
 
@@ -8800,7 +8804,8 @@ class GenFinStatementsScreen(QWidget):
             checkbox.stateChanged.connect(self._update_selection_summary)
             self.customer_table.setCellWidget(i, 0, checkbox)
 
-            self.customer_table.setItem(i, 1, QTableWidgetItem(cust.get("name", "")))
+            name = cust.get("display_name") or cust.get("company_name") or ""
+            self.customer_table.setItem(i, 1, QTableWidgetItem(name))
 
             balance = cust.get("balance", 0)
             balance_item = QTableWidgetItem(f"${balance:,.2f}")
@@ -8887,14 +8892,15 @@ class GenFinStatementsScreen(QWidget):
                 if name_item:
                     # Find customer by name
                     for cust in self._customers:
-                        if cust.get("name") == name_item.text():
+                        cust_name = cust.get("display_name") or cust.get("company_name") or ""
+                        if cust_name == name_item.text():
                             selected.append(cust)
                             break
         return selected
 
     def _build_statement_data(self, customer: Dict) -> Dict:
         """Build statement data for a customer."""
-        customer_id = customer.get("id", customer.get("customer_id"))
+        customer_id = customer.get("customer_id") or customer.get("id")
 
         # Get customer's invoices
         customer_invoices = [
@@ -8943,8 +8949,8 @@ class GenFinStatementsScreen(QWidget):
                 })
 
         return {
-            "customer_name": customer.get("name", ""),
-            "customer_address": customer.get("address", ""),
+            "customer_name": customer.get("display_name") or customer.get("company_name") or "",
+            "customer_address": customer.get("billing_address_line1") or customer.get("address") or "",
             "date": self.statement_date.date().toString("MM/dd/yyyy"),
             "account_number": customer.get("account_number", customer_id),
             "transactions": transactions,
@@ -9036,7 +9042,8 @@ class GenFinStatementsScreen(QWidget):
             statement_data = self._build_statement_data(customer)
 
             # Create safe filename
-            safe_name = customer.get("name", "customer").replace(" ", "_")
+            cust_name = customer.get("display_name") or customer.get("company_name") or "customer"
+            safe_name = cust_name.replace(" ", "_")
             safe_name = "".join(c for c in safe_name if c.isalnum() or c == "_")
             date_str = self.statement_date.date().toString("yyyyMMdd")
             filename = f"{folder}/{safe_name}_Statement_{date_str}.pdf"
@@ -9106,7 +9113,7 @@ class GenFinStatementsScreen(QWidget):
 
                 # Call API to send email (placeholder)
                 result = api_post("/statements/email", {
-                    "customer_id": customer.get("id"),
+                    "customer_id": customer.get("customer_id"),
                     "email": customer.get("email"),
                     "statement_date": self.statement_date.date().toString("yyyy-MM-dd"),
                     "statement_type": self.statement_type.currentText()
@@ -11457,8 +11464,9 @@ class GenFinPayrollCenterScreen(QWidget):
         for i, emp in enumerate(active_employees):
             # Employee name
             name = f"{emp.get('last_name', '')}, {emp.get('first_name', '')}"
-            if emp.get("middle_name"):
-                name += f" {emp.get('middle_name')[0]}."
+            middle = emp.get("middle_name", "")
+            if middle:
+                name += f" {middle[0]}."
             name_item = QTableWidgetItem(name)
             name_item.setFont(QFont("MS Sans Serif", 11, QFont.Weight.Bold))
             self.employees_table.setItem(i, 0, name_item)
