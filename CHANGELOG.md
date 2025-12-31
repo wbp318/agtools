@@ -1,8 +1,26 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.2 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.7.3 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.3 (December 30, 2025)
+
+### Purchase Orders API & Comprehensive Testing
+
+**Backend Additions:**
+- Added Purchase Orders CRUD endpoints (`/api/v1/genfin/purchase-orders`)
+- `GenFinPurchaseOrderCreate` and `GenFinPurchaseOrderLineCreate` Pydantic models
+- Auto-generated PO numbers with vendor lookup
+- In-memory storage with full CRUD operations
+
+**Test Suite:**
+- New comprehensive workflow test suite (`tests/test_genfin_workflow.py`)
+- Tests all 12 GenFin modules: Customers, Vendors, Employees, Accounts, Invoices, Bills, Inventory, Purchase Orders, Reports, Deposits, Checks, Payroll
+- **100% pass rate** (34/34 tests passing)
+- Automated API health checks and data validation
 
 ---
 
