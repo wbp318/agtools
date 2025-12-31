@@ -1,8 +1,38 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.6.1 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.6.2 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.6.2 (December 30, 2025)
+
+### GenFin API Robustness & CRUD Completeness
+
+**Account Management Improvements:**
+- Added `PUT /genfin/accounts/{id}` endpoint for updating accounts
+- Added `DELETE /genfin/accounts/{id}` endpoint for deleting accounts
+- Added `GenFinAccountUpdate` Pydantic model for partial updates
+- Account type validation now case-insensitive ("Expense" → "expense")
+- Auto-generate `sub_type` defaults based on `account_type` when not provided
+- Made `sub_type` optional in account creation (defaults intelligently)
+
+**Report Endpoint Enhancements:**
+- All 8 major report endpoints now work without required date parameters
+- Default dates: `as_of_date` → today, `start_date` → Jan 1 current year, `end_date` → today
+- Fixed endpoints: trial-balance, balance-sheet, profit-loss, income-statement, ar-aging, ap-aging, cash-flow, general-ledger
+- Removed duplicate general-ledger endpoint (was registered twice)
+
+**Bug Fixes:**
+- Fixed account creation failing with "Invalid account type" for valid types
+- Fixed report endpoints returning 422 when called without date parameters
+- Fixed inventory PUT endpoint not being recognized (route ordering issue)
+
+**Test Results:**
+- CRUD operations: All 5 entities now pass (customers, vendors, employees, accounts, inventory)
+- Report endpoints: 8/8 now accessible without required parameters
+- Bugs reduced: 17 → 8 (remaining are test data issues or false positives)
 
 ---
 

@@ -331,8 +331,21 @@ class GenFinCoreService:
         account_id = str(uuid.uuid4())
 
         try:
-            acct_type = AccountType(account_type)
-            acct_sub_type = AccountSubType(sub_type)
+            # Normalize to lowercase for case-insensitive matching
+            acct_type = AccountType(account_type.lower())
+            # Auto-determine sub_type if not provided or empty
+            sub_type_normalized = sub_type.lower() if sub_type else ""
+            if not sub_type_normalized:
+                # Default sub-types based on account type
+                default_sub_types = {
+                    "asset": "other_asset",
+                    "liability": "other_liability",
+                    "equity": "owner_equity",
+                    "revenue": "other_income",
+                    "expense": "other_expense"
+                }
+                sub_type_normalized = default_sub_types.get(account_type.lower(), "other_expense")
+            acct_sub_type = AccountSubType(sub_type_normalized)
         except ValueError as e:
             return {"success": False, "error": f"Invalid account type: {str(e)}"}
 

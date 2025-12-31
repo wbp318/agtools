@@ -12579,12 +12579,20 @@ class GenFinAccountCreate(BaseModel):
     account_number: str
     name: str
     account_type: str
-    sub_type: str
+    sub_type: str = ""  # Default to empty string, will be auto-set based on account_type
     description: str = ""
     parent_account_id: Optional[str] = None
     tax_line: Optional[str] = None
     opening_balance: float = 0.0
     opening_balance_date: Optional[str] = None
+
+class GenFinAccountUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    account_number: Optional[str] = None
+    is_active: Optional[bool] = None
+    parent_account_id: Optional[str] = None
+    tax_line: Optional[str] = None
 
 class GenFinJournalEntryLine(BaseModel):
     account_id: str
@@ -12835,6 +12843,23 @@ async def get_account(account_id: str, user: AuthenticatedUser = Depends(get_cur
     result = genfin_core_service.get_account(account_id)
     if not result:
         raise HTTPException(status_code=404, detail="Account not found")
+    return result
+
+@app.put("/api/v1/genfin/accounts/{account_id}", tags=["GenFin Core"])
+async def update_account(account_id: str, data: GenFinAccountUpdate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update an account"""
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    result = genfin_core_service.update_account(account_id, **update_data)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Account not found"))
+    return result
+
+@app.delete("/api/v1/genfin/accounts/{account_id}", tags=["GenFin Core"])
+async def delete_account(account_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete an account"""
+    result = genfin_core_service.delete_account(account_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Cannot delete account"))
     return result
 
 @app.get("/api/v1/genfin/accounts/{account_id}/balance", tags=["GenFin Core"])
@@ -13505,8 +13530,8 @@ async def create_termination_check(data: Dict[str, Any], user: AuthenticatedUser
 
 @app.get("/api/v1/genfin/reports/profit-loss", tags=["GenFin Reports"])
 async def get_profit_loss(
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     compare_prior_period: bool = False,
     compare_prior_year: bool = False,
     group_by_month: bool = False,
@@ -13514,14 +13539,19 @@ async def get_profit_loss(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get Profit & Loss Statement"""
+    from datetime import date
+    if not end_date:
+        end_date = date.today().isoformat()
+    if not start_date:
+        start_date = f"{date.today().year}-01-01"
     return genfin_reports_service.get_profit_loss(
         start_date, end_date, compare_prior_period, compare_prior_year, group_by_month, class_id
     )
 
 @app.get("/api/v1/genfin/reports/income-statement", tags=["GenFin Reports"])
 async def get_income_statement(
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     compare_prior_period: bool = False,
     compare_prior_year: bool = False,
     group_by_month: bool = False,
@@ -13529,26 +13559,39 @@ async def get_income_statement(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get Income Statement (alias for Profit & Loss)"""
+    from datetime import date
+    if not end_date:
+        end_date = date.today().isoformat()
+    if not start_date:
+        start_date = f"{date.today().year}-01-01"
     return genfin_reports_service.get_profit_loss(
         start_date, end_date, compare_prior_period, compare_prior_year, group_by_month, class_id
     )
 
 @app.get("/api/v1/genfin/reports/balance-sheet", tags=["GenFin Reports"])
 async def get_balance_sheet(
-    as_of_date: str,
+    as_of_date: Optional[str] = None,
     compare_prior_year: bool = False,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get Balance Sheet"""
+    from datetime import date
+    if not as_of_date:
+        as_of_date = date.today().isoformat()
     return genfin_reports_service.get_balance_sheet(as_of_date, compare_prior_year=compare_prior_year)
 
 @app.get("/api/v1/genfin/reports/cash-flow", tags=["GenFin Reports"])
 async def get_cash_flow(
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get Cash Flow Statement"""
+    from datetime import date
+    if not end_date:
+        end_date = date.today().isoformat()
+    if not start_date:
+        start_date = f"{date.today().year}-01-01"
     return genfin_reports_service.get_cash_flow(start_date, end_date)
 
 @app.get("/api/v1/genfin/reports/financial-ratios", tags=["GenFin Reports"])
@@ -13564,12 +13607,17 @@ async def get_financial_ratios(
 
 @app.get("/api/v1/genfin/reports/general-ledger", tags=["GenFin Reports"])
 async def get_general_ledger_report(
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     account_ids: Optional[List[str]] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get General Ledger Report"""
+    from datetime import date
+    if not end_date:
+        end_date = date.today().isoformat()
+    if not start_date:
+        start_date = f"{date.today().year}-01-01"
     return genfin_reports_service.get_general_ledger(start_date, end_date, account_ids)
 
 @app.get("/api/v1/genfin/reports/income-by-customer", tags=["GenFin Reports"])
@@ -14330,50 +14378,54 @@ async def reorder_dashboard_widgets(
 
 @app.get("/api/v1/genfin/reports/profit-loss-standard", tags=["GenFin Reports"])
 async def run_profit_loss_report(
-    start_date: str,
-    end_date: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     compare_to: Optional[str] = None,
     group_by: Optional[str] = None,
     class_id: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Run Profit & Loss report"""
+    from datetime import date
+    if not end_date:
+        end_date = date.today().isoformat()
+    if not start_date:
+        start_date = f"{date.today().year}-01-01"
     return genfin_advanced_reports_service.run_profit_loss(start_date, end_date, compare_to, group_by, class_id)
 
 @app.get("/api/v1/genfin/reports/balance-sheet-standard", tags=["GenFin Reports"])
 async def run_balance_sheet_report(
-    as_of_date: str,
+    as_of_date: Optional[str] = None,
     compare_to: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Run Balance Sheet report"""
+    from datetime import date
+    if not as_of_date:
+        as_of_date = date.today().isoformat()
     return genfin_advanced_reports_service.run_balance_sheet(as_of_date, compare_to)
 
 @app.get("/api/v1/genfin/reports/trial-balance", tags=["GenFin Reports"])
 async def run_trial_balance_report(
-    as_of_date: str,
+    as_of_date: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Run Trial Balance report"""
+    from datetime import date
+    if not as_of_date:
+        as_of_date = date.today().isoformat()
     return genfin_advanced_reports_service.run_trial_balance(as_of_date)
-
-@app.get("/api/v1/genfin/reports/general-ledger", tags=["GenFin Reports"])
-async def run_general_ledger_report(
-    start_date: str,
-    end_date: str,
-    account_id: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Run General Ledger report"""
-    return genfin_advanced_reports_service.run_general_ledger(start_date, end_date, account_id)
 
 @app.get("/api/v1/genfin/reports/ar-aging", tags=["GenFin Reports"])
 async def run_ar_aging_report(
-    as_of_date: str,
+    as_of_date: Optional[str] = None,
     detail: bool = False,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Run A/R Aging report"""
+    from datetime import date
+    if not as_of_date:
+        as_of_date = date.today().isoformat()
     return genfin_advanced_reports_service.run_ar_aging(as_of_date, detail)
 
 @app.get("/api/v1/genfin/reports/customer-balance", tags=["GenFin Reports"])
@@ -14391,11 +14443,14 @@ async def run_open_invoices_report(user: AuthenticatedUser = Depends(get_current
 
 @app.get("/api/v1/genfin/reports/ap-aging", tags=["GenFin Reports"])
 async def run_ap_aging_report(
-    as_of_date: str,
+    as_of_date: Optional[str] = None,
     detail: bool = False,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Run A/P Aging report"""
+    from datetime import date
+    if not as_of_date:
+        as_of_date = date.today().isoformat()
     return genfin_advanced_reports_service.run_ap_aging(as_of_date, detail)
 
 @app.get("/api/v1/genfin/reports/vendor-balance", tags=["GenFin Reports"])
