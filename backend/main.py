@@ -12652,6 +12652,26 @@ class GenFinBillPaymentCreate(BaseModel):
     reference_number: str = ""
     memo: str = ""
 
+class GenFinPurchaseOrderLineCreate(BaseModel):
+    item: str
+    item_id: Optional[str] = None
+    description: str = ""
+    quantity: float = 1.0
+    rate: float = 0.0
+    amount: float = 0.0
+
+class GenFinPurchaseOrderCreate(BaseModel):
+    vendor_id: str
+    po_date: str
+    expected_date: Optional[str] = None
+    ship_to: str = ""
+    ship_via: str = ""
+    terms: str = "Net 30"
+    fob: str = ""
+    lines: List[GenFinPurchaseOrderLineCreate] = []
+    memo: str = ""
+    po_number: str = ""
+
 class GenFinCustomerCreate(BaseModel):
     company_name: str
     display_name: Optional[str] = None
@@ -13034,6 +13054,97 @@ async def get_1099_summary(year: int, user: AuthenticatedUser = Depends(get_curr
 async def get_bills_due(days_ahead: int = 30, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get bills due summary"""
     return genfin_payables_service.get_bills_due_summary(days_ahead)
+
+
+# ------------ GenFin Purchase Orders ------------
+
+# In-memory storage for purchase orders (would be database in production)
+_purchase_orders: Dict[str, Dict] = {}
+_po_counter = 1000
+
+@app.post("/api/v1/genfin/purchase-orders", tags=["GenFin Purchase Orders"])
+async def create_purchase_order(data: GenFinPurchaseOrderCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a new purchase order"""
+    global _po_counter
+    import uuid
+
+    po_id = str(uuid.uuid4())
+    _po_counter += 1
+    po_number = data.po_number if data.po_number and data.po_number != "auto" else f"PO-{_po_counter}"
+
+    # Get vendor name
+    vendor = genfin_payables_service.get_vendor(data.vendor_id)
+    vendor_name = vendor.get("display_name") or vendor.get("company_name", "Unknown") if vendor else "Unknown"
+
+    # Calculate total
+    total = sum(line.amount if line.amount else line.quantity * line.rate for line in data.lines)
+
+    po = {
+        "po_id": po_id,
+        "po_number": po_number,
+        "vendor_id": data.vendor_id,
+        "vendor_name": vendor_name,
+        "po_date": data.po_date,
+        "expected_date": data.expected_date,
+        "ship_to": data.ship_to,
+        "ship_via": data.ship_via,
+        "terms": data.terms,
+        "fob": data.fob,
+        "lines": [line.dict() for line in data.lines],
+        "memo": data.memo,
+        "total": total,
+        "status": "open",
+        "created_at": datetime.now().isoformat()
+    }
+    _purchase_orders[po_id] = po
+
+    return {"success": True, "po_id": po_id, "po_number": po_number, "purchase_order": po}
+
+@app.get("/api/v1/genfin/purchase-orders", tags=["GenFin Purchase Orders"])
+async def list_purchase_orders(
+    status: Optional[str] = None,
+    vendor_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all purchase orders"""
+    orders = list(_purchase_orders.values())
+    if status:
+        orders = [o for o in orders if o.get("status") == status]
+    if vendor_id:
+        orders = [o for o in orders if o.get("vendor_id") == vendor_id]
+    return orders
+
+@app.get("/api/v1/genfin/purchase-orders/{po_id}", tags=["GenFin Purchase Orders"])
+async def get_purchase_order(po_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get a purchase order by ID"""
+    if po_id not in _purchase_orders:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return _purchase_orders[po_id]
+
+@app.put("/api/v1/genfin/purchase-orders/{po_id}", tags=["GenFin Purchase Orders"])
+async def update_purchase_order(po_id: str, data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update a purchase order"""
+    if po_id not in _purchase_orders:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    po = _purchase_orders[po_id]
+    for key, value in data.items():
+        if key != "po_id":
+            po[key] = value
+
+    # Recalculate total if lines updated
+    if "lines" in data:
+        po["total"] = sum(l.get("amount", l.get("quantity", 1) * l.get("rate", 0)) for l in po["lines"])
+
+    return {"success": True, "purchase_order": po}
+
+@app.delete("/api/v1/genfin/purchase-orders/{po_id}", tags=["GenFin Purchase Orders"])
+async def delete_purchase_order(po_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete a purchase order"""
+    if po_id not in _purchase_orders:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    del _purchase_orders[po_id]
+    return {"success": True, "message": "Purchase order deleted"}
 
 
 # ------------ GenFin Receivables - Customers, Invoices, Payments ------------

@@ -336,10 +336,36 @@ def test_purchase_orders():
     print("\n📝 Purchase Order Workflow")
     print("-" * 40)
 
-    # NOTE: Purchase Orders endpoint not yet implemented in backend
-    # Frontend expects /purchase-orders but backend doesn't have it yet
-    log_result("Purchase Orders API", False, "Backend endpoint not implemented - needs /purchase-orders")
-    print("         └─ TODO: Add POST/GET /api/v1/genfin/purchase-orders to backend")
+    if not created_ids["vendor_id"]:
+        log_result("Create PO", False, "No vendor ID - run vendor test first")
+        return
+
+    po_data = {
+        "vendor_id": created_ids["vendor_id"],
+        "po_date": datetime.now().strftime("%Y-%m-%d"),
+        "expected_date": (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
+        "lines": [
+            {
+                "item": "Test Part",
+                "description": "Part for testing",
+                "quantity": 10,
+                "rate": 15.00,
+                "amount": 150.00
+            }
+        ],
+        "ship_to": "Main Farm",
+        "memo": "Workflow test PO"
+    }
+
+    # CREATE
+    ok, data = api_post("/purchase-orders", po_data)
+    log_result("Create purchase order", ok and data.get("success"), str(data)[:100])
+    if ok and data.get("po_id"):
+        created_ids["po_id"] = data["po_id"]
+
+    # READ (list)
+    ok, data = api_get("/purchase-orders")
+    log_result("List purchase orders", ok and isinstance(data, list), str(data)[:100])
 
 
 def test_reports():
