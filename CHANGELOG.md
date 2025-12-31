@@ -1,8 +1,33 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.4 | **Last Updated:** December 31, 2025
+> **Current Version:** 6.7.5 | **Last Updated:** December 31, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.5 (December 31, 2025)
+
+### Security Vulnerability Fixes
+
+**Critical Fixes:**
+- **DEV_MODE auth bypass** - Changed default from enabled to disabled (`auth_middleware.py`)
+  - Was: `AGTOOLS_DEV_MODE` defaulted to "1" (auth bypass enabled)
+  - Now: Defaults to "0" (auth required), must explicitly enable for local dev
+
+- **Hardcoded password removed** - `scripts/reset_admin_password.py` now:
+  - Prompts for custom password with confirmation
+  - Or generates a 16-character cryptographically secure random password
+  - Enforces minimum 8-character password length
+
+**Medium Fixes:**
+- **CORS restrictive default** - `main.py` CORS now defaults to localhost only
+  - Was: `allow_origins=["*"]` (any origin allowed)
+  - Now: Only `localhost:3000`, `localhost:8000`, `127.0.0.1:*` allowed by default
+  - Production: Set `AGTOOLS_CORS_ORIGINS` environment variable
+
+- **Hardcoded API URL** - `genfin.py` now uses `APIConfig` from config module
+  - Allows changing backend URL via configuration instead of code changes
 
 ---
 

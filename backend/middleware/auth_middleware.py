@@ -21,9 +21,9 @@ from services.auth_service import (
 )
 from services.user_service import UserService, UserResponse, get_user_service
 
-# Enable dev mode for local desktop app - no auth required
-# Set AGTOOLS_DEV_MODE=1 to enable
-DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "1") == "1"
+# Dev mode for local desktop app - bypasses auth for testing
+# SECURITY: Defaults to DISABLED. Set AGTOOLS_DEV_MODE=1 to enable (local dev only!)
+DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "0") == "1"
 
 
 # ============================================================================

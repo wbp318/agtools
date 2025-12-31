@@ -408,12 +408,14 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware for web frontend
-# SECURITY: For production, set AGTOOLS_CORS_ORIGINS environment variable
+# SECURITY: Defaults to localhost only. For production, set AGTOOLS_CORS_ORIGINS
 # Example: AGTOOLS_CORS_ORIGINS=https://agtools.yourfarm.com,https://app.yourfarm.com
-_cors_origins = os.getenv("AGTOOLS_CORS_ORIGINS", "*").split(",")
+# Use AGTOOLS_CORS_ORIGINS=* only for development (NOT recommended for production)
+_cors_origins_env = os.getenv("AGTOOLS_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000")
+_cors_origins = _cors_origins_env.split(",") if _cors_origins_env != "*" else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins if _cors_origins != ["*"] else ["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],

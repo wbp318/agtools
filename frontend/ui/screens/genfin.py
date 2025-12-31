@@ -36,9 +36,11 @@ from typing import Optional, Dict, List, Any
 from decimal import Decimal
 
 from ui.genfin_styles import GENFIN_COLORS, get_genfin_stylesheet, set_genfin_class
+from config import APIConfig
 
-# Backend API base URL
-API_BASE = "http://127.0.0.1:8000/api/v1/genfin"
+# Backend API base URL - uses config for flexibility
+_api_config = APIConfig()
+API_BASE = f"{_api_config.base_url}{_api_config.api_prefix}/genfin"
 
 
 def api_get(endpoint: str) -> Optional[Dict]:
