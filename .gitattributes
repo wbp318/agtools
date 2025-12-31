@@ -137,3 +137,14 @@ tests/*.py linguist-detectable=true
 # Documentation folder - don't count toward language stats
 docs/*.md linguist-documentation
 docs/**/*.md linguist-documentation
+
+# Root markdown files - don't count toward language stats
+README.md linguist-documentation
+CHANGELOG.md linguist-documentation
+
+# Test documentation - don't count toward language stats
+tests/*.md linguist-documentation
+tests/**/*.md linguist-documentation
+
+# All other markdown files - mark as documentation
+**/*.md linguist-documentation
