@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QRadioButton, QButtonGroup, QPlainTextEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QDate, QTimer, QMarginsF, QSizeF
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import (
     QFont, QShortcut, QKeySequence, QPainter, QPageLayout,
     QPageSize, QTextDocument, QColor
@@ -1314,6 +1315,1013 @@ class ImportExportDialog(GenFinDialog):
             json.dump(all_data, f, indent=2, default=str)
 
 
+# =============================================================================
+# QUICKBOOKS COMPANY IMPORT WIZARD
+# =============================================================================
+
+class QuickBooksImportWizard(GenFinDialog):
+    """
+    Comprehensive wizard for importing complete QuickBooks company data.
+    Supports IIF exports, CSV exports, and guides users through full migration.
+    """
+
+    import_complete = pyqtSignal(str, dict)  # company_name, stats
+
+    def __init__(self, parent=None):
+        super().__init__("Import QuickBooks Company", parent)
+        self.setMinimumSize(800, 650)
+        self.current_step = 0
+        self.import_data = {
+            'company_name': '',
+            'files': {},
+            'accounts': [],
+            'customers': [],
+            'vendors': [],
+            'employees': [],
+            'items': [],
+            'invoices': [],
+            'bills': [],
+            'checks': [],
+            'deposits': [],
+            'journal_entries': [],
+            'payments_received': [],
+            'bills_paid': []
+        }
+        self.import_stats = {}
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(0)
+
+        # Header
+        header = QFrame()
+        header.setStyleSheet(f"""
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 {GENFIN_COLORS['teal_dark']}, stop:1 {GENFIN_COLORS['teal']});
+            padding: 20px;
+        """)
+        header_layout = QVBoxLayout(header)
+
+        title = QLabel("QuickBooks Company Import Wizard")
+        title.setStyleSheet("color: white; font-size: 18px; font-weight: bold;")
+        header_layout.addWidget(title)
+
+        self.step_label = QLabel("Step 1 of 4: Select Company")
+        self.step_label.setStyleSheet("color: rgba(255,255,255,0.8); font-size: 12px;")
+        header_layout.addWidget(self.step_label)
+
+        layout.addWidget(header)
+
+        # Progress bar
+        self.progress = QFrame()
+        self.progress.setFixedHeight(4)
+        self.progress.setStyleSheet(f"background: {GENFIN_COLORS['teal_bright']};")
+        layout.addWidget(self.progress)
+        self._update_progress()
+
+        # Content area - stacked widget for steps
+        self.stack = QStackedWidget()
+        self.stack.setStyleSheet("background: white; padding: 20px;")
+
+        # Step 1: Company Selection/Creation
+        self.stack.addWidget(self._create_step1())
+
+        # Step 2: File Selection
+        self.stack.addWidget(self._create_step2())
+
+        # Step 3: Data Mapping & Preview
+        self.stack.addWidget(self._create_step3())
+
+        # Step 4: Import Progress & Results
+        self.stack.addWidget(self._create_step4())
+
+        layout.addWidget(self.stack, 1)
+
+        # Navigation buttons
+        nav_frame = QFrame()
+        nav_frame.setStyleSheet(f"""
+            background: {GENFIN_COLORS['window_face']};
+            border-top: 1px solid {GENFIN_COLORS['bevel_dark']};
+            padding: 12px;
+        """)
+        nav_layout = QHBoxLayout(nav_frame)
+
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.reject)
+        nav_layout.addWidget(self.cancel_btn)
+
+        nav_layout.addStretch()
+
+        self.back_btn = QPushButton("< Back")
+        self.back_btn.clicked.connect(self._go_back)
+        self.back_btn.setEnabled(False)
+        nav_layout.addWidget(self.back_btn)
+
+        self.next_btn = QPushButton("Next >")
+        self.next_btn.setStyleSheet(f"""
+            background-color: {GENFIN_COLORS['teal']};
+            color: white;
+            font-weight: bold;
+            padding: 8px 24px;
+        """)
+        self.next_btn.clicked.connect(self._go_next)
+        nav_layout.addWidget(self.next_btn)
+
+        layout.addWidget(nav_frame)
+
+    def _update_progress(self):
+        """Update progress bar width."""
+        progress_pct = ((self.current_step + 1) / 4) * 100
+        self.progress.setFixedWidth(int(self.width() * progress_pct / 100))
+
+    def _create_step1(self) -> QWidget:
+        """Step 1: Company Selection."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(20)
+
+        # Instructions
+        info = QLabel(
+            "Welcome to the QuickBooks Import Wizard!\n\n"
+            "This wizard will help you import your complete QuickBooks company data "
+            "into GenFin, including:\n"
+            "• Chart of Accounts\n"
+            "• Customers, Vendors, and Employees\n"
+            "• Invoices, Bills, and Payments\n"
+            "• Bank Transactions and Journal Entries\n\n"
+            "First, select or create the company to import into:"
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("font-size: 12px; line-height: 1.5;")
+        layout.addWidget(info)
+
+        # Company selection
+        company_group = QGroupBox("Target Company")
+        company_layout = QVBoxLayout(company_group)
+
+        self.existing_radio = QRadioButton("Import into existing company:")
+        self.existing_radio.setChecked(True)
+        company_layout.addWidget(self.existing_radio)
+
+        self.existing_combo = QComboBox()
+        self.existing_combo.setMinimumWidth(300)
+        self._load_existing_companies()
+        company_layout.addWidget(self.existing_combo)
+
+        self.new_radio = QRadioButton("Create new company:")
+        company_layout.addWidget(self.new_radio)
+
+        new_layout = QFormLayout()
+        self.new_company_name = QLineEdit()
+        self.new_company_name.setPlaceholderText("e.g., Tap Parker Farms LLC")
+        self.new_company_name.setEnabled(False)
+        new_layout.addRow("Company Name:", self.new_company_name)
+
+        self.new_radio.toggled.connect(self.new_company_name.setEnabled)
+        self.new_radio.toggled.connect(lambda x: self.existing_combo.setEnabled(not x))
+
+        company_layout.addLayout(new_layout)
+        layout.addWidget(company_group)
+
+        # QuickBooks version info
+        qb_group = QGroupBox("QuickBooks Version")
+        qb_layout = QVBoxLayout(qb_group)
+
+        self.qb_version = QComboBox()
+        self.qb_version.addItems([
+            "QuickBooks Desktop (Pro, Premier, Enterprise)",
+            "QuickBooks Online",
+            "QuickBooks for Mac",
+            "Other / Generic CSV"
+        ])
+        qb_layout.addWidget(self.qb_version)
+
+        qb_info = QLabel(
+            "Tip: In QuickBooks Desktop, use File > Utilities > Export > Lists to IIF Files\n"
+            "and File > Utilities > Export > Transactions to export your data."
+        )
+        qb_info.setStyleSheet("color: #666; font-size: 10px;")
+        qb_layout.addWidget(qb_info)
+
+        layout.addWidget(qb_group)
+        layout.addStretch()
+
+        return widget
+
+    def _create_step2(self) -> QWidget:
+        """Step 2: File Selection."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(16)
+
+        info = QLabel(
+            "Select the export files from QuickBooks. You can import multiple files\n"
+            "to bring in different types of data. The wizard will detect the file type\n"
+            "and contents automatically."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        # File list
+        files_group = QGroupBox("Import Files")
+        files_layout = QVBoxLayout(files_group)
+
+        self.files_table = QTableWidget()
+        self.files_table.setColumnCount(4)
+        self.files_table.setHorizontalHeaderLabels(["File", "Type", "Records", "Status"])
+        self.files_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.files_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.files_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.files_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        files_layout.addWidget(self.files_table)
+
+        btn_layout = QHBoxLayout()
+
+        add_file_btn = QPushButton("Add File...")
+        add_file_btn.clicked.connect(self._add_import_file)
+        btn_layout.addWidget(add_file_btn)
+
+        add_folder_btn = QPushButton("Add Folder...")
+        add_folder_btn.clicked.connect(self._add_import_folder)
+        btn_layout.addWidget(add_folder_btn)
+
+        btn_layout.addStretch()
+
+        remove_btn = QPushButton("Remove Selected")
+        remove_btn.clicked.connect(self._remove_selected_file)
+        btn_layout.addWidget(remove_btn)
+
+        files_layout.addLayout(btn_layout)
+        layout.addWidget(files_group)
+
+        # Quick import options
+        quick_group = QGroupBox("Quick Import Templates")
+        quick_layout = QHBoxLayout(quick_group)
+
+        templates = [
+            ("Chart of Accounts", "accounts"),
+            ("Customer List", "customers"),
+            ("Vendor List", "vendors"),
+            ("All Transactions", "transactions")
+        ]
+
+        for name, template_type in templates:
+            btn = QPushButton(name)
+            btn.clicked.connect(lambda checked, t=template_type: self._use_template(t))
+            quick_layout.addWidget(btn)
+
+        layout.addWidget(quick_group)
+
+        # Detection results
+        self.detection_label = QLabel("")
+        self.detection_label.setStyleSheet("color: #666; font-style: italic;")
+        layout.addWidget(self.detection_label)
+
+        layout.addStretch()
+        return widget
+
+    def _create_step3(self) -> QWidget:
+        """Step 3: Data Mapping & Preview."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(16)
+
+        info = QLabel(
+            "Review the detected data and adjust mappings if needed.\n"
+            "Check the boxes for data types you want to import."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        # Data categories
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+
+        categories_widget = QWidget()
+        cat_layout = QVBoxLayout(categories_widget)
+
+        self.category_checks = {}
+        categories = [
+            ("accounts", "Chart of Accounts", "Account structure and balances"),
+            ("customers", "Customers", "Customer list with contact info and balances"),
+            ("vendors", "Vendors", "Vendor list with contact info and balances"),
+            ("employees", "Employees", "Employee records"),
+            ("items", "Items & Services", "Products, services, and inventory items"),
+            ("invoices", "Invoices", "Sales invoices with line items"),
+            ("bills", "Bills", "Vendor bills with line items"),
+            ("payments_received", "Payments Received", "Customer payment records"),
+            ("bills_paid", "Bill Payments", "Vendor payment records"),
+            ("checks", "Checks Written", "Check transactions"),
+            ("deposits", "Deposits", "Bank deposits"),
+            ("journal_entries", "Journal Entries", "Manual journal entries"),
+        ]
+
+        for key, name, desc in categories:
+            frame = QFrame()
+            frame.setStyleSheet("""
+                QFrame { border: 1px solid #ddd; border-radius: 4px; padding: 8px; }
+                QFrame:hover { background: #f5f5f5; }
+            """)
+            row_layout = QHBoxLayout(frame)
+
+            cb = QCheckBox(name)
+            cb.setChecked(True)
+            cb.setStyleSheet("font-weight: bold;")
+            self.category_checks[key] = cb
+            row_layout.addWidget(cb)
+
+            count_label = QLabel("0 records")
+            count_label.setObjectName(f"count_{key}")
+            count_label.setStyleSheet("color: #666;")
+            row_layout.addWidget(count_label)
+
+            row_layout.addStretch()
+
+            desc_label = QLabel(desc)
+            desc_label.setStyleSheet("color: #888; font-size: 10px;")
+            row_layout.addWidget(desc_label)
+
+            cat_layout.addWidget(frame)
+
+        cat_layout.addStretch()
+        scroll.setWidget(categories_widget)
+        layout.addWidget(scroll, 1)
+
+        # Import options
+        options_group = QGroupBox("Import Options")
+        options_layout = QVBoxLayout(options_group)
+
+        self.clear_existing = QCheckBox("Clear existing data before import (fresh start)")
+        options_layout.addWidget(self.clear_existing)
+
+        self.skip_duplicates = QCheckBox("Skip duplicate records")
+        self.skip_duplicates.setChecked(True)
+        options_layout.addWidget(self.skip_duplicates)
+
+        self.import_balances = QCheckBox("Import opening balances")
+        self.import_balances.setChecked(True)
+        options_layout.addWidget(self.import_balances)
+
+        layout.addWidget(options_group)
+
+        return widget
+
+    def _create_step4(self) -> QWidget:
+        """Step 4: Import Progress & Results."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(20)
+
+        # Progress section
+        self.progress_group = QGroupBox("Import Progress")
+        progress_layout = QVBoxLayout(self.progress_group)
+
+        self.current_task_label = QLabel("Preparing import...")
+        self.current_task_label.setStyleSheet("font-weight: bold;")
+        progress_layout.addWidget(self.current_task_label)
+
+        self.import_progress_bar = QProgressDialog()
+        self.progress_bar = QFrame()
+        self.progress_bar.setFixedHeight(24)
+        self.progress_bar.setStyleSheet(f"""
+            background: #e0e0e0;
+            border-radius: 4px;
+        """)
+
+        progress_inner_layout = QHBoxLayout(self.progress_bar)
+        progress_inner_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.progress_fill = QFrame()
+        self.progress_fill.setStyleSheet(f"""
+            background: {GENFIN_COLORS['teal']};
+            border-radius: 4px;
+        """)
+        self.progress_fill.setFixedWidth(0)
+        progress_inner_layout.addWidget(self.progress_fill)
+        progress_inner_layout.addStretch()
+
+        progress_layout.addWidget(self.progress_bar)
+
+        self.progress_detail = QLabel("0 of 0 records processed")
+        self.progress_detail.setStyleSheet("color: #666;")
+        progress_layout.addWidget(self.progress_detail)
+
+        layout.addWidget(self.progress_group)
+
+        # Results section
+        self.results_group = QGroupBox("Import Results")
+        self.results_group.hide()
+        results_layout = QVBoxLayout(self.results_group)
+
+        self.results_table = QTableWidget()
+        self.results_table.setColumnCount(4)
+        self.results_table.setHorizontalHeaderLabels(["Data Type", "Imported", "Skipped", "Errors"])
+        self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        results_layout.addWidget(self.results_table)
+
+        self.results_summary = QLabel("")
+        self.results_summary.setStyleSheet("font-size: 14px; padding: 10px;")
+        results_layout.addWidget(self.results_summary)
+
+        layout.addWidget(self.results_group)
+
+        # Log section
+        log_group = QGroupBox("Import Log")
+        log_layout = QVBoxLayout(log_group)
+
+        self.import_log = QPlainTextEdit()
+        self.import_log.setReadOnly(True)
+        self.import_log.setMaximumHeight(150)
+        self.import_log.setStyleSheet("font-family: monospace; font-size: 10px;")
+        log_layout.addWidget(self.import_log)
+
+        layout.addWidget(log_group)
+
+        layout.addStretch()
+        return widget
+
+    def _load_existing_companies(self):
+        """Load existing companies from API."""
+        self.existing_combo.clear()
+        companies = api_get("/companies") or []
+        if companies:
+            for company in companies:
+                self.existing_combo.addItem(
+                    company.get("name", "Unknown"),
+                    company.get("id", company.get("entity_id"))
+                )
+        else:
+            # Add default if no companies
+            self.existing_combo.addItem("Default Company", "default")
+
+    def _add_import_file(self):
+        """Add a file to import."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select QuickBooks Export File", "",
+            "All Supported (*.iif *.csv *.qbo *.ofx *.txt);;IIF Files (*.iif);;CSV Files (*.csv);;Bank Files (*.qbo *.ofx);;All Files (*.*)"
+        )
+        if file_path:
+            self._process_import_file(file_path)
+
+    def _add_import_folder(self):
+        """Add all files from a folder."""
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Folder with QuickBooks Exports"
+        )
+        if folder:
+            import glob
+            for ext in ['*.iif', '*.csv', '*.qbo', '*.ofx', '*.IIF', '*.CSV']:
+                for file_path in glob.glob(os.path.join(folder, ext)):
+                    self._process_import_file(file_path)
+
+    def _process_import_file(self, file_path: str):
+        """Process and analyze an import file."""
+        filename = os.path.basename(file_path)
+        ext = os.path.splitext(file_path)[1].lower()
+
+        try:
+            file_type = "Unknown"
+            record_count = 0
+            data_type = "unknown"
+
+            if ext == '.iif':
+                file_type, record_count, data_type, records = self._analyze_iif(file_path)
+                self.import_data['files'][file_path] = {
+                    'type': data_type,
+                    'records': records
+                }
+            elif ext == '.csv':
+                file_type, record_count, data_type, records = self._analyze_csv(file_path)
+                self.import_data['files'][file_path] = {
+                    'type': data_type,
+                    'records': records
+                }
+            elif ext in ['.qbo', '.ofx']:
+                file_type = "Bank Transactions"
+                records = self._parse_ofx_file(file_path)
+                record_count = len(records)
+                data_type = "bank_transactions"
+                self.import_data['files'][file_path] = {
+                    'type': data_type,
+                    'records': records
+                }
+
+            row = self.files_table.rowCount()
+            self.files_table.insertRow(row)
+            self.files_table.setItem(row, 0, QTableWidgetItem(filename))
+            self.files_table.setItem(row, 1, QTableWidgetItem(file_type))
+            self.files_table.setItem(row, 2, QTableWidgetItem(str(record_count)))
+
+            status = QTableWidgetItem("Ready")
+            status.setForeground(QColor('green'))
+            self.files_table.setItem(row, 3, status)
+
+            self._update_detection_label()
+
+        except Exception as e:
+            QMessageBox.warning(self, "File Error", f"Could not process file:\n{e}")
+
+    def _analyze_iif(self, file_path: str) -> tuple:
+        """Analyze IIF file and extract data."""
+        records = []
+        data_types_found = set()
+
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            reader = csv.reader(f, delimiter='\t')
+            current_type = None
+            headers = None
+
+            for row in reader:
+                if not row:
+                    continue
+
+                if row[0].startswith('!'):
+                    current_type = row[0][1:].upper()
+                    headers = [h.upper() for h in row]
+                    data_types_found.add(current_type)
+                elif current_type and headers and not row[0].startswith('!'):
+                    record = {'_type': current_type}
+                    for i, val in enumerate(row):
+                        if i < len(headers):
+                            record[headers[i]] = val
+                    records.append(record)
+
+        # Determine primary data type
+        type_mapping = {
+            'ACCNT': ('Chart of Accounts', 'accounts'),
+            'CUST': ('Customers', 'customers'),
+            'VEND': ('Vendors', 'vendors'),
+            'EMP': ('Employees', 'employees'),
+            'INVITEM': ('Items', 'items'),
+            'TRNS': ('Transactions', 'transactions'),
+            'SPL': ('Transaction Lines', 'transactions'),
+        }
+
+        primary_type = "IIF Data"
+        data_type = "mixed"
+        for iif_type in data_types_found:
+            if iif_type in type_mapping:
+                primary_type, data_type = type_mapping[iif_type]
+                break
+
+        return primary_type, len(records), data_type, records
+
+    def _analyze_csv(self, file_path: str) -> tuple:
+        """Analyze CSV file and detect data type."""
+        records = []
+
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            headers = reader.fieldnames or []
+            records = list(reader)
+
+        # Detect type based on headers
+        headers_lower = [h.lower() for h in headers]
+
+        if any('account' in h for h in headers_lower) and any('type' in h for h in headers_lower):
+            return "Chart of Accounts", len(records), "accounts", records
+        elif any('customer' in h for h in headers_lower) or 'bill to' in str(headers_lower):
+            return "Customers", len(records), "customers", records
+        elif any('vendor' in h for h in headers_lower) or 'supplier' in str(headers_lower):
+            return "Vendors", len(records), "vendors", records
+        elif any('invoice' in h for h in headers_lower):
+            return "Invoices", len(records), "invoices", records
+        elif any('bill' in h for h in headers_lower) and 'invoice' not in str(headers_lower):
+            return "Bills", len(records), "bills", records
+        elif any('employee' in h for h in headers_lower):
+            return "Employees", len(records), "employees", records
+        elif any('item' in h for h in headers_lower) or any('product' in h for h in headers_lower):
+            return "Items", len(records), "items", records
+        elif any('transaction' in h for h in headers_lower) or any('date' in h and 'amount' in str(headers_lower) for h in headers_lower):
+            return "Transactions", len(records), "transactions", records
+        else:
+            return "CSV Data", len(records), "unknown", records
+
+    def _parse_ofx_file(self, file_path: str) -> List[Dict]:
+        """Parse OFX/QBO bank file."""
+        transactions = []
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+
+            import re
+            stmttrn_pattern = r'<STMTTRN>(.*?)</STMTTRN>'
+            matches = re.findall(stmttrn_pattern, content, re.DOTALL)
+
+            for match in matches:
+                trans = {}
+                trntype = re.search(r'<TRNTYPE>(\w+)', match)
+                dtposted = re.search(r'<DTPOSTED>(\d+)', match)
+                trnamt = re.search(r'<TRNAMT>([+-]?\d+\.?\d*)', match)
+                name = re.search(r'<NAME>([^<]+)', match)
+                memo = re.search(r'<MEMO>([^<]+)', match)
+                fitid = re.search(r'<FITID>([^<]+)', match)
+
+                if trntype:
+                    trans['type'] = trntype.group(1)
+                if dtposted:
+                    date_str = dtposted.group(1)[:8]
+                    trans['date'] = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                if trnamt:
+                    trans['amount'] = float(trnamt.group(1))
+                if name:
+                    trans['description'] = name.group(1).strip()
+                if memo:
+                    trans['memo'] = memo.group(1).strip()
+                if fitid:
+                    trans['fitid'] = fitid.group(1)
+
+                if trans.get('amount'):
+                    transactions.append(trans)
+
+        except Exception as e:
+            print(f"OFX parse error: {e}")
+
+        return transactions
+
+    def _remove_selected_file(self):
+        """Remove selected file from import list."""
+        row = self.files_table.currentRow()
+        if row >= 0:
+            self.files_table.removeRow(row)
+            self._update_detection_label()
+
+    def _use_template(self, template_type: str):
+        """Use a quick import template."""
+        file_filter = "CSV Files (*.csv);;IIF Files (*.iif);;All Files (*.*)"
+        if template_type == "accounts":
+            title = "Select Chart of Accounts Export"
+        elif template_type == "customers":
+            title = "Select Customer List Export"
+        elif template_type == "vendors":
+            title = "Select Vendor List Export"
+        else:
+            title = "Select Transaction Export"
+
+        file_path, _ = QFileDialog.getOpenFileName(self, title, "", file_filter)
+        if file_path:
+            self._process_import_file(file_path)
+
+    def _update_detection_label(self):
+        """Update the detection summary label."""
+        total_files = self.files_table.rowCount()
+        total_records = 0
+        for row in range(total_files):
+            count_item = self.files_table.item(row, 2)
+            if count_item:
+                try:
+                    total_records += int(count_item.text())
+                except ValueError:
+                    pass
+
+        self.detection_label.setText(
+            f"Detected {total_files} file(s) with {total_records:,} total records"
+        )
+
+    def _go_back(self):
+        """Go to previous step."""
+        if self.current_step > 0:
+            self.current_step -= 1
+            self.stack.setCurrentIndex(self.current_step)
+            self._update_step_ui()
+
+    def _go_next(self):
+        """Go to next step or finish."""
+        if self.current_step == 0:
+            # Validate step 1
+            if self.new_radio.isChecked() and not self.new_company_name.text().strip():
+                QMessageBox.warning(self, "Error", "Please enter a company name.")
+                return
+            if self.new_radio.isChecked():
+                self.import_data['company_name'] = self.new_company_name.text().strip()
+            else:
+                self.import_data['company_name'] = self.existing_combo.currentText()
+
+        elif self.current_step == 1:
+            # Validate step 2
+            if self.files_table.rowCount() == 0:
+                QMessageBox.warning(self, "Error", "Please add at least one file to import.")
+                return
+            self._prepare_data_preview()
+
+        elif self.current_step == 2:
+            # Start import
+            self.current_step += 1
+            self.stack.setCurrentIndex(self.current_step)
+            self._update_step_ui()
+            self._run_import()
+            return
+
+        elif self.current_step == 3:
+            # Finish
+            self.accept()
+            return
+
+        self.current_step += 1
+        self.stack.setCurrentIndex(self.current_step)
+        self._update_step_ui()
+
+    def _update_step_ui(self):
+        """Update UI based on current step."""
+        steps = [
+            "Step 1 of 4: Select Company",
+            "Step 2 of 4: Select Files",
+            "Step 3 of 4: Review & Configure",
+            "Step 4 of 4: Import Data"
+        ]
+        self.step_label.setText(steps[self.current_step])
+        self.back_btn.setEnabled(self.current_step > 0 and self.current_step < 3)
+        self._update_progress()
+
+        if self.current_step == 3:
+            self.next_btn.setText("Finish")
+            self.back_btn.setEnabled(False)
+        elif self.current_step == 2:
+            self.next_btn.setText("Start Import")
+        else:
+            self.next_btn.setText("Next >")
+
+    def _prepare_data_preview(self):
+        """Prepare data preview for step 3."""
+        # Aggregate all records by type
+        type_counts = {
+            'accounts': 0, 'customers': 0, 'vendors': 0, 'employees': 0,
+            'items': 0, 'invoices': 0, 'bills': 0, 'checks': 0,
+            'deposits': 0, 'journal_entries': 0, 'payments_received': 0,
+            'bills_paid': 0
+        }
+
+        for file_path, file_data in self.import_data['files'].items():
+            data_type = file_data.get('type', 'unknown')
+            records = file_data.get('records', [])
+
+            if data_type in type_counts:
+                type_counts[data_type] += len(records)
+            elif data_type == 'transactions':
+                # Split transactions into appropriate categories
+                for rec in records:
+                    rec_type = rec.get('_type', rec.get('type', '')).upper()
+                    if 'CHECK' in rec_type or rec.get('docnum', '').startswith('CHK'):
+                        type_counts['checks'] += 1
+                    elif 'DEPOSIT' in rec_type:
+                        type_counts['deposits'] += 1
+                    elif 'INVOICE' in rec_type:
+                        type_counts['invoices'] += 1
+                    elif 'BILL' in rec_type:
+                        type_counts['bills'] += 1
+                    else:
+                        type_counts['journal_entries'] += 1
+            elif data_type == 'bank_transactions':
+                # Bank transactions go to deposits or checks based on amount
+                for rec in records:
+                    if rec.get('amount', 0) >= 0:
+                        type_counts['deposits'] += 1
+                    else:
+                        type_counts['checks'] += 1
+
+        # Update UI counts
+        for key, count in type_counts.items():
+            label = self.stack.widget(2).findChild(QLabel, f"count_{key}")
+            if label:
+                label.setText(f"{count:,} records")
+            if key in self.category_checks:
+                self.category_checks[key].setEnabled(count > 0)
+                if count == 0:
+                    self.category_checks[key].setChecked(False)
+
+    def _run_import(self):
+        """Execute the import process."""
+        self.import_log.clear()
+        self._log("Starting QuickBooks import...")
+        self._log(f"Target company: {self.import_data['company_name']}")
+
+        # Create company if needed
+        if self.new_radio.isChecked():
+            self._log("Creating new company...")
+            result = api_post("/companies", {
+                "name": self.import_data['company_name'],
+                "type": "farm"
+            })
+            if result:
+                self._log(f"Company created: {self.import_data['company_name']}")
+            else:
+                self._log("Warning: Could not create company, using default")
+
+        total_records = sum(
+            len(fd.get('records', []))
+            for fd in self.import_data['files'].values()
+        )
+        processed = 0
+        results = {}
+
+        # Import order: accounts -> entities -> items -> transactions
+        import_order = [
+            ('accounts', '/accounts', 'Chart of Accounts'),
+            ('customers', '/customers', 'Customers'),
+            ('vendors', '/vendors', 'Vendors'),
+            ('employees', '/employees', 'Employees'),
+            ('items', '/inventory', 'Items'),
+            ('invoices', '/invoices', 'Invoices'),
+            ('bills', '/bills', 'Bills'),
+            ('payments_received', '/receive-payments', 'Payments Received'),
+            ('bills_paid', '/bill-payments', 'Bill Payments'),
+            ('checks', '/checks', 'Checks'),
+            ('deposits', '/deposits', 'Deposits'),
+            ('journal_entries', '/journal-entries', 'Journal Entries'),
+        ]
+
+        for data_type, endpoint, display_name in import_order:
+            if data_type not in self.category_checks:
+                continue
+            if not self.category_checks[data_type].isChecked():
+                continue
+
+            self._log(f"\nImporting {display_name}...")
+            self.current_task_label.setText(f"Importing {display_name}...")
+
+            records_to_import = []
+            for file_data in self.import_data['files'].values():
+                if file_data.get('type') == data_type:
+                    records_to_import.extend(file_data.get('records', []))
+
+            imported = 0
+            skipped = 0
+            errors = 0
+
+            for record in records_to_import:
+                try:
+                    # Transform record to API format
+                    api_record = self._transform_record(data_type, record)
+                    if api_record:
+                        result = api_post(endpoint, api_record)
+                        if result:
+                            imported += 1
+                        else:
+                            if self.skip_duplicates.isChecked():
+                                skipped += 1
+                            else:
+                                errors += 1
+                    else:
+                        skipped += 1
+                except Exception as e:
+                    errors += 1
+                    self._log(f"  Error: {e}")
+
+                processed += 1
+                self._update_progress_bar(processed, total_records)
+
+            results[display_name] = {
+                'imported': imported,
+                'skipped': skipped,
+                'errors': errors
+            }
+            self._log(f"  Imported: {imported}, Skipped: {skipped}, Errors: {errors}")
+
+        self._show_results(results)
+
+    def _transform_record(self, data_type: str, record: Dict) -> Optional[Dict]:
+        """Transform a QuickBooks record to GenFin API format."""
+        if data_type == 'accounts':
+            return {
+                'name': record.get('NAME', record.get('name', '')),
+                'type': self._map_account_type(record.get('ACCNTTYPE', record.get('type', ''))),
+                'number': record.get('ACCNUM', record.get('number', '')),
+                'description': record.get('DESC', record.get('description', '')),
+                'balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
+            }
+        elif data_type == 'customers':
+            return {
+                'name': record.get('NAME', record.get('name', record.get('Customer', ''))),
+                'email': record.get('EMAIL', record.get('email', '')),
+                'phone': record.get('PHONE1', record.get('phone', '')),
+                'address': record.get('ADDR1', record.get('address', '')),
+                'city': record.get('CITY', record.get('city', '')),
+                'state': record.get('STATE', record.get('state', '')),
+                'zip': record.get('ZIP', record.get('zip', '')),
+                'balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
+            }
+        elif data_type == 'vendors':
+            return {
+                'name': record.get('NAME', record.get('name', record.get('Vendor', ''))),
+                'email': record.get('EMAIL', record.get('email', '')),
+                'phone': record.get('PHONE1', record.get('phone', '')),
+                'address': record.get('ADDR1', record.get('address', '')),
+                'city': record.get('CITY', record.get('city', '')),
+                'state': record.get('STATE', record.get('state', '')),
+                'zip': record.get('ZIP', record.get('zip', '')),
+                'balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
+            }
+        elif data_type == 'employees':
+            return {
+                'first_name': record.get('FIRSTNAME', record.get('first_name', '')),
+                'last_name': record.get('LASTNAME', record.get('last_name', '')),
+                'email': record.get('EMAIL', record.get('email', '')),
+                'phone': record.get('PHONE', record.get('phone', '')),
+                'ssn': record.get('SSN', ''),
+                'hire_date': record.get('HIREDATE', record.get('hire_date', '')),
+            }
+        elif data_type in ['invoices', 'bills', 'checks', 'deposits', 'journal_entries']:
+            return {
+                'date': record.get('DATE', record.get('date', '')),
+                'amount': float(record.get('AMOUNT', record.get('amount', 0)) or 0),
+                'description': record.get('MEMO', record.get('description', record.get('memo', ''))),
+                'reference': record.get('DOCNUM', record.get('reference', record.get('num', ''))),
+                'account': record.get('ACCNT', record.get('account', '')),
+            }
+        else:
+            return None
+
+    def _map_account_type(self, qb_type: str) -> str:
+        """Map QuickBooks account type to GenFin type."""
+        type_map = {
+            'BANK': 'bank',
+            'AR': 'accounts_receivable',
+            'AP': 'accounts_payable',
+            'CCARD': 'credit_card',
+            'FIXASSET': 'fixed_asset',
+            'OASSET': 'other_asset',
+            'OCASSET': 'other_current_asset',
+            'OLIAB': 'other_liability',
+            'OCLIAB': 'other_current_liability',
+            'LTLIAB': 'long_term_liability',
+            'EQUITY': 'equity',
+            'INC': 'income',
+            'COGS': 'cogs',
+            'EXP': 'expense',
+            'EXINC': 'other_income',
+            'EXEXP': 'other_expense',
+        }
+        return type_map.get(qb_type.upper(), 'expense')
+
+    def _update_progress_bar(self, current: int, total: int):
+        """Update the visual progress bar."""
+        if total > 0:
+            pct = (current / total)
+            width = int(self.progress_bar.width() * pct)
+            self.progress_fill.setFixedWidth(width)
+            self.progress_detail.setText(f"{current:,} of {total:,} records processed")
+        QApplication.processEvents()
+
+    def _log(self, message: str):
+        """Add message to import log."""
+        self.import_log.appendPlainText(message)
+        QApplication.processEvents()
+
+    def _show_results(self, results: Dict):
+        """Show import results."""
+        self.progress_group.hide()
+        self.results_group.show()
+
+        self.results_table.setRowCount(len(results))
+        total_imported = 0
+        total_skipped = 0
+        total_errors = 0
+
+        for i, (name, stats) in enumerate(results.items()):
+            self.results_table.setItem(i, 0, QTableWidgetItem(name))
+            self.results_table.setItem(i, 1, QTableWidgetItem(str(stats['imported'])))
+            self.results_table.setItem(i, 2, QTableWidgetItem(str(stats['skipped'])))
+
+            error_item = QTableWidgetItem(str(stats['errors']))
+            if stats['errors'] > 0:
+                error_item.setForeground(QColor('red'))
+            self.results_table.setItem(i, 3, error_item)
+
+            total_imported += stats['imported']
+            total_skipped += stats['skipped']
+            total_errors += stats['errors']
+
+        self.import_stats = {
+            'imported': total_imported,
+            'skipped': total_skipped,
+            'errors': total_errors
+        }
+
+        if total_errors == 0:
+            self.results_summary.setText(
+                f"✅ Import completed successfully!\n"
+                f"Imported {total_imported:,} records into {self.import_data['company_name']}"
+            )
+            self.results_summary.setStyleSheet(f"color: green; font-size: 14px; padding: 10px;")
+        else:
+            self.results_summary.setText(
+                f"⚠️ Import completed with {total_errors} error(s)\n"
+                f"Imported {total_imported:,} records, skipped {total_skipped:,}"
+            )
+            self.results_summary.setStyleSheet(f"color: orange; font-size: 14px; padding: 10px;")
+
+        self._log(f"\n{'='*50}")
+        self._log(f"IMPORT COMPLETE")
+        self._log(f"Total imported: {total_imported:,}")
+        self._log(f"Total skipped: {total_skipped:,}")
+        self._log(f"Total errors: {total_errors}")
+
+        self.next_btn.setEnabled(True)
+        self.import_complete.emit(self.import_data['company_name'], self.import_stats)
+
+
 class AddEmployeeDialog(GenFinDialog):
     """Dialog for adding/editing an employee."""
 
@@ -1767,18 +2775,20 @@ class AddCustomerDialog(GenFinDialog):
             QMessageBox.warning(self, "Validation Error", "Customer name is required.")
             return
 
+        # Map dialog fields to API expected fields
         self.result_data = {
-            "name": self.name.text().strip(),
-            "company": self.company.text().strip(),
+            "company_name": self.name.text().strip(),
+            "display_name": self.name.text().strip(),
+            "contact_name": self.company.text().strip(),  # Company field used for contact
             "email": self.email.text().strip(),
             "phone": self.phone.text().strip(),
-            "address_line1": self.address.text().strip(),
-            "city": self.city.text().strip(),
-            "state": self.state.text().strip(),
-            "zip_code": self.zip_code.text().strip(),
+            "billing_address_line1": self.address.text().strip(),
+            "billing_city": self.city.text().strip(),
+            "billing_state": self.state.text().strip(),
+            "billing_zip": self.zip_code.text().strip(),
             "credit_limit": self.credit_limit.value(),
             "payment_terms": self.payment_terms.currentText(),
-            "notes": self.notes.toPlainText()
+            "customer_type": ""
         }
         self.accept()
 
@@ -1884,20 +2894,21 @@ class AddVendorDialog(GenFinDialog):
             QMessageBox.warning(self, "Validation Error", "Vendor name is required.")
             return
 
+        # Map dialog fields to API expected fields
         self.result_data = {
-            "name": self.name.text().strip(),
-            "company": self.company.text().strip(),
+            "company_name": self.name.text().strip(),
+            "display_name": self.name.text().strip(),
+            "contact_name": self.company.text().strip(),  # Company field used for contact
             "email": self.email.text().strip(),
             "phone": self.phone.text().strip(),
-            "address_line1": self.address.text().strip(),
-            "city": self.city.text().strip(),
-            "state": self.state.text().strip(),
-            "zip_code": self.zip_code.text().strip(),
+            "billing_address_line1": self.address.text().strip(),
+            "billing_city": self.city.text().strip(),
+            "billing_state": self.state.text().strip(),
+            "billing_zip": self.zip_code.text().strip(),
             "tax_id": self.tax_id.text().strip(),
             "is_1099_vendor": self.is_1099.isChecked(),
             "payment_terms": self.payment_terms.currentText(),
-            "default_expense_account": self.default_expense.currentText(),
-            "notes": self.notes.toPlainText()
+            "vendor_type": ""
         }
         self.accept()
 
@@ -4762,6 +5773,30 @@ class GenFinHomeScreen(QWidget):
         new_company_btn.clicked.connect(self._add_new_company)
         company_layout.addWidget(new_company_btn)
 
+        # Import from QuickBooks button
+        import_qb_btn = QPushButton("📥 Import from QuickBooks")
+        import_qb_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ffffff, stop:1 {GENFIN_COLORS['window_bg']});
+                border: 2px outset {GENFIN_COLORS['bevel_shadow']};
+                padding: 4px 12px;
+                font-size: 10px;
+                font-weight: bold;
+                color: {GENFIN_COLORS['teal_dark']};
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {GENFIN_COLORS['teal_light']}, stop:1 {GENFIN_COLORS['teal']});
+                color: white;
+            }}
+            QPushButton:pressed {{
+                border-style: inset;
+            }}
+        """)
+        import_qb_btn.clicked.connect(self._import_from_quickbooks)
+        company_layout.addWidget(import_qb_btn)
+
         layout.addWidget(company_frame)
 
         welcome_frame = QFrame()
@@ -4950,6 +5985,20 @@ class GenFinHomeScreen(QWidget):
             if " (" in company_name:
                 company_name = company_name.split(" (")[0]
             self.welcome_label.setText(f"Welcome to {company_name}")
+
+    def _import_from_quickbooks(self):
+        """Launch QuickBooks Import Wizard to import company data."""
+        dialog = QuickBooksImportWizard(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Refresh company list and stats after successful import
+            self._load_entities()
+            self._load_stats()
+            QMessageBox.information(
+                self,
+                "Import Complete",
+                "QuickBooks data has been successfully imported!\n\n"
+                "Your financial history is now available in GenFin."
+            )
 
     def _add_new_company(self):
         """Show dialog to add a new company/entity."""
@@ -5331,7 +6380,7 @@ class GenFinCustomersScreen(GenFinListScreen):
     def __init__(self, parent=None):
         super().__init__(
             "Customers",
-            ["Name", "Company", "Phone", "Balance"],
+            ["Name", "Contact", "Phone", "Balance"],
             "/customers",
             None,
             "customer_id",
@@ -5356,8 +6405,11 @@ class GenFinCustomersScreen(GenFinListScreen):
             self._data = customers
             self.table.setRowCount(len(customers))
             for i, c in enumerate(customers):
-                self.table.setItem(i, 0, QTableWidgetItem(c.get("name", "")))
-                self.table.setItem(i, 1, QTableWidgetItem(c.get("company", "")))
+                # Map API response fields to display
+                name = c.get("display_name") or c.get("company_name", "")
+                contact = c.get("contact_name", "")
+                self.table.setItem(i, 0, QTableWidgetItem(name))
+                self.table.setItem(i, 1, QTableWidgetItem(contact))
                 self.table.setItem(i, 2, QTableWidgetItem(c.get("phone", "")))
                 balance = c.get("balance", 0)
                 self.table.setItem(i, 3, QTableWidgetItem(f"${balance:,.2f}"))
@@ -5369,7 +6421,7 @@ class GenFinVendorsScreen(GenFinListScreen):
     def __init__(self, parent=None):
         super().__init__(
             "Vendors",
-            ["Name", "Company", "Phone", "Balance"],
+            ["Name", "Contact", "Phone", "Balance"],
             "/vendors",
             None,
             "vendor_id",
@@ -5394,8 +6446,11 @@ class GenFinVendorsScreen(GenFinListScreen):
             self._data = vendors
             self.table.setRowCount(len(vendors))
             for i, v in enumerate(vendors):
-                self.table.setItem(i, 0, QTableWidgetItem(v.get("name", "")))
-                self.table.setItem(i, 1, QTableWidgetItem(v.get("company", "")))
+                # Map API response fields to display
+                name = v.get("display_name") or v.get("company_name", "")
+                contact = v.get("contact_name", "")
+                self.table.setItem(i, 0, QTableWidgetItem(name))
+                self.table.setItem(i, 1, QTableWidgetItem(contact))
                 self.table.setItem(i, 2, QTableWidgetItem(v.get("phone", "")))
                 balance = v.get("balance", 0)
                 self.table.setItem(i, 3, QTableWidgetItem(f"${balance:,.2f}"))
