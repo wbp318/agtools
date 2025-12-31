@@ -48,10 +48,11 @@ AgTools provides an integrated platform addressing all gaps:
 - **Spray timing optimization** based on weather and thresholds
 - **Cost tracking** with automatic cost-per-acre calculations
 - **Sustainability documentation** for market access
-- **GenFin Financial Management** (v6.5.0) - Complete QuickBooks-parity accounting:
+- **GenFin Financial Management** (v6.7.4) - Production-ready QuickBooks-parity accounting:
   - Bank accounts, check register, reconciliation
   - Invoicing, billing, payroll with tax calculations
   - 50+ financial reports, budgets, 1099 tracking
+  - Complete transaction workflows with 100% test coverage
   - Replaces expensive accounting software subscriptions
 
 ### For Researchers
