@@ -5517,7 +5517,7 @@ class WriteCheckDialog(GenFinDialog):
         row1.addWidget(QLabel("Bank Account:"))
         self.bank_account = QComboBox()
         self.bank_account.setMinimumWidth(250)
-        self.bank_account.currentIndexChanged.connect(self._update_ending_balance)
+        # Add items before connecting signal to avoid triggering before ending_balance exists
         for acct in self._bank_accounts:
             self.bank_account.addItem(
                 f"{acct.get('name', '')} ({acct.get('account_number', '')})",
@@ -5533,6 +5533,9 @@ class WriteCheckDialog(GenFinDialog):
         self.ending_balance.setStyleSheet("font-weight: bold; color: #006400;")
         row1.addWidget(self.ending_balance)
         check_layout.addLayout(row1)
+
+        # Connect signal after ending_balance is created
+        self.bank_account.currentIndexChanged.connect(self._update_ending_balance)
 
         # Row 2: Check number and date
         row2 = QHBoxLayout()
