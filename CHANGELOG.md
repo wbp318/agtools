@@ -1,8 +1,30 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.1 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.7.2 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.2 (December 30, 2025)
+
+### Bug Fixes & API Compatibility
+
+**Frontend-Backend Data Format Fixes:**
+- Fixed Invoice creation - added required `account_id`, renamed `rate` to `unit_price`
+- Fixed Bill creation - converted expenses/items to unified `lines` array format
+- Fixed field naming to match Pydantic models (`reference_number` not `ref_number`)
+- Removed unsupported fields from API payloads (`due_date`, `total` in invoices)
+
+**Import Fixes:**
+- Added missing Qt imports: `QMenu`, `QTreeWidget`, `QTreeWidgetItem`, `QCompleter`, `QStyle`, `QScrollBar`, `QTabBar`
+- Fixed `GENFIN_COLORS['cream']` → `GENFIN_COLORS['panel_bg']`
+
+**Signal Connection Fixes:**
+- Fixed WriteCheckDialog `ending_balance` AttributeError by reordering signal connection
+
+**Test Data:**
+- Added placeholder test customer for feature testing
 
 ---
 
