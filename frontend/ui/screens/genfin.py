@@ -3063,10 +3063,10 @@ class AddInvoiceDialog(GenFinDialog):
             total += amount
 
             lines.append({
+                "account_id": "income_sales",  # Default income account
                 "description": desc,
                 "quantity": qty,
-                "rate": rate,
-                "amount": amount
+                "unit_price": rate,  # Backend expects unit_price, not rate
             })
 
         if not lines:
@@ -3076,11 +3076,10 @@ class AddInvoiceDialog(GenFinDialog):
         self.result_data = {
             "customer_id": self.customer.currentData(),
             "invoice_date": self.invoice_date.date().toString("yyyy-MM-dd"),
-            "due_date": self.due_date.date().toString("yyyy-MM-dd"),
             "terms": self.terms.currentText(),
             "lines": lines,
             "memo": self.memo.text(),
-            "total": total
+            "po_number": ""  # Optional field
         }
         self.accept()
 
@@ -3727,18 +3726,30 @@ class AddBillDialog(GenFinDialog):
             QMessageBox.warning(self, "Validation Error", "Please add at least one expense or item line.")
             return False
 
+        # Convert expenses and items to lines format expected by backend
+        lines = []
+        for exp in expenses:
+            lines.append({
+                "account_id": exp.get("account_id") or "expense_general",
+                "description": exp.get("memo", ""),
+                "quantity": 1.0,
+                "unit_price": exp.get("amount", 0),
+            })
+        for item in items:
+            lines.append({
+                "account_id": item.get("item_id") or "expense_inventory",
+                "description": item.get("description", ""),
+                "quantity": item.get("quantity", 1),
+                "unit_price": item.get("cost", 0),
+            })
+
         self.result_data = {
             "vendor_id": self._selected_vendor.get("vendor_id"),
-            "vendor_name": self._selected_vendor.get("display_name") or self._selected_vendor.get("company_name"),
-            "is_credit": self._is_credit,
             "bill_date": self.bill_date.date().toString("yyyy-MM-dd"),
-            "due_date": self.due_date.date().toString("yyyy-MM-dd"),
+            "lines": lines,
+            "reference_number": self.ref_number.text(),
             "terms": self.terms.currentText(),
-            "ref_number": self.ref_number.text(),
-            "expenses": expenses,
-            "items": items,
             "memo": self.memo.text(),
-            "total": float(self.amount_due.text().replace("$", "").replace(",", ""))
         }
         return True
 
