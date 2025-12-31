@@ -2951,7 +2951,8 @@ class AddInvoiceDialog(GenFinDialog):
         self.customer = QComboBox()
         self.customer.addItem("-- Select Customer --", "")
         for c in self.customers:
-            self.customer.addItem(c.get("name", "Unknown"), c.get("customer_id"))
+            name = c.get("display_name") or c.get("company_name") or "Unknown"
+            self.customer.addItem(name, c.get("customer_id"))
         form_left.addRow("Customer*:", self.customer)
 
         self.invoice_date = QDateEdit()
@@ -3103,7 +3104,8 @@ class AddBillDialog(GenFinDialog):
         self.vendor = QComboBox()
         self.vendor.addItem("-- Select Vendor --", "")
         for v in self.vendors:
-            self.vendor.addItem(v.get("name", "Unknown"), v.get("vendor_id"))
+            name = v.get("display_name") or v.get("company_name") or "Unknown"
+            self.vendor.addItem(name, v.get("vendor_id"))
         form_left.addRow("Vendor*:", self.vendor)
 
         self.bill_date = QDateEdit()
@@ -4370,7 +4372,8 @@ class EstimateDialog(GenFinDialog):
         self.customer = QComboBox()
         self.customer.addItem("-- Select Customer --", "")
         for c in self.customers:
-            self.customer.addItem(c.get("name", "Unknown"), c.get("customer_id"))
+            name = c.get("display_name") or c.get("company_name") or "Unknown"
+            self.customer.addItem(name, c.get("customer_id"))
         form_left.addRow("Customer*:", self.customer)
 
         self.estimate_date = QDateEdit()
@@ -4566,7 +4569,8 @@ class PurchaseOrderDialog(GenFinDialog):
         self.vendor = QComboBox()
         self.vendor.addItem("-- Select Vendor --", "")
         for v in self.vendors:
-            self.vendor.addItem(v.get("name", "Unknown"), v.get("vendor_id"))
+            name = v.get("display_name") or v.get("company_name") or "Unknown"
+            self.vendor.addItem(name, v.get("vendor_id"))
         form_left.addRow("Vendor*:", self.vendor)
 
         self.po_date = QDateEdit()
@@ -4760,7 +4764,8 @@ class SalesReceiptDialog(GenFinDialog):
         self.customer = QComboBox()
         self.customer.addItem("Walk-in Customer", "")
         for c in self.customers:
-            self.customer.addItem(c.get("name", "Unknown"), c.get("customer_id"))
+            name = c.get("display_name") or c.get("company_name") or "Unknown"
+            self.customer.addItem(name, c.get("customer_id"))
         header_layout.addRow("Customer:", self.customer)
 
         self.sale_date = QDateEdit()
@@ -4967,7 +4972,8 @@ class TimeEntryDialog(GenFinDialog):
         self.customer = QComboBox()
         self.customer.addItem("-- Select Customer (optional) --", "")
         for c in self.customers:
-            self.customer.addItem(c.get("name", "Unknown"), c.get("customer_id"))
+            name = c.get("display_name") or c.get("company_name") or "Unknown"
+            self.customer.addItem(name, c.get("customer_id"))
         form.addRow("Customer/Job:", self.customer)
 
         self.service_item = QComboBox()
