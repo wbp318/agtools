@@ -1,8 +1,21 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.3 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.7.4 | **Last Updated:** December 31, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.4 (December 31, 2025)
+
+### Bill Edit Functionality
+
+**Bills Screen:**
+- Added full Edit support for Bills (previously showed "coming soon")
+- `AddBillDialog` now accepts `edit_data` parameter for edit mode
+- Opens existing bill data in dialog for modification
+- Calls PUT `/bills/{id}` API on save
+- Populates vendor, date, reference number, terms, memo, and line items
 
 ---
 

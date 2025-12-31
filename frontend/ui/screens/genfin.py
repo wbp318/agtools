@@ -3095,7 +3095,7 @@ class AddBillDialog(GenFinDialog):
     - Terms dropdown with auto due date
     """
 
-    def __init__(self, vendors: List[Dict], start_as_credit: bool = False, parent=None):
+    def __init__(self, vendors: List[Dict], start_as_credit: bool = False, edit_data: Dict = None, parent=None):
         super().__init__("Enter Vendor Credit" if start_as_credit else "Enter Bills", parent)
         self.vendors = vendors
         self.result_data = None
@@ -3108,8 +3108,12 @@ class AddBillDialog(GenFinDialog):
         self._items = []
         self._classes = []
         self._selected_vendor = None
+        self._edit_data = edit_data
+        self._edit_mode = edit_data is not None
         self._load_data()
         self._setup_ui()
+        if self._edit_data:
+            self._load_edit_data()
 
     def _load_data(self):
         """Load accounts, customers, items, and classes."""
@@ -3756,6 +3760,83 @@ class AddBillDialog(GenFinDialog):
     def _save(self):
         if self._do_save():
             self.accept()
+
+    def _load_edit_data(self):
+        """Populate dialog with existing bill data for editing."""
+        data = self._edit_data
+        if not data:
+            return
+
+        # Set window title for edit mode
+        self.setWindowTitle(f"Edit Bill - {data.get('bill_number', '')}")
+
+        # Find and select the vendor
+        vendor_id = data.get("vendor_id")
+        vendor_name = data.get("vendor_name", "")
+        for i in range(self.vendor.count()):
+            v = self.vendor.itemData(i)
+            if v and v.get("vendor_id") == vendor_id:
+                self.vendor.setCurrentIndex(i)
+                self._selected_vendor = v
+                self._fill_vendor_address()
+                break
+        else:
+            # If vendor not found by ID, try by name
+            for i in range(self.vendor.count()):
+                if vendor_name in self.vendor.itemText(i):
+                    self.vendor.setCurrentIndex(i)
+                    self._selected_vendor = self.vendor.itemData(i)
+                    self._fill_vendor_address()
+                    break
+
+        # Set date
+        if data.get("bill_date"):
+            date = QDate.fromString(data["bill_date"], "yyyy-MM-dd")
+            if date.isValid():
+                self.bill_date.setDate(date)
+
+        # Set reference number
+        if data.get("reference_number"):
+            self.ref_number.setText(data["reference_number"])
+
+        # Set terms
+        terms = data.get("terms", "Net 30")
+        idx = self.terms.findText(terms)
+        if idx >= 0:
+            self.terms.setCurrentIndex(idx)
+
+        # Set memo
+        if data.get("memo"):
+            self.memo.setText(data["memo"])
+
+        # Load line items into expenses table
+        lines = data.get("lines", [])
+        if lines:
+            # Clear default rows
+            self.expenses_table.setRowCount(0)
+            self.expenses_table.setRowCount(max(len(lines), 3))
+
+            for row, line in enumerate(lines):
+                self._setup_expense_row(row)
+                # Set account
+                account_widget = self.expenses_table.cellWidget(row, 0)
+                if account_widget and line.get("description"):
+                    account_widget.setCurrentText(line.get("account_name", line.get("description", "")))
+                # Set amount
+                amount_widget = self.expenses_table.cellWidget(row, 1)
+                if amount_widget:
+                    amount = line.get("unit_price", 0) * line.get("quantity", 1)
+                    amount_widget.setValue(amount)
+                # Set memo in the table item
+                memo = line.get("description", "")
+                if memo:
+                    self.expenses_table.setItem(row, 2, QTableWidgetItem(memo))
+
+            # Setup remaining empty rows
+            for row in range(len(lines), self.expenses_table.rowCount()):
+                self._setup_expense_row(row)
+
+        self._update_total()
 
 
 # =============================================================================
@@ -9469,6 +9550,30 @@ class GenFinBillsScreen(GenFinListScreen):
             else:
                 error = result.get("error", "Unknown error") if result else "API request failed"
                 QMessageBox.warning(self, "Error", f"Failed to enter bill: {error}")
+
+    def _on_edit(self):
+        """Handle editing an existing bill."""
+        item = self._get_selected_item()
+        if not item:
+            QMessageBox.warning(self, "Warning", "Please select a bill to edit.")
+            return
+
+        # Load vendors
+        vendors = api_get("/vendors")
+        if vendors:
+            self._vendors = vendors if isinstance(vendors, list) else []
+
+        # Open dialog with existing bill data
+        dialog = AddBillDialog(self._vendors, edit_data=item, parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
+            bill_id = item.get("bill_id")
+            result = api_put(f"/bills/{bill_id}", dialog.result_data)
+            if result and result.get("success"):
+                QMessageBox.information(self, "Success", "Bill updated!")
+                self.load_data()
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Error", f"Failed to update bill: {error}")
 
     def load_data(self):
         data = api_get("/bills")
