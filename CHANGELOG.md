@@ -1,8 +1,56 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.5.2 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.6.0 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.6.0 (December 30, 2025)
+
+### Full QuickBooks Parity - Final Features
+
+**Print Preview System:**
+- **Universal PrintPreviewDialog** - Preview any document before printing
+- **Document types supported:** Checks, Invoices, Estimates, Purchase Orders, Statements, Reports
+- **Features:** Zoom control (50%-200%), Save as PDF, Direct print, Page setup
+- **Professional MICR check layout** with amount-to-words conversion
+- **HTML-based rendering** for consistent cross-platform output
+
+**Import/Export System:**
+- **ImportExportDialog** - Full data migration capability
+- **Import formats:** QIF (Quicken), CSV, IIF (QuickBooks Desktop)
+- **Export formats:** QIF, CSV, IIF, JSON
+- **Data types:** Chart of Accounts, Customers, Vendors, Employees, Invoices, Bills, Transactions
+- **CSV column mapping** with auto-detection
+- **File preview** before import
+- **Duplicate handling** options (skip, update, import as new)
+
+**Bank Feed Auto-Matching (Enhanced):**
+- **Smart matching algorithm** with confidence scoring (0-100%)
+- **5-tier matching priority:**
+  1. Custom matching rules (100% confidence)
+  2. Existing transaction matching (amount + date + description)
+  3. Vendor matching for payments (negative amounts)
+  4. Customer matching for deposits (positive amounts)
+  5. Keyword-based category matching (farm-specific)
+- **OFX/QFX/QBO file import** with built-in parser
+- **Matching Rules Manager** - create custom auto-categorization rules
+- **Manual match dialog** with tabbed vendor/customer/transaction lookup
+- **String similarity algorithm** for fuzzy matching
+- **Farm-specific keywords:** fuel, insurance, seed, fertilizer, equipment, etc.
+
+**Batch Statement Generation:**
+- **Multi-customer statement processing** - print, email, or PDF export
+- **Smart customer selection:** Select All, Select With Balance, Select Overdue
+- **Batch PDF generation** - save all statements to folder
+- **Batch email sending** with missing email address handling
+- **Statement aging calculation** (Current, 1-30, 31-60, 61-90, 90+ days)
+- **Real-time selection summary** with total balance calculation
+
+**New Dialogs Added (6 total):**
+- PrintPreviewDialog, ImportExportDialog
+- BankConnectionDialog, MatchingRulesDialog, AddRuleDialog, FindMatchDialog
 
 ---
 
@@ -74,11 +122,13 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 | Credit Cards | ✅ Complete | Vendor Credits | ✅ Complete |
 | Settings | ✅ Complete | Help Center | ✅ Complete |
 
-**Dialogs Built (14 total):**
+**Dialogs Built (20 total):**
 - ReceivePaymentDialog, PayBillsDialog, WriteCheckDialog, MakeDepositDialog
 - JournalEntryDialog, EstimateDialog, PurchaseOrderDialog, SalesReceiptDialog
 - TimeEntryDialog, InventoryItemDialog, AddPayScheduleDialog
 - RunScheduledPayrollDialog, RunUnscheduledPayrollDialog, ViewPayRunDialog
+- PrintPreviewDialog, ImportExportDialog, BankConnectionDialog
+- MatchingRulesDialog, AddRuleDialog, FindMatchDialog
 
 **Payroll Center Features:**
 - Pay Schedules (Weekly/Biweekly/Semi-monthly/Monthly)
@@ -93,7 +143,7 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - [x] Back/Forward navigation (Alt+Left/Right)
 - [x] 36 icon letter shortcuts
 
-**Stats:** `genfin.py` ~8,500 lines | `genfin_payroll_service.py` ~2,000 lines | 35+ classes
+**Stats:** `genfin.py` ~11,100 lines | `genfin_payroll_service.py` ~2,000 lines | 40+ classes
 
 ---
 
@@ -205,10 +255,12 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 ---
 
 ### GenFin Remaining Tasks
-- [ ] Print previews for checks, invoices, reports
-- [ ] Import/Export dialogs (QIF, CSV, IIF)
-- [ ] Bank feed auto-matching improvements
-- [ ] Batch invoice/statement generation
+- [x] Print previews for checks, invoices, reports ✅ v6.6.0
+- [x] Import/Export dialogs (QIF, CSV, IIF) ✅ v6.6.0
+- [x] Bank feed auto-matching improvements ✅ v6.6.0
+- [x] Batch invoice/statement generation ✅ v6.6.0
+
+**🎉 ALL QUICKBOOKS PARITY FEATURES COMPLETE!**
 
 ---
 
@@ -216,7 +268,7 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 | Component | File | Lines |
 |-----------|------|-------|
-| GenFin Accounting | `frontend/ui/screens/genfin.py` | ~8,500 |
+| GenFin Accounting | `frontend/ui/screens/genfin.py` | ~11,100 |
 | GenFin Styles | `frontend/ui/genfin_styles.py` | ~300 |
 | Payroll Service | `backend/services/genfin_payroll_service.py` | ~2,000 |
 | Livestock | `backend/services/livestock_service.py` | ~1,100 |

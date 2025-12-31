@@ -398,7 +398,7 @@ from mobile import mobile_router, configure_templates
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system with recurring transactions, bank feeds, and fixed assets",
-    version="6.3.0",
+    version="6.6.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
