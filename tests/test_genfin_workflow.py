@@ -20,6 +20,7 @@ Run with: python tests/test_genfin_workflow.py
 import requests
 import json
 import sys
+import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -112,9 +113,10 @@ TEST_EMPLOYEE = {
     "pay_rate": 50000.00
 }
 
+TEST_ACCOUNT_NUM = f"69{random.randint(100, 999)}"
 TEST_ACCOUNT = {
-    "name": "Test Expense Account",
-    "account_number": "6999",
+    "name": f"Test Expense Account {TEST_ACCOUNT_NUM}",
+    "account_number": TEST_ACCOUNT_NUM,
     "account_type": "expense",
     "sub_type": "other_expense",
     "description": "For workflow testing"
@@ -399,14 +401,195 @@ def test_deposits():
     log_result("List deposits", ok, str(data)[:100])
 
 
+def test_journal_entries():
+    """Test Journal Entry operations."""
+    print("\n📝 Journal Entries")
+    print("-" * 40)
+
+    je_data = {
+        "entry_date": datetime.now().strftime("%Y-%m-%d"),
+        "memo": "Workflow test journal entry",
+        "lines": [
+            {
+                "account_id": "expense_general",
+                "description": "Test debit",
+                "debit": 100.00,
+                "credit": 0.00
+            },
+            {
+                "account_id": "asset_cash",
+                "description": "Test credit",
+                "debit": 0.00,
+                "credit": 100.00
+            }
+        ]
+    }
+
+    # CREATE
+    ok, data = api_post("/journal-entries", je_data)
+    log_result("Create journal entry", ok, str(data)[:100])
+
+    # READ (list)
+    ok, data = api_get("/journal-entries")
+    log_result("List journal entries", ok and isinstance(data, list), str(data)[:100])
+
+
 def test_checks():
     """Test Check operations."""
     print("\n✍️ Checks")
     print("-" * 40)
 
-    # Checks are created via Write Checks dialog - no direct list endpoint
-    # They show up in the check register which uses bank account transactions
-    log_result("Checks (via UI)", True, "Checks created through Write Checks dialog")
+    # Get bank accounts first
+    ok, bank_accounts = api_get("/bank-accounts")
+    bank_account_id = None
+    if ok and isinstance(bank_accounts, list) and len(bank_accounts) > 0:
+        bank_account_id = bank_accounts[0].get("account_id")
+
+    check_data = {
+        "bank_account_id": bank_account_id or "checking",
+        "check_date": datetime.now().strftime("%Y-%m-%d"),
+        "payee_name": "Test Payee Corp",
+        "payee_type": "vendor",
+        "amount": 125.50,
+        "memo": "Workflow test check",
+        "expenses": [
+            {
+                "account_id": "expense_general",
+                "amount": 125.50,
+                "memo": "Test expense"
+            }
+        ]
+    }
+
+    # CREATE
+    ok, data = api_post("/checks", check_data)
+    log_result("Create check", ok, str(data)[:100])
+    check_id = data.get("check_id") if ok and isinstance(data, dict) else None
+
+    # READ (list)
+    ok, data = api_get("/checks")
+    log_result("List checks", ok, str(data)[:100])
+
+
+def test_time_entries():
+    """Test Time Entry operations."""
+    print("\n⏱️ Time Entries")
+    print("-" * 40)
+
+    if not created_ids["employee_id"]:
+        log_result("Create time entry", False, "No employee ID - run employee test first")
+        return
+
+    time_data = {
+        "employee_id": created_ids["employee_id"],
+        "work_date": datetime.now().strftime("%Y-%m-%d"),
+        "hours": 8.0,
+        "description": "Workflow test time entry",
+        "billable": True,
+        "customer_id": created_ids.get("customer_id")
+    }
+
+    # CREATE
+    ok, data = api_post("/time-entries", time_data)
+    log_result("Create time entry", ok, str(data)[:100])
+
+    # READ (list)
+    ok, data = api_get("/time-entries")
+    log_result("List time entries", ok, str(data)[:100])
+
+
+def test_fixed_assets():
+    """Test Fixed Asset operations."""
+    print("\n🏭 Fixed Assets")
+    print("-" * 40)
+
+    # Fixed assets uses query params, not JSON body
+    asset_name = f"Test Equipment {random.randint(100, 999)}"
+    params = (
+        f"?name={asset_name}"
+        f"&purchase_date={datetime.now().strftime('%Y-%m-%d')}"
+        f"&original_cost=15000.00"
+        f"&category=equipment"
+        f"&depreciation_method=macrs_7"
+        f"&salvage_value=1500.00"
+        f"&useful_life_years=7"
+        f"&description=Workflow test fixed asset"
+    )
+
+    # CREATE (using query params)
+    try:
+        r = requests.post(f"{API_BASE}/fixed-assets{params}", timeout=10)
+        ok = r.status_code == 200
+        data = r.json() if r.status_code == 200 else r.text
+    except Exception as e:
+        ok, data = False, str(e)
+    log_result("Create fixed asset", ok, str(data)[:100])
+
+    # READ (list)
+    ok, data = api_get("/fixed-assets")
+    log_result("List fixed assets", ok, str(data)[:100])
+
+    # Summary
+    ok, data = api_get("/fixed-assets/summary")
+    log_result("Fixed assets summary", ok, str(data)[:100])
+
+
+def test_bank_accounts():
+    """Test Bank Account operations."""
+    print("\n🏦 Bank Accounts")
+    print("-" * 40)
+
+    # READ (list)
+    ok, data = api_get("/bank-accounts")
+    log_result("List bank accounts", ok, str(data)[:100])
+
+    # Bank accounts list returns valid response (may be empty)
+    if ok and isinstance(data, list):
+        log_result("Bank accounts endpoint valid", True, f"Found {len(data)} accounts")
+
+
+def test_entities():
+    """Test Entity/Company operations."""
+    print("\n🏢 Entities (Multi-Company)")
+    print("-" * 40)
+
+    # READ (list)
+    ok, data = api_get("/entities")
+    log_result("List entities", ok, str(data)[:100])
+
+    # Summary
+    ok, data = api_get("/entities/summary")
+    log_result("Entities summary", ok, str(data)[:100])
+
+
+def test_create_deposit():
+    """Test Deposit creation."""
+    print("\n💵 Deposit Creation")
+    print("-" * 40)
+
+    # Get a bank account first
+    ok, bank_accounts = api_get("/bank-accounts")
+    bank_account_id = None
+    if ok and isinstance(bank_accounts, list) and len(bank_accounts) > 0:
+        bank_account_id = bank_accounts[0].get("account_id")
+
+    deposit_data = {
+        "bank_account_id": bank_account_id or "checking",
+        "deposit_date": datetime.now().strftime("%Y-%m-%d"),
+        "memo": "Workflow test deposit",
+        "items": [
+            {
+                "received_from": "Test Customer",
+                "account_id": "income_sales",
+                "amount": 500.00,
+                "memo": "Test deposit item"
+            }
+        ]
+    }
+
+    # CREATE
+    ok, data = api_post("/deposits", deposit_data)
+    log_result("Create deposit", ok, str(data)[:100])
 
 
 def test_payroll():
@@ -414,13 +597,60 @@ def test_payroll():
     print("\n💵 Payroll")
     print("-" * 40)
 
-    # Pay schedules - correct endpoint
+    # Pay schedules
     ok, data = api_get("/pay-schedules")
     log_result("List pay schedules", ok, str(data)[:100])
 
-    # Pay runs - correct endpoint
+    # Pay runs
     ok, data = api_get("/pay-runs")
     log_result("List pay runs", ok, str(data)[:100])
+
+    # Time entries list (payroll related)
+    ok, data = api_get("/time-entries")
+    log_result("List time entries (payroll)", ok, str(data)[:100])
+
+
+def test_recurring_transactions():
+    """Test Recurring Transaction operations."""
+    print("\n🔄 Recurring Transactions")
+    print("-" * 40)
+
+    # READ (list)
+    ok, data = api_get("/recurring")
+    log_result("List recurring templates", ok, str(data)[:100])
+
+
+def test_1099_tracking():
+    """Test 1099 Tracking operations."""
+    print("\n📋 1099 Tracking")
+    print("-" * 40)
+
+    # Summary
+    ok, data = api_get("/1099/summary")
+    log_result("1099 summary", ok, str(data)[:100])
+
+    # Year data
+    year = datetime.now().year
+    ok, data = api_get(f"/1099/year/{year}")
+    log_result(f"1099 year {year} data", ok, str(data)[:100])
+
+
+def test_bank_feeds():
+    """Test Bank Feed operations."""
+    print("\n🏦 Bank Feeds")
+    print("-" * 40)
+
+    # Summary
+    ok, data = api_get("/bank-feeds/summary")
+    log_result("Bank feeds summary", ok, str(data)[:100])
+
+    # Transactions
+    ok, data = api_get("/bank-feeds/transactions")
+    log_result("Bank feed transactions", ok, str(data)[:100])
+
+    # Rules
+    ok, data = api_get("/bank-feeds/rules")
+    log_result("Bank feed rules", ok, str(data)[:100])
 
 
 def test_cleanup():
@@ -457,10 +687,19 @@ def main():
     test_bills()
     test_inventory()
     test_purchase_orders()
-    test_reports()
-    test_deposits()
+    test_journal_entries()
     test_checks()
+    test_time_entries()
+    test_fixed_assets()
+    test_bank_accounts()
+    test_entities()
+    test_create_deposit()
+    test_deposits()
+    test_reports()
     test_payroll()
+    test_recurring_transactions()
+    test_1099_tracking()
+    test_bank_feeds()
     test_cleanup()
 
     # Summary

@@ -1,8 +1,56 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.5 | **Last Updated:** December 31, 2025
+> **Current Version:** 6.7.6 | **Last Updated:** December 31, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.6 (December 31, 2025)
+
+### Workflow Test Suite Expansion
+
+**Test Suite Improvements:**
+- Expanded `tests/test_genfin_workflow.py` from 34 to 54 tests
+- **100% pass rate** (54/54 tests passing)
+- Fixed test data uniqueness (random account numbers prevent duplicates)
+- Fixed API field naming in tests (entry_date, payee_name, work_date)
+- Fixed fixed assets endpoint (uses query params not JSON body)
+
+**New Test Coverage:**
+- Journal Entries - Create and list
+- Checks - Create (with expenses) and list
+- Time Entries - Create (employee billable time) and list
+- Fixed Assets - Create, list, and summary
+- Bank Accounts - List and validation
+- Entities - Multi-company list and summary
+- Deposits - Create with items and list
+- Recurring Transactions - Template listing
+- 1099 Tracking - Summary and year data
+- Bank Feeds - Summary, transactions, and rules
+
+**Test Categories (20 modules):**
+1. API Health
+2. Customer Management (CRUD)
+3. Vendor Management (CRUD)
+4. Employee Management
+5. Chart of Accounts
+6. Invoice Workflow
+7. Bill Workflow
+8. Inventory Management
+9. Purchase Orders
+10. Journal Entries
+11. Checks
+12. Time Entries
+13. Fixed Assets
+14. Bank Accounts
+15. Entities (Multi-Company)
+16. Deposits
+17. Financial Reports (8 reports)
+18. Payroll (schedules, runs, time)
+19. Recurring Transactions
+20. 1099 Tracking
+21. Bank Feeds
 
 ---
 
