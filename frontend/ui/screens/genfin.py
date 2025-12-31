@@ -2184,34 +2184,45 @@ class QuickBooksImportWizard(GenFinDialog):
     def _transform_record(self, data_type: str, record: Dict) -> Optional[Dict]:
         """Transform a QuickBooks record to GenFin API format."""
         if data_type == 'accounts':
+            account_type = self._map_account_type(record.get('ACCNTTYPE', record.get('type', '')))
             return {
                 'name': record.get('NAME', record.get('name', '')),
-                'type': self._map_account_type(record.get('ACCNTTYPE', record.get('type', ''))),
-                'number': record.get('ACCNUM', record.get('number', '')),
+                'account_type': account_type,
+                'sub_type': account_type,  # Use same as account_type for imports
+                'account_number': record.get('ACCNUM', record.get('number', '')),
                 'description': record.get('DESC', record.get('description', '')),
-                'balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
+                'opening_balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
             }
         elif data_type == 'customers':
+            name = record.get('NAME', record.get('name', record.get('Customer', '')))
             return {
-                'name': record.get('NAME', record.get('name', record.get('Customer', ''))),
+                'company_name': name,
+                'display_name': name,
+                'contact_name': record.get('CONTACT', record.get('contact', '')),
                 'email': record.get('EMAIL', record.get('email', '')),
                 'phone': record.get('PHONE1', record.get('phone', '')),
-                'address': record.get('ADDR1', record.get('address', '')),
-                'city': record.get('CITY', record.get('city', '')),
-                'state': record.get('STATE', record.get('state', '')),
-                'zip': record.get('ZIP', record.get('zip', '')),
-                'balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
+                'billing_address_line1': record.get('ADDR1', record.get('address', '')),
+                'billing_city': record.get('CITY', record.get('city', '')),
+                'billing_state': record.get('STATE', record.get('state', '')),
+                'billing_zip': record.get('ZIP', record.get('zip', '')),
+                'payment_terms': record.get('TERMS', 'Net 30'),
+                'credit_limit': float(record.get('CREDITLIMIT', record.get('credit_limit', 0)) or 0)
             }
         elif data_type == 'vendors':
+            name = record.get('NAME', record.get('name', record.get('Vendor', '')))
             return {
-                'name': record.get('NAME', record.get('name', record.get('Vendor', ''))),
+                'company_name': name,
+                'display_name': name,
+                'contact_name': record.get('CONTACT', record.get('contact', '')),
                 'email': record.get('EMAIL', record.get('email', '')),
                 'phone': record.get('PHONE1', record.get('phone', '')),
-                'address': record.get('ADDR1', record.get('address', '')),
-                'city': record.get('CITY', record.get('city', '')),
-                'state': record.get('STATE', record.get('state', '')),
-                'zip': record.get('ZIP', record.get('zip', '')),
-                'balance': float(record.get('BALANCE', record.get('balance', 0)) or 0)
+                'billing_address_line1': record.get('ADDR1', record.get('address', '')),
+                'billing_city': record.get('CITY', record.get('city', '')),
+                'billing_state': record.get('STATE', record.get('state', '')),
+                'billing_zip': record.get('ZIP', record.get('zip', '')),
+                'payment_terms': record.get('TERMS', 'Net 30'),
+                'tax_id': record.get('TAXID', record.get('tax_id', '')),
+                'is_1099_vendor': record.get('1099', 'N').upper() == 'Y'
             }
         elif data_type == 'employees':
             return {
@@ -2219,8 +2230,14 @@ class QuickBooksImportWizard(GenFinDialog):
                 'last_name': record.get('LASTNAME', record.get('last_name', '')),
                 'email': record.get('EMAIL', record.get('email', '')),
                 'phone': record.get('PHONE', record.get('phone', '')),
+                'address_line1': record.get('ADDR1', record.get('address', '')),
+                'city': record.get('CITY', record.get('city', '')),
+                'state': record.get('STATE', record.get('state', '')),
+                'zip_code': record.get('ZIP', record.get('zip', '')),
                 'ssn': record.get('SSN', ''),
                 'hire_date': record.get('HIREDATE', record.get('hire_date', '')),
+                'pay_type': 'hourly' if record.get('PAYPERIOD', '').upper() == 'HOURLY' else 'salary',
+                'pay_rate': float(record.get('PAYRATE', record.get('pay_rate', 0)) or 0),
             }
         elif data_type in ['invoices', 'bills', 'checks', 'deposits', 'journal_entries']:
             return {
