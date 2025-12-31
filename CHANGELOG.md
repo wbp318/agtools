@@ -1,8 +1,77 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.0 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.7.1 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.1 (December 30, 2025)
+
+### Full QuickBooks Desktop Parity - Complete Transaction Workflow
+
+**Pay Bills (QuickBooks-Style):**
+- Select bills due on/before date with vendor filter
+- Sort options (Due Date, Discount Date, Vendor, Amount)
+- Set Discount dialog for early payment discounts
+- Set Credits dialog to apply vendor credits
+- Payment account selection with check number
+- Print Later option for batch printing
+- Running totals: Discounts Used, Credits Used, Total to Pay
+
+**Vendor Credits:**
+- Create vendor credits using enhanced Bill dialog in credit mode
+- Apply credits when paying bills
+- Full CRUD operations on Vendor Credits screen
+
+**Receive Payments (QuickBooks-Style):**
+- Customer autocomplete with balance display
+- Open invoices list with payment amount per line
+- Auto-Apply and Un-Apply buttons
+- Set Discount and Set Credits dialogs
+- Overpayment handling options (Leave as credit, Refund)
+- Group with undeposited funds option
+- Get Credit Card button for saved cards
+
+**Bank Reconciliation (Two-Page Wizard):**
+- Account selection with statement date and ending balance
+- Service charge and interest income entry
+- Two-column layout: Checks/Payments | Deposits/Credits
+- Mark/Unmark All buttons
+- Running totals: Cleared Balance, Statement Balance, Difference
+- Leave Reconcile button to save progress
+
+**Memorized Transactions:**
+- QTreeWidget hierarchical display with groups
+- Transaction types: Check, Bill, Invoice, etc.
+- Scheduling options: Remind, Auto-Enter, Don't Remind
+- Frequency settings (Weekly, Monthly, etc.)
+- New Group and New Transaction actions
+- Right-click context menu for Edit/Use/Delete
+
+**Sales Orders with Deposits:**
+- Full SalesOrderDialog with line items
+- Customer selection and Ship To address
+- Deposit collection (percentage or fixed amount)
+- Convert to Invoice button
+- Status tracking on Sales Orders screen
+
+**Purchase Orders (Full Workflow):**
+- Vendor autocomplete with Quick Add
+- Expected delivery date and shipping method
+- FOB and Terms fields
+- Receive Items dialog with backorder tracking
+- Convert to Bill functionality
+- Status tracking: Open, Partially Received, Fully Received, Billed, Closed
+- Percentage received display with color-coded status
+
+**New Dialogs Added:**
+- PayBillsDialog (with SetDiscountDialog, SetCreditsDialog)
+- ReceivePaymentDialog
+- GenFinReconcileScreen (two-page wizard)
+- GenFinMemorizedTransScreen (with groups)
+- SalesOrderDialog
+- ReceiveItemsDialog (for PO receiving)
 
 ---
 
