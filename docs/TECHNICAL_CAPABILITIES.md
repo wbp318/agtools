@@ -249,6 +249,17 @@ AgTools is a professional-grade agricultural decision support system combining 3
 - Chart generation (bar, line, pie, area)
 - Predefined date ranges
 
+**Production-Ready Transaction Workflows (v6.7.4):**
+| Feature | Specification |
+|---------|---------------|
+| Bill Editing | Full edit support with all field population |
+| Purchase Orders API | Complete CRUD endpoints with auto-generated PO numbers |
+| Invoice Workflows | Create/edit with customer autocomplete and Quick Add |
+| Write Checks | QuickBooks-style dialog with bank account selection |
+| Receive Payments | Apply payments to invoices with discounts |
+| Pay Bills | Select and pay multiple bills with credits |
+| Test Coverage | 100% automated testing (34/34 tests passing) |
+
 ### 9. Livestock Management System (NEW v6.4)
 
 **Technology:** Comprehensive livestock tracking with breeding and health management
@@ -412,6 +423,7 @@ Primary Tables:
 
 | Version | Release | Key Features |
 |---------|---------|--------------|
+| 6.7.4 | Dec 2025 | GenFin Production-Ready (Bill Edit, PO API, 100% test coverage) |
 | 6.5.0 | Dec 2025 | GenFin 100% Complete (zero placeholders, full QuickBooks parity) |
 | 6.4.0 | Dec 2025 | Farm Operations Suite (livestock, seed & planting management) |
 | 6.3.1 | Dec 2025 | GenFin 90s QuickBooks UI (teal theme, beveled buttons) |

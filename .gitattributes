@@ -79,22 +79,20 @@ Dockerfile text eol=lf
 *.pyd binary
 
 # GitHub linguist overrides (for repository language detection)
+# SHOW ALL LANGUAGES in stats
 
-# Documentation files - don't count toward language stats
-*.md linguist-documentation
-LICENSE linguist-documentation
+# Markdown - show in language stats
+*.md linguist-detectable=true
 
-# Generated/config files - don't count toward language stats
-.gitkeep linguist-generated
-*.gitkeep linguist-generated
-.gitignore linguist-generated
-.gitattributes linguist-generated
+# License file - keep visible
+LICENSE linguist-detectable=true
 
-# Config files - mark as generated to exclude from "Other"
-*.ini linguist-generated
-requirements*.txt linguist-generated
-pytest.ini linguist-generated
-manifest.json linguist-generated
+# Config files - show in stats
+.gitignore linguist-detectable=true
+*.ini linguist-detectable=true
+requirements*.txt linguist-detectable=true
+pytest.ini linguist-detectable=true
+manifest.json linguist-detectable=true
 
 # Database files should be detected as SQL
 *.sql linguist-detectable
@@ -134,17 +132,10 @@ frontend/**/*.py linguist-detectable=true
 database/*.py linguist-detectable=true
 tests/*.py linguist-detectable=true
 
-# Documentation folder - don't count toward language stats
-docs/*.md linguist-documentation
-docs/**/*.md linguist-documentation
-
-# Root markdown files - don't count toward language stats
-README.md linguist-documentation
-CHANGELOG.md linguist-documentation
-
-# Test documentation - don't count toward language stats
-tests/*.md linguist-documentation
-tests/**/*.md linguist-documentation
-
-# All other markdown files - mark as documentation
-**/*.md linguist-documentation
+# Markdown files - SHOW in language stats (linguist-detectable)
+*.md linguist-detectable=true
+docs/*.md linguist-detectable=true
+docs/**/*.md linguist-detectable=true
+tests/*.md linguist-detectable=true
+README.md linguist-detectable=true
+CHANGELOG.md linguist-detectable=true
