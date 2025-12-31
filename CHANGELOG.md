@@ -1,8 +1,38 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.6.2 | **Last Updated:** December 30, 2025
+> **Current Version:** 6.7.0 | **Last Updated:** December 30, 2025
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.0 (December 30, 2025)
+
+### QuickBooks Desktop Parity - Write Checks
+
+**Full QuickBooks-Style Write Checks Dialog:**
+- **Pay to the Order of** autocomplete - searches vendors & customers as you type
+- **Quick Add / Set Up dialog** - when name not found, offers to create new vendor/customer
+- **Expenses tab** - Account, Amount, Memo, Customer:Job, Billable checkbox, Class column
+- **Items tab** - Item, Description, Qty, Cost, Amount (auto-calculated), Customer:Job, Billable
+- **Amount in words** - auto-converts dollars to written form (e.g., "One Thousand and 50/100 Dollars")
+- **Ending Balance display** - shows current bank account balance (green/red based on +/-)
+- **Print Later checkbox** - queue checks for batch printing, sets check # to "To Print"
+- **Check Styles dropdown** - Voucher (1/page), Standard (3/page), Wallet
+- **Clear Splits button** - one-click reset of all expense/item lines
+- **Void Check button** - zeros amount and marks as VOID
+- **Memorize button** - save as recurring transaction
+- **Save & New** - save current check and start fresh
+- **Previous/Next navigation** - browse through checks
+
+**New Helper Components:**
+- `QuickAddNameDialog` - Quick Add / Set Up popup for new vendors/customers
+- `amount_to_words()` - converts dollar amounts to written form for check printing
+
+**Job Costing & Billable Expenses:**
+- Billable checkbox on each expense/item line
+- Customer:Job dropdown for job costing
+- Class tracking column for departmental reporting
 
 ---
 

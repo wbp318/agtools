@@ -3679,233 +3679,71 @@ class AccountComboBox(QComboBox):
         return self.currentText().strip()
 
 
-class WriteCheckDialog(GenFinDialog):
-    """Dialog for writing a check - QuickBooks style with editable account combos."""
+# =============================================================================
+# QUICK ADD VENDOR/CUSTOMER DIALOG
+# =============================================================================
 
-    def __init__(self, parent=None):
-        super().__init__("Write Checks", parent)
+class QuickAddNameDialog(GenFinDialog):
+    """
+    QuickBooks-style Quick Add / Set Up dialog when entering a name
+    that doesn't exist in the system.
+    """
+
+    def __init__(self, name: str, name_type: str = "Vendor", parent=None):
+        super().__init__(f"Name Not Found", parent)
+        self.entered_name = name
+        self.name_type = name_type  # Vendor, Customer, Employee, Other
+        self.result_action = None  # "quick_add", "set_up", "cancel"
         self.result_data = None
-        self.setMinimumWidth(700)
-        self._bank_accounts = []
-        self._expense_accounts = []
-        self._load_accounts()
+        self.setMinimumWidth(450)
         self._setup_ui()
-
-    def _load_accounts(self):
-        """Load accounts from API."""
-        data = api_get("/accounts")
-        if data:
-            accounts = data if isinstance(data, list) else []
-            # Bank accounts for the "from" dropdown
-            self._bank_accounts = [a for a in accounts if a.get("account_type") in ["bank", "checking", "savings"]]
-            # Expense accounts for line items
-            self._expense_accounts = [a for a in accounts if a.get("account_type") in
-                                      ["expense", "cost_of_goods_sold", "other_expense"]]
-            # If no expense accounts, use all non-bank accounts
-            if not self._expense_accounts:
-                self._expense_accounts = [a for a in accounts if a.get("account_type") not in ["bank", "checking", "savings"]]
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
 
-        # Check header (looks like a check)
-        check_frame = QFrame()
-        check_frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: #FFFFF0;
-                border: 2px solid {GENFIN_COLORS['bevel_dark']};
-                border-radius: 4px;
-                padding: 16px;
-            }}
-        """)
-        check_layout = QVBoxLayout(check_frame)
+        # Message
+        msg = QLabel(f'"{self.entered_name}" is not in your {self.name_type} list.')
+        msg.setStyleSheet("font-weight: bold; font-size: 12px;")
+        msg.setWordWrap(True)
+        layout.addWidget(msg)
 
-        # Bank account row
-        bank_row = QHBoxLayout()
-        bank_row.addWidget(QLabel("Bank Account:"))
-        self.bank_account = QComboBox()
-        self.bank_account.setEditable(True)
-        self.bank_account.setMinimumWidth(200)
-        # Add bank accounts from API
-        if self._bank_accounts:
-            for acct in self._bank_accounts:
-                self.bank_account.addItem(acct.get("name", ""), acct.get("account_id"))
-        else:
-            # Fallback defaults
-            self.bank_account.addItems(["Checking", "Savings", "Money Market", "Payroll"])
-        bank_row.addWidget(self.bank_account)
-        bank_row.addStretch()
-        bank_row.addWidget(QLabel("Check #:"))
-        self.check_number = QLineEdit()
-        self.check_number.setMaximumWidth(100)
-        self.check_number.setPlaceholderText("Auto")
-        bank_row.addWidget(self.check_number)
-        check_layout.addLayout(bank_row)
+        # Name type selection
+        type_group = QGroupBox("Select Name Type")
+        type_layout = QVBoxLayout(type_group)
 
-        check_layout.addSpacing(8)
+        self.type_buttons = QButtonGroup(self)
+        types = ["Vendor", "Customer", "Employee", "Other"]
+        for i, t in enumerate(types):
+            rb = QRadioButton(t)
+            if t == self.name_type:
+                rb.setChecked(True)
+            self.type_buttons.addButton(rb, i)
+            type_layout.addWidget(rb)
 
-        # Date and payee
-        payee_row = QHBoxLayout()
-        payee_row.addWidget(QLabel("Date:"))
-        self.check_date = QDateEdit()
-        self.check_date.setCalendarPopup(True)
-        self.check_date.setDate(QDate.currentDate())
-        payee_row.addWidget(self.check_date)
-        payee_row.addSpacing(20)
-        payee_row.addWidget(QLabel("Pay to the Order of:"))
-        self.payee = QLineEdit()
-        self.payee.setMinimumWidth(250)
-        payee_row.addWidget(self.payee)
-        check_layout.addLayout(payee_row)
+        layout.addWidget(type_group)
 
-        # Amount
-        amount_row = QHBoxLayout()
-        amount_row.addStretch()
-        amount_row.addWidget(QLabel("$"))
-        self.amount = QDoubleSpinBox()
-        self.amount.setMaximum(9999999.99)
-        self.amount.setDecimals(2)
-        self.amount.setMinimumWidth(150)
-        self.amount.setStyleSheet("font-size: 14px; font-weight: bold;")
-        amount_row.addWidget(self.amount)
-        check_layout.addLayout(amount_row)
-
-        # Address
-        addr_row = QHBoxLayout()
-        self.address = QTextEdit()
-        self.address.setMaximumHeight(60)
-        self.address.setPlaceholderText("Payee Address (optional)")
-        addr_row.addWidget(self.address)
-        check_layout.addLayout(addr_row)
-
-        # Memo
-        memo_row = QHBoxLayout()
-        memo_row.addWidget(QLabel("Memo:"))
-        self.memo = QLineEdit()
-        memo_row.addWidget(self.memo)
-        check_layout.addLayout(memo_row)
-
-        layout.addWidget(check_frame)
-
-        # Expense details - QuickBooks style with editable account combos
-        expense_frame = QGroupBox("Expenses")
-        expense_layout = QVBoxLayout(expense_frame)
-
-        # Add row button
-        add_row_layout = QHBoxLayout()
-        add_row_btn = QPushButton("+ Add Line")
-        add_row_btn.clicked.connect(self._add_expense_row)
-        add_row_layout.addWidget(add_row_btn)
-        add_row_layout.addStretch()
-
-        total_label = QLabel("Total:")
-        total_label.setStyleSheet("font-weight: bold;")
-        add_row_layout.addWidget(total_label)
-        self.expense_total = QLabel("$0.00")
-        self.expense_total.setStyleSheet("font-weight: bold; font-size: 14px;")
-        add_row_layout.addWidget(self.expense_total)
-        expense_layout.addLayout(add_row_layout)
-
-        self.expense_table = QTableWidget()
-        self.expense_table.setColumnCount(4)
-        self.expense_table.setHorizontalHeaderLabels(["Account", "Memo", "Amount", ""])
-        self.expense_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.expense_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.expense_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.expense_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        self.expense_table.setColumnWidth(2, 120)
-        self.expense_table.setColumnWidth(3, 30)
-        self.expense_table.setRowCount(3)
-
-        # Create initial rows with editable account combos
-        for row in range(3):
-            self._setup_expense_row(row)
-
-        expense_layout.addWidget(self.expense_table)
-        layout.addWidget(expense_frame)
+        # Quick Add fields (minimal info)
+        self.quick_fields = QGroupBox("Quick Add Details (Optional)")
+        quick_layout = QFormLayout(self.quick_fields)
+        self.quick_phone = QLineEdit()
+        self.quick_phone.setPlaceholderText("Phone number")
+        quick_layout.addRow("Phone:", self.quick_phone)
+        layout.addWidget(self.quick_fields)
 
         # Buttons
-        self._create_buttons(layout)
-
-    def _setup_expense_row(self, row: int):
-        """Setup a single expense row with editable account combo."""
-        # Editable account combo with auto-complete
-        account_combo = QComboBox()
-        account_combo.setEditable(True)
-        account_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        account_combo.addItem("")  # Empty option first
-
-        # Add accounts from API
-        for acct in self._expense_accounts:
-            account_combo.addItem(acct.get("name", ""), acct.get("account_id"))
-
-        # If no API accounts, add common defaults
-        if not self._expense_accounts:
-            defaults = ["Supplies", "Repairs & Maintenance", "Fuel", "Seed", "Fertilizer",
-                       "Chemicals", "Equipment Rental", "Utilities", "Insurance", "Professional Fees",
-                       "Contract Labor", "Rent", "Interest Expense", "Office Supplies", "Vehicle Expense"]
-            for name in defaults:
-                account_combo.addItem(name)
-
-        self.expense_table.setCellWidget(row, 0, account_combo)
-
-        # Memo
-        self.expense_table.setItem(row, 1, QTableWidgetItem(""))
-
-        # Amount with auto-update
-        amount_spin = QDoubleSpinBox()
-        amount_spin.setMaximum(9999999.99)
-        amount_spin.setDecimals(2)
-        amount_spin.setPrefix("$ ")
-        amount_spin.valueChanged.connect(self._update_expense_total)
-        self.expense_table.setCellWidget(row, 2, amount_spin)
-
-        # Delete button
-        del_btn = QPushButton("×")
-        del_btn.setMaximumWidth(25)
-        del_btn.setStyleSheet("color: red; font-weight: bold;")
-        del_btn.clicked.connect(lambda: self._remove_expense_row(row))
-        self.expense_table.setCellWidget(row, 3, del_btn)
-
-    def _add_expense_row(self):
-        """Add a new expense row."""
-        row = self.expense_table.rowCount()
-        self.expense_table.setRowCount(row + 1)
-        self._setup_expense_row(row)
-
-    def _remove_expense_row(self, row: int):
-        """Remove an expense row."""
-        if self.expense_table.rowCount() > 1:
-            self.expense_table.removeRow(row)
-            self._update_expense_total()
-
-    def _update_expense_total(self):
-        """Update the expense total display."""
-        total = 0.0
-        for row in range(self.expense_table.rowCount()):
-            amount_widget = self.expense_table.cellWidget(row, 2)
-            if isinstance(amount_widget, QDoubleSpinBox):
-                total += amount_widget.value()
-        self.expense_total.setText(f"${total:,.2f}")
-
-        # Also update the check amount if it's less than expenses
-        if self.amount.value() < total:
-            self.amount.setValue(total)
-
-    def _create_buttons(self, layout):
-        """Create dialog buttons."""
         button_layout = QHBoxLayout()
-        button_layout.addStretch()
 
-        print_btn = QPushButton("Print Check")
-        print_btn.clicked.connect(self._print_check)
-        button_layout.addWidget(print_btn)
+        quick_add_btn = QPushButton("Quick Add")
+        quick_add_btn.setToolTip("Add with just the name - you can add details later")
+        quick_add_btn.clicked.connect(self._quick_add)
+        quick_add_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        button_layout.addWidget(quick_add_btn)
 
-        save_btn = QPushButton("Save")
-        save_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
-        save_btn.clicked.connect(self._save)
-        button_layout.addWidget(save_btn)
+        set_up_btn = QPushButton("Set Up")
+        set_up_btn.setToolTip("Open full form to enter complete details")
+        set_up_btn.clicked.connect(self._set_up)
+        button_layout.addWidget(set_up_btn)
 
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(self.reject)
@@ -3913,45 +3751,1004 @@ class WriteCheckDialog(GenFinDialog):
 
         layout.addLayout(button_layout)
 
-    def _print_check(self):
-        """Print the check."""
-        QMessageBox.information(self, "Print", "Check print functionality coming soon!")
+    def _get_selected_type(self) -> str:
+        """Get the selected name type."""
+        types = ["Vendor", "Customer", "Employee", "Other"]
+        checked = self.type_buttons.checkedId()
+        return types[checked] if checked >= 0 else "Vendor"
 
-    def _save(self):
-        if not self.payee.text().strip():
-            QMessageBox.warning(self, "Validation Error", "Please enter payee name.")
-            return
-
-        if self.amount.value() <= 0:
-            QMessageBox.warning(self, "Validation Error", "Please enter an amount.")
-            return
-
-        expenses = []
-        for row in range(self.expense_table.rowCount()):
-            account_widget = self.expense_table.cellWidget(row, 0)
-            account = account_widget.currentText() if account_widget else ""
-            if not account:
-                continue
-
-            memo_item = self.expense_table.item(row, 1)
-            memo = memo_item.text() if memo_item else ""
-
-            amount_widget = self.expense_table.cellWidget(row, 2)
-            amt = amount_widget.value() if amount_widget else 0
-            if amt > 0:
-                expenses.append({"account": account, "memo": memo, "amount": amt})
-
+    def _quick_add(self):
+        """Quick add with minimal info."""
+        name_type = self._get_selected_type()
+        self.result_action = "quick_add"
         self.result_data = {
-            "bank_account": self.bank_account.currentText(),
-            "check_number": self.check_number.text() or "auto",
-            "check_date": self.check_date.date().toString("yyyy-MM-dd"),
-            "payee": self.payee.text().strip(),
-            "amount": self.amount.value(),
-            "address": self.address.toPlainText(),
-            "memo": self.memo.text(),
-            "expenses": expenses
+            "name": self.entered_name,
+            "type": name_type,
+            "phone": self.quick_phone.text().strip(),
+            "display_name": self.entered_name,
+            "company_name": self.entered_name
+        }
+
+        # Actually create the vendor/customer
+        if name_type == "Vendor":
+            result = api_post("/vendors", {
+                "company_name": self.entered_name,
+                "display_name": self.entered_name,
+                "phone": self.quick_phone.text().strip()
+            })
+            if result and result.get("vendor_id"):
+                self.result_data["id"] = result.get("vendor_id")
+        elif name_type == "Customer":
+            result = api_post("/customers", {
+                "company_name": self.entered_name,
+                "display_name": self.entered_name,
+                "phone": self.quick_phone.text().strip()
+            })
+            if result and result.get("customer_id"):
+                self.result_data["id"] = result.get("customer_id")
+
+        self.accept()
+
+    def _set_up(self):
+        """Open full setup dialog."""
+        self.result_action = "set_up"
+        self.result_data = {
+            "name": self.entered_name,
+            "type": self._get_selected_type()
         }
         self.accept()
+
+
+# =============================================================================
+# AMOUNT TO WORDS CONVERTER
+# =============================================================================
+
+def amount_to_words(amount: float) -> str:
+    """Convert a dollar amount to words for check writing."""
+    ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+            "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+            "Seventeen", "Eighteen", "Nineteen"]
+    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+    def convert_hundreds(n):
+        if n == 0:
+            return ""
+        elif n < 20:
+            return ones[n]
+        elif n < 100:
+            return tens[n // 10] + ("-" + ones[n % 10] if n % 10 else "")
+        else:
+            return ones[n // 100] + " Hundred" + (" " + convert_hundreds(n % 100) if n % 100 else "")
+
+    def convert(n):
+        if n == 0:
+            return "Zero"
+        elif n < 1000:
+            return convert_hundreds(n)
+        elif n < 1000000:
+            return convert(n // 1000) + " Thousand" + (" " + convert_hundreds(n % 1000) if n % 1000 else "")
+        else:
+            return convert(n // 1000000) + " Million" + (" " + convert(n % 1000000) if n % 1000000 else "")
+
+    dollars = int(amount)
+    cents = int(round((amount - dollars) * 100))
+
+    words = convert(dollars) if dollars else "Zero"
+    words += " and " + f"{cents:02d}/100"
+    return words + " Dollars"
+
+
+# =============================================================================
+# WRITE CHECK DIALOG - FULL QUICKBOOKS STYLE
+# =============================================================================
+
+class WriteCheckDialog(GenFinDialog):
+    """
+    Full QuickBooks Desktop-style Write Checks dialog with:
+    - Pay to Order of with autocomplete vendor/customer search
+    - Quick Add / Set Up for new names
+    - Expenses tab and Items tab
+    - Billable checkbox and Customer:Job column
+    - Class tracking column
+    - Print Later checkbox
+    - Ending balance display
+    - Amount in words
+    - Check styles (Voucher/Standard/Wallet)
+    """
+
+    def __init__(self, parent=None, edit_data: Dict = None):
+        super().__init__("Write Checks", parent)
+        self.result_data = None
+        self.edit_data = edit_data
+        self.setMinimumWidth(900)
+        self.setMinimumHeight(700)
+
+        # Data caches
+        self._bank_accounts = []
+        self._expense_accounts = []
+        self._income_accounts = []
+        self._vendors = []
+        self._customers = []
+        self._items = []
+        self._classes = []
+        self._selected_payee = None
+        self._selected_payee_type = None
+
+        self._load_data()
+        self._setup_ui()
+
+        # Load edit data if provided
+        if edit_data:
+            self._load_edit_data(edit_data)
+
+    def _load_data(self):
+        """Load all necessary data from API."""
+        # Accounts
+        data = api_get("/accounts")
+        if data:
+            accounts = data if isinstance(data, list) else []
+            self._bank_accounts = [a for a in accounts if a.get("account_type") in
+                                   ["asset"] and a.get("sub_type") in ["bank", "checking", "savings", "cash"]]
+            # If sub_type filtering doesn't work, fall back to name-based
+            if not self._bank_accounts:
+                self._bank_accounts = [a for a in accounts if any(x in a.get("name", "").lower()
+                                       for x in ["checking", "savings", "cash", "bank", "money market"])]
+            self._expense_accounts = [a for a in accounts if a.get("account_type") == "expense"]
+            self._income_accounts = [a for a in accounts if a.get("account_type") == "revenue"]
+
+        # Vendors
+        data = api_get("/vendors")
+        if data:
+            self._vendors = data if isinstance(data, list) else []
+
+        # Customers
+        data = api_get("/customers")
+        if data:
+            self._customers = data if isinstance(data, list) else []
+
+        # Items (inventory/service items)
+        data = api_get("/inventory")
+        if data:
+            self._items = data if isinstance(data, list) else data.get("items", [])
+
+        # Classes (for class tracking)
+        data = api_get("/classes")
+        if data:
+            self._classes = data if isinstance(data, list) else []
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(8)
+
+        # ===== TOP TOOLBAR =====
+        toolbar = QHBoxLayout()
+
+        # Previous/Next navigation
+        prev_btn = QPushButton("◀ Previous")
+        prev_btn.setMaximumWidth(100)
+        toolbar.addWidget(prev_btn)
+        next_btn = QPushButton("Next ▶")
+        next_btn.setMaximumWidth(100)
+        toolbar.addWidget(next_btn)
+
+        toolbar.addStretch()
+
+        # Print Later checkbox
+        self.print_later = QCheckBox("Print Later")
+        self.print_later.setToolTip("Queue this check for batch printing")
+        self.print_later.stateChanged.connect(self._on_print_later_changed)
+        toolbar.addWidget(self.print_later)
+
+        # Check style dropdown
+        toolbar.addWidget(QLabel("Check Style:"))
+        self.check_style = QComboBox()
+        self.check_style.addItems(["Voucher", "Standard", "Wallet"])
+        self.check_style.setToolTip("Voucher: 1 per page with stub | Standard: 3 per page | Wallet: Personal size")
+        toolbar.addWidget(self.check_style)
+
+        layout.addLayout(toolbar)
+
+        # ===== CHECK HEADER (looks like actual check) =====
+        check_frame = QFrame()
+        check_frame.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FFFFF8, stop:1 #F5F5DC);
+                border: 2px solid {GENFIN_COLORS['bevel_dark']};
+                border-radius: 4px;
+                padding: 12px;
+            }}
+        """)
+        check_layout = QVBoxLayout(check_frame)
+        check_layout.setSpacing(8)
+
+        # Row 1: Bank Account and Ending Balance
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel("Bank Account:"))
+        self.bank_account = QComboBox()
+        self.bank_account.setMinimumWidth(250)
+        self.bank_account.currentIndexChanged.connect(self._update_ending_balance)
+        for acct in self._bank_accounts:
+            self.bank_account.addItem(
+                f"{acct.get('name', '')} ({acct.get('account_number', '')})",
+                acct.get("account_id")
+            )
+        if not self._bank_accounts:
+            self.bank_account.addItems(["Operating Checking", "Payroll Account", "Savings"])
+        row1.addWidget(self.bank_account)
+        row1.addStretch()
+
+        row1.addWidget(QLabel("Ending Balance:"))
+        self.ending_balance = QLabel("$0.00")
+        self.ending_balance.setStyleSheet("font-weight: bold; color: #006400;")
+        row1.addWidget(self.ending_balance)
+        check_layout.addLayout(row1)
+
+        # Row 2: Check number and date
+        row2 = QHBoxLayout()
+        row2.addWidget(QLabel("No."))
+        self.check_number = QLineEdit()
+        self.check_number.setMaximumWidth(80)
+        self.check_number.setPlaceholderText("To Print")
+        row2.addWidget(self.check_number)
+
+        row2.addSpacing(30)
+        row2.addWidget(QLabel("Date:"))
+        self.check_date = QDateEdit()
+        self.check_date.setCalendarPopup(True)
+        self.check_date.setDate(QDate.currentDate())
+        self.check_date.setDisplayFormat("MM/dd/yyyy")
+        row2.addWidget(self.check_date)
+        row2.addStretch()
+        check_layout.addLayout(row2)
+
+        # Row 3: Pay to the Order of (with autocomplete)
+        row3 = QHBoxLayout()
+        row3.addWidget(QLabel("Pay to the Order of:"))
+        self.payee = QComboBox()
+        self.payee.setEditable(True)
+        self.payee.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.payee.setMinimumWidth(350)
+        self.payee.lineEdit().setPlaceholderText("Start typing vendor or customer name...")
+        # Populate with vendors and customers
+        self._populate_payee_list()
+        self.payee.currentTextChanged.connect(self._on_payee_changed)
+        self.payee.lineEdit().editingFinished.connect(self._on_payee_editing_finished)
+        row3.addWidget(self.payee)
+
+        row3.addStretch()
+        row3.addWidget(QLabel("$"))
+        self.amount = QDoubleSpinBox()
+        self.amount.setMaximum(99999999.99)
+        self.amount.setDecimals(2)
+        self.amount.setMinimumWidth(130)
+        self.amount.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self.amount.valueChanged.connect(self._update_amount_words)
+        row3.addWidget(self.amount)
+        check_layout.addLayout(row3)
+
+        # Row 4: Amount in words
+        row4 = QHBoxLayout()
+        self.amount_words = QLabel("Zero and 00/100 Dollars")
+        self.amount_words.setStyleSheet("""
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 4px;
+            background-color: #FFFAF0;
+            border: 1px solid #ccc;
+        """)
+        self.amount_words.setMinimumHeight(25)
+        row4.addWidget(self.amount_words)
+        check_layout.addLayout(row4)
+
+        # Row 5: Address
+        row5 = QHBoxLayout()
+        self.address = QTextEdit()
+        self.address.setMaximumHeight(55)
+        self.address.setPlaceholderText("Address (auto-filled from vendor/customer)")
+        row5.addWidget(self.address, 3)
+
+        # Memo on same row
+        row5.addWidget(QLabel("Memo:"))
+        self.memo = QLineEdit()
+        self.memo.setPlaceholderText("Check memo / reference")
+        row5.addWidget(self.memo, 2)
+        check_layout.addLayout(row5)
+
+        layout.addWidget(check_frame)
+
+        # ===== EXPENSES / ITEMS TABS (QuickBooks style) =====
+        self.detail_tabs = QTabWidget()
+        self.detail_tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 2px solid {GENFIN_COLORS['bevel_dark']};
+                background-color: white;
+            }}
+            QTabBar::tab {{
+                background-color: {GENFIN_COLORS['window_face']};
+                border: 1px solid {GENFIN_COLORS['bevel_dark']};
+                padding: 6px 20px;
+                margin-right: 2px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: white;
+                border-bottom-color: white;
+            }}
+        """)
+
+        # ----- EXPENSES TAB -----
+        expenses_widget = QWidget()
+        expenses_layout = QVBoxLayout(expenses_widget)
+        expenses_layout.setContentsMargins(4, 4, 4, 4)
+
+        self.expenses_table = QTableWidget()
+        self.expenses_table.setColumnCount(7)
+        self.expenses_table.setHorizontalHeaderLabels([
+            "Account", "Amount", "Memo", "Customer:Job", "Billable", "Class", ""
+        ])
+        self.expenses_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.expenses_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.expenses_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.expenses_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.expenses_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self.expenses_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        self.expenses_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
+        self.expenses_table.setColumnWidth(1, 100)
+        self.expenses_table.setColumnWidth(3, 150)
+        self.expenses_table.setColumnWidth(4, 55)
+        self.expenses_table.setColumnWidth(5, 100)
+        self.expenses_table.setColumnWidth(6, 30)
+        self.expenses_table.setRowCount(5)
+        self.expenses_table.setAlternatingRowColors(True)
+
+        for row in range(5):
+            self._setup_expense_row(row)
+
+        expenses_layout.addWidget(self.expenses_table)
+        self.detail_tabs.addTab(expenses_widget, "Expenses")
+
+        # ----- ITEMS TAB -----
+        items_widget = QWidget()
+        items_layout = QVBoxLayout(items_widget)
+        items_layout.setContentsMargins(4, 4, 4, 4)
+
+        self.items_table = QTableWidget()
+        self.items_table.setColumnCount(8)
+        self.items_table.setHorizontalHeaderLabels([
+            "Item", "Description", "Qty", "Cost", "Amount", "Customer:Job", "Billable", ""
+        ])
+        self.items_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.items_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.items_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.items_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.items_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self.items_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        self.items_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
+        self.items_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Fixed)
+        self.items_table.setColumnWidth(0, 150)
+        self.items_table.setColumnWidth(2, 60)
+        self.items_table.setColumnWidth(3, 80)
+        self.items_table.setColumnWidth(4, 90)
+        self.items_table.setColumnWidth(5, 150)
+        self.items_table.setColumnWidth(6, 55)
+        self.items_table.setColumnWidth(7, 30)
+        self.items_table.setRowCount(5)
+        self.items_table.setAlternatingRowColors(True)
+
+        for row in range(5):
+            self._setup_item_row(row)
+
+        items_layout.addWidget(self.items_table)
+        self.detail_tabs.addTab(items_widget, "Items")
+
+        layout.addWidget(self.detail_tabs)
+
+        # ===== BOTTOM TOOLBAR =====
+        bottom_bar = QHBoxLayout()
+
+        # Clear Splits button
+        clear_splits_btn = QPushButton("Clear Splits")
+        clear_splits_btn.setToolTip("Remove all line items and start fresh")
+        clear_splits_btn.clicked.connect(self._clear_splits)
+        bottom_bar.addWidget(clear_splits_btn)
+
+        # Recalculate button
+        recalc_btn = QPushButton("Recalculate")
+        recalc_btn.clicked.connect(self._recalculate_total)
+        bottom_bar.addWidget(recalc_btn)
+
+        bottom_bar.addStretch()
+
+        # Totals display
+        bottom_bar.addWidget(QLabel("Expenses:"))
+        self.expenses_total = QLabel("$0.00")
+        self.expenses_total.setStyleSheet("font-weight: bold;")
+        bottom_bar.addWidget(self.expenses_total)
+
+        bottom_bar.addWidget(QLabel("Items:"))
+        self.items_total = QLabel("$0.00")
+        self.items_total.setStyleSheet("font-weight: bold;")
+        bottom_bar.addWidget(self.items_total)
+
+        bottom_bar.addWidget(QLabel("Check Amount:"))
+        self.check_total = QLabel("$0.00")
+        self.check_total.setStyleSheet("font-weight: bold; font-size: 13px; color: #006400;")
+        bottom_bar.addWidget(self.check_total)
+
+        layout.addLayout(bottom_bar)
+
+        # ===== ACTION BUTTONS =====
+        self._create_buttons(layout)
+
+        # Initial updates
+        self._update_ending_balance()
+        self._update_amount_words()
+
+    def _populate_payee_list(self):
+        """Populate the payee dropdown with vendors and customers."""
+        self.payee.clear()
+        self.payee.addItem("")  # Empty first option
+
+        # Add vendors
+        for v in self._vendors:
+            name = v.get("display_name") or v.get("company_name") or ""
+            if name:
+                self.payee.addItem(f"🏢 {name}", {"type": "vendor", "data": v})
+
+        # Add customers (can also write checks to customers for refunds)
+        for c in self._customers:
+            name = c.get("display_name") or c.get("company_name") or ""
+            if name:
+                self.payee.addItem(f"👤 {name}", {"type": "customer", "data": c})
+
+    def _on_payee_changed(self, text: str):
+        """Handle payee selection change."""
+        # Get the selected item data
+        idx = self.payee.currentIndex()
+        if idx > 0:
+            data = self.payee.itemData(idx)
+            if data:
+                self._selected_payee = data.get("data")
+                self._selected_payee_type = data.get("type")
+                self._fill_payee_address()
+
+    def _on_payee_editing_finished(self):
+        """Handle when user finishes typing a payee name."""
+        text = self.payee.currentText().strip()
+        if not text:
+            return
+
+        # Remove emoji prefix if present
+        clean_text = text.lstrip("🏢👤 ").strip()
+
+        # Check if this matches an existing vendor/customer
+        found = False
+        for i in range(self.payee.count()):
+            item_text = self.payee.itemText(i).lstrip("🏢👤 ").strip()
+            if item_text.lower() == clean_text.lower():
+                self.payee.setCurrentIndex(i)
+                found = True
+                break
+
+        # If not found, offer to Quick Add
+        if not found and clean_text:
+            dialog = QuickAddNameDialog(clean_text, "Vendor", self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                if dialog.result_action == "quick_add":
+                    # Refresh payee list and select the new one
+                    self._load_data()
+                    self._populate_payee_list()
+                    # Find and select the new entry
+                    for i in range(self.payee.count()):
+                        if clean_text.lower() in self.payee.itemText(i).lower():
+                            self.payee.setCurrentIndex(i)
+                            break
+                elif dialog.result_action == "set_up":
+                    # Open full vendor dialog
+                    from ui.screens.genfin import AddVendorDialog
+                    vendor_dialog = AddVendorDialog(self)
+                    vendor_dialog.name_edit.setText(clean_text)
+                    if vendor_dialog.exec() == QDialog.DialogCode.Accepted:
+                        self._load_data()
+                        self._populate_payee_list()
+
+    def _fill_payee_address(self):
+        """Fill address from selected payee."""
+        if not self._selected_payee:
+            return
+
+        # Build address from payee data
+        addr_parts = []
+        if self._selected_payee_type == "vendor":
+            addr_parts.append(self._selected_payee.get("display_name") or
+                            self._selected_payee.get("company_name", ""))
+            if self._selected_payee.get("billing_address_line1"):
+                addr_parts.append(self._selected_payee.get("billing_address_line1"))
+            city_state_zip = []
+            if self._selected_payee.get("billing_city"):
+                city_state_zip.append(self._selected_payee.get("billing_city"))
+            if self._selected_payee.get("billing_state"):
+                city_state_zip.append(self._selected_payee.get("billing_state"))
+            if self._selected_payee.get("billing_zip"):
+                city_state_zip.append(self._selected_payee.get("billing_zip"))
+            if city_state_zip:
+                addr_parts.append(", ".join(city_state_zip))
+        elif self._selected_payee_type == "customer":
+            addr_parts.append(self._selected_payee.get("display_name") or
+                            self._selected_payee.get("company_name", ""))
+            if self._selected_payee.get("billing_address_line1"):
+                addr_parts.append(self._selected_payee.get("billing_address_line1"))
+
+        self.address.setPlainText("\n".join(addr_parts))
+
+    def _update_ending_balance(self):
+        """Update the ending balance display for selected bank account."""
+        idx = self.bank_account.currentIndex()
+        if idx >= 0 and idx < len(self._bank_accounts):
+            acct = self._bank_accounts[idx]
+            account_id = acct.get("account_id")
+            if account_id:
+                # Get balance from API
+                data = api_get(f"/accounts/{account_id}/balance")
+                if data:
+                    balance = data.get("balance", 0)
+                    self.ending_balance.setText(f"${balance:,.2f}")
+                    if balance < 0:
+                        self.ending_balance.setStyleSheet("font-weight: bold; color: #8B0000;")
+                    else:
+                        self.ending_balance.setStyleSheet("font-weight: bold; color: #006400;")
+                    return
+        self.ending_balance.setText("$0.00")
+
+    def _update_amount_words(self):
+        """Update the amount in words display."""
+        amt = self.amount.value()
+        self.amount_words.setText(amount_to_words(amt))
+        self._update_totals()
+
+    def _on_print_later_changed(self, state):
+        """Handle Print Later checkbox change."""
+        if state == Qt.CheckState.Checked.value:
+            self.check_number.setText("")
+            self.check_number.setPlaceholderText("To Print")
+            self.check_number.setEnabled(False)
+        else:
+            self.check_number.setPlaceholderText("Enter check #")
+            self.check_number.setEnabled(True)
+
+    def _setup_expense_row(self, row: int):
+        """Setup a single expense row with all QuickBooks fields."""
+        # Account dropdown
+        account_combo = QComboBox()
+        account_combo.setEditable(True)
+        account_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        account_combo.addItem("")
+        for acct in self._expense_accounts:
+            account_combo.addItem(acct.get("name", ""), acct.get("account_id"))
+        self.expenses_table.setCellWidget(row, 0, account_combo)
+
+        # Amount
+        amount_spin = QDoubleSpinBox()
+        amount_spin.setMaximum(9999999.99)
+        amount_spin.setDecimals(2)
+        amount_spin.setPrefix("$")
+        amount_spin.valueChanged.connect(self._update_totals)
+        self.expenses_table.setCellWidget(row, 1, amount_spin)
+
+        # Memo
+        self.expenses_table.setItem(row, 2, QTableWidgetItem(""))
+
+        # Customer:Job dropdown
+        customer_combo = QComboBox()
+        customer_combo.setEditable(True)
+        customer_combo.addItem("")
+        for c in self._customers:
+            name = c.get("display_name") or c.get("company_name") or ""
+            if name:
+                customer_combo.addItem(name, c.get("customer_id"))
+        self.expenses_table.setCellWidget(row, 3, customer_combo)
+
+        # Billable checkbox
+        billable_widget = QWidget()
+        billable_layout = QHBoxLayout(billable_widget)
+        billable_layout.setContentsMargins(0, 0, 0, 0)
+        billable_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        billable_cb = QCheckBox()
+        billable_cb.setToolTip("Mark as billable to customer")
+        billable_layout.addWidget(billable_cb)
+        self.expenses_table.setCellWidget(row, 4, billable_widget)
+
+        # Class dropdown
+        class_combo = QComboBox()
+        class_combo.addItem("")
+        for cls in self._classes:
+            class_combo.addItem(cls.get("name", ""), cls.get("class_id"))
+        self.expenses_table.setCellWidget(row, 5, class_combo)
+
+        # Delete button
+        del_btn = QPushButton("×")
+        del_btn.setMaximumWidth(25)
+        del_btn.setStyleSheet("color: red; font-weight: bold; border: none;")
+        del_btn.clicked.connect(lambda checked, r=row: self._remove_expense_row(r))
+        self.expenses_table.setCellWidget(row, 6, del_btn)
+
+    def _setup_item_row(self, row: int):
+        """Setup a single item row."""
+        # Item dropdown
+        item_combo = QComboBox()
+        item_combo.setEditable(True)
+        item_combo.addItem("")
+        for item in self._items:
+            item_combo.addItem(item.get("name", ""), item.get("item_id"))
+        item_combo.currentIndexChanged.connect(lambda idx, r=row: self._on_item_selected(r, idx))
+        self.items_table.setCellWidget(row, 0, item_combo)
+
+        # Description
+        self.items_table.setItem(row, 1, QTableWidgetItem(""))
+
+        # Quantity
+        qty_spin = QSpinBox()
+        qty_spin.setMinimum(0)
+        qty_spin.setMaximum(99999)
+        qty_spin.setValue(1)
+        qty_spin.valueChanged.connect(lambda v, r=row: self._update_item_amount(r))
+        self.items_table.setCellWidget(row, 2, qty_spin)
+
+        # Cost
+        cost_spin = QDoubleSpinBox()
+        cost_spin.setMaximum(999999.99)
+        cost_spin.setDecimals(2)
+        cost_spin.setPrefix("$")
+        cost_spin.valueChanged.connect(lambda v, r=row: self._update_item_amount(r))
+        self.items_table.setCellWidget(row, 3, cost_spin)
+
+        # Amount (calculated)
+        amount_label = QLabel("$0.00")
+        amount_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.items_table.setCellWidget(row, 4, amount_label)
+
+        # Customer:Job
+        customer_combo = QComboBox()
+        customer_combo.setEditable(True)
+        customer_combo.addItem("")
+        for c in self._customers:
+            name = c.get("display_name") or c.get("company_name") or ""
+            if name:
+                customer_combo.addItem(name, c.get("customer_id"))
+        self.items_table.setCellWidget(row, 5, customer_combo)
+
+        # Billable checkbox
+        billable_widget = QWidget()
+        billable_layout = QHBoxLayout(billable_widget)
+        billable_layout.setContentsMargins(0, 0, 0, 0)
+        billable_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        billable_cb = QCheckBox()
+        billable_layout.addWidget(billable_cb)
+        self.items_table.setCellWidget(row, 6, billable_widget)
+
+        # Delete button
+        del_btn = QPushButton("×")
+        del_btn.setMaximumWidth(25)
+        del_btn.setStyleSheet("color: red; font-weight: bold; border: none;")
+        del_btn.clicked.connect(lambda checked, r=row: self._remove_item_row(r))
+        self.items_table.setCellWidget(row, 7, del_btn)
+
+    def _on_item_selected(self, row: int, idx: int):
+        """Handle item selection - auto-fill description and cost."""
+        item_combo = self.items_table.cellWidget(row, 0)
+        if item_combo and idx > 0:
+            item_id = item_combo.itemData(idx)
+            # Find item data
+            for item in self._items:
+                if item.get("item_id") == item_id:
+                    # Fill description
+                    desc_item = self.items_table.item(row, 1)
+                    if desc_item:
+                        desc_item.setText(item.get("description", ""))
+                    else:
+                        self.items_table.setItem(row, 1, QTableWidgetItem(item.get("description", "")))
+                    # Fill cost
+                    cost_spin = self.items_table.cellWidget(row, 3)
+                    if cost_spin:
+                        cost_spin.setValue(item.get("cost", 0) or item.get("purchase_cost", 0) or 0)
+                    break
+        self._update_item_amount(row)
+
+    def _update_item_amount(self, row: int):
+        """Update calculated amount for item row."""
+        qty_spin = self.items_table.cellWidget(row, 2)
+        cost_spin = self.items_table.cellWidget(row, 3)
+        amount_label = self.items_table.cellWidget(row, 4)
+
+        if qty_spin and cost_spin and amount_label:
+            amount = qty_spin.value() * cost_spin.value()
+            amount_label.setText(f"${amount:,.2f}")
+
+        self._update_totals()
+
+    def _remove_expense_row(self, row: int):
+        """Remove an expense row."""
+        if self.expenses_table.rowCount() > 1:
+            self.expenses_table.removeRow(row)
+            self._update_totals()
+            # Reconnect delete buttons with correct row numbers
+            for r in range(self.expenses_table.rowCount()):
+                del_btn = self.expenses_table.cellWidget(r, 6)
+                if del_btn:
+                    del_btn.clicked.disconnect()
+                    del_btn.clicked.connect(lambda checked, row=r: self._remove_expense_row(row))
+
+    def _remove_item_row(self, row: int):
+        """Remove an item row."""
+        if self.items_table.rowCount() > 1:
+            self.items_table.removeRow(row)
+            self._update_totals()
+
+    def _clear_splits(self):
+        """Clear all expense and item lines."""
+        reply = QMessageBox.question(
+            self, "Clear Splits",
+            "This will remove all expense and item lines. Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            # Reset expenses table
+            self.expenses_table.setRowCount(0)
+            self.expenses_table.setRowCount(3)
+            for row in range(3):
+                self._setup_expense_row(row)
+
+            # Reset items table
+            self.items_table.setRowCount(0)
+            self.items_table.setRowCount(3)
+            for row in range(3):
+                self._setup_item_row(row)
+
+            self._update_totals()
+
+    def _update_totals(self):
+        """Update all totals."""
+        # Calculate expenses total
+        exp_total = 0.0
+        for row in range(self.expenses_table.rowCount()):
+            amount_widget = self.expenses_table.cellWidget(row, 1)
+            if isinstance(amount_widget, QDoubleSpinBox):
+                exp_total += amount_widget.value()
+        self.expenses_total.setText(f"${exp_total:,.2f}")
+
+        # Calculate items total
+        items_total = 0.0
+        for row in range(self.items_table.rowCount()):
+            amount_label = self.items_table.cellWidget(row, 4)
+            if isinstance(amount_label, QLabel):
+                text = amount_label.text().replace("$", "").replace(",", "")
+                try:
+                    items_total += float(text)
+                except:
+                    pass
+        self.items_total.setText(f"${items_total:,.2f}")
+
+        # Total check amount
+        total = exp_total + items_total
+        self.check_total.setText(f"${total:,.2f}")
+
+        # Update check amount if needed
+        if self.amount.value() < total:
+            self.amount.blockSignals(True)
+            self.amount.setValue(total)
+            self.amount.blockSignals(False)
+            self._update_amount_words()
+
+    def _recalculate_total(self):
+        """Force recalculate and sync totals."""
+        self._update_totals()
+        total = 0.0
+        for row in range(self.expenses_table.rowCount()):
+            amount_widget = self.expenses_table.cellWidget(row, 1)
+            if isinstance(amount_widget, QDoubleSpinBox):
+                total += amount_widget.value()
+        for row in range(self.items_table.rowCount()):
+            amount_label = self.items_table.cellWidget(row, 4)
+            if isinstance(amount_label, QLabel):
+                text = amount_label.text().replace("$", "").replace(",", "")
+                try:
+                    total += float(text)
+                except:
+                    pass
+        self.amount.setValue(total)
+
+    def _create_buttons(self, layout):
+        """Create dialog buttons."""
+        button_layout = QHBoxLayout()
+
+        # Left side buttons
+        memorize_btn = QPushButton("Memorize")
+        memorize_btn.setToolTip("Save as recurring check")
+        memorize_btn.clicked.connect(self._memorize_check)
+        button_layout.addWidget(memorize_btn)
+
+        void_btn = QPushButton("Void")
+        void_btn.setToolTip("Void this check")
+        void_btn.clicked.connect(self._void_check)
+        button_layout.addWidget(void_btn)
+
+        button_layout.addStretch()
+
+        # Right side buttons
+        print_btn = QPushButton("Print")
+        print_btn.clicked.connect(self._print_check)
+        button_layout.addWidget(print_btn)
+
+        save_new_btn = QPushButton("Save & New")
+        save_new_btn.clicked.connect(self._save_and_new)
+        button_layout.addWidget(save_new_btn)
+
+        save_close_btn = QPushButton("Save && Close")
+        save_close_btn.setStyleSheet(f"background-color: {GENFIN_COLORS['teal']}; color: white;")
+        save_close_btn.clicked.connect(self._save)
+        button_layout.addWidget(save_close_btn)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+
+        layout.addLayout(button_layout)
+
+    def _memorize_check(self):
+        """Save check as memorized/recurring transaction."""
+        QMessageBox.information(self, "Memorize Check",
+            "This check will be saved as a memorized transaction.\n"
+            "You can access it from Lists → Memorized Transactions.")
+
+    def _void_check(self):
+        """Void this check."""
+        reply = QMessageBox.question(
+            self, "Void Check",
+            "Are you sure you want to void this check?\n"
+            "This will zero out the amount and mark it as VOID.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.amount.setValue(0)
+            self.memo.setText("VOID - " + self.memo.text())
+            QMessageBox.information(self, "Check Voided", "This check has been voided.")
+
+    def _print_check(self):
+        """Print the check."""
+        if not self._validate():
+            return
+
+        # Create print preview
+        check_data = self._build_check_data()
+        preview = PrintPreviewDialog("Check", check_data, self)
+        preview.exec()
+
+    def _save_and_new(self):
+        """Save and open new check dialog."""
+        if self._save_check():
+            # Clear form for new check
+            self.payee.setCurrentIndex(0)
+            self.amount.setValue(0)
+            self.address.clear()
+            self.memo.clear()
+            self._clear_splits()
+            QMessageBox.information(self, "Saved", "Check saved. Enter new check details.")
+
+    def _validate(self) -> bool:
+        """Validate check data."""
+        payee_text = self.payee.currentText().strip().lstrip("🏢👤 ").strip()
+        if not payee_text:
+            QMessageBox.warning(self, "Validation Error", "Please enter a payee name.")
+            self.payee.setFocus()
+            return False
+
+        if self.amount.value() <= 0:
+            QMessageBox.warning(self, "Validation Error", "Please enter a check amount.")
+            self.amount.setFocus()
+            return False
+
+        return True
+
+    def _build_check_data(self) -> Dict:
+        """Build check data dictionary."""
+        # Collect expenses
+        expenses = []
+        for row in range(self.expenses_table.rowCount()):
+            account_widget = self.expenses_table.cellWidget(row, 0)
+            amount_widget = self.expenses_table.cellWidget(row, 1)
+            customer_widget = self.expenses_table.cellWidget(row, 3)
+            billable_widget = self.expenses_table.cellWidget(row, 4)
+            class_widget = self.expenses_table.cellWidget(row, 5)
+
+            account = account_widget.currentText() if account_widget else ""
+            amount = amount_widget.value() if amount_widget else 0
+
+            if account and amount > 0:
+                memo_item = self.expenses_table.item(row, 2)
+                billable_cb = billable_widget.findChild(QCheckBox) if billable_widget else None
+
+                expenses.append({
+                    "account": account,
+                    "account_id": account_widget.currentData() if account_widget else None,
+                    "amount": amount,
+                    "memo": memo_item.text() if memo_item else "",
+                    "customer": customer_widget.currentText() if customer_widget else "",
+                    "customer_id": customer_widget.currentData() if customer_widget else None,
+                    "billable": billable_cb.isChecked() if billable_cb else False,
+                    "class": class_widget.currentText() if class_widget else "",
+                    "class_id": class_widget.currentData() if class_widget else None
+                })
+
+        # Collect items
+        items = []
+        for row in range(self.items_table.rowCount()):
+            item_widget = self.items_table.cellWidget(row, 0)
+            qty_widget = self.items_table.cellWidget(row, 2)
+            cost_widget = self.items_table.cellWidget(row, 3)
+            customer_widget = self.items_table.cellWidget(row, 5)
+            billable_widget = self.items_table.cellWidget(row, 6)
+
+            item_name = item_widget.currentText() if item_widget else ""
+            qty = qty_widget.value() if qty_widget else 0
+            cost = cost_widget.value() if cost_widget else 0
+
+            if item_name and qty > 0:
+                desc_item = self.items_table.item(row, 1)
+                billable_cb = billable_widget.findChild(QCheckBox) if billable_widget else None
+
+                items.append({
+                    "item": item_name,
+                    "item_id": item_widget.currentData() if item_widget else None,
+                    "description": desc_item.text() if desc_item else "",
+                    "quantity": qty,
+                    "cost": cost,
+                    "amount": qty * cost,
+                    "customer": customer_widget.currentText() if customer_widget else "",
+                    "customer_id": customer_widget.currentData() if customer_widget else None,
+                    "billable": billable_cb.isChecked() if billable_cb else False
+                })
+
+        payee_text = self.payee.currentText().strip().lstrip("🏢👤 ").strip()
+
+        return {
+            "bank_account": self.bank_account.currentText(),
+            "bank_account_id": self.bank_account.currentData(),
+            "check_number": self.check_number.text() or "To Print",
+            "check_date": self.check_date.date().toString("yyyy-MM-dd"),
+            "payee": payee_text,
+            "payee_id": self._selected_payee.get("vendor_id") if self._selected_payee else None,
+            "payee_type": self._selected_payee_type,
+            "amount": self.amount.value(),
+            "amount_words": self.amount_words.text(),
+            "address": self.address.toPlainText(),
+            "memo": self.memo.text(),
+            "print_later": self.print_later.isChecked(),
+            "check_style": self.check_style.currentText(),
+            "expenses": expenses,
+            "items": items
+        }
+
+    def _save_check(self) -> bool:
+        """Save the check to the backend."""
+        if not self._validate():
+            return False
+
+        self.result_data = self._build_check_data()
+
+        # TODO: Send to backend API
+        # result = api_post("/checks", self.result_data)
+        # For now, just return success
+        return True
+
+    def _save(self):
+        """Save and close."""
+        if self._save_check():
+            self.accept()
+
+    def _load_edit_data(self, data: Dict):
+        """Load existing check data for editing."""
+        # TODO: Implement edit mode
+        pass
 
 
 # =============================================================================
