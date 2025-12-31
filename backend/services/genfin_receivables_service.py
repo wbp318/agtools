@@ -391,6 +391,13 @@ class GenFinReceivablesService:
             "customer": self._customer_to_dict(customer)
         }
 
+    def delete_customer(self, customer_id: str) -> bool:
+        """Delete a customer"""
+        if customer_id not in self.customers:
+            return False
+        del self.customers[customer_id]
+        return True
+
     def get_customer(self, customer_id: str) -> Optional[Dict]:
         """Get customer by ID"""
         if customer_id not in self.customers:
@@ -657,6 +664,13 @@ class GenFinReceivablesService:
         if invoice_id not in self.invoices:
             return None
         return self._invoice_to_dict(self.invoices[invoice_id])
+
+    def delete_invoice(self, invoice_id: str) -> bool:
+        """Delete an invoice"""
+        if invoice_id not in self.invoices:
+            return False
+        del self.invoices[invoice_id]
+        return True
 
     def list_invoices(
         self,

@@ -347,6 +347,13 @@ class GenFinPayablesService:
             "vendor": self._vendor_to_dict(vendor)
         }
 
+    def delete_vendor(self, vendor_id: str) -> bool:
+        """Delete a vendor"""
+        if vendor_id not in self.vendors:
+            return False
+        del self.vendors[vendor_id]
+        return True
+
     def get_vendor(self, vendor_id: str) -> Optional[Dict]:
         """Get vendor by ID"""
         if vendor_id not in self.vendors:
@@ -574,6 +581,13 @@ class GenFinPayablesService:
         if bill_id not in self.bills:
             return None
         return self._bill_to_dict(self.bills[bill_id])
+
+    def delete_bill(self, bill_id: str) -> bool:
+        """Delete a bill"""
+        if bill_id not in self.bills:
+            return False
+        del self.bills[bill_id]
+        return True
 
     def list_bills(
         self,

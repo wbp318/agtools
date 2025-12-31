@@ -554,6 +554,13 @@ class GenFinInventoryService:
             return None
         return self._item_to_dict(self.items[item_id])
 
+    def delete_item(self, item_id: str) -> bool:
+        """Delete an item"""
+        if item_id not in self.items:
+            return False
+        del self.items[item_id]
+        return True
+
     def list_items(
         self,
         item_type: Optional[str] = None,

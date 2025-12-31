@@ -12920,6 +12920,22 @@ async def get_vendor(vendor_id: str, user: AuthenticatedUser = Depends(get_curre
         raise HTTPException(status_code=404, detail="Vendor not found")
     return result
 
+@app.put("/api/v1/genfin/vendors/{vendor_id}", tags=["GenFin Payables"])
+async def update_vendor(vendor_id: str, data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update a vendor"""
+    result = genfin_payables_service.update_vendor(vendor_id, **data)
+    if not result:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return result
+
+@app.delete("/api/v1/genfin/vendors/{vendor_id}", tags=["GenFin Payables"])
+async def delete_vendor(vendor_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete a vendor"""
+    result = genfin_payables_service.delete_vendor(vendor_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return {"success": True, "message": "Vendor deleted"}
+
 @app.get("/api/v1/genfin/vendors/{vendor_id}/balance", tags=["GenFin Payables"])
 async def get_vendor_balance(vendor_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get vendor balance"""
@@ -12949,6 +12965,22 @@ async def list_bills(
 ):
     """List bills"""
     return genfin_payables_service.list_bills(vendor_id, status, start_date, end_date, unpaid_only)
+
+@app.get("/api/v1/genfin/bills/{bill_id}", tags=["GenFin Payables"])
+async def get_bill(bill_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get bill by ID"""
+    result = genfin_payables_service.get_bill(bill_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    return result
+
+@app.delete("/api/v1/genfin/bills/{bill_id}", tags=["GenFin Payables"])
+async def delete_bill(bill_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete a bill"""
+    result = genfin_payables_service.delete_bill(bill_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    return {"success": True, "message": "Bill deleted"}
 
 @app.post("/api/v1/genfin/bills/{bill_id}/post", tags=["GenFin Payables"])
 async def post_bill(bill_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
@@ -13005,6 +13037,22 @@ async def get_customer(customer_id: str, user: AuthenticatedUser = Depends(get_c
         raise HTTPException(status_code=404, detail="Customer not found")
     return result
 
+@app.put("/api/v1/genfin/customers/{customer_id}", tags=["GenFin Receivables"])
+async def update_customer(customer_id: str, data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Update a customer"""
+    result = genfin_receivables_service.update_customer(customer_id, **data)
+    if not result:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return result
+
+@app.delete("/api/v1/genfin/customers/{customer_id}", tags=["GenFin Receivables"])
+async def delete_customer(customer_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete a customer"""
+    result = genfin_receivables_service.delete_customer(customer_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return {"success": True, "message": "Customer deleted"}
+
 @app.get("/api/v1/genfin/customers/{customer_id}/balance", tags=["GenFin Receivables"])
 async def get_customer_balance(customer_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get customer balance"""
@@ -13045,6 +13093,22 @@ async def list_invoices(
 ):
     """List invoices"""
     return genfin_receivables_service.list_invoices(customer_id, status, start_date, end_date, unpaid_only)
+
+@app.get("/api/v1/genfin/invoices/{invoice_id}", tags=["GenFin Receivables"])
+async def get_invoice(invoice_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get invoice by ID"""
+    result = genfin_receivables_service.get_invoice(invoice_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return result
+
+@app.delete("/api/v1/genfin/invoices/{invoice_id}", tags=["GenFin Receivables"])
+async def delete_invoice(invoice_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete an invoice"""
+    result = genfin_receivables_service.delete_invoice(invoice_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"success": True, "message": "Invoice deleted"}
 
 @app.post("/api/v1/genfin/invoices/{invoice_id}/send", tags=["GenFin Receivables"])
 async def send_invoice(invoice_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
@@ -13162,6 +13226,44 @@ async def create_check_batch(
 async def get_check_batch_print_data(batch_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get print data for check batch"""
     return genfin_banking_service.get_check_batch_print_data(batch_id)
+
+# ------------ GenFin Deposits ------------
+
+@app.post("/api/v1/genfin/deposits", tags=["GenFin Banking"])
+async def create_deposit(data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create a bank deposit"""
+    return genfin_banking_service.create_deposit(
+        bank_account_id=data.get("bank_account_id"),
+        deposit_date=data.get("deposit_date"),
+        lines=data.get("lines", []),
+        memo=data.get("memo", "")
+    )
+
+@app.get("/api/v1/genfin/deposits", tags=["GenFin Banking"])
+async def list_deposits(
+    bank_account_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List deposits"""
+    return genfin_banking_service.list_deposits(bank_account_id, start_date, end_date)
+
+@app.get("/api/v1/genfin/deposits/{deposit_id}", tags=["GenFin Banking"])
+async def get_deposit(deposit_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get deposit by ID"""
+    result = genfin_banking_service.get_deposit(deposit_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Deposit not found")
+    return result
+
+@app.delete("/api/v1/genfin/deposits/{deposit_id}", tags=["GenFin Banking"])
+async def delete_deposit(deposit_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete a deposit"""
+    result = genfin_banking_service.delete_deposit(deposit_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Deposit not found")
+    return {"success": True, "message": "Deposit deleted"}
 
 @app.post("/api/v1/genfin/ach-batch", tags=["GenFin Banking"])
 async def create_ach_batch(data: GenFinACHBatchCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
@@ -13416,6 +13518,21 @@ async def get_profit_loss(
         start_date, end_date, compare_prior_period, compare_prior_year, group_by_month, class_id
     )
 
+@app.get("/api/v1/genfin/reports/income-statement", tags=["GenFin Reports"])
+async def get_income_statement(
+    start_date: str,
+    end_date: str,
+    compare_prior_period: bool = False,
+    compare_prior_year: bool = False,
+    group_by_month: bool = False,
+    class_id: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get Income Statement (alias for Profit & Loss)"""
+    return genfin_reports_service.get_profit_loss(
+        start_date, end_date, compare_prior_period, compare_prior_year, group_by_month, class_id
+    )
+
 @app.get("/api/v1/genfin/reports/balance-sheet", tags=["GenFin Reports"])
 async def get_balance_sheet(
     as_of_date: str,
@@ -13584,6 +13701,43 @@ async def get_cash_flow_projection(
 # ============================================================================
 # GENFIN INVENTORY & ITEMS (v6.1)
 # ============================================================================
+
+@app.get("/api/v1/genfin/inventory", tags=["GenFin Inventory"])
+async def list_genfin_inventory(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """List all inventory items"""
+    return genfin_inventory_service.list_items()
+
+@app.post("/api/v1/genfin/inventory", tags=["GenFin Inventory"])
+async def create_genfin_inventory_item(data: Dict, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Create an inventory item"""
+    return genfin_inventory_service.create_item(
+        item_type=data.get("item_type", "inventory"),
+        name=data.get("name", ""),
+        description=data.get("description", ""),
+        sku=data.get("sku", ""),
+        sales_price=data.get("sale_price", data.get("sales_price", 0.0)),
+        cost=data.get("cost", 0.0),
+        quantity_on_hand=data.get("quantity_on_hand", 0.0),
+        reorder_point=data.get("reorder_point", 0.0),
+        category=data.get("category", ""),
+        is_taxable=data.get("is_taxable", True)
+    )
+
+@app.get("/api/v1/genfin/inventory/{item_id}", tags=["GenFin Inventory"])
+async def get_genfin_inventory_item(item_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get inventory item by ID"""
+    result = genfin_inventory_service.get_item(item_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return result
+
+@app.delete("/api/v1/genfin/inventory/{item_id}", tags=["GenFin Inventory"])
+async def delete_genfin_inventory_item(item_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Delete an inventory item"""
+    result = genfin_inventory_service.delete_item(item_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"success": True, "message": "Item deleted"}
 
 @app.get("/api/v1/genfin/inventory/summary", tags=["GenFin Inventory"])
 async def get_inventory_summary(user: AuthenticatedUser = Depends(get_current_active_user)):

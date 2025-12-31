@@ -206,6 +206,19 @@ class CheckPrintBatch:
 
 
 @dataclass
+class Deposit:
+    """Bank deposit record"""
+    deposit_id: str
+    bank_account_id: str
+    deposit_date: date
+    amount: float = 0.0
+    memo: str = ""
+    lines: List[Dict] = field(default_factory=list)  # [{account_id, amount, description}]
+    journal_entry_id: Optional[str] = None
+    created_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
 class ACHBatch:
     """ACH/Direct Deposit batch"""
     batch_id: str
@@ -359,6 +372,7 @@ class GenFinBankingService:
         self.transactions: Dict[str, BankTransaction] = {}
         self.checks: Dict[str, Check] = {}
         self.check_batches: Dict[str, CheckPrintBatch] = {}
+        self.deposits: Dict[str, Deposit] = {}
         self.ach_batches: Dict[str, ACHBatch] = {}
         self.reconciliations: Dict[str, Reconciliation] = {}
         self.transfers: Dict[str, Transfer] = {}
@@ -922,6 +936,97 @@ class GenFinBankingService:
             "outstanding_checks": sorted(outstanding, key=lambda c: c["check_number"]),
             "count": len(outstanding),
             "total_amount": round(total, 2)
+        }
+
+    # ==================== DEPOSITS ====================
+
+    def create_deposit(
+        self,
+        bank_account_id: str,
+        deposit_date: str,
+        lines: List[Dict],
+        memo: str = ""
+    ) -> Dict:
+        """Create a bank deposit"""
+        if bank_account_id not in self.bank_accounts:
+            return {"success": False, "error": "Bank account not found"}
+
+        deposit_id = str(uuid.uuid4())
+        total_amount = sum(line.get("amount", 0) for line in lines)
+
+        deposit = Deposit(
+            deposit_id=deposit_id,
+            bank_account_id=bank_account_id,
+            deposit_date=datetime.strptime(deposit_date, "%Y-%m-%d").date(),
+            amount=total_amount,
+            memo=memo,
+            lines=lines
+        )
+
+        self.deposits[deposit_id] = deposit
+
+        # Update bank account balance
+        self.bank_accounts[bank_account_id].current_balance += total_amount
+
+        return {
+            "success": True,
+            "deposit_id": deposit_id,
+            "deposit": self._deposit_to_dict(deposit)
+        }
+
+    def get_deposit(self, deposit_id: str) -> Optional[Dict]:
+        """Get deposit by ID"""
+        if deposit_id not in self.deposits:
+            return None
+        return self._deposit_to_dict(self.deposits[deposit_id])
+
+    def delete_deposit(self, deposit_id: str) -> bool:
+        """Delete a deposit"""
+        if deposit_id not in self.deposits:
+            return False
+
+        deposit = self.deposits[deposit_id]
+        # Reverse the balance change
+        if deposit.bank_account_id in self.bank_accounts:
+            self.bank_accounts[deposit.bank_account_id].current_balance -= deposit.amount
+
+        del self.deposits[deposit_id]
+        return True
+
+    def list_deposits(
+        self,
+        bank_account_id: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[Dict]:
+        """List deposits with filtering"""
+        result = []
+
+        for deposit in self.deposits.values():
+            if bank_account_id and deposit.bank_account_id != bank_account_id:
+                continue
+            if start_date:
+                if deposit.deposit_date < datetime.strptime(start_date, "%Y-%m-%d").date():
+                    continue
+            if end_date:
+                if deposit.deposit_date > datetime.strptime(end_date, "%Y-%m-%d").date():
+                    continue
+
+            result.append(self._deposit_to_dict(deposit))
+
+        return sorted(result, key=lambda d: d["deposit_date"], reverse=True)
+
+    def _deposit_to_dict(self, deposit: Deposit) -> Dict:
+        """Convert deposit to dictionary"""
+        return {
+            "deposit_id": deposit.deposit_id,
+            "bank_account_id": deposit.bank_account_id,
+            "deposit_date": deposit.deposit_date.isoformat(),
+            "amount": deposit.amount,
+            "memo": deposit.memo,
+            "lines": deposit.lines,
+            "journal_entry_id": deposit.journal_entry_id,
+            "created_at": deposit.created_at.isoformat()
         }
 
     # ==================== ACH / DIRECT DEPOSIT ====================
