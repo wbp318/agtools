@@ -15076,7 +15076,9 @@ async def run_asset_depreciation(
     from datetime import date
     if year is None:
         year = date.today().year
-    return genfin_fixed_assets_service.run_depreciation(asset_id, year)
+    # Service expects period_date string and asset_id
+    period_date = f"{year}-12-31"
+    return genfin_fixed_assets_service.run_depreciation(period_date, asset_id)
 
 @app.post("/api/v1/genfin/fixed-assets/run-depreciation-all", tags=["GenFin Fixed Assets"])
 async def run_all_depreciation(

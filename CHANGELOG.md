@@ -1,8 +1,40 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.11 | **Last Updated:** January 4, 2026
+> **Current Version:** 6.7.12 | **Last Updated:** January 4, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.12 (January 4, 2026)
+
+### Fixed Asset Depreciation Service Bug Fixes
+
+**Test Results Improved: 14 failures → 10 failures (29% reduction)**
+
+**Test Summary:**
+- **216 passing** (93% pass rate, up from 91%)
+- **10 failing** (remaining backend issues)
+- **7 skipped** (cascade dependencies)
+
+**Backend Fixes Applied:**
+
+*Fixed Assets Depreciation Service (`genfin_fixed_assets_service.py`):*
+- Fixed `calculate_annual_depreciation()` - Added None checks for `in_service_date`, `cost_basis`, `salvage_value`, `useful_life_years`, and `book_value`
+- Fixed `run_depreciation()` - Added None protection for all numeric fields (`book_value`, `accumulated_depreciation`, `purchase_price`, `salvage_value`)
+- Fixed `get_depreciation_schedule()` - Added None checks for `in_service_date` and all depreciation amount fields
+- Fixed `get_depreciation_expense_report()` - Added None check for `in_service_date` before year comparison
+- Fixed `get_asset_register_report()` - Added None checks for `purchase_date` and numeric fields
+- Fixed `get_service_summary()` - Added None protection in sum calculations
+- Fixed `_asset_to_dict()` - Added None protection for all optional numeric fields
+
+*Main API (`main.py`):*
+- Run depreciation endpoint now correctly converts year to period_date format before calling service
+
+**Remaining Issues (10 tests):**
+- 4 cascade failures (tests dependent on prior test data)
+- 3 endpoint routing/parameter issues
+- 3 service-level bugs requiring further investigation
 
 ---
 

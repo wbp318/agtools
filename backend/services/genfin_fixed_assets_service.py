@@ -307,6 +307,10 @@ class GenFinFixedAssetsService:
         if asset.status in [AssetStatus.DISPOSED, AssetStatus.FULLY_DEPRECIATED]:
             return {"success": False, "error": "Asset is disposed or fully depreciated"}
 
+        # Handle missing in_service_date
+        if not asset.in_service_date:
+            return {"depreciation": 0, "year": year, "message": "Asset has no in-service date"}
+
         # Get asset year (years since in-service)
         years_in_service = year - asset.in_service_date.year + 1
 
@@ -315,31 +319,36 @@ class GenFinFixedAssetsService:
 
         depreciation = 0.0
 
+        # Ensure we have valid values for calculation (default to 0 if None)
+        cost_basis = asset.cost_basis or 0.0
+        salvage_value = asset.salvage_value or 0.0
+        useful_life = asset.useful_life_years or 1  # Prevent division by zero
+
         if asset.depreciation_method == DepreciationMethod.STRAIGHT_LINE:
             # Straight-line: (Cost - Salvage) / Life
-            annual_depr = (asset.cost_basis - asset.salvage_value) / asset.useful_life_years
+            annual_depr = (cost_basis - salvage_value) / useful_life
             if years_in_service <= asset.useful_life_years:
                 depreciation = annual_depr
 
         elif asset.depreciation_method == DepreciationMethod.SECTION_179:
             # Section 179: All in first year
             if years_in_service == 1:
-                depreciation = asset.cost_basis
+                depreciation = cost_basis
 
         elif asset.depreciation_method == DepreciationMethod.BONUS_100:
             # 100% bonus: All in first year
             if years_in_service == 1:
-                depreciation = asset.cost_basis
+                depreciation = cost_basis
 
         elif asset.depreciation_method.value.startswith("macrs"):
             # MACRS depreciation
             rates = MACRS_RATES.get(asset.depreciation_method.value, [])
             if years_in_service <= len(rates):
                 rate = rates[years_in_service - 1]
-                depreciation = asset.cost_basis * (rate / 100)
+                depreciation = cost_basis * (rate / 100)
 
         # Don't exceed remaining book value
-        remaining = asset.book_value
+        remaining = asset.book_value or 0.0
         depreciation = min(depreciation, remaining)
 
         return {
@@ -358,13 +367,24 @@ class GenFinFixedAssetsService:
         results = []
         total_depreciation = 0.0
 
-        assets_to_process = [self.assets[asset_id]] if asset_id else list(self.assets.values())
+        # Handle specific asset or all assets
+        if asset_id:
+            if asset_id not in self.assets:
+                return {"success": False, "error": f"Asset {asset_id} not found"}
+            assets_to_process = [self.assets[asset_id]]
+        else:
+            assets_to_process = list(self.assets.values())
 
         for asset in assets_to_process:
             if asset.status != AssetStatus.ACTIVE:
                 continue
 
-            if asset.book_value <= 0:
+            # Ensure we have valid values (default to 0 if None)
+            book_value = asset.book_value or 0.0
+            accumulated_depr = asset.accumulated_depreciation or 0.0
+            purchase_price = asset.purchase_price or 0.0
+
+            if book_value <= 0:
                 asset.status = AssetStatus.FULLY_DEPRECIATED
                 continue
 
@@ -376,14 +396,14 @@ class GenFinFixedAssetsService:
             monthly_depr = annual_depr / 12
 
             # Don't exceed book value
-            monthly_depr = min(monthly_depr, asset.book_value)
+            monthly_depr = min(monthly_depr, book_value)
 
             if monthly_depr > 0:
                 # Create entry
                 entry_id = str(uuid.uuid4())
 
-                new_accumulated = asset.accumulated_depreciation + monthly_depr
-                new_book_value = asset.purchase_price - new_accumulated
+                new_accumulated = accumulated_depr + monthly_depr
+                new_book_value = purchase_price - new_accumulated
 
                 entry = DepreciationEntry(
                     entry_id=entry_id,
@@ -402,7 +422,8 @@ class GenFinFixedAssetsService:
                 asset.book_value = new_book_value
                 asset.updated_at = datetime.now()
 
-                if asset.book_value <= asset.salvage_value:
+                salvage_val = asset.salvage_value or 0.0
+                if asset.book_value <= salvage_val:
                     asset.status = AssetStatus.FULLY_DEPRECIATED
 
                 results.append({
@@ -429,31 +450,42 @@ class GenFinFixedAssetsService:
 
         asset = self.assets[asset_id]
 
+        # Handle missing in_service_date
+        if not asset.in_service_date:
+            return {"success": False, "error": "Asset has no in-service date"}
+
+        # Ensure valid values (default to 0 if None)
+        section_179 = asset.section_179_amount or 0.0
+        bonus_depr = asset.bonus_depreciation_amount or 0.0
+        purchase_price = asset.purchase_price or 0.0
+        salvage_value = asset.salvage_value or 0.0
+
         schedule = []
-        running_depr = asset.section_179_amount + asset.bonus_depreciation_amount
-        running_book = asset.purchase_price - running_depr
+        running_depr = section_179 + bonus_depr
+        running_book = purchase_price - running_depr
 
         # Add Section 179/Bonus if applicable
-        if asset.section_179_amount > 0:
+        if section_179 > 0:
             schedule.append({
                 "year": asset.in_service_date.year,
                 "period": "Section 179",
-                "depreciation": asset.section_179_amount,
+                "depreciation": section_179,
                 "accumulated": running_depr,
                 "book_value": running_book
             })
 
-        if asset.bonus_depreciation_amount > 0:
+        if bonus_depr > 0:
             schedule.append({
                 "year": asset.in_service_date.year,
                 "period": "Bonus Depreciation",
-                "depreciation": asset.bonus_depreciation_amount,
+                "depreciation": bonus_depr,
                 "accumulated": running_depr,
                 "book_value": running_book
             })
 
         # Project future depreciation
-        for year_offset in range(asset.useful_life_years + 1):
+        useful_life = asset.useful_life_years or 1
+        for year_offset in range(useful_life + 1):
             year = asset.in_service_date.year + year_offset
             calc = self.calculate_annual_depreciation(asset_id, year)
             depr = calc.get("depreciation", 0)
@@ -467,7 +499,7 @@ class GenFinFixedAssetsService:
                     "period": f"Year {year_offset + 1}",
                     "depreciation": round(depr, 2),
                     "accumulated": round(running_depr, 2),
-                    "book_value": round(max(running_book, asset.salvage_value), 2)
+                    "book_value": round(max(running_book, salvage_value), 2)
                 })
 
         return {
@@ -555,7 +587,8 @@ class GenFinFixedAssetsService:
         assets_data = []
 
         for asset in self.assets.values():
-            if asset.purchase_date > report_date:
+            # Skip assets without purchase date or purchased after report date
+            if not asset.purchase_date or asset.purchase_date > report_date:
                 continue
 
             assets_data.append({
@@ -563,10 +596,10 @@ class GenFinFixedAssetsService:
                 "name": asset.name,
                 "category": asset.category.value,
                 "purchase_date": asset.purchase_date.isoformat(),
-                "purchase_price": asset.purchase_price,
+                "purchase_price": asset.purchase_price or 0.0,
                 "depreciation_method": asset.depreciation_method.value,
-                "accumulated_depreciation": round(asset.accumulated_depreciation, 2),
-                "book_value": round(asset.book_value, 2),
+                "accumulated_depreciation": round(asset.accumulated_depreciation or 0.0, 2),
+                "book_value": round(asset.book_value or 0.0, 2),
                 "status": asset.status.value
             })
 
@@ -597,7 +630,8 @@ class GenFinFixedAssetsService:
         report_data = []
 
         for asset in self.assets.values():
-            if asset.in_service_date.year > year:
+            # Skip assets without in-service date or not yet in service
+            if not asset.in_service_date or asset.in_service_date.year > year:
                 continue
 
             calc = self.calculate_annual_depreciation(asset.asset_id, year)
@@ -638,21 +672,21 @@ class GenFinFixedAssetsService:
             "description": asset.description,
             "category": asset.category.value,
             "purchase_date": asset.purchase_date.isoformat() if asset.purchase_date else None,
-            "purchase_price": asset.purchase_price,
+            "purchase_price": asset.purchase_price or 0.0,
             "serial_number": asset.serial_number,
             "depreciation_method": asset.depreciation_method.value,
-            "useful_life_years": asset.useful_life_years,
-            "salvage_value": asset.salvage_value,
+            "useful_life_years": asset.useful_life_years or 1,
+            "salvage_value": asset.salvage_value or 0.0,
             "in_service_date": asset.in_service_date.isoformat() if asset.in_service_date else None,
-            "cost_basis": asset.cost_basis,
-            "accumulated_depreciation": round(asset.accumulated_depreciation, 2),
-            "book_value": round(asset.book_value, 2),
-            "section_179_amount": asset.section_179_amount,
-            "bonus_depreciation_amount": asset.bonus_depreciation_amount,
+            "cost_basis": asset.cost_basis or 0.0,
+            "accumulated_depreciation": round(asset.accumulated_depreciation or 0.0, 2),
+            "book_value": round(asset.book_value or 0.0, 2),
+            "section_179_amount": asset.section_179_amount or 0.0,
+            "bonus_depreciation_amount": asset.bonus_depreciation_amount or 0.0,
             "location": asset.location,
             "status": asset.status.value,
             "disposal_date": asset.disposal_date.isoformat() if asset.disposal_date else None,
-            "disposal_amount": asset.disposal_amount,
+            "disposal_amount": asset.disposal_amount or 0.0,
             "created_at": asset.created_at.isoformat()
         }
 
@@ -694,8 +728,8 @@ class GenFinFixedAssetsService:
         disposed = sum(1 for a in self.assets.values() if a.status == AssetStatus.DISPOSED)
         fully_depr = sum(1 for a in self.assets.values() if a.status == AssetStatus.FULLY_DEPRECIATED)
 
-        total_cost = sum(a.purchase_price for a in self.assets.values())
-        total_book = sum(a.book_value for a in self.assets.values() if a.status == AssetStatus.ACTIVE)
+        total_cost = sum((a.purchase_price or 0.0) for a in self.assets.values())
+        total_book = sum((a.book_value or 0.0) for a in self.assets.values() if a.status == AssetStatus.ACTIVE)
 
         by_category = {}
         for a in self.assets.values():
