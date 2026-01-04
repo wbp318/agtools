@@ -1,8 +1,31 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.13 | **Last Updated:** January 4, 2026
+> **Current Version:** 6.7.14 | **Last Updated:** January 4, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.14 (January 4, 2026)
+
+### Test Suite Fixes - 100% Pass Rate Achieved
+
+**Test Results: 226 passed, 7 skipped (100% pass rate)**
+
+**Fixes Applied:**
+
+*Test File (`test_genfin_endpoints.py`):*
+- Fixed enum value mismatches: `adjustment_type: "adjustment"` → `"quantity"`, `billing_type: "percentage"` → `"percent"`
+- Fixed price level test: `adjustment_type` → `price_level_type`
+- Added required date params to customer statement and bank register tests
+
+*Recurring Service (`genfin_recurring_service.py`):*
+- Added `generate_from_template()` method (alias for `generate_transaction()`)
+- Fixed `update_template()` to skip None values (prevents enum conversion errors)
+
+*API Endpoint (`main.py`):*
+- Fixed recurring template update: Map `is_active` param to `status` field
+- Corrected field name mapping: `template_name` → `name`, `base_amount` → `amount`
 
 ---
 
