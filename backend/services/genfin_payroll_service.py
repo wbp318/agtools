@@ -728,8 +728,8 @@ class GenFinPayrollService:
             result.append(self._schedule_to_dict(schedule))
         return result
 
-    def get_scheduled_payrolls_due(self) -> List[Dict]:
-        """Get list of scheduled payrolls that are due or upcoming"""
+    def get_scheduled_payrolls_due(self, days_ahead: int = 7) -> List[Dict]:
+        """Get list of scheduled payrolls that are due or upcoming within specified days"""
         today = date.today()
         due_payrolls = []
 
@@ -739,7 +739,7 @@ class GenFinPayrollService:
 
             days_until = (schedule.next_pay_date - today).days if schedule.next_pay_date else 999
 
-            if days_until <= schedule.reminder_days_before:
+            if days_until <= days_ahead:
                 due_payrolls.append({
                     "schedule_id": schedule.schedule_id,
                     "schedule_name": schedule.name,
@@ -2073,9 +2073,10 @@ NET PAY: ${line.net_pay:,.2f}"""
 
     def get_tax_liability(self, period: str, year: int) -> Dict:
         """Get tax liability for a period (monthly, quarterly)"""
-        # Determine date range
-        if period.startswith("Q"):
-            quarter = int(period[1])
+        # Determine date range - handle both upper and lowercase (Q1 or q1)
+        period_upper = period.upper()
+        if period_upper.startswith("Q"):
+            quarter = int(period_upper[1])
             month_start = (quarter - 1) * 3 + 1
             month_end = quarter * 3
             start_date = date(year, month_start, 1)

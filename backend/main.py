@@ -13559,8 +13559,7 @@ async def create_pay_schedule(data: Dict[str, Any], user: AuthenticatedUser = De
         frequency=data.get("frequency"),
         pay_day_of_week=data.get("pay_day_of_week", 4),
         pay_day_of_month=data.get("pay_day_of_month", 15),
-        second_pay_day=data.get("second_pay_day", 0),
-        reminder_days_before=data.get("reminder_days_before", 3)
+        second_pay_day=data.get("second_pay_day", 0)
     )
 
 @app.get("/api/v1/genfin/pay-schedules/due", tags=["GenFin Payroll"])

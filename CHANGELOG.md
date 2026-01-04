@@ -1,8 +1,24 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.8 | **Last Updated:** January 3, 2026
+> **Current Version:** 6.7.9 | **Last Updated:** January 3, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.9 (January 3, 2026)
+
+### GenFin Payroll Bug Fixes
+
+**Fixed 3 Internal Server Errors in Payroll Endpoints:**
+
+1. **Create pay schedule** - Removed invalid `reminder_days_before` parameter from endpoint
+2. **Due pay schedules** - Fixed `get_scheduled_payrolls_due()` to accept `days_ahead` parameter
+3. **Tax liability Q1** - Fixed case sensitivity for period parsing (now accepts both "Q1" and "q1")
+
+**Test Results:**
+- GenFin Workflow: 26 tests (100% passing)
+- All payroll endpoints working correctly
 
 ---
 
@@ -30,10 +46,10 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - Farm Operations: 97 tests (100% passing)
 - **Total: 218 workflow tests with 98.6% pass rate**
 
-**Known Issues (3 tests):**
-- Create pay schedule - Internal Server Error
-- Due pay schedules - Internal Server Error
-- Tax liability Q1 - Internal Server Error
+**Known Issues (3 tests) - FIXED in v6.7.9:**
+- ~~Create pay schedule - Internal Server Error~~
+- ~~Due pay schedules - Internal Server Error~~
+- ~~Tax liability Q1 - Internal Server Error~~
 
 ---
 
