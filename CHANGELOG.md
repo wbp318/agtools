@@ -51,6 +51,101 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - 57 failing (identifying API contract issues)
 - 36 skipped (dependency on prior test data)
 
+**Failing Tests (to fix incrementally):**
+
+*Customers:*
+- `test_get_customer_statement`
+
+*Items:*
+- `test_create_group_item`
+- `test_create_assembly_item`
+- `test_search_items`
+
+*Inventory:*
+- `test_adjust_inventory`
+- `test_build_assembly`
+- `test_physical_count`
+
+*Checks/Payments:*
+- `test_create_check`
+- `test_receive_payment`
+- `test_pay_bill`
+
+*Time Entries:*
+- `test_create_time_entry`
+
+*Bank Accounts:*
+- `test_create_bank_account`
+
+*Classes:*
+- `test_create_class`
+
+*Projects:*
+- `test_create_project`
+
+*Budgets:*
+- `test_update_budget_line`
+
+*Forecasts/Scenarios:*
+- `test_get_cash_flow_projection`
+- `test_create_scenario`
+
+*Fixed Assets (6 tests):*
+- `test_list_fixed_assets`
+- `test_get_depreciation_schedule`
+- `test_run_depreciation`
+- `test_run_depreciation_all`
+- `test_get_depreciation_summary`
+- `test_dispose_asset`
+
+*Recurring Transactions (4 tests):*
+- `test_create_recurring_invoice`
+- `test_create_recurring_bill`
+- `test_create_recurring_journal_entry`
+- `test_list_recurring`
+
+*Entities (3 tests):*
+- `test_create_entity`
+- `test_get_consolidated`
+- `test_get_transfers`
+
+*Bank Feeds (5 tests):*
+- `test_import_bank_feed`
+- `test_list_imports`
+- `test_list_bank_feed_transactions`
+- `test_list_bank_feed_rules`
+- `test_create_bank_feed_rule`
+
+*1099 Tracking (3 tests):*
+- `test_get_1099_forms`
+- `test_generate_1099s`
+- `test_record_1099_payment`
+
+*Payroll (4 tests):*
+- `test_create_pay_run`
+- `test_create_unscheduled_payroll`
+- `test_create_termination_payroll`
+- `test_get_payroll_summary`
+
+*Reports (11 tests):*
+- `test_get_sales_by_customer`
+- `test_get_sales_by_item`
+- `test_get_income_by_customer`
+- `test_get_expenses_by_vendor`
+- `test_get_purchases_by_vendor`
+- `test_get_purchases_by_item`
+- `test_get_payroll_summary_report`
+- `test_get_payroll_detail`
+- `test_get_profitability_by_class`
+- `test_get_sales_summary`
+
+*Other (4 tests):*
+- `test_create_memorized_report`
+- `test_create_price_level`
+- `test_create_ach_batch`
+- `test_create_check_batch`
+- `test_reorder_widgets`
+
 **Improvement from previous:**
 - From 26 mega-tests to 234 individual tests
 - 9x increase in test granularity
