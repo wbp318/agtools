@@ -13886,6 +13886,34 @@ async def create_genfin_inventory_item(data: Dict, user: AuthenticatedUser = Dep
         is_taxable=data.get("is_taxable", True)
     )
 
+@app.get("/api/v1/genfin/inventory/summary", tags=["GenFin Inventory"])
+async def get_inventory_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get GenFin inventory service summary"""
+    return genfin_inventory_service.get_service_summary()
+
+@app.get("/api/v1/genfin/inventory/lots", tags=["GenFin Inventory"])
+async def list_inventory_lots_early(
+    item_id: str = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all inventory lots with FIFO/LIFO tracking"""
+    return genfin_inventory_service.list_lots(item_id)
+
+@app.get("/api/v1/genfin/inventory/valuation", tags=["GenFin Inventory"])
+async def get_inventory_valuation_early(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get inventory valuation summary"""
+    return genfin_inventory_service.get_inventory_valuation_report()
+
+@app.get("/api/v1/genfin/inventory/reorder-report", tags=["GenFin Inventory"])
+async def get_reorder_report_early(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get items needing reorder"""
+    return genfin_inventory_service.get_reorder_report()
+
+@app.get("/api/v1/genfin/inventory/stock-status", tags=["GenFin Inventory"])
+async def get_stock_status_early(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get overall inventory stock status"""
+    return genfin_inventory_service.get_inventory_stock_status()
+
 @app.get("/api/v1/genfin/inventory/{item_id}", tags=["GenFin Inventory"])
 async def get_genfin_inventory_item(item_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get inventory item by ID"""
@@ -13909,19 +13937,6 @@ async def delete_genfin_inventory_item(item_id: str, user: AuthenticatedUser = D
     if not result:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"success": True, "message": "Item deleted"}
-
-@app.get("/api/v1/genfin/inventory/summary", tags=["GenFin Inventory"])
-async def get_inventory_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
-    """Get GenFin inventory service summary"""
-    return genfin_inventory_service.get_service_summary()
-
-@app.get("/api/v1/genfin/inventory/lots", tags=["GenFin Inventory"])
-async def list_inventory_lots(
-    item_id: str = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List all inventory lots with FIFO/LIFO tracking"""
-    return genfin_inventory_service.list_lots(item_id)
 
 @app.post("/api/v1/genfin/items", tags=["GenFin Inventory"])
 async def create_item(
@@ -14169,22 +14184,6 @@ async def get_item_price(
 ):
     """Get item price, optionally with price level adjustment"""
     return genfin_inventory_service.get_item_price(item_id, price_level_id)
-
-@app.get("/api/v1/genfin/inventory/valuation", tags=["GenFin Inventory"])
-async def get_inventory_valuation(user: AuthenticatedUser = Depends(get_current_active_user)):
-    """Get inventory valuation summary"""
-    return genfin_inventory_service.get_inventory_valuation_report()
-
-@app.get("/api/v1/genfin/inventory/reorder-report", tags=["GenFin Inventory"])
-async def get_reorder_report(user: AuthenticatedUser = Depends(get_current_active_user)):
-    """Get items needing reorder"""
-    return genfin_inventory_service.get_reorder_report()
-
-@app.get("/api/v1/genfin/inventory/stock-status", tags=["GenFin Inventory"])
-async def get_stock_status(user: AuthenticatedUser = Depends(get_current_active_user)):
-    """Get overall inventory stock status"""
-    return genfin_inventory_service.get_inventory_stock_status()
-
 
 # ============================================================================
 # GENFIN CLASSES & PROJECTS (v6.1)

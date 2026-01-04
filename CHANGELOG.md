@@ -1,8 +1,39 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.7 | **Last Updated:** January 3, 2026
+> **Current Version:** 6.7.8 | **Last Updated:** January 3, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.8 (January 3, 2026)
+
+### GenFin Comprehensive Test Suite Expansion
+
+**Expanded `tests/test_genfin_workflow.py` from 54 to 121 tests**
+
+**New Test Categories Added:**
+- **Classes/Departments (8 tests):** Create, list, get, update, summary, hierarchy, transactions, profitability by class
+- **Projects (14 tests):** Full project lifecycle including billable expenses, billable time, milestones, progress billing, profitability
+- **Budgets & Forecasting (14 tests):** Budget CRUD, budget vs actual, variance, forecasts, scenarios, cash flow projection
+- **Extended Inventory (17 tests):** Service items, stock items, valuation, reorder reports, stock status, receive/adjust
+- **Extended Reports (16 tests):** Customer/vendor balance, payroll reports, sales/expense reports
+- **Extended Payroll (15 tests):** Pay schedules, pay runs, employee YTD, deductions, tax liability
+
+**Bug Fixes:**
+- Fixed FastAPI route ordering for GenFin inventory endpoints
+  - Moved `/inventory/summary`, `/inventory/lots`, `/inventory/valuation`, `/inventory/reorder-report`, `/inventory/stock-status` BEFORE `/inventory/{item_id}`
+  - Prevents `summary`, `lots`, etc. being matched as item IDs
+
+**Combined Test Coverage:**
+- GenFin Workflow: 121 tests (118 passing, 3 known issues)
+- Farm Operations: 97 tests (100% passing)
+- **Total: 218 workflow tests with 98.6% pass rate**
+
+**Known Issues (3 tests):**
+- Create pay schedule - Internal Server Error
+- Due pay schedules - Internal Server Error
+- Tax liability Q1 - Internal Server Error
 
 ---
 

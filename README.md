@@ -33,11 +33,11 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
-**Version 6.7.7** - **Comprehensive Test Coverage** - Production-Ready:
-- **151 Workflow Tests**: 100% pass rate across GenFin and Farm Operations
-- **Farm Operations Tests**: 97 tests covering fields, equipment, inventory, tasks, crews, operations, climate, sustainability, profitability, costs, and reports
-- **Bug Fixes**: Fixed sqlite3.Row.get() errors in 6 service files, fixed column name mismatches in sustainability service
-- **Documentation**: Added CLI Quickstart guide and published test results
+**Version 6.7.8** - **Expanded GenFin Test Coverage** - Production-Ready:
+- **218 Workflow Tests**: 98.6% pass rate (215/218) across GenFin and Farm Operations
+- **GenFin Tests Expanded**: 121 tests including Classes, Projects, Budgets, extended Inventory/Reports/Payroll
+- **Bug Fixes**: Fixed FastAPI route ordering for inventory endpoints (summary, lots, valuation, reorder-report, stock-status)
+- **Known Issues**: 3 payroll-related internal server errors (tracked for investigation)
 
 **Quick Start:** See [CLI Quickstart](docs/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/TEST_RESULTS.md)
 
