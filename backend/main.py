@@ -15180,6 +15180,31 @@ async def create_entity(
         raise HTTPException(status_code=400, detail=error)
     return entity
 
+# NOTE: These routes must come BEFORE /{entity_id} to avoid path parameter capture
+@app.get("/api/v1/genfin/entities/transfers", tags=["GenFin Entities"])
+async def list_inter_entity_transfers(
+    entity_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List inter-entity transfers"""
+    from datetime import date as dt_date
+    return genfin_entity_service.get_inter_entity_transfers(
+        entity_id=entity_id,
+        start_date=dt_date.fromisoformat(start_date) if start_date else None,
+        end_date=dt_date.fromisoformat(end_date) if end_date else None
+    )
+
+@app.get("/api/v1/genfin/entities/consolidated", tags=["GenFin Entities"])
+async def get_consolidated_summary(
+    entity_ids: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get consolidated financial summary across entities"""
+    ids = [int(x) for x in entity_ids.split(",")] if entity_ids else None
+    return genfin_entity_service.get_consolidated_summary(ids)
+
 @app.get("/api/v1/genfin/entities/{entity_id}", tags=["GenFin Entities"])
 async def get_entity(
     entity_id: int,
@@ -15251,30 +15276,6 @@ async def create_inter_entity_transfer(
     if error:
         raise HTTPException(status_code=400, detail=error)
     return transfer
-
-@app.get("/api/v1/genfin/entities/transfers", tags=["GenFin Entities"])
-async def list_inter_entity_transfers(
-    entity_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List inter-entity transfers"""
-    from datetime import date as dt_date
-    return genfin_entity_service.get_inter_entity_transfers(
-        entity_id=entity_id,
-        start_date=dt_date.fromisoformat(start_date) if start_date else None,
-        end_date=dt_date.fromisoformat(end_date) if end_date else None
-    )
-
-@app.get("/api/v1/genfin/entities/consolidated", tags=["GenFin Entities"])
-async def get_consolidated_summary(
-    entity_ids: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Get consolidated financial summary across entities"""
-    ids = [int(x) for x in entity_ids.split(",")] if entity_ids else None
-    return genfin_entity_service.get_consolidated_summary(ids)
 
 
 # ============================================================================

@@ -1,8 +1,33 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.12 | **Last Updated:** January 4, 2026
+> **Current Version:** 6.7.13 | **Last Updated:** January 4, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.13 (January 4, 2026)
+
+### API Route Ordering Fix
+
+**Test Results Improved: 10 failures → 9 failures**
+
+**Test Summary:**
+- **217 passing** (93% pass rate)
+- **9 failing** (remaining backend issues)
+- **7 skipped** (cascade dependencies)
+
+**Fixes Applied:**
+
+*Entity Routes (`main.py`):*
+- Fixed route ordering conflict: `/entities/transfers` and `/entities/consolidated` now defined before `/entities/{entity_id}`
+- FastAPI path parameters were capturing "transfers" and "consolidated" as entity IDs
+- Added documentation comment explaining the required ordering
+
+**Remaining Issues (9 tests):**
+- 4 cascade failures (tests dependent on prior test data)
+- 3 endpoint parameter/validation issues
+- 2 service-level bugs (termination payroll, entity update)
 
 ---
 
