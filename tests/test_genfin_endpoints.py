@@ -15,7 +15,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional, Tuple
 
 # Configuration
-API_BASE = "http://127.0.0.1:8000/api/v1/genfin"
+API_BASE = "http://127.0.0.1:8000/api/v1/genfin"  # Standard API port
 TIMEOUT = 10
 
 # =============================================================================
@@ -43,9 +43,13 @@ def api():
             except Exception as e:
                 return 500, str(e)
 
-        def put(self, endpoint: str, data: dict = None) -> Tuple[int, Any]:
+        def put(self, endpoint: str, data: dict = None, params: dict = None) -> Tuple[int, Any]:
             try:
-                r = requests.put(f"{API_BASE}{endpoint}", json=data or {}, timeout=TIMEOUT)
+                # If params provided, use query params; otherwise use JSON body
+                if params:
+                    r = requests.put(f"{API_BASE}{endpoint}", params=params, timeout=TIMEOUT)
+                else:
+                    r = requests.put(f"{API_BASE}{endpoint}", json=data or {}, timeout=TIMEOUT)
                 return r.status_code, r.json() if r.status_code == 200 else r.text
             except Exception as e:
                 return 500, str(e)
@@ -164,7 +168,11 @@ class TestCustomers:
         """GET /customers/{customer_id}/statement - Get customer statement."""
         if not test_ids["customer_id"]:
             pytest.skip("No customer created")
-        status, data = api.get(f"/customers/{test_ids['customer_id']}/statement")
+        params = {
+            "start_date": (date.today() - timedelta(days=30)).isoformat(),
+            "end_date": date.today().isoformat()
+        }
+        status, data = api.get(f"/customers/{test_ids['customer_id']}/statement", params=params)
         assert status == 200, f"Get customer statement failed: {data}"
 
 
@@ -623,7 +631,7 @@ class TestInventory:
             pytest.skip("No inventory created")
         params = {
             "item_id": test_ids["inventory_id"],
-            "adjustment_type": "adjustment",
+            "adjustment_type": "quantity",
             "quantity": -5,
             "adjustment_date": date.today().isoformat(),
             "reason": "Test adjustment"
@@ -897,7 +905,11 @@ class TestBankAccounts:
         """GET /bank-accounts/{bank_account_id}/register - Get bank register."""
         if not test_ids["bank_account_id"]:
             pytest.skip("No bank account created")
-        status, data = api.get(f"/bank-accounts/{test_ids['bank_account_id']}/register")
+        params = {
+            "start_date": (date.today() - timedelta(days=30)).isoformat(),
+            "end_date": date.today().isoformat()
+        }
+        status, data = api.get(f"/bank-accounts/{test_ids['bank_account_id']}/register", params=params)
         assert status == 200, f"Get bank register failed: {data}"
 
     def test_get_outstanding_checks(self, api, test_ids):
@@ -1010,8 +1022,9 @@ class TestProjects:
         """PUT /projects/{project_id}/status - Update project status."""
         if not test_ids["project_id"]:
             pytest.skip("No project created")
-        data = {"status": "in_progress"}
-        status, result = api.put(f"/projects/{test_ids['project_id']}/status", data)
+        # API expects query params, not JSON body
+        params = {"status": "in_progress"}
+        status, result = api.put(f"/projects/{test_ids['project_id']}/status", params=params)
         assert status == 200, f"Update project status failed: {result}"
 
     def test_get_project_profitability(self, api, test_ids):
@@ -1079,7 +1092,7 @@ class TestProjects:
             pytest.skip("No project created")
         params = {
             "billing_date": date.today().isoformat(),
-            "billing_type": "percentage",
+            "billing_type": "percent",
             "percent_complete": 25.0
         }
         status, result = api.post(f"/projects/{test_ids['project_id']}/progress-billing", params=params)
@@ -1372,8 +1385,9 @@ class TestRecurring:
         """PUT /recurring/{template_id} - Update recurring template."""
         if not test_ids["recurring_id"]:
             pytest.skip("No recurring template created")
-        data = {"is_active": True}
-        status, result = api.put(f"/recurring/{test_ids['recurring_id']}", data)
+        # API expects query params, not JSON body
+        params = {"is_active": True}
+        status, result = api.put(f"/recurring/{test_ids['recurring_id']}", params=params)
         assert status == 200, f"Update recurring failed: {result}"
 
     def test_get_recurring_summary(self, api):
@@ -1437,8 +1451,9 @@ class TestEntities:
         """PUT /entities/{entity_id} - Update entity."""
         if not test_ids["entity_id"]:
             pytest.skip("No entity created")
-        data = {"description": "Updated entity"}
-        status, result = api.put(f"/entities/{test_ids['entity_id']}", data)
+        # API expects query params, not JSON body
+        params = {"name": f"Updated Entity {random.randint(1000, 9999)}"}
+        status, result = api.put(f"/entities/{test_ids['entity_id']}", params=params)
         assert status == 200, f"Update entity failed: {result}"
 
     def test_get_entities_summary(self, api):
@@ -1751,10 +1766,12 @@ class TestPayRuns:
         data = {
             "employee_id": test_ids.get("employee_id") or "test-employee",
             "termination_date": date.today().isoformat(),
-            "pay_unused_pto": True
+            "pay_date": date.today().isoformat(),
+            "bank_account_id": test_ids.get("bank_account_id") or "1000",
+            "include_pto_payout": True
         }
         status, result = api.post("/pay-runs/termination", data)
-        # May fail if employee not found or endpoint uses different format
+        # May fail if employee not found or no pay data
         assert status in [200, 400, 404, 422], f"Create termination payroll failed: {result}"
 
 
@@ -2084,7 +2101,7 @@ class TestPriceLevels:
         """POST /price-levels - Create price level."""
         params = {
             "name": f"Wholesale {random.randint(1000, 9999)}",
-            "adjustment_type": "percentage",
+            "price_level_type": "percent",
             "adjustment_percent": -15.0
         }
         status, result = api.post("/price-levels", params=params)

@@ -14801,9 +14801,13 @@ async def update_recurring_template(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Update a recurring template"""
+    # Convert is_active to status
+    status = None
+    if is_active is not None:
+        status = "active" if is_active else "paused"
     return genfin_recurring_service.update_template(
-        template_id, template_name=template_name, frequency=frequency,
-        base_amount=base_amount, is_active=is_active, end_date=end_date
+        template_id, name=template_name, frequency=frequency,
+        amount=base_amount, status=status, end_date=end_date
     )
 
 @app.delete("/api/v1/genfin/recurring/{template_id}", tags=["GenFin Recurring"])

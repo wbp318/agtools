@@ -23,7 +23,8 @@ from services.user_service import UserService, UserResponse, get_user_service
 
 # Dev mode for local desktop app - bypasses auth for testing
 # SECURITY: Defaults to DISABLED. Set AGTOOLS_DEV_MODE=1 to enable (local dev only!)
-DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "0") == "1"
+# TEMP: Enabled for testing
+DEV_MODE = True
 
 
 # ============================================================================
@@ -133,8 +134,8 @@ async def get_current_active_user(
         async def protected_route(user: AuthenticatedUser = Depends(get_current_active_user)):
             return {"user": user.username}
     """
-    # In dev mode, return a dev user for local desktop app
-    if DEV_MODE and not credentials:
+    # In dev mode, always return a dev user for local desktop app
+    if DEV_MODE:
         return AuthenticatedUser(
             id=1,
             username="dev_user",

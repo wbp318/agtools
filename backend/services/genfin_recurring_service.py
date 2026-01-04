@@ -389,6 +389,8 @@ class GenFinRecurringService:
         template = self.templates[template_id]
 
         for key, value in kwargs.items():
+            if value is None:  # Skip None values
+                continue
             if hasattr(template, key):
                 if key in ["start_date", "end_date", "next_date"] and isinstance(value, str):
                     value = datetime.strptime(value, "%Y-%m-%d").date()
@@ -620,6 +622,10 @@ class GenFinRecurringService:
             "next_date": template.next_date.isoformat() if template.status == RecurrenceStatus.ACTIVE else None,
             "occurrences_generated": template.occurrences_generated
         }
+
+    def generate_from_template(self, template_id: str, as_of_date: str = None) -> Dict:
+        """Generate a transaction from a template (alias for generate_transaction)"""
+        return self.generate_transaction(template_id, as_of_date)
 
     def generate_all_due(self, as_of_date: str = None) -> Dict:
         """Generate all due auto-generate transactions"""
