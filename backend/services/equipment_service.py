@@ -388,6 +388,13 @@ class EquipmentService:
     # HELPER METHODS
     # ========================================================================
 
+    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
+        """Safely get a value from a sqlite3.Row."""
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     def _row_to_equipment_response(self, row: sqlite3.Row) -> EquipmentResponse:
         """Convert a database row to EquipmentResponse."""
         return EquipmentResponse(
@@ -407,7 +414,7 @@ class EquipmentService:
             current_location=row["current_location"],
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_by_user_name=row.get("created_by_user_name"),
+            created_by_user_name=self._safe_get(row, "created_by_user_name"),
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"]
@@ -418,7 +425,7 @@ class EquipmentService:
         return MaintenanceResponse(
             id=row["id"],
             equipment_id=row["equipment_id"],
-            equipment_name=row.get("equipment_name"),
+            equipment_name=self._safe_get(row, "equipment_name"),
             maintenance_type=MaintenanceType(row["maintenance_type"]),
             service_date=row["service_date"],
             next_service_date=row["next_service_date"],
@@ -429,7 +436,7 @@ class EquipmentService:
             description=row["description"],
             parts_used=row["parts_used"],
             created_by_user_id=row["created_by_user_id"],
-            created_by_user_name=row.get("created_by_user_name"),
+            created_by_user_name=self._safe_get(row, "created_by_user_name"),
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"]
@@ -440,7 +447,7 @@ class EquipmentService:
         return EquipmentUsageResponse(
             id=row["id"],
             equipment_id=row["equipment_id"],
-            equipment_name=row.get("equipment_name"),
+            equipment_name=self._safe_get(row, "equipment_name"),
             field_operation_id=row["field_operation_id"],
             usage_date=row["usage_date"],
             hours_used=float(row["hours_used"]) if row["hours_used"] else None,
@@ -449,7 +456,7 @@ class EquipmentService:
             fuel_used=float(row["fuel_used"]) if row["fuel_used"] else None,
             fuel_unit=row["fuel_unit"],
             operator_id=row["operator_id"],
-            operator_name=row.get("operator_name"),
+            operator_name=self._safe_get(row, "operator_name"),
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
             created_at=row["created_at"]

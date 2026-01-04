@@ -1,8 +1,51 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.6 | **Last Updated:** December 31, 2025
+> **Current Version:** 6.7.7 | **Last Updated:** January 3, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.7.7 (January 3, 2026)
+
+### Farm Operations Workflow Test Suite
+
+**New Test Suite: `tests/test_farm_workflow.py`**
+- **97 comprehensive tests** covering all Farm Operations features
+- **100% pass rate** (97/97 tests passing)
+- Tests all non-GenFin areas end-to-end
+
+**Test Categories (13 modules):**
+1. API Health Check
+2. Field Management (CRUD + summary + farms list)
+3. Equipment Management (CRUD + summary + types + hours update)
+4. Maintenance Management (CRUD + alerts + types + history)
+5. Farm Inventory (CRUD + summary + categories + locations + alerts + transactions)
+6. Task Management (CRUD + status changes)
+7. Crew Management (CRUD + members)
+8. Field Operations (CRUD + summary + field history)
+9. Climate/GDD Tracking (records + accumulated + summary + stages + precipitation)
+10. Sustainability Metrics (inputs + carbon + water + practices + scorecard + report)
+11. Profitability Analysis (break-even + ROI + scenarios + budget + summary)
+12. Cost Tracking (expenses + review + reports + categories + mappings)
+13. Farm Reports (operations + financial + equipment + inventory + fields + dashboard)
+
+**Bug Fixes:**
+- Fixed `sqlite3.Row.get()` error in 6 service files:
+  - `field_service.py` - Added `_safe_get()` helper
+  - `equipment_service.py` - Added `_safe_get()` helper
+  - `inventory_service.py` - Added `_safe_get()` helper
+  - `field_operations_service.py` - Added `_safe_get()` helper
+  - `time_entry_service.py` - Added `_safe_get()` helper
+  - `photo_service.py` - Added `_safe_get()` helper
+- Fixed `sustainability_service.py` column name errors:
+  - `f.acres` → `f.acreage` (5 locations)
+  - `crop_type` → `current_crop` in grant report
+
+**Combined Test Coverage:**
+- GenFin Workflow: 54 tests (v6.7.6)
+- Farm Operations: 97 tests (v6.7.7)
+- **Total: 151 workflow tests with 100% pass rate**
 
 ---
 

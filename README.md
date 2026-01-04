@@ -33,13 +33,13 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
-**Version 6.7.4** - **GenFin Complete Transaction Workflows** - Production-Ready:
-- **Bill Edit**: Full edit support for existing bills with all field population
-- **Purchase Orders API**: Complete CRUD endpoints with auto-generated PO numbers
-- **100% Test Coverage**: Comprehensive workflow test suite (34/34 tests passing)
-- **Invoice/Bill Workflows**: Create, edit, and manage with vendor/customer autocomplete
-- **Write Checks**: Full QuickBooks-style dialog with bank account selection
-- **Receive/Pay Bills**: Complete payment workflows with discounts and credits
+**Version 6.7.7** - **Comprehensive Test Coverage** - Production-Ready:
+- **151 Workflow Tests**: 100% pass rate across GenFin and Farm Operations
+- **Farm Operations Tests**: 97 tests covering fields, equipment, inventory, tasks, crews, operations, climate, sustainability, profitability, costs, and reports
+- **Bug Fixes**: Fixed sqlite3.Row.get() errors in 6 service files, fixed column name mismatches in sustainability service
+- **Documentation**: Added CLI Quickstart guide and published test results
+
+**Quick Start:** See [CLI Quickstart](docs/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/TEST_RESULTS.md)
 
 **Version 6.5.0** - **GenFin 100% Complete** - Full QuickBooks Desktop Parity:
 - **Zero Placeholders**: Every GenFin screen is now fully functional

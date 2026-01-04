@@ -142,6 +142,13 @@ class TimeEntryService:
     # HELPER METHODS
     # ========================================================================
 
+    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
+        """Safely get a value from a sqlite3.Row."""
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     def _row_to_response(self, row: sqlite3.Row) -> TimeEntryResponse:
         """Convert a database row to TimeEntryResponse."""
         work_date = row["work_date"]
@@ -151,9 +158,9 @@ class TimeEntryService:
         return TimeEntryResponse(
             id=row["id"],
             task_id=row["task_id"],
-            task_title=row.get("task_title"),
+            task_title=self._safe_get(row, "task_title"),
             user_id=row["user_id"],
-            user_name=row.get("user_name"),
+            user_name=self._safe_get(row, "user_name"),
             hours=row["hours"],
             entry_type=TimeEntryType(row["entry_type"]),
             work_date=work_date,

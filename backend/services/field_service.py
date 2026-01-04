@@ -192,6 +192,13 @@ class FieldService:
     # HELPER METHODS
     # ========================================================================
 
+    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
+        """Safely get a value from a sqlite3.Row."""
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     def _row_to_response(self, row: sqlite3.Row, include_stats: bool = False) -> FieldResponse:
         """Convert a database row to FieldResponse."""
         response = FieldResponse(
@@ -207,12 +214,12 @@ class FieldService:
             boundary=row["boundary"],
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_by_user_name=row.get("created_by_user_name"),
+            created_by_user_name=self._safe_get(row, "created_by_user_name"),
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
-            total_operations=row.get("total_operations", 0) if include_stats else 0,
-            last_operation_date=row.get("last_operation_date") if include_stats else None
+            total_operations=self._safe_get(row, "total_operations", 0) if include_stats else 0,
+            last_operation_date=self._safe_get(row, "last_operation_date") if include_stats else None
         )
         return response
 

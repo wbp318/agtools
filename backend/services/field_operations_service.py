@@ -255,13 +255,20 @@ class FieldOperationsService:
     # HELPER METHODS
     # ========================================================================
 
+    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
+        """Safely get a value from a sqlite3.Row."""
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     def _row_to_response(self, row: sqlite3.Row) -> OperationResponse:
         """Convert a database row to OperationResponse."""
         return OperationResponse(
             id=row["id"],
             field_id=row["field_id"],
             field_name=row["field_name"],
-            farm_name=row.get("farm_name"),
+            farm_name=self._safe_get(row, "farm_name"),
             operation_type=OperationType(row["operation_type"]),
             operation_date=row["operation_date"],
             product_name=row["product_name"],
@@ -281,11 +288,11 @@ class FieldOperationsService:
             weather_humidity=float(row["weather_humidity"]) if row["weather_humidity"] else None,
             weather_notes=row["weather_notes"],
             operator_id=row["operator_id"],
-            operator_name=row.get("operator_name"),
+            operator_name=self._safe_get(row, "operator_name"),
             task_id=row["task_id"],
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_by_user_name=row.get("created_by_user_name"),
+            created_by_user_name=self._safe_get(row, "created_by_user_name"),
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"]

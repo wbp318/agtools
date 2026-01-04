@@ -831,7 +831,7 @@ class SustainabilityService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT c.*, f.name as field_name, f.acres as field_acres
+            SELECT c.*, f.name as field_name, f.acreage as field_acres
             FROM sustainability_carbon c
             LEFT JOIN fields f ON c.field_id = f.id
             WHERE c.id = ?
@@ -894,9 +894,9 @@ class SustainabilityService:
         rows = cursor.fetchall()
 
         # Get total acres
-        acres_query = "SELECT SUM(acres) as total FROM fields WHERE is_active = 1"
+        acres_query = "SELECT SUM(acreage) as total FROM fields WHERE is_active = 1"
         if field_id:
-            acres_query = f"SELECT acres as total FROM fields WHERE id = {field_id}"
+            acres_query = f"SELECT acreage as total FROM fields WHERE id = {field_id}"
         cursor.execute(acres_query)
         acres_row = cursor.fetchone()
         total_acres = acres_row["total"] or 1
@@ -1246,14 +1246,14 @@ class SustainabilityService:
 
         # Determine entity
         if field_id:
-            cursor.execute("SELECT name, acres FROM fields WHERE id = ?", (field_id,))
+            cursor.execute("SELECT name, acreage FROM fields WHERE id = ?", (field_id,))
             row = cursor.fetchone()
             entity_name = row["name"] if row else "Unknown Field"
-            total_acres = row["acres"] if row else 0
+            total_acres = row["acreage"] if row else 0
             entity_type = "field"
         else:
             entity_name = "Farm Total"
-            cursor.execute("SELECT SUM(acres) as total FROM fields WHERE is_active = 1")
+            cursor.execute("SELECT SUM(acreage) as total FROM fields WHERE is_active = 1")
             row = cursor.fetchone()
             total_acres = row["total"] or 0
             entity_type = "farm"
@@ -1549,12 +1549,12 @@ class SustainabilityService:
         cursor = conn.cursor()
 
         # Get farm info
-        cursor.execute("SELECT COUNT(*) as count, SUM(acres) as acres FROM fields WHERE is_active = 1")
+        cursor.execute("SELECT COUNT(*) as count, SUM(acreage) as acres FROM fields WHERE is_active = 1")
         farm_row = cursor.fetchone()
 
         # Get crops grown
-        cursor.execute("SELECT DISTINCT crop_type FROM fields WHERE is_active = 1 AND crop_type IS NOT NULL")
-        crops = [row["crop_type"] for row in cursor.fetchall()]
+        cursor.execute("SELECT DISTINCT current_crop FROM fields WHERE is_active = 1 AND current_crop IS NOT NULL")
+        crops = [row["current_crop"] for row in cursor.fetchall()]
 
         conn.close()
 

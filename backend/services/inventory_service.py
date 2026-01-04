@@ -308,6 +308,13 @@ class InventoryService:
     # HELPER METHODS
     # ========================================================================
 
+    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
+        """Safely get a value from a sqlite3.Row."""
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     def _row_to_item_response(self, row: sqlite3.Row) -> InventoryItemResponse:
         """Convert a database row to InventoryItemResponse."""
         quantity = float(row["quantity"]) if row["quantity"] else 0
@@ -347,7 +354,7 @@ class InventoryService:
             total_value=total_value,
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_by_user_name=row.get("created_by_user_name"),
+            created_by_user_name=self._safe_get(row, "created_by_user_name"),
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
@@ -360,7 +367,7 @@ class InventoryService:
         return TransactionResponse(
             id=row["id"],
             inventory_item_id=row["inventory_item_id"],
-            item_name=row.get("item_name"),
+            item_name=self._safe_get(row, "item_name"),
             transaction_type=TransactionType(row["transaction_type"]),
             quantity=float(row["quantity"]),
             unit_cost=float(row["unit_cost"]) if row["unit_cost"] else None,
@@ -371,7 +378,7 @@ class InventoryService:
             invoice_number=row["invoice_number"],
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_by_user_name=row.get("created_by_user_name"),
+            created_by_user_name=self._safe_get(row, "created_by_user_name"),
             created_at=row["created_at"]
         )
 

@@ -149,13 +149,20 @@ class PhotoService:
     # HELPER METHODS
     # ========================================================================
 
+    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
+        """Safely get a value from a sqlite3.Row."""
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     def _row_to_response(self, row: sqlite3.Row) -> PhotoResponse:
         """Convert a database row to PhotoResponse."""
         return PhotoResponse(
             id=row["id"],
             task_id=row["task_id"],
             user_id=row["user_id"],
-            user_name=row.get("user_name"),
+            user_name=self._safe_get(row, "user_name"),
             filename=row["filename"],
             original_filename=row["original_filename"],
             file_path=row["file_path"],
