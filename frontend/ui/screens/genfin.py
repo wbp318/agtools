@@ -9027,7 +9027,7 @@ class GenFinHomeScreen(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("Add New Company")
         dialog.setFixedWidth(400)
-        dialog.setStyleSheet(GENFIN_STYLESHEET)
+        dialog.setStyleSheet(get_genfin_stylesheet())
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(12)
