@@ -8,23 +8,39 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ## Roadmap / Planned Features
 
-### Near-Term (Q1 2026)
-- **Real-time Bank Feed Integration** - Automatic transaction import from major banks
-- **Mobile App Enhancements** - Offline mode with sync, photo receipt capture
-- **Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, export to Excel/PDF
-- **Multi-Currency Support** - For international farm operations and commodity trading
+**Target: Complete feature set by end of Q1 2026**
 
-### Mid-Term (Q2-Q3 2026)
+### Week of Jan 6-12, 2026
+- **Real-time Bank Feed Integration** - Automatic transaction import from major banks (Plaid API)
+- **Mobile App Offline Mode** - Full offline capability with background sync
+- **Photo Receipt Capture** - Snap receipts, auto-extract vendor/amount via OCR
+
+### Week of Jan 13-19, 2026
+- **Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, drill-down reports
+- **Export Suite** - Excel, PDF, CSV export for all reports
 - **Crop Cost Analysis Module** - Per-acre cost tracking, yield comparison, ROI calculations
-- **Equipment Maintenance Scheduler** - Service reminders, maintenance history, parts inventory
-- **Payroll Direct Deposit** - ACH integration for employee payments
-- **Inventory Barcode Scanning** - Mobile barcode/QR scanning for inventory management
 
-### Long-Term (Q4 2026+)
-- **AI-Powered Insights** - Predictive analytics for cash flow, expense forecasting
+### Week of Jan 20-26, 2026
+- **Equipment Maintenance Scheduler** - Service reminders, maintenance history, parts inventory
+- **Inventory Barcode Scanning** - Mobile barcode/QR scanning for inventory management
+- **Payroll Direct Deposit** - ACH integration for employee payments
+
+### Week of Jan 27 - Feb 2, 2026
+- **Multi-Currency Support** - International operations, commodity trading currencies
 - **Government Program Integration** - USDA FSA reporting, subsidy tracking
-- **Marketplace Integration** - Connect with grain markets, commodity pricing feeds
-- **Multi-Farm Consolidation** - Enterprise-level reporting across multiple operations
+- **Marketplace Integration** - Grain markets, real-time commodity pricing feeds
+
+### February 2026
+- **AI-Powered Insights** - Predictive cash flow, expense forecasting, anomaly detection
+- **Multi-Farm Consolidation** - Enterprise reporting across multiple operations
+- **White-Label Ready** - Rebrandable for co-ops and ag consultants
+
+### March 2026 - Launch Ready
+- **Performance optimization & stress testing**
+- **Security audit & penetration testing**
+- **Documentation & training materials**
+- **Beta program with select farms**
+- **Public launch preparation**
 
 ---
 
