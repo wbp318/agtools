@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.17 | **Last Updated:** January 5, 2026
+> **Current Version:** 6.8.0 | **Last Updated:** January 6, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -11,13 +11,13 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 **Target: Complete feature set by end of Q1 2026**
 
 ### Week of Jan 6-12, 2026
-- **Real-time Bank Feed Integration** - Automatic transaction import from major banks (Plaid API)
-- **Mobile App Offline Mode** - Full offline capability with background sync
-
-### Week of Jan 13-19, 2026
-- **Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, drill-down reports
+- ~~**Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, drill-down reports~~ **DONE v6.8.0**
 - **Export Suite** - Excel, PDF, CSV export for all reports
 - **Crop Cost Analysis Module** - Per-acre cost tracking, yield comparison, ROI calculations
+
+### Week of Jan 13-19, 2026
+- **Real-time Bank Feed Integration** - Automatic transaction import from major banks (Plaid API)
+- **Mobile App Offline Mode** - Full offline capability with background sync
 
 ### Week of Jan 20-26, 2026
 - **Equipment Maintenance Scheduler** - Service reminders, maintenance history, parts inventory
@@ -40,6 +40,45 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.8.0 (January 6, 2026)
+
+### Advanced Reporting Dashboard
+
+**New unified analytics dashboard combining farm operations and financial KPIs with full drill-down capabilities.**
+
+**New Features:**
+- **Unified Dashboard** - Top-level sidebar screen combining farm + financial data
+- **8 Key Performance Indicators:**
+  - Financial: Cash Flow, Profit Margin, AR Aging, AP Aging
+  - Farm Operations: Cost Per Acre, Yield Trends, Equipment ROI, Input Costs
+- **Three Drill-Down Behaviors:**
+  - Click to filter: Shows filtered transaction list in dialog
+  - Click to report: Opens full detailed report screen
+  - Expandable cards: Cards expand in-place to show breakdown
+- **Interactive KPI Cards** with mini charts (PyQtGraph)
+- **Alert Banner** for critical/warning notifications
+- **Date Range Picker** for custom reporting periods
+- **Auto-Refresh** capability (configurable interval)
+
+**New Files:**
+- `backend/services/unified_dashboard_service.py` - Aggregates farm + financial data
+- `frontend/ui/screens/advanced_reporting_dashboard.py` - Main dashboard screen
+- `frontend/ui/widgets/kpi_card.py` - Reusable KPI card component
+- `frontend/api/unified_dashboard_api.py` - API client
+
+**API Endpoints:**
+- `GET /api/v1/unified-dashboard` - Get complete dashboard with all KPIs
+- `GET /api/v1/unified-dashboard/transactions` - Get filtered transactions for drill-down
+- `GET /api/v1/unified-dashboard/kpi/{kpi_id}/detail` - Get detailed data for card expansion
+- `GET /api/v1/unified-dashboard/summary` - Get service summary
+
+**UI Integration:**
+- Added "Analytics Dashboard" to sidebar under Analytics section
+- Green agriculture theme (not GenFin teal) as top-level screen
+- Responsive 2x2 grid layout for KPI cards
 
 ---
 

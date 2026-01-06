@@ -14806,6 +14806,75 @@ async def get_advanced_reports_summary(user: AuthenticatedUser = Depends(get_cur
 
 
 # ============================================================================
+# UNIFIED DASHBOARD (v6.8.0) - Advanced Reporting Dashboard
+# ============================================================================
+
+from services.unified_dashboard_service import get_unified_dashboard_service
+
+@app.get("/api/v1/unified-dashboard", tags=["Unified Dashboard"])
+async def get_unified_dashboard(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    crop_year: Optional[int] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get unified dashboard combining farm + financial KPIs.
+
+    Returns all KPIs, chart data, and alerts for the Advanced Reporting Dashboard.
+
+    - date_from: Start date (YYYY-MM-DD) or None for YTD
+    - date_to: End date (YYYY-MM-DD) or None for today
+    - crop_year: Crop year for farm data (defaults to current year)
+    """
+    service = get_unified_dashboard_service()
+    return service.get_dashboard(date_from, date_to, crop_year)
+
+
+@app.get("/api/v1/unified-dashboard/transactions", tags=["Unified Dashboard"])
+async def get_dashboard_transactions(
+    kpi_type: str,
+    filter_value: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 50,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get filtered transaction list for KPI drill-down.
+
+    - kpi_type: KPI type (ar_aging, ap_aging, cost_per_acre, input_costs)
+    - filter_value: Filter value (e.g., "30_day", "fertilizer")
+    - date_from: Start date
+    - date_to: End date
+    - limit: Max records to return
+    """
+    service = get_unified_dashboard_service()
+    return service.get_filtered_transactions(kpi_type, filter_value, date_from, date_to, limit)
+
+
+@app.get("/api/v1/unified-dashboard/kpi/{kpi_id}/detail", tags=["Unified Dashboard"])
+async def get_kpi_detail(
+    kpi_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get detailed data for KPI card expansion.
+
+    Returns breakdown data for in-place card expansion.
+    """
+    service = get_unified_dashboard_service()
+    return service.get_kpi_detail(kpi_id)
+
+
+@app.get("/api/v1/unified-dashboard/summary", tags=["Unified Dashboard"])
+async def get_unified_dashboard_summary(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get unified dashboard service summary"""
+    service = get_unified_dashboard_service()
+    return service.get_service_summary()
+
+
+# ============================================================================
 # GENFIN RECURRING TRANSACTIONS (v6.2)
 # ============================================================================
 

@@ -39,6 +39,7 @@ from ui.screens.accounting_import import AccountingImportScreen
 from ui.screens.genfin import GenFinScreen
 from ui.screens.livestock_management import LivestockManagementScreen
 from ui.screens.seed_planting import SeedPlantingScreen
+from ui.screens.advanced_reporting_dashboard import AdvancedReportingDashboard
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -451,6 +452,11 @@ class MainWindow(QMainWindow):
         reports_screen = ReportsDashboardScreen(current_user=self._current_user)
         self._add_screen("reports", reports_screen)
 
+        # Advanced Reporting Dashboard (v6.8.0) - All users
+        analytics_dashboard = AdvancedReportingDashboard()
+        analytics_dashboard.navigate_to.connect(self._navigate_to)
+        self._add_screen("analytics_dashboard", analytics_dashboard)
+
         # Accounting Import Screen (v2.9) - All users
         accounting_import_screen = AccountingImportScreen(current_user=self._current_user)
         self._add_screen("accounting_import", accounting_import_screen)
@@ -568,6 +574,7 @@ class MainWindow(QMainWindow):
                 "inventory": "Inventory Management",
                 "maintenance": "Maintenance Schedule",
                 "reports": "Reports & Analytics",
+                "analytics_dashboard": "Analytics Dashboard",
                 "quickbooks": "QuickBooks Import",
                 "genfin": "GenFin Accounting",
                 "livestock": "Livestock Management",

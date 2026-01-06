@@ -205,6 +205,7 @@ class Sidebar(QFrame):
 
         # Analytics Section (Phase 5)
         nav_layout.addWidget(SectionHeader("Analytics"))
+        self._add_nav_item(nav_layout, "Analytics Dashboard", icon="\u2637")  # Chart/analytics
         self._add_nav_item(nav_layout, "Reports", icon="\u2637")  # Chart/analytics
 
         # Import Section (v2.9)
