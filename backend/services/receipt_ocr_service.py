@@ -673,14 +673,66 @@ class ReceiptOCRService:
 
         return [dict(row) for row in rows]
 
+    def list_scans(self, limit: int = 20, offset: int = 0) -> List[Dict]:
+        """List receipt scans with pagination"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
 
-# Singleton instance
-_receipt_ocr_service: Optional[ReceiptOCRService] = None
+        cursor.execute("""
+            SELECT id, image_hash, vendor_name, receipt_date, total_amount,
+                   confidence, created_at, linked_bill_id, provider
+            FROM receipt_scans
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_scan(self, scan_id: int) -> Optional[Dict]:
+        """Get a specific receipt scan by ID"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM receipt_scans WHERE id = ?
+        """, (scan_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            result = dict(row)
+            # Parse extracted_data JSON if present
+            if result.get('extracted_data'):
+                try:
+                    result['extracted_data'] = json.loads(result['extracted_data'])
+                except json.JSONDecodeError:
+                    pass
+            return result
+        return None
+
+
+class _LazyReceiptOCRService:
+    """Lazy-loading wrapper for ReceiptOCRService to avoid initialization at import time"""
+    _instance: Optional[ReceiptOCRService] = None
+
+    def __getattr__(self, name):
+        if self._instance is None:
+            self._instance = ReceiptOCRService()
+        return getattr(self._instance, name)
+
+
+# Module-level singleton (lazy-loaded)
+receipt_ocr_service = _LazyReceiptOCRService()
 
 
 def get_receipt_ocr_service() -> ReceiptOCRService:
     """Get or create Receipt OCR service singleton"""
-    global _receipt_ocr_service
-    if _receipt_ocr_service is None:
-        _receipt_ocr_service = ReceiptOCRService()
-    return _receipt_ocr_service
+    if receipt_ocr_service._instance is None:
+        receipt_ocr_service._instance = ReceiptOCRService()
+    return receipt_ocr_service._instance
