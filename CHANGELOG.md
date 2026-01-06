@@ -1,8 +1,86 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.14 | **Last Updated:** January 4, 2026
+> **Current Version:** 6.7.15 | **Last Updated:** January 5, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## Roadmap / Planned Features
+
+### Near-Term (Q1 2026)
+- **Real-time Bank Feed Integration** - Automatic transaction import from major banks
+- **Mobile App Enhancements** - Offline mode with sync, photo receipt capture
+- **Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, export to Excel/PDF
+- **Multi-Currency Support** - For international farm operations and commodity trading
+
+### Mid-Term (Q2-Q3 2026)
+- **Crop Cost Analysis Module** - Per-acre cost tracking, yield comparison, ROI calculations
+- **Equipment Maintenance Scheduler** - Service reminders, maintenance history, parts inventory
+- **Payroll Direct Deposit** - ACH integration for employee payments
+- **Inventory Barcode Scanning** - Mobile barcode/QR scanning for inventory management
+
+### Long-Term (Q4 2026+)
+- **AI-Powered Insights** - Predictive analytics for cash flow, expense forecasting
+- **Government Program Integration** - USDA FSA reporting, subsidy tracking
+- **Marketplace Integration** - Connect with grain markets, commodity pricing feeds
+- **Multi-Farm Consolidation** - Enterprise-level reporting across multiple operations
+
+---
+
+## v6.7.15 (January 5, 2026)
+
+### pytest-bdd Workflow Testing Framework
+
+**Added comprehensive BDD test coverage using pytest-bdd with Gherkin syntax.**
+
+**Test Results: 57 BDD scenarios passing**
+
+**New Feature Files:**
+- `invoice_workflow.feature` - Invoice creation, payments, partial payments (4 scenarios)
+- `bill_workflow.feature` - Bill entry, vendor payments, credits (4 scenarios)
+- `check_workflow.feature` - Check writing, voiding, printing (4 scenarios)
+- `bank_reconciliation.feature` - Bank reconciliation workflows (4 scenarios)
+- `integration_tests.feature` - Backend service integration (7 scenarios)
+- `error_handling.feature` - Validation and error scenarios (15 scenarios)
+- `multi_step_workflows.feature` - End-to-end business processes (7 scenarios)
+- `concurrency_tests.feature` - Race conditions, thread safety (14 scenarios)
+
+**Step Definitions Created:**
+- Complete step implementations for all 57 scenarios
+- Mock classes for isolated unit testing
+- Thread-safe concurrency test fixtures
+
+### Documentation Reorganization
+
+**Reorganized `/docs` directory into logical subdirectories:**
+- `docs/grants/` - Grant strategy, research impact, technical capabilities
+- `docs/guides/` - User guides, quickstarts, feature documentation
+- `docs/development/` - Deployment, CI/CD, development plans
+- `docs/testing/` - Test results, smoke tests, security audits
+
+### Trademark Compliance Updates
+
+**Removed all third-party trademark references:**
+
+*Code Changes:*
+- Renamed `quickbooks_import.py` → `accounting_import.py`
+- Renamed `quickbooks_api.py` → `accounting_import_api.py`
+- Renamed class `QuickBooksImportService` → `AccountingImportService`
+- Renamed class `QuickBooksAPI` → `AccountingImportAPI`
+- Updated API endpoints: `/api/v1/quickbooks/*` → `/api/v1/accounting-import/*`
+- Updated check format enum: `QUICKBOOKS_VOUCHER` → `PROFESSIONAL_VOUCHER`
+
+*Documentation Changes:*
+- Replaced specific software references with generic terms
+- Updated 11 documentation files for compliance
+- Condensed QUICKSTART.md from 2,800 lines to 172 lines (94% reduction)
+
+### CI/CD Fixes
+
+- Fixed smoke test references to use new API endpoint paths
+- Fixed class name issues from automated replacements
+- Updated `.gitattributes` for Gherkin language detection (`linguist-language=Gherkin`)
 
 ---
 
