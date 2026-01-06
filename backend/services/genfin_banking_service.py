@@ -60,8 +60,8 @@ class CheckFormat(Enum):
     STANDARD_BOTTOM = "standard_bottom"  # Stub on top, check below
     VOUCHER_3UP = "voucher_3up"  # 3 checks per page with vouchers
     WALLET = "wallet"  # Personal wallet-size checks
-    QUICKBOOKS_STANDARD = "quickbooks_standard"  # QB compatible format
-    QUICKBOOKS_VOUCHER = "quickbooks_voucher"  # QB voucher checks
+    PROFESSIONAL_STANDARD = "professional_standard"  # Professional accounting compatible format
+    PROFESSIONAL_VOUCHER = "professional_voucher"  # Professional voucher checks
 
 
 class ACHTransactionCode(Enum):
@@ -89,7 +89,7 @@ class BankAccount:
     # Check printing
     check_printing_enabled: bool = True
     next_check_number: int = 1001
-    check_format: CheckFormat = CheckFormat.QUICKBOOKS_VOUCHER
+    check_format: CheckFormat = CheckFormat.PROFESSIONAL_VOUCHER
 
     # Direct deposit
     ach_enabled: bool = False

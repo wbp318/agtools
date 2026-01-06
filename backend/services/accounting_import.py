@@ -1,10 +1,10 @@
 """
-QuickBooks Import Service for AgTools
+Accounting Software Import Service for AgTools
 
-Handles importing expense data from QuickBooks Desktop/Online exports.
+Handles importing expense data from Accounting Software Desktop/Online exports.
 Supports:
-- QuickBooks Desktop CSV exports (Transaction Detail, Transaction List)
-- QuickBooks Online CSV exports
+- Accounting Software Desktop CSV exports (Transaction Detail, Transaction List)
+- Accounting Software Online CSV exports
 - Account-to-category mapping
 - Split transaction handling
 - Smart transaction filtering (expenses only)
@@ -41,7 +41,7 @@ from services.cost_tracking_service import (
 # ============================================================================
 
 class QBExportFormat(str, Enum):
-    """QuickBooks export format types"""
+    """Accounting Software export format types"""
     DESKTOP_TRANSACTION_DETAIL = "desktop_transaction_detail"
     DESKTOP_TRANSACTION_LIST = "desktop_transaction_list"
     DESKTOP_CHECK_DETAIL = "desktop_check_detail"
@@ -50,7 +50,7 @@ class QBExportFormat(str, Enum):
 
 
 class QBTransactionType(str, Enum):
-    """QuickBooks transaction types"""
+    """Accounting Software transaction types"""
     # Expense types (we want these)
     BILL = "Bill"
     BILL_PAYMENT = "Bill Payment"
@@ -89,16 +89,16 @@ SKIP_TRANSACTION_TYPES = {
 # ============================================================================
 
 class QBAccountMapping(BaseModel):
-    """Mapping from QuickBooks account to AgTools category"""
+    """Mapping from Accounting Software account to AgTools category"""
     id: Optional[int] = None
-    qb_account: str  # QuickBooks account name (e.g., "Farm Expense:Seed")
+    qb_account: str  # Accounting Software account name (e.g., "Farm Expense:Seed")
     agtools_category: ExpenseCategory
     is_default: bool = False
     created_at: Optional[datetime] = None
 
 
 class QBImportPreview(BaseModel):
-    """Preview of QuickBooks import"""
+    """Preview of Accounting Software import"""
     format_detected: str
     total_rows: int
     expense_rows: int
@@ -111,7 +111,7 @@ class QBImportPreview(BaseModel):
 
 
 class QBImportRequest(BaseModel):
-    """Request to import QuickBooks data"""
+    """Request to import Accounting Software data"""
     account_mappings: Dict[str, str]  # qb_account -> agtools_category
     include_transaction_types: Optional[List[str]] = None  # Filter to specific types
     tax_year: Optional[int] = None
@@ -136,7 +136,7 @@ class QBImportSummary(BaseModel):
 # QB ACCOUNT -> AGTOOLS CATEGORY MAPPING
 # ============================================================================
 
-# Default mappings for common QuickBooks account names
+# Default mappings for common Accounting Software account names
 DEFAULT_QB_MAPPINGS: Dict[str, ExpenseCategory] = {
     # Seed accounts
     "seed": ExpenseCategory.SEED,
@@ -241,9 +241,9 @@ DEFAULT_QB_MAPPINGS: Dict[str, ExpenseCategory] = {
 # QUICKBOOKS IMPORT SERVICE
 # ============================================================================
 
-class QuickBooksImportService:
+class Accounting SoftwareImportService:
     """
-    Service for importing expense data from QuickBooks exports.
+    Service for importing expense data from Accounting Software exports.
 
     Handles:
     - Format detection (Desktop vs Online, different report types)
@@ -254,7 +254,7 @@ class QuickBooksImportService:
     """
 
     def __init__(self, db_path: str = "agtools.db"):
-        """Initialize QuickBooks import service."""
+        """Initialize Accounting Software import service."""
         self.db_path = db_path
         self.cost_service = get_cost_tracking_service(db_path)
         self._init_mapping_table()
@@ -291,7 +291,7 @@ class QuickBooksImportService:
 
     def detect_format(self, csv_content: str) -> Tuple[QBExportFormat, List[str]]:
         """
-        Detect which QuickBooks export format we're dealing with.
+        Detect which Accounting Software export format we're dealing with.
 
         Returns:
             Tuple of (format, headers)
@@ -347,7 +347,7 @@ class QuickBooksImportService:
         user_id: int
     ) -> QBImportPreview:
         """
-        Preview QuickBooks import and identify accounts to map.
+        Preview Accounting Software import and identify accounts to map.
 
         Args:
             csv_content: Raw CSV string
@@ -360,7 +360,7 @@ class QuickBooksImportService:
         warnings = []
 
         if format_type == QBExportFormat.GENERIC:
-            warnings.append("Could not detect QuickBooks format. Using generic CSV import.")
+            warnings.append("Could not detect Accounting Software format. Using generic CSV import.")
             # Fall back to standard preview
             preview = self.cost_service.preview_csv(csv_content)
             return QBImportPreview(
@@ -740,7 +740,7 @@ class QuickBooksImportService:
         save_mappings: bool = True
     ) -> QBImportSummary:
         """
-        Import expenses from QuickBooks CSV export.
+        Import expenses from Accounting Software CSV export.
 
         Args:
             csv_content: Raw CSV string
@@ -938,7 +938,7 @@ class QuickBooksImportService:
             {
                 "format": QBExportFormat.ONLINE_EXPORT.value,
                 "name": "QB Online Export",
-                "description": "Export from QuickBooks Online transactions"
+                "description": "Export from Accounting Software Online transactions"
             }
         ]
 
@@ -954,12 +954,12 @@ class QuickBooksImportService:
 # SINGLETON
 # ============================================================================
 
-_qb_import_service: Optional[QuickBooksImportService] = None
+_qb_import_service: Optional[Accounting SoftwareImportService] = None
 
 
-def get_qb_import_service(db_path: str = "agtools.db") -> QuickBooksImportService:
-    """Get or create the QuickBooks import service singleton."""
+def get_qb_import_service(db_path: str = "agtools.db") -> Accounting SoftwareImportService:
+    """Get or create the Accounting Software import service singleton."""
     global _qb_import_service
     if _qb_import_service is None:
-        _qb_import_service = QuickBooksImportService(db_path)
+        _qb_import_service = Accounting SoftwareImportService(db_path)
     return _qb_import_service

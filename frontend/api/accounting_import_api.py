@@ -1,7 +1,7 @@
 """
-QuickBooks Import API Client
+Accounting Import API Client
 
-Handles communication with the QuickBooks import endpoints.
+Handles communication with the accounting import endpoints.
 AgTools v2.9.0
 """
 
@@ -149,15 +149,15 @@ class ExpenseCategory:
 # API CLASS
 # ============================================================================
 
-class QuickBooksAPI:
-    """API client for QuickBooks import operations."""
+class AccountingImportAPI:
+    """API client for accounting import operations."""
 
     def __init__(self, client: Optional[APIClient] = None):
         self.client = client or get_api_client()
 
     def preview_import(self, file_path: str) -> Tuple[Optional[QBImportPreview], Optional[str]]:
         """
-        Preview a QuickBooks CSV export before importing.
+        Preview an accounting software CSV export before importing.
 
         Args:
             file_path: Path to the CSV file
@@ -169,7 +169,7 @@ class QuickBooksAPI:
             with open(file_path, 'rb') as f:
                 filename = file_path.replace('\\', '/').split('/')[-1]
                 files = {'file': (filename, f, 'text/csv')}
-                response = self.client.post_file('/quickbooks/preview', files=files)
+                response = self.client.post_file('/accounting-import/preview', files=files)
 
             if response.success and response.data:
                 return QBImportPreview.from_dict(response.data), None
@@ -185,11 +185,11 @@ class QuickBooksAPI:
         save_mappings: bool = True
     ) -> Tuple[Optional[QBImportSummary], Optional[str]]:
         """
-        Import expenses from a QuickBooks CSV export.
+        Import expenses from an accounting software CSV export.
 
         Args:
             file_path: Path to the CSV file
-            account_mappings: Dict of qb_account -> agtools_category
+            account_mappings: Dict of account -> agtools_category
             tax_year: Optional tax year override
             save_mappings: Whether to save mappings for future use
 
@@ -208,7 +208,7 @@ class QuickBooksAPI:
                     data['tax_year'] = str(tax_year)
 
                 response = self.client.post_file(
-                    '/quickbooks/import',
+                    '/accounting-import/import',
                     files=files,
                     data=data
                 )
@@ -220,32 +220,32 @@ class QuickBooksAPI:
             return None, str(e)
 
     def get_mappings(self) -> Tuple[List[QBAccountMapping], Optional[str]]:
-        """Get user's saved QuickBooks account mappings."""
-        response = self.client.get('/quickbooks/mappings')
+        """Get user's saved accounting software account mappings."""
+        response = self.client.get('/accounting-import/mappings')
         if response.success and response.data:
             return [QBAccountMapping.from_dict(m) for m in response.data], None
         return [], response.error
 
     def save_mappings(self, mappings: Dict[str, str]) -> Tuple[bool, Optional[str]]:
-        """Save QuickBooks account to AgTools category mappings."""
-        response = self.client.post('/quickbooks/mappings', data=mappings)
+        """Save accounting software account to AgTools category mappings."""
+        response = self.client.post('/accounting-import/mappings', data=mappings)
         return response.success, response.error
 
     def delete_mapping(self, mapping_id: int) -> Tuple[bool, Optional[str]]:
-        """Delete a QuickBooks account mapping."""
-        response = self.client.delete(f'/quickbooks/mappings/{mapping_id}')
+        """Delete an accounting software account mapping."""
+        response = self.client.delete(f'/accounting-import/mappings/{mapping_id}')
         return response.success, response.error
 
     def get_supported_formats(self) -> Tuple[List[QBFormat], Optional[str]]:
-        """Get list of supported QuickBooks export formats."""
-        response = self.client.get('/quickbooks/formats')
+        """Get list of supported accounting software export formats."""
+        response = self.client.get('/accounting-import/formats')
         if response.success and response.data:
             return [QBFormat.from_dict(f) for f in response.data], None
         return [], response.error
 
     def get_default_mappings(self) -> Tuple[Dict[str, str], Optional[str]]:
-        """Get default QuickBooks account to category mappings."""
-        response = self.client.get('/quickbooks/default-mappings')
+        """Get default accounting software account to category mappings."""
+        response = self.client.get('/accounting-import/default-mappings')
         if response.success and response.data:
             return response.data, None
         return {}, response.error
@@ -262,12 +262,12 @@ class QuickBooksAPI:
 # SINGLETON
 # ============================================================================
 
-_qb_api: Optional[QuickBooksAPI] = None
+_accounting_api: Optional[AccountingImportAPI] = None
 
 
-def get_quickbooks_api() -> QuickBooksAPI:
-    """Get or create the QuickBooks API singleton."""
-    global _qb_api
-    if _qb_api is None:
-        _qb_api = QuickBooksAPI()
-    return _qb_api
+def get_accounting_import_api() -> AccountingImportAPI:
+    """Get or create the Accounting Import API singleton."""
+    global _accounting_api
+    if _accounting_api is None:
+        _accounting_api = AccountingImportAPI()
+    return _accounting_api

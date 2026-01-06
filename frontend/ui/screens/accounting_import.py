@@ -1,7 +1,7 @@
 """
-QuickBooks Import Screen
+Accounting Import Screen
 
-Screen for importing expenses from QuickBooks CSV exports.
+Screen for importing expenses from accounting software CSV exports.
 AgTools v2.9.0
 """
 
@@ -19,8 +19,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from api.quickbooks_api import (
-    get_quickbooks_api, QuickBooksAPI, QBImportPreview,
+from api.accounting_import_api import (
+    get_accounting_import_api, AccountingImportAPI, QBImportPreview,
     QBImportSummary, QBAccountPreview, ExpenseCategory
 )
 
@@ -77,9 +77,9 @@ class ImportWorker(QThread):
         self.finished.emit(summary, error or "")
 
 
-class QuickBooksImportScreen(QWidget):
+class AccountingImportScreen(QWidget):
     """
-    Screen for importing expenses from QuickBooks exports.
+    Screen for importing expenses from accounting software exports.
 
     Features:
     - File selection with drag-and-drop
@@ -92,7 +92,7 @@ class QuickBooksImportScreen(QWidget):
     def __init__(self, current_user=None, parent=None):
         super().__init__(parent)
         self.current_user = current_user
-        self.api = get_quickbooks_api()
+        self.api = get_accounting_import_api()
         self.preview_data: QBImportPreview = None
         self.selected_file: str = None
         self.categories: list = []

@@ -143,7 +143,7 @@ from services.cost_tracking_service import (
     CategoryBreakdown,
     CropCostSummary
 )
-from services.quickbooks_import import (
+from services.accounting_import import (
     get_qb_import_service,
     QBImportPreview,
     QBImportSummary,
@@ -4046,16 +4046,16 @@ async def list_expense_categories():
 
 
 # ============================================================================
-# QUICKBOOKS IMPORT (v2.9.0)
+# ACCOUNTING IMPORT (v2.9.0)
 # ============================================================================
 
-@app.post("/api/v1/quickbooks/preview", response_model=QBImportPreview, tags=["QuickBooks Import"])
-async def preview_quickbooks_import(
+@app.post("/api/v1/accounting-import/preview", response_model=QBImportPreview, tags=["Accounting Import"])
+async def preview_accounting_import(
     file: UploadFile,
     current_user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Preview a QuickBooks CSV export before importing.
+    Preview an accounting software CSV export before importing.
 
     Returns:
     - Detected export format (Desktop Transaction Detail, Online, etc.)
@@ -4066,12 +4066,12 @@ async def preview_quickbooks_import(
     """
     qb_service = get_qb_import_service()
     content = await file.read()
-    csv_content = content.decode("utf-8-sig")  # Handle BOM from Excel/QB
+    csv_content = content.decode("utf-8-sig")  # Handle BOM from Excel
     return qb_service.preview_import(csv_content, current_user.user_id)
 
 
-@app.post("/api/v1/quickbooks/import", response_model=QBImportSummary, tags=["QuickBooks Import"])
-async def import_quickbooks_data(
+@app.post("/api/v1/accounting-import/import", response_model=QBImportSummary, tags=["Accounting Import"])
+async def import_accounting_data(
     file: UploadFile,
     account_mappings: str = Form(...),  # JSON string of account -> category mappings
     tax_year: Optional[int] = Form(None),
@@ -4079,9 +4079,9 @@ async def import_quickbooks_data(
     current_user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Import expenses from a QuickBooks CSV export.
+    Import expenses from an accounting software CSV export.
 
-    Requires account_mappings as a JSON string mapping QB accounts to AgTools categories.
+    Requires account_mappings as a JSON string mapping accounts to AgTools categories.
     Example: {"Farm Expense:Seed": "seed", "Farm Expense:Fertilizer": "fertilizer"}
 
     Features:
@@ -4107,30 +4107,30 @@ async def import_quickbooks_data(
         csv_content=csv_content,
         user_id=current_user.user_id,
         account_mappings=mappings,
-        source_file=file.filename or "quickbooks_export.csv",
+        source_file=file.filename or "accounting_export.csv",
         tax_year=tax_year,
         save_mappings=save_mappings
     )
 
 
-@app.get("/api/v1/quickbooks/mappings", response_model=List[QBAccountMapping], tags=["QuickBooks Import"])
-async def get_qb_account_mappings(
+@app.get("/api/v1/accounting-import/mappings", response_model=List[QBAccountMapping], tags=["Accounting Import"])
+async def get_accounting_mappings(
     current_user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get user's saved QuickBooks account mappings."""
+    """Get user's saved accounting software account mappings."""
     qb_service = get_qb_import_service()
     return qb_service.get_all_user_mappings(current_user.user_id)
 
 
-@app.post("/api/v1/quickbooks/mappings", tags=["QuickBooks Import"])
-async def save_qb_account_mappings(
+@app.post("/api/v1/accounting-import/mappings", tags=["Accounting Import"])
+async def save_accounting_mappings(
     mappings: Dict[str, str],
     current_user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Save QuickBooks account to AgTools category mappings.
+    Save accounting software account to AgTools category mappings.
 
-    Body should be a dict of qb_account -> agtools_category.
+    Body should be a dict of account -> agtools_category.
     Example: {"Farm Expense:Seed": "seed", "Farm Expense:Fertilizer": "fertilizer"}
     """
     qb_service = get_qb_import_service()
@@ -4138,34 +4138,34 @@ async def save_qb_account_mappings(
     return {"message": f"Saved {saved} mappings", "count": saved}
 
 
-@app.delete("/api/v1/quickbooks/mappings/{mapping_id}", tags=["QuickBooks Import"])
-async def delete_qb_account_mapping(
+@app.delete("/api/v1/accounting-import/mappings/{mapping_id}", tags=["Accounting Import"])
+async def delete_accounting_mapping(
     mapping_id: int,
     current_user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Delete a QuickBooks account mapping."""
+    """Delete an accounting software account mapping."""
     qb_service = get_qb_import_service()
     if qb_service.delete_user_mapping(current_user.user_id, mapping_id):
         return {"message": "Mapping deleted"}
     raise HTTPException(status_code=404, detail="Mapping not found")
 
 
-@app.get("/api/v1/quickbooks/formats", tags=["QuickBooks Import"])
-async def get_supported_qb_formats():
-    """Get list of supported QuickBooks export formats."""
+@app.get("/api/v1/accounting-import/formats", tags=["Accounting Import"])
+async def get_supported_accounting_formats():
+    """Get list of supported accounting software export formats."""
     qb_service = get_qb_import_service()
     return qb_service.get_supported_formats()
 
 
-@app.get("/api/v1/quickbooks/default-mappings", tags=["QuickBooks Import"])
-async def get_default_qb_mappings():
+@app.get("/api/v1/accounting-import/default-mappings", tags=["Accounting Import"])
+async def get_default_accounting_mappings():
     """
-    Get default QuickBooks account to category mappings.
+    Get default accounting software account to category mappings.
 
     These are common mappings that work for many farm operations.
     Users can customize these for their specific chart of accounts.
     """
-    from services.quickbooks_import import DEFAULT_QB_MAPPINGS
+    from services.accounting_import import DEFAULT_QB_MAPPINGS
     return {
         account: category.value
         for account, category in DEFAULT_QB_MAPPINGS.items()
@@ -12726,7 +12726,7 @@ class GenFinBankAccountCreate(BaseModel):
     gl_account_id: Optional[str] = None
     starting_balance: float = 0.0
     starting_check_number: int = 1001
-    check_format: str = "quickbooks_voucher"
+    check_format: str = "professional_voucher"
     ach_enabled: bool = False
     ach_company_id: str = ""
     ach_company_name: str = ""

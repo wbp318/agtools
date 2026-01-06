@@ -1320,19 +1320,19 @@ class ImportExportDialog(GenFinDialog):
 
 
 # =============================================================================
-# QUICKBOOKS COMPANY IMPORT WIZARD
+# ACCOUNTING SOFTWARE COMPANY IMPORT WIZARD
 # =============================================================================
 
-class QuickBooksImportWizard(GenFinDialog):
+class AccountingImportWizard(GenFinDialog):
     """
-    Comprehensive wizard for importing complete QuickBooks company data.
+    Comprehensive wizard for importing complete accounting software company data.
     Supports IIF exports, CSV exports, and guides users through full migration.
     """
 
     import_complete = pyqtSignal(str, dict)  # company_name, stats
 
     def __init__(self, parent=None):
-        super().__init__("Import QuickBooks Company", parent)
+        super().__init__("Import Accounting Data", parent)
         self.setMinimumSize(800, 650)
         self.current_step = 0
         self.import_data = {
@@ -8816,7 +8816,7 @@ class GenFinHomeScreen(QWidget):
                 border-style: inset;
             }}
         """)
-        import_qb_btn.clicked.connect(self._import_from_quickbooks)
+        import_qb_btn.clicked.connect(self._import_from_accounting_software)
         company_layout.addWidget(import_qb_btn)
 
         layout.addWidget(company_frame)
@@ -9008,9 +9008,9 @@ class GenFinHomeScreen(QWidget):
                 company_name = company_name.split(" (")[0]
             self.welcome_label.setText(f"Welcome to {company_name}")
 
-    def _import_from_quickbooks(self):
-        """Launch QuickBooks Import Wizard to import company data."""
-        dialog = QuickBooksImportWizard(self)
+    def _import_from_accounting_software(self):
+        """Launch Accounting Import Wizard to import company data."""
+        dialog = AccountingImportWizard(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             # Refresh company list and stats after successful import
             self._load_entities()
@@ -9018,7 +9018,7 @@ class GenFinHomeScreen(QWidget):
             QMessageBox.information(
                 self,
                 "Import Complete",
-                "QuickBooks data has been successfully imported!\n\n"
+                "Accounting data has been successfully imported!\n\n"
                 "Your financial history is now available in GenFin."
             )
 

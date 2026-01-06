@@ -35,7 +35,7 @@ from ui.screens.equipment_management import EquipmentManagementScreen
 from ui.screens.inventory_management import InventoryManagementScreen
 from ui.screens.maintenance_schedule import MaintenanceScheduleScreen
 from ui.screens.reports_dashboard import ReportsDashboardScreen
-from ui.screens.quickbooks_import import QuickBooksImportScreen
+from ui.screens.accounting_import import AccountingImportScreen
 from ui.screens.genfin import GenFinScreen
 from ui.screens.livestock_management import LivestockManagementScreen
 from ui.screens.seed_planting import SeedPlantingScreen
@@ -451,9 +451,9 @@ class MainWindow(QMainWindow):
         reports_screen = ReportsDashboardScreen(current_user=self._current_user)
         self._add_screen("reports", reports_screen)
 
-        # QuickBooks Import Screen (v2.9) - All users
-        qb_import_screen = QuickBooksImportScreen(current_user=self._current_user)
-        self._add_screen("quickbooks", qb_import_screen)
+        # Accounting Import Screen (v2.9) - All users
+        accounting_import_screen = AccountingImportScreen(current_user=self._current_user)
+        self._add_screen("accounting_import", accounting_import_screen)
 
         # GenFin Accounting Screen (v6.3) - All users
         genfin_screen = GenFinScreen()
