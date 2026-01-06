@@ -219,9 +219,9 @@ python smoke_test_v63.py
 | v6.1.0 | Chart of Accounts, Customers, Vendors, Invoices, Bills, Payments, Journal Entries, Reports |
 | v6.2.0 | Recurring Transactions, Bank Feeds Import, Fixed Assets |
 | v6.3.0 | Payroll, Multi-Entity, Budgets, 1099 Tracking |
-| v6.3.1 | 90s QuickBooks UI (teal theme, beveled 3D buttons) |
+| v6.3.1 | Classic 90s Accounting UI (teal theme, beveled buttons) |
 | v6.4.0 | Farm Operations Suite (Livestock, Seed & Planting) |
-| **v6.5.0** | **100% Complete - Full QuickBooks Desktop Parity** |
+| **v6.5.0** | **100% Complete - Full Professional Accounting Parity** |
 
 ---
 
@@ -241,11 +241,11 @@ GenFin now has **zero placeholder screens** - every feature is fully implemented
 | **Other** | Entities (Classes/Locations/Names/Terms), Budgets, Settings, Help Center |
 
 ### File Statistics
-- `genfin.py`: ~8,200 lines (complete QuickBooks parity)
+- `genfin.py`: ~8,200 lines (complete professional accounting parity)
 - 35+ screen and dialog classes
 - 0 placeholder screens remaining
 
-GenFin is now a **complete** accounting system with full QuickBooks Desktop parity.
+GenFin is now a **complete** accounting system with full professional accounting parity.
 
 ---
 

@@ -1,25 +1,26 @@
 # GenFin - Complete Farm Financial Management System
 
-*Version 6.7.4 | December 2025*
+*Version 6.7.14 | January 2026*
 
 ---
 
 ## Overview
 
-**GenFin** is a complete farm-focused financial management system built into AgTools. It replaces the need for QuickBooks and other accounting software with features specifically designed for agricultural operations.
+**GenFin** is a complete farm-focused financial management system built into AgTools. It replaces the need for external accounting software with features specifically designed for agricultural operations.
 
-### 🎉 v6.7.4 - Production-Ready with Complete Transaction Workflows!
+### 🎉 v6.7.14 - Production-Ready with 100% Test Pass Rate!
 
-As of December 31, 2025, GenFin is fully production-ready with:
+As of January 4, 2026, GenFin is fully production-ready with:
+- **100% Test Pass Rate**: 226 tests passing, 7 skipped (comprehensive endpoint coverage)
 - **Complete CRUD Operations**: Create, Read, Update, Delete for all transaction types
-- **Bill Editing**: Full edit support for existing bills with all field population
-- **Purchase Orders API**: Complete REST endpoints with auto-generated PO numbers
-- **100% Test Coverage**: Comprehensive automated test suite (34/34 tests passing)
-- **Invoice/Bill Workflows**: Vendor/customer autocomplete with Quick Add
-- **Write Checks**: Full QuickBooks-style dialog with bank account selection
-- **Receive/Pay Bills**: Complete payment workflows with discounts and credits
+- **Security Hardened** (v6.7.5): DEV_MODE auth bypass disabled by default, CORS restricted, no hardcoded passwords
+- **Full Professional Parity**: Every desktop accounting feature implemented
+- **Print Preview System**: Preview checks, invoices, reports before printing
+- **Import/Export**: QIF, CSV, IIF format support for data migration
+- **Bank Feed Auto-Matching**: Smart 5-tier matching with confidence scoring
+- **Batch Statement Generation**: Multi-customer statements with email/PDF options
 
-### 🎉 v6.5.0 - 100% QuickBooks Parity Achieved!
+### 🎉 v6.5.0 - 100% Professional Accounting Parity Achieved!
 
 As of December 30, 2025, GenFin has **zero placeholder screens** - every feature is fully implemented:
 
@@ -38,13 +39,13 @@ As of December 30, 2025, GenFin has **zero placeholder screens** - every feature
 ### Why GenFin?
 
 - **Farm-Focused** - Chart of accounts and reports designed for agriculture
-- **No Licensing Fees** - Replace QuickBooks subscriptions
-- **100% Complete** - Every QuickBooks feature implemented (v6.5.0)
+- **No Licensing Fees** - Replace expensive accounting subscriptions
+- **100% Complete** - Every professional accounting feature implemented (v6.5.0)
 - **Check Printing** - Built-in MICR check printing (replaces gcformer)
 - **Direct Deposit** - NACHA file generation for ACH payments
 - **Integrated** - Works seamlessly with all AgTools modules
 - **Grant-Ready** - Financial reports formatted for grant applications
-- **90s QuickBooks UI** - Nostalgic teal theme for familiar experience
+- **Classic 90s Accounting UI** - Nostalgic teal theme for familiar experience
 - **Multi-Entity Support** - Manage multiple business entities
 - **1099 Tracking** - Complete 1099-NEC and 1099-MISC preparation
 
@@ -238,8 +239,8 @@ Same aging buckets as AP, organized by customer.
 
 | Format | Description |
 |--------|-------------|
-| QuickBooks Standard | Standard QB check layout |
-| QuickBooks Voucher | 3-up voucher format |
+| Standard Check | Standard check layout |
+| Voucher | 3-up voucher format |
 | Standard Top | Check at top of page |
 | Standard Middle | Check in middle |
 | Standard Bottom | Check at bottom |
@@ -551,7 +552,7 @@ Scenario: "Corn Price Drop"
 
 ## Inventory & Items Management (v6.1)
 
-Full QuickBooks-style inventory tracking with automatic COGS calculation.
+Full professional inventory tracking with automatic COGS calculation.
 
 ### Item Types
 
@@ -650,7 +651,7 @@ Assign price levels to customers for automatic pricing.
 
 ## Classes & Projects (v6.1)
 
-QuickBooks-style class tracking for departmental and project accounting.
+Professional class tracking for departmental and project accounting.
 
 ### Class Types
 
@@ -760,7 +761,7 @@ Milestone 3: Final Inspection         $10,000
 
 ## Advanced Reports & Dashboard (v6.1)
 
-50+ professional reports matching QuickBooks, plus dashboards and charts.
+50+ professional reports, plus dashboards and charts.
 
 ### Report Categories
 
@@ -1222,12 +1223,12 @@ GenFin integrates with other AgTools modules:
 
 ---
 
-## Migration from QuickBooks
+## Migration from Other Software
 
 ### Importing Historical Data
 
-1. Export transactions from QuickBooks
-2. Use existing QuickBooks Import (v2.9)
+1. Export transactions from your accounting software
+2. Use the Accounting Software Import feature (v2.9)
 3. Map accounts to GenFin chart of accounts
 4. Review and post imported transactions
 
@@ -1275,15 +1276,70 @@ POST /api/v1/genfin/journal-entries
 
 ---
 
+## New in v6.6.0 - v6.7.14
+
+### Print Preview System (v6.6.0)
+
+Preview any document before printing:
+- **Document types**: Checks, Invoices, Estimates, Purchase Orders, Statements, Reports
+- **Zoom control**: 50%-200% with Save as PDF option
+- **Professional MICR check layout** with amount-to-words conversion
+
+### Import/Export System (v6.6.0)
+
+Full data migration capability:
+- **Import formats**: QIF, CSV, IIF (standard accounting formats)
+- **Export formats**: QIF, CSV, IIF, JSON
+- **Data types**: Chart of Accounts, Customers, Vendors, Employees, Invoices, Bills, Transactions
+- **CSV column mapping** with auto-detection and duplicate handling
+
+### Bank Feed Auto-Matching (v6.6.0)
+
+Smart matching algorithm with confidence scoring:
+- **5-tier matching priority**: Custom rules → Existing transactions → Vendors → Customers → Keywords
+- **OFX/QFX/QBO file import** with built-in parser
+- **Matching Rules Manager** for custom auto-categorization
+- **Farm-specific keywords**: fuel, insurance, seed, fertilizer, equipment
+
+### Batch Statement Generation (v6.6.0)
+
+Multi-customer statement processing:
+- **Smart selection**: Select All, Select With Balance, Select Overdue
+- **Batch PDF generation** and email sending
+- **Statement aging**: Current, 1-30, 31-60, 61-90, 90+ days
+
+### Windows 98 Retro Theme (v6.5.2)
+
+Visual overhaul with nostalgic styling:
+- **Turquoise color scheme** with 3D beveled buttons
+- **Cream/beige backgrounds** for classic CRT monitor look
+- **Sunken input fields** and rounded scrollbars
+
+### Security Hardening (v6.7.5)
+
+Critical security fixes:
+- **DEV_MODE auth bypass** disabled by default
+- **CORS restrictive default** (localhost only)
+- **Hardcoded passwords removed** from codebase
+- **Random admin passwords** generated at startup
+
+### Comprehensive Test Suite (v6.7.10-6.7.14)
+
+- **234 individual test functions** covering all 257 GenFin API endpoints
+- **100% pass rate** (226 passed, 7 skipped)
+- **24 test categories** organized with pytest fixtures
+
+---
+
 ## New in v6.3.x
 
-### 90s QuickBooks UI Theme (v6.3.1)
+### Classic 90s Accounting UI Theme (v6.3.1)
 
-Experience the nostalgia of classic QuickBooks with our teal blue theme:
+Experience the nostalgia of classic 90s accounting software with our teal blue theme:
 
-- **Teal Blue Color Scheme** - Classic QuickBooks look and feel
+- **Teal Blue Color Scheme** - Classic desktop accounting look and feel
 - **Beveled 3D Buttons** - Authentic 90s button styling
-- **Familiar Interface** - Comfortable for long-time QuickBooks users
+- **Familiar Interface** - Comfortable for experienced accounting users
 - **Professional Appearance** - Clean, business-focused design
 
 ### Multi-Entity Management (v6.3.0)

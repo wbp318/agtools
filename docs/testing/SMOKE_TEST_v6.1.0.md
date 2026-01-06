@@ -1,7 +1,7 @@
 # GenFin v6.1.0 Smoke Test Results
 
 **Date:** December 29, 2025
-**Version:** 6.1.0 - QuickBooks Feature Parity
+**Version:** 6.1.0 - Professional Accounting Feature Parity
 **Tester:** Automated CI Test Suite
 
 ---

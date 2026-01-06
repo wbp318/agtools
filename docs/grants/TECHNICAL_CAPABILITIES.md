@@ -178,7 +178,7 @@ AgTools is a professional-grade agricultural decision support system combining 3
 | Fiscal Management | Year-end close, retained earnings |
 | Multi-Entity Support | Multiple business entities (Farm, LLC, Corp) |
 | 1099 Tracking | 1099-NEC and 1099-MISC preparation |
-| 90s QuickBooks UI | Nostalgic teal theme with beveled buttons |
+| Classic 90s Accounting UI | Nostalgic teal theme with beveled buttons |
 
 **Accounts Payable:**
 - Vendor management with 1099 tracking
@@ -196,7 +196,7 @@ AgTools is a professional-grade agricultural decision support system combining 3
 | Feature | Specification |
 |---------|---------------|
 | Bank Accounts | Checking, savings, credit card, LOC |
-| Check Printing | 7 formats including QuickBooks compatible |
+| Check Printing | 7 formats including standard check layouts |
 | MICR Support | Bank-ready check formatting |
 | ACH/Direct Deposit | NACHA file generation |
 | Reconciliation | Statement matching, outstanding items |
@@ -243,7 +243,7 @@ AgTools is a professional-grade agricultural decision support system combining 3
 | Progress Invoicing | Percentage and milestone-based |
 
 **Advanced Reports (v6.1):**
-- 50+ reports matching QuickBooks categories
+- 50+ professional financial reports
 - Company snapshot dashboard with widgets
 - Memorized reports for repeated use
 - Chart generation (bar, line, pie, area)
@@ -255,7 +255,7 @@ AgTools is a professional-grade agricultural decision support system combining 3
 | Bill Editing | Full edit support with all field population |
 | Purchase Orders API | Complete CRUD endpoints with auto-generated PO numbers |
 | Invoice Workflows | Create/edit with customer autocomplete and Quick Add |
-| Write Checks | QuickBooks-style dialog with bank account selection |
+| Write Checks | Professional dialog with bank account selection |
 | Receive Payments | Apply payments to invoices with discounts |
 | Pay Bills | Select and pay multiple bills with credits |
 | Test Coverage | 100% automated testing (34/34 tests passing) |
@@ -356,7 +356,7 @@ Primary Tables:
 
 - **Weather:** Open-Meteo API (real-time forecasts)
 - **AI/ML:** Hugging Face Inference API
-- **Financial:** QuickBooks import (73 account mappings)
+- **Financial:** Accounting software import (73 account mappings)
 
 ### Planned Integrations
 
@@ -424,12 +424,12 @@ Primary Tables:
 | Version | Release | Key Features |
 |---------|---------|--------------|
 | 6.7.4 | Dec 2025 | GenFin Production-Ready (Bill Edit, PO API, 100% test coverage) |
-| 6.5.0 | Dec 2025 | GenFin 100% Complete (zero placeholders, full QuickBooks parity) |
+| 6.5.0 | Dec 2025 | GenFin 100% Complete (zero placeholders, full professional parity) |
 | 6.4.0 | Dec 2025 | Farm Operations Suite (livestock, seed & planting management) |
-| 6.3.1 | Dec 2025 | GenFin 90s QuickBooks UI (teal theme, beveled buttons) |
+| 6.3.1 | Dec 2025 | GenFin Classic 90s UI (teal theme, beveled buttons) |
 | 6.3.0 | Dec 2025 | GenFin Enterprise (payroll, multi-entity, 1099 tracking) |
 | 6.2.0 | Dec 2025 | GenFin Extensions (recurring transactions, bank feeds, fixed assets) |
-| 6.1.0 | Dec 2025 | GenFin QuickBooks parity (inventory, classes, projects, 50+ reports) |
+| 6.1.0 | Dec 2025 | GenFin Professional parity (inventory, classes, projects, 50+ reports) |
 | 6.0.0 | Dec 2025 | GenFin financial management (accounting, check printing, ACH, payroll) |
 | 4.2.0 | Dec 2025 | Complete farm business suite |
 | 4.1.0 | Dec 2025 | Grain & storage management |

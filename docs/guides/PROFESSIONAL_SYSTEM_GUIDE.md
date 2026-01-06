@@ -41,7 +41,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Category Auto-Detection**: Intelligently categorize expenses
     - **Allocation Management**: Split expenses across multiple fields
     - **Cost Reports**: Cost-per-acre by field, crop, and category
-16. **QuickBooks Import (v2.9.0)**: Direct import from QuickBooks:
+16. **accounting software Import (v2.9.0)**: Direct import from accounting software:
     - **Format Detection**: Auto-detect QB Desktop and Online export formats
     - **Account Mapping**: 73 default mappings for common farm accounts
     - **Smart Filtering**: Auto-skip deposits, transfers, invoices (expenses only)
@@ -82,7 +82,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Payroll**: Employees, time, tax calculations (Federal, FICA, FUTA)
     - **Financial Reports**: P&L, Balance Sheet, Cash Flow, Ratios
     - **Budgeting**: Budget vs. actual, forecasting, scenarios
-    - **90s QuickBooks UI** (v6.3.1): Nostalgic teal theme with beveled 3D buttons
+    - **90s accounting software UI** (v6.3.1): Nostalgic teal theme with beveled 3D buttons
     - **Multi-Entity Support** (v6.3.0): Manage multiple business entities
     - **1099 Tracking** (v6.3.0): 1099-NEC/MISC preparation with threshold monitoring
 23. **Farm Operations Suite (v6.4.0)**: Comprehensive farm operations:
@@ -95,7 +95,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Seed Inventory**: Variety tracking, traits, lot numbers
     - **Planting Records**: Field planting with rates, populations, costs
     - **Emergence Monitoring**: Stand counts, uniformity scores, growth stages
-24. **GenFin 100% Complete (v6.5.0)**: Full QuickBooks Desktop parity achieved:
+24. **GenFin 100% Complete (v6.5.0)**: Full accounting software Desktop parity achieved:
     - **Banking Module**: Bank Accounts, Check Register, Transfers, Reconciliation, Bank Feeds
     - **Customer Module**: Statements generator with email/print, Credit Memos
     - **Vendor Module**: Credit Cards tracking with payments, Vendor Credits
@@ -111,7 +111,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Purchase Orders API**: Complete CRUD endpoints with auto-generated PO numbers
     - **100% Test Coverage**: Comprehensive automated test suite (34/34 tests passing)
     - **Invoice Workflows**: Create invoices with customer autocomplete and Quick Add
-    - **Write Checks**: Full QuickBooks-style dialog with bank account selection
+    - **Write Checks**: Full accounting software-style dialog with bank account selection
     - **Receive Payments**: Apply payments to invoices with discounts
     - **Pay Bills**: Select and pay multiple bills with credits and discounts
 
@@ -154,7 +154,7 @@ agtools/
 │       ├── time_entry_service.py           # Time logging for crew (v2.6)
 │       ├── photo_service.py                # Task photo uploads (v2.6)
 │       ├── cost_tracking_service.py        # Cost per acre tracking (v2.7)
-│       ├── quickbooks_import.py            # QuickBooks import (v2.9)
+│       ├── quickbooks_import.py            # accounting software import (v2.9)
 │       ├── ai_image_service.py             # AI pest/disease identification (v3.0)
 │       ├── crop_health_service.py          # Crop health scoring/NDVI (v3.0)
 │       ├── yield_prediction_service.py     # ML yield predictions (v3.0)
@@ -3817,17 +3817,17 @@ CREATE INDEX idx_task_photos_task ON task_photos(task_id);
 
 ## 📥 QUICKBOOKS IMPORT (v2.9.0)
 
-Direct import from QuickBooks exports with automatic format detection, intelligent account mapping, and smart transaction filtering.
+Direct import from accounting software exports with automatic format detection, intelligent account mapping, and smart transaction filtering.
 
-### Why QuickBooks Import?
+### Why accounting software Import?
 
-Most farms use QuickBooks for accounting. The v2.9 QuickBooks Import eliminates manual data entry by:
-- **Auto-detecting** your QuickBooks export format
+Most farms use accounting software for accounting. The v2.9 accounting software Import eliminates manual data entry by:
+- **Auto-detecting** your accounting software export format
 - **Auto-mapping** QB accounts to expense categories
 - **Auto-filtering** to expenses only (skips deposits/transfers)
 - **Saving mappings** for one-click future imports
 
-### Supported QuickBooks Formats
+### Supported accounting software Formats
 
 | Format | Export Method |
 |--------|---------------|
@@ -3891,7 +3891,7 @@ GET /api/v1/quickbooks/default-mappings # View default account mappings
 
 ### Import Workflow
 
-1. **Export from QuickBooks** - Transaction Detail by Account works best
+1. **Export from accounting software** - Transaction Detail by Account works best
 2. **Preview** - `POST /api/v1/quickbooks/preview` to see what will import
 3. **Map accounts** - Review suggested mappings, add any missing
 4. **Import** - `POST /api/v1/quickbooks/import` with your mappings
@@ -3920,7 +3920,7 @@ Re-importing the same file won't create duplicates.
 - `tests/test_quickbooks_import.py` (~200 lines)
 
 **Modified:**
-- `backend/main.py` - Added 7 QuickBooks endpoints
+- `backend/main.py` - Added 7 accounting software endpoints
 
 ---
 
@@ -4578,7 +4578,7 @@ You now have a **professional-grade foundation** for a crop consulting business 
   - Input ROI ranking to identify best/worst investments
   - Scenario modeling for price and yield changes
   - Budget management with overage alerts
-- **Import from QuickBooks** directly (v2.9.0):
+- **Import from accounting software** directly (v2.9.0):
   - Auto-detect QB Desktop and Online export formats
   - 73 default account-to-category mappings for farms
   - Smart filtering skips deposits, transfers, invoices
@@ -4629,7 +4629,7 @@ This system is **immediately usable** for real consulting work and can be **enha
 | 2.6.0 | Dec 2025 | **Mobile/Crew Interface** - Mobile web routes, task list/detail views, time logging, photo capture with GPS, PWA support with service worker, cookie-based auth |
 | 2.7.0 | Dec 2025 | **Cost Per Acre Tracking** - CSV import with column mapping, OCR receipt scanning, expense allocation to fields, cost-per-acre reports by field/crop/category |
 | 2.8.0 | Dec 2025 | **Profitability Analysis** - Break-even calculations, input ROI ranking, scenario modeling, budget management |
-| 2.9.0 | Dec 2025 | **QuickBooks Import** - Auto-detect QB formats, 73 default account mappings, smart filtering, duplicate detection, saved mappings |
+| 2.9.0 | Dec 2025 | **accounting software Import** - Auto-detect QB formats, 73 default account mappings, smart filtering, duplicate detection, saved mappings |
 | 3.0.0 | Dec 2025 | **AI/ML Intelligence Suite** - Image-based pest/disease ID, crop health scoring (NDVI), yield prediction model, smart expense categorization, weather-based spray AI, 28 new endpoints (207 total) |
 | 3.2.0 | Dec 2025 | **Sustainability Metrics Dashboard** - Carbon footprint tracking, input usage monitoring, 14 conservation practices, sustainability scorecard |
 | 3.3.0 | Dec 2025 | **Climate & Weather Integration** - GDD tracking for 8 crops, crop stage prediction, precipitation logging, heat/cold stress analysis |

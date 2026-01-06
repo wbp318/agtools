@@ -1,7 +1,7 @@
 # AgTools v2.9.0 Smoke Test Results
 
 **Date:** December 26, 2025
-**Version:** 2.9.0 (QuickBooks Import)
+**Version:** 2.9.0 (Accounting Software Import)
 **Tester:** Automated Test Suite
 
 ---
@@ -12,7 +12,7 @@
 |------------|-------|--------|--------|--------|
 | Backend API Tests | 18 | 18 | 0 | PASS |
 | Frontend Phase 9 Tests | 6 | 6 | 0 | PASS |
-| QuickBooks Import Tests | 5 | 5 | 0 | PASS |
+| Accounting Software Import Tests | 5 | 5 | 0 | PASS |
 | **TOTAL** | **29** | **29** | **0** | **PASS** |
 
 ---
@@ -81,7 +81,7 @@ tests/test_api.py::TestAPIDocumentation::test_swagger_docs PASSED
 
 ---
 
-## QuickBooks Import Tests (NEW v2.9.0)
+## Accounting Software Import Tests (NEW v2.9.0)
 
 **Command:** `python tests/test_quickbooks_import.py`
 **Result:** 5/5 PASSED
@@ -161,7 +161,7 @@ tests/test_api.py::TestAPIDocumentation::test_swagger_docs PASSED
 
 ## New Features Verified in v2.9.0
 
-### QuickBooks Import Service
+### Accounting Software Import Service
 - [x] Format detection (4 QB formats)
 - [x] Account-to-category mapping (73 defaults)
 - [x] Smart transaction filtering (expenses only)
@@ -169,7 +169,7 @@ tests/test_api.py::TestAPIDocumentation::test_swagger_docs PASSED
 - [x] Preview before import
 - [x] Full import with summary
 
-### Desktop UI (QuickBooks Import Screen)
+### Desktop UI (Accounting Software Import Screen)
 - [x] File browser
 - [x] Auto-preview
 - [x] Account mappings table
@@ -203,4 +203,4 @@ tests/test_api.py::TestAPIDocumentation::test_swagger_docs PASSED
 
 **All 29 tests passed.** AgTools v2.9.0 is ready for production use.
 
-The QuickBooks Import feature is fully functional and ready to import 2025 farm expenses when data is available.
+The Accounting Software Import feature is fully functional and ready to import 2025 farm expenses when data is available.

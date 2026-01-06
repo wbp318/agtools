@@ -33,15 +33,17 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
-**Version 6.7.8** - **Expanded GenFin Test Coverage** - Production-Ready:
-- **218 Workflow Tests**: 98.6% pass rate (215/218) across GenFin and Farm Operations
-- **GenFin Tests Expanded**: 121 tests including Classes, Projects, Budgets, extended Inventory/Reports/Payroll
-- **Bug Fixes**: Fixed FastAPI route ordering for inventory endpoints (summary, lots, valuation, reorder-report, stock-status)
-- **Known Issues**: 3 payroll-related internal server errors (tracked for investigation)
+**Version 6.7.14** - **100% Test Pass Rate** - Production-Ready:
+- **100% Pass Rate**: 226 tests passing, 7 skipped (comprehensive endpoint coverage)
+- **234 Individual Tests**: All 257 GenFin API endpoints covered with pytest
+- **Security Hardened** (v6.7.5): DEV_MODE disabled, CORS restricted, no hardcoded passwords
+- **Print Preview System** (v6.6.0): Preview checks, invoices, reports with PDF export
+- **Import/Export** (v6.6.0): QIF, CSV, IIF formats for data migration
+- **Bank Feed Auto-Matching** (v6.6.0): Smart 5-tier matching with confidence scoring
 
 **Quick Start:** See [CLI Quickstart](docs/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/TEST_RESULTS.md)
 
-**Version 6.5.0** - **GenFin 100% Complete** - Full QuickBooks Desktop Parity:
+**Version 6.5.0** - **GenFin 100% Complete** - Full Professional Accounting Parity:
 - **Zero Placeholders**: Every GenFin screen is now fully functional
 - **Banking Module**: Bank Accounts, Check Register, Transfers, Reconciliation, Bank Feeds
 - **Customer Module**: Statements generator, Credit Memos
@@ -57,12 +59,12 @@ We offer commercial licensing options:
 - **Coming Soon**: Harvest module, Soil & Fertility, Crop Planning + FSA programs
 
 **Version 6.3.x** adds **GenFin Enterprise Features**:
-- **90s QuickBooks UI**: Nostalgic teal blue theme with beveled 3D buttons
+- **Classic 90s Accounting UI**: Nostalgic teal blue theme with beveled 3D buttons
 - **Payroll Processing**: Federal/state tax calculations, pay runs, direct deposit
 - **Multi-Entity Support**: Manage multiple business entities (Farm, LLC, Corp)
 - **1099 Tracking**: 1099-NEC and 1099-MISC preparation with threshold monitoring
 
-**Version 6.1.0** adds **GenFin QuickBooks Parity** - Full QuickBooks-style features:
+**Version 6.1.0** adds **GenFin Professional Parity** - Full professional accounting features:
 - **Inventory & Items**: 11 item types, FIFO/LIFO/Average costing, assemblies with BOM
 - **Classes & Projects**: Department tracking, job costing, billable time/expenses
 - **Progress Invoicing**: Percent complete and milestone-based billing
@@ -131,7 +133,7 @@ We offer commercial licensing options:
 - **Smart Expense Categorization**: Auto-categorize expenses from descriptions with 95%+ accuracy
 - **Weather-Based Spray AI**: ML-enhanced spray timing that learns from your outcomes
 
-**Version 2.9.0** adds **QuickBooks Import** - direct import from QuickBooks exports:
+**Version 2.9.0** adds **Accounting Software Import** - import from accounting software exports:
 - **Auto-detect** QB Desktop and Online export formats
 - **73 default mappings** for common farm expense accounts
 - **Smart filtering** skips deposits/transfers (expenses only)
@@ -337,8 +339,8 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
     - **Scenario Modeling**: What-if analysis for prices and yields
     - **Budget Management**: Track spending with overage alerts
 
-12. **QuickBooks Import (v2.9)**
-    - **Format Detection**: Auto-detect QB Desktop and Online exports
+12. **Accounting Software Import (v2.9)**
+    - **Format Detection**: Auto-detect Desktop and Online export formats
     - **Account Mapping**: 73 default mappings for farm accounts
     - **Smart Filtering**: Auto-skip deposits/transfers (expenses only)
     - **Desktop UI**: File browser, preview, and mapping editor
@@ -379,7 +381,7 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **Economic Models** showing ROI for every recommendation
 - **Resistance Management** built into all recommendations
 - **Professional Knowledge** equivalent to extension bulletins
-- **Cost Per Acre Tracking** with QuickBooks import (v2.7-2.9)
+- **Cost Per Acre Tracking** with accounting software import (v2.7-2.9)
 - **Profitability Analysis** with break-even and ROI ranking (v2.8)
 - **AI/ML Intelligence** with 5 AI-powered features (v3.0)
 - **Enterprise Operations** with labor, leases, cash flow (v3.9)
@@ -461,7 +463,7 @@ agtools/
 │       ├── photo_service.py          # Photo upload service (v2.6)
 │       ├── cost_tracking_service.py  # Cost per acre tracking (v2.7)
 │       ├── profitability_service.py  # Profitability analysis (v2.8)
-│       ├── quickbooks_import.py      # QuickBooks import (v2.9)
+│       ├── quickbooks_import.py      # Accounting software import (v2.9)
 │       ├── ai_image_service.py       # AI pest/disease identification (v3.0)
 │       ├── crop_health_service.py    # Crop health scoring (v3.0)
 │       ├── yield_prediction_service.py # Yield prediction model (v3.0)
@@ -508,7 +510,7 @@ agtools/
 │   │   ├── equipment_api.py          # Equipment management (v2.5)
 │   │   ├── inventory_api.py          # Inventory management (v2.5)
 │   │   ├── reports_api.py            # Reports & analytics (v2.5)
-│   │   ├── quickbooks_api.py         # QuickBooks import (v2.9)
+│   │   ├── quickbooks_api.py         # Accounting software import (v2.9)
 │   │   ├── livestock_api.py          # Livestock management (v6.4)
 │   │   └── seed_planting_api.py      # Seed & planting (v6.4)
 │   ├── models/                       # Data classes
@@ -551,7 +553,7 @@ agtools/
 │           ├── disease_identification.py # Disease ID screen
 │           ├── settings.py           # Settings screen
 │           ├── reports_dashboard.py  # Reports & analytics (v2.5)
-│           ├── quickbooks_import.py  # QuickBooks import (v2.9)
+│           ├── quickbooks_import.py  # Accounting software import (v2.9)
 │           ├── genfin.py             # GenFin accounting (v6.3)
 │           ├── livestock_management.py # Livestock tracking (v6.4)
 │           └── seed_planting.py      # Seed & planting (v6.4)
@@ -728,7 +730,7 @@ agtools/
 | `GET /api/v1/profitability/budget/{field_id}` | Field budget status |
 | `POST /api/v1/profitability/budget` | Create/update budget |
 
-### QuickBooks Import (NEW in v2.9)
+### Accounting Software Import (NEW in v2.9)
 | Endpoint | Purpose |
 |----------|---------|
 | `POST /api/v1/quickbooks/preview` | **Preview QB export** |
@@ -916,7 +918,7 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 - Complete desktop application (PyQt6)
 - Mobile crew interface (PWA)
 - Field, task, equipment, inventory management
-- Cost tracking with QuickBooks import
+- Cost tracking with accounting software import
 - Profitability analysis
 - Offline mode with sync
 - **AI/ML Intelligence Suite** (v3.0):
@@ -974,7 +976,7 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - Payroll (employees, tax calculations)
   - Financial reports (P&L, Balance Sheet, Cash Flow)
   - Budgeting & forecasting (scenarios, projections)
-  - 90s QuickBooks UI theme (v6.3.1)
+  - Classic 90s accounting UI theme (v6.3.1)
   - Multi-entity management (v6.3.0)
   - 1099-NEC/MISC tracking (v6.3.0)
 - **Farm Operations Suite** (v6.4):
@@ -989,7 +991,7 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
   - Emergence monitoring (stand counts, uniformity)
 
 ### 🔄 In Progress
-1. Import 2025 QuickBooks data (waiting on export)
+1. Import 2025 accounting data (waiting on export)
 2. Set up actual farm fields
 3. Allocate expenses to fields
 4. Generate real cost-per-acre reports
@@ -1020,7 +1022,7 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 - Know if treatment is economically justified
 - Optimize spray timing with weather
 - Reduce input costs while protecting yield
-- Track actual costs per acre with QuickBooks import
+- Track actual costs per acre with accounting software import
 - Analyze profitability by field and crop
 
 ### For Ag Retailers
@@ -1067,7 +1069,7 @@ Unlike simple pest ID apps, this system:
 3. **Manages resistance** - protects long-term efficacy
 4. **Professional-grade** - based on extension research
 5. **Complete workflow** - from scouting to application
-6. **Tracks real costs** - QuickBooks import for actual expenses
+6. **Tracks real costs** - Accounting software import for actual expenses
 7. **Full farm management** - fields, tasks, equipment, inventory
 8. **Works offline** - desktop app with sync capability
 9. **AI-powered intelligence** - image ID, yield prediction, smart categorization
@@ -1079,10 +1081,10 @@ Unlike simple pest ID apps, this system:
 | Version | Release | Highlights |
 |---------|---------|------------|
 | 6.4.0 | Dec 2025 | **Farm Operations Suite** (livestock, seed & planting management) |
-| 6.3.1 | Dec 2025 | **GenFin 90s QuickBooks UI** (teal theme, beveled buttons) |
+| 6.3.1 | Dec 2025 | **GenFin Classic 90s UI** (teal theme, beveled buttons) |
 | 6.3.0 | Dec 2025 | **GenFin Enterprise** (payroll, multi-entity, 1099 tracking) |
 | 6.2.0 | Dec 2025 | **GenFin Extensions** (recurring transactions, bank feeds, fixed assets) |
-| 6.1.0 | Dec 2025 | **GenFin QuickBooks Parity** (inventory, classes, projects, 50+ reports) |
+| 6.1.0 | Dec 2025 | **GenFin Professional Parity** (inventory, classes, projects, 50+ reports) |
 | 6.0.0 | Dec 2025 | **GenFin Suite** (full accounting, check printing, ACH, payroll, financial reports) |
 | 4.2.0 | Dec 2025 | **Complete Farm Business Suite** (tax planning, succession, benchmarking, documents) |
 | 4.1.0 | Dec 2025 | **Grain & Storage Suite** (bins, drying, accounting, basis alerts) |
@@ -1093,7 +1095,7 @@ Unlike simple pest ID apps, this system:
 | 3.3.0 | Dec 2025 | Climate & weather integration (GDD, precipitation) |
 | 3.2.0 | Dec 2025 | Sustainability metrics dashboard (carbon, practices) |
 | 3.0.0 | Dec 2025 | AI/ML Intelligence Suite (28 new AI endpoints) |
-| 2.9.0 | Dec 2025 | QuickBooks import with desktop UI |
+| 2.9.0 | Dec 2025 | Accounting software import with desktop UI |
 | 2.8.0 | Dec 2025 | Profitability analysis, break-even, ROI |
 | 2.7.0 | Dec 2025 | Cost per acre tracking, CSV import |
 | 2.6.0 | Dec 2025 | Mobile crew interface (PWA) |

@@ -432,7 +432,7 @@ Farm Operations integrates seamlessly with **GenFin** - the complete farm financ
 | **Seed Purchases** | Track as inventory, record vendor payments |
 | **Planting Costs** | Allocate expenses to fields for cost-per-acre |
 
-GenFin v6.5.0 provides full QuickBooks Desktop parity:
+GenFin v6.5.0 provides full professional accounting parity:
 - Bank Accounts, Check Register, Reconciliation
 - Customer Statements, Credit Memos
 - Credit Cards, Vendor Credits
