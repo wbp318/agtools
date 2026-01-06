@@ -238,12 +238,12 @@ DEFAULT_QB_MAPPINGS: Dict[str, ExpenseCategory] = {
 
 
 # ============================================================================
-# QUICKBOOKS IMPORT SERVICE
+# ACCOUNTING IMPORT SERVICE
 # ============================================================================
 
-class Accounting SoftwareImportService:
+class AccountingImportService:
     """
-    Service for importing expense data from Accounting Software exports.
+    Service for importing expense data from accounting software exports.
 
     Handles:
     - Format detection (Desktop vs Online, different report types)
@@ -254,7 +254,7 @@ class Accounting SoftwareImportService:
     """
 
     def __init__(self, db_path: str = "agtools.db"):
-        """Initialize Accounting Software import service."""
+        """Initialize accounting import service."""
         self.db_path = db_path
         self.cost_service = get_cost_tracking_service(db_path)
         self._init_mapping_table()
@@ -954,12 +954,12 @@ class Accounting SoftwareImportService:
 # SINGLETON
 # ============================================================================
 
-_qb_import_service: Optional[Accounting SoftwareImportService] = None
+_qb_import_service: Optional[AccountingImportService] = None
 
 
-def get_qb_import_service(db_path: str = "agtools.db") -> Accounting SoftwareImportService:
-    """Get or create the Accounting Software import service singleton."""
+def get_qb_import_service(db_path: str = "agtools.db") -> AccountingImportService:
+    """Get or create the accounting import service singleton."""
     global _qb_import_service
     if _qb_import_service is None:
-        _qb_import_service = Accounting SoftwareImportService(db_path)
+        _qb_import_service = AccountingImportService(db_path)
     return _qb_import_service
