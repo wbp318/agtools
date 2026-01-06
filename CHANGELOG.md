@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.16 | **Last Updated:** January 5, 2026
+> **Current Version:** 6.7.17 | **Last Updated:** January 5, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,30 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.7.17 (January 5, 2026)
+
+### Documentation & CI Fixes
+
+**Updated all documentation to v6.7.16 and fixed CI pipeline failures.**
+
+**Documentation Updates:**
+- Updated README.md to v6.7.16 with Receipt/Invoice OCR feature
+- Updated GENFIN.md to v6.7.16 with OCR scanning documentation
+- Updated QUICKSTART.md to v6.7.16
+- Updated PROFESSIONAL_SYSTEM_GUIDE.md with OCR feature (#26)
+- Added Receipt OCR API endpoints to README
+- Added v6.7.14-6.7.16 to version history table
+- Fixed docs path references (CLI_QUICKSTART.md, TEST_RESULTS.md)
+
+**CI/CD Fixes:**
+- Fixed lint job missing dependencies (pillow, httpx, python-jose, bcrypt)
+- Fixed `pdf_report_service.py` NameError when reportlab not installed
+- Fixed `receipt_ocr_service.py` missing `receipt_ocr_service` singleton export
+- Added missing `list_scans()` and `get_scan()` methods to ReceiptOCRService
+- Added lazy-loading wrapper to avoid service initialization at import time
 
 ---
 
