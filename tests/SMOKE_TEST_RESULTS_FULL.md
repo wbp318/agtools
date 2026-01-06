@@ -1,25 +1,24 @@
 # Full Smoke Test Results - AgTools v3.1
 
-**Date:** 2025-12-27 12:50:41
-**Duration:** 4.18 seconds
+**Date:** 2026-01-05 22:32:48
+**Duration:** 2.18 seconds
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Tests | 90 |
-| Passed | 90 |
-| Failed | 0 |
-| **Pass Rate** | **100.0%** |
+| Total Tests | 64 |
+| Passed | 44 |
+| Failed | 20 |
+| **Pass Rate** | **68.8%** |
 
 ## Results by Category
 
-### AI (10/10 passed)
+### AI (8/9 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| AIImageService singleton | ✅ Pass | - |
-| Knowledge base loaded | ✅ Pass | 2 crops |
+| AIImageService | ❌ Fail | No module named 'httpx' |
 | CropHealthService singleton | ✅ Pass | - |
 | CropHealthService ready | ✅ Pass | - |
 | YieldPredictionService singleton | ✅ Pass | - |
@@ -67,7 +66,7 @@
 | Notification has subject | ✅ Pass | - |
 | Notification has body | ✅ Pass | - |
 
-### Export (7/7 passed)
+### Export (5/6 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
@@ -75,80 +74,50 @@
 | DataExportService singleton | ✅ Pass | - |
 | CSV export | ✅ Pass | 58 bytes |
 | CSV has headers | ✅ Pass | - |
-| Excel export | ✅ Pass | 5130 bytes |
-| Excel file valid | ✅ Pass | - |
+| Excel export | ❌ Fail | openpyxl not installed |
 | Fields export | ✅ Pass | - |
 
-### Main App (1/1 passed)
+### Main App (0/1 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| FastAPI app loads | ✅ Pass | 228 routes |
+| FastAPI app loads | ❌ Fail | No module named 'fastapi' |
 
-### Mobile (5/5 passed)
+### Mobile (3/5 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| Mobile routes module | ✅ Pass | - |
-| Mobile auth module | ✅ Pass | - |
+| Mobile routes module | ❌ Fail | No module named 'fastapi' |
+| Mobile auth module | ❌ Fail | No module named 'fastapi' |
 | Template: base.html | ✅ Pass | - |
 | Template: login.html | ✅ Pass | - |
 | Template: offline.html | ✅ Pass | - |
 
-### PDF (5/5 passed)
+### PDF (1/2 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
 | PDFReportService import | ✅ Pass | - |
-| PDFReportService singleton | ✅ Pass | - |
-| Generate scouting report | ✅ Pass | 2499 bytes |
-| Generate spray report | ✅ Pass | 2862 bytes |
-| Generate cost report | ✅ Pass | 2420 bytes |
+| PDFReportService singleton | ❌ Fail | reportlab is required for PDF generation. Install  |
 
-### Routes (21/21 passed)
+### Services (4/18 passed)
 
 | Test | Status | Details |
 |------|--------|--------|
-| auth endpoints | ✅ Pass | 6 routes |
-| users endpoints | ✅ Pass | 6 routes |
-| crews endpoints | ✅ Pass | 7 routes |
-| tasks endpoints | ✅ Pass | 6 routes |
-| fields endpoints | ✅ Pass | 8 routes |
-| operations endpoints | ✅ Pass | 6 routes |
-| equipment endpoints | ✅ Pass | 12 routes |
-| maintenance endpoints | ✅ Pass | 4 routes |
-| inventory endpoints | ✅ Pass | 13 routes |
-| reports endpoints | ✅ Pass | 14 routes |
-| costs endpoints | ✅ Pass | 24 routes |
-| quickbooks endpoints | ✅ Pass | 7 routes |
-| profitability endpoints | ✅ Pass | 7 routes |
-| ai endpoints | ✅ Pass | 28 routes |
-| optimize endpoints | ✅ Pass | 14 routes |
-| pricing endpoints | ✅ Pass | 9 routes |
-| spray-timing endpoints | ✅ Pass | 5 routes |
-| yield-response endpoints | ✅ Pass | 7 routes |
-| identify endpoints | ✅ Pass | 3 routes |
-| recommend endpoints | ✅ Pass | 1 routes |
-| mobile endpoints | ✅ Pass | 12 routes |
-
-### Services (18/18 passed)
-
-| Test | Status | Details |
-|------|--------|--------|
-| AuthService | ✅ Pass | - |
-| UserService | ✅ Pass | - |
-| TaskService | ✅ Pass | - |
-| FieldService | ✅ Pass | - |
-| FieldOperationsService | ✅ Pass | - |
-| EquipmentService | ✅ Pass | - |
-| InventoryService | ✅ Pass | - |
-| ReportingService | ✅ Pass | - |
-| TimeEntryService | ✅ Pass | - |
-| PhotoService | ✅ Pass | - |
-| CostTrackingService | ✅ Pass | - |
-| QuickBooksImportService | ✅ Pass | - |
-| ProfitabilityService | ✅ Pass | - |
-| AIImageService | ✅ Pass | - |
+| AuthService | ❌ Fail | No module named 'jose' |
+| UserService | ❌ Fail | No module named 'pydantic' |
+| TaskService | ❌ Fail | No module named 'pydantic' |
+| FieldService | ❌ Fail | No module named 'pydantic' |
+| FieldOperationsService | ❌ Fail | No module named 'pydantic' |
+| EquipmentService | ❌ Fail | No module named 'pydantic' |
+| InventoryService | ❌ Fail | No module named 'pydantic' |
+| ReportingService | ❌ Fail | No module named 'pydantic' |
+| TimeEntryService | ❌ Fail | No module named 'pydantic' |
+| PhotoService | ❌ Fail | No module named 'pydantic' |
+| CostTrackingService | ❌ Fail | No module named 'pydantic' |
+| AccountingImportService | ❌ Fail | No module named 'pydantic' |
+| ProfitabilityService | ❌ Fail | No module named 'pydantic' |
+| AIImageService | ❌ Fail | No module named 'httpx' |
 | CropHealthService | ✅ Pass | - |
 | YieldPredictionService | ✅ Pass | - |
 | ExpenseCategorizationService | ✅ Pass | - |

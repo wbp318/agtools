@@ -33,7 +33,8 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
-**Version 6.7.14** - **100% Test Pass Rate** - Production-Ready:
+**Version 6.7.16** - **100% Test Pass Rate** - Production-Ready:
+- **Receipt/Invoice OCR** (v6.7.16): Multi-provider OCR (Tesseract, Google Vision, AWS Textract) with intelligent data extraction
 - **100% Pass Rate**: 226 tests passing, 7 skipped (comprehensive endpoint coverage)
 - **234 Individual Tests**: All 257 GenFin API endpoints covered with pytest
 - **Security Hardened** (v6.7.5): DEV_MODE disabled, CORS restricted, no hardcoded passwords
@@ -41,7 +42,7 @@ We offer commercial licensing options:
 - **Import/Export** (v6.6.0): QIF, CSV, IIF formats for data migration
 - **Bank Feed Auto-Matching** (v6.6.0): Smart 5-tier matching with confidence scoring
 
-**Quick Start:** See [CLI Quickstart](docs/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/TEST_RESULTS.md)
+**Quick Start:** See [CLI Quickstart](docs/guides/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/testing/TEST_RESULTS.md)
 
 **Version 6.5.0** - **GenFin 100% Complete** - Full Professional Accounting Parity:
 - **Zero Placeholders**: Every GenFin screen is now fully functional
@@ -872,6 +873,13 @@ agtools/
 | `POST /api/v1/livestock/sales` | Record sale |
 | `GET /api/v1/livestock/summary` | **Herd statistics** |
 
+### Receipt/Invoice OCR (NEW in v6.7.16)
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/v1/genfin/receipts/scan` | **Scan receipt image with OCR** |
+| `GET /api/v1/genfin/receipts/scans` | List recent scans |
+| `GET /api/v1/genfin/receipts/scans/{id}` | Get specific scan details |
+
 ### Seed & Planting (NEW in v6.4)
 | Endpoint | Purpose |
 |----------|---------|
@@ -1080,6 +1088,9 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 6.7.16 | Jan 2026 | **Receipt/Invoice OCR** (multi-provider OCR, intelligent extraction, one-click bill creation) |
+| 6.7.15 | Jan 2026 | **pytest-bdd Testing** (57 BDD scenarios), docs reorganization, trademark compliance |
+| 6.7.14 | Jan 2026 | **100% Test Pass Rate** (226 tests passing), comprehensive API coverage |
 | 6.4.0 | Dec 2025 | **Farm Operations Suite** (livestock, seed & planting management) |
 | 6.3.1 | Dec 2025 | **GenFin Classic 90s UI** (teal theme, beveled buttons) |
 | 6.3.0 | Dec 2025 | **GenFin Enterprise** (payroll, multi-entity, 1099 tracking) |

@@ -3,10 +3,12 @@ PDF Report Generation Service
 Generates professional PDF reports for scouting, spray recommendations, costs, etc.
 """
 
+from __future__ import annotations  # Enable postponed evaluation of annotations
+
 import io
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import Enum
 
@@ -23,6 +25,15 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
+    # Define placeholder types for type hints when reportlab not installed
+    Table = None
+    Paragraph = None
+    Spacer = None
+    SimpleDocTemplate = None
+    TableStyle = None
+    PageBreak = None
+    Image = None
+    HRFlowable = None
 
 
 class ReportType(str, Enum):

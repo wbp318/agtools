@@ -114,6 +114,11 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Write Checks**: Full accounting software-style dialog with bank account selection
     - **Receive Payments**: Apply payments to invoices with discounts
     - **Pay Bills**: Select and pay multiple bills with credits and discounts
+26. **Receipt/Invoice OCR (v6.7.16)**: Intelligent document scanning:
+    - **Multi-Provider OCR**: Tesseract (local), Google Vision API, AWS Textract
+    - **Intelligent Extraction**: Vendor, date, amounts, line items with quantities
+    - **One-Click Bill Creation**: Scan receipt → Create Bill or Expense instantly
+    - **Scan History**: Audit trail of all scanned receipts
 
 ---
 

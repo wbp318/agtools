@@ -1,6 +1,6 @@
 # GenFin - Complete Farm Financial Management System
 
-*Version 6.7.14 | January 2026*
+*Version 6.7.16 | January 2026*
 
 ---
 
@@ -8,9 +8,14 @@
 
 **GenFin** is a complete farm-focused financial management system built into AgTools. It replaces the need for external accounting software with features specifically designed for agricultural operations.
 
-### 🎉 v6.7.14 - Production-Ready with 100% Test Pass Rate!
+### 🎉 v6.7.16 - Receipt/Invoice OCR Feature!
 
-As of January 4, 2026, GenFin is fully production-ready with:
+As of January 5, 2026, GenFin now includes:
+- **Receipt/Invoice OCR** (v6.7.16): Multi-provider OCR scanning with intelligent data extraction
+  - Supports Tesseract (local), Google Vision API, AWS Textract
+  - Extracts vendor, date, amounts, line items automatically
+  - One-click "Create Bill" or "Create Expense" from scanned receipts
+  - Scan history stored for audit trail
 - **100% Test Pass Rate**: 226 tests passing, 7 skipped (comprehensive endpoint coverage)
 - **Complete CRUD Operations**: Create, Read, Update, Delete for all transaction types
 - **Security Hardened** (v6.7.5): DEV_MODE auth bypass disabled by default, CORS restricted, no hardcoded passwords
@@ -1273,6 +1278,40 @@ POST /api/v1/genfin/journal-entries
 - Run year-end close
 - Generate 1099s
 - Prepare for taxes
+
+---
+
+## New in v6.7.15 - v6.7.16
+
+### Receipt/Invoice OCR (v6.7.16)
+
+Scan receipts and invoices with intelligent data extraction:
+
+**OCR Providers Supported:**
+- **Tesseract** - Free local OCR (default)
+- **Google Vision API** - Cloud-based with high accuracy
+- **AWS Textract** - Enterprise-grade document analysis
+
+**Data Extraction:**
+- Vendor/merchant name detection
+- Date parsing (multiple formats)
+- Total, subtotal, and tax amounts
+- Line item extraction with quantities and prices
+- Currency and payment method detection
+
+**Workflow:**
+1. Click "Scan Rcpt" on GenFin homescreen
+2. Select image file (PNG, JPG, PDF supported)
+3. OCR processes with real-time progress indicator
+4. Review and edit extracted data
+5. One-click "Create Bill" or "Create Expense"
+
+**API Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/genfin/receipts/scan` | POST | Scan receipt image |
+| `/api/v1/genfin/receipts/scans` | GET | List recent scans |
+| `/api/v1/genfin/receipts/scans/{id}` | GET | Get scan details |
 
 ---
 

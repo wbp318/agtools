@@ -1,4 +1,4 @@
-# Quick Start Guide - AgTools v6.7.14
+# Quick Start Guide - AgTools v6.7.16
 
 Get up and running with AgTools in 5 minutes.
 
@@ -15,7 +15,7 @@ AgTools is a **professional farm management platform** that helps you:
 - **Manage finances** with GenFin (complete accounting, check printing, payroll)
 - **Analyze data** with 50+ reports, sustainability metrics, and yield predictions
 
-**Current Version:** 6.7.14 (January 2026) - 100% test pass rate, production-ready
+**Current Version:** 6.7.16 (January 2026) - Now with Receipt/Invoice OCR scanning
 
 ---
 
@@ -168,5 +168,5 @@ curl http://localhost:8000/
 
 ---
 
-*AgTools v6.7.14 - Professional Farm Management Platform*
+*AgTools v6.7.16 - Professional Farm Management Platform*
 *Copyright © 2025-2026 New Generation Farms. All Rights Reserved.*
