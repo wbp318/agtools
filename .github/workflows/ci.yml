@@ -50,6 +50,7 @@ jobs:
       - name: Install dependencies for lint
         run: |
           pip install fastapi pydantic slowapi starlette
+          pip install pillow httpx python-jose bcrypt
 
       - name: Check for syntax errors
         run: python -m py_compile backend/main.py
