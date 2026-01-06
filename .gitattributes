@@ -43,6 +43,9 @@
 *.ini text eol=lf
 *.cfg text eol=lf
 
+# Gherkin feature files (BDD tests)
+*.feature text eol=lf
+
 # CSV files (treat as text)
 *.csv text eol=lf
 
@@ -139,3 +142,7 @@ docs/**/*.md linguist-detectable=true
 tests/*.md linguist-detectable=true
 README.md linguist-detectable=true
 CHANGELOG.md linguist-detectable=true
+
+# Gherkin feature files - show in language stats as Gherkin
+*.feature linguist-detectable=true
+tests/features/*.feature linguist-detectable=true
