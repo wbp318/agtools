@@ -4,6 +4,17 @@ import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 from decimal import Decimal
 
+
+class MockInvoice:
+    """Mock invoice for testing."""
+    def __init__(self, customer: str, amount=None):
+        self.customer = customer
+        self.amount = amount if amount is not None else Decimal("0.00")
+        self.balance_due = self.amount
+        self.status = "Open"
+        self.line_items = []
+
+
 # Load scenarios from feature file
 scenarios('../features/invoice_workflow.feature')
 
@@ -24,7 +35,6 @@ def customer_exists(genfin_context, customer_name):
 @given(parsers.parse('an open invoice exists for "{customer_name}" for ${amount:f}'))
 def open_invoice_exists(genfin_context, customer_name, amount):
     """Create an open invoice for testing."""
-    from tests.conftest import MockInvoice
     invoice = MockInvoice(customer_name, Decimal(str(amount)))
     genfin_context.invoices.append(invoice)
     genfin_context.current_invoice = invoice
@@ -34,7 +44,6 @@ def open_invoice_exists(genfin_context, customer_name, amount):
 @when(parsers.parse('I create an invoice for customer "{customer_name}"'))
 def create_invoice(genfin_context, customer_name):
     """Create a new invoice for a customer."""
-    from tests.conftest import MockInvoice
     invoice = MockInvoice(customer_name)
     genfin_context.current_invoice = invoice
 

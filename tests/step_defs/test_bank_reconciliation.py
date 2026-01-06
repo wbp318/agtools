@@ -4,6 +4,16 @@ import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 from decimal import Decimal
 
+
+class MockTransaction:
+    """Mock transaction for testing."""
+    def __init__(self, trans_type: str, amount, cleared: bool = False):
+        self.type = trans_type
+        self.amount = amount
+        self.cleared = cleared
+        self.reconciled = False
+
+
 # Load scenarios from feature file
 scenarios('../features/bank_reconciliation.feature')
 
@@ -38,7 +48,6 @@ def statement_ending_balance(genfin_context, amount):
 @given("I have the following cleared transactions:")
 def have_cleared_transactions(genfin_context, datatable):
     """Create transactions from data table."""
-    from tests.conftest import MockTransaction
     account = genfin_context.current_account
 
     # Convert datatable (list of lists) to list of dicts

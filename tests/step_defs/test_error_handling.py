@@ -227,6 +227,14 @@ def create_account_for_recon(error_context, account_name, balance):
     error_context['current_account_name'] = account_name
 
 
+@given(parsers.parse('I record a deposit of ${amount:f}'))
+def record_deposit(error_context, amount):
+    """Record a deposit."""
+    account_name = error_context.get('current_account_name')
+    if account_name and account_name in error_context['accounts']:
+        error_context['accounts'][account_name]['balance'] += Decimal(str(amount))
+
+
 @when(parsers.parse('I start reconciliation with statement balance ${balance:f}'))
 def start_recon_with_balance(error_context, balance):
     """Start reconciliation."""

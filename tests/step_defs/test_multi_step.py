@@ -332,16 +332,32 @@ def apply_credit_to_bill(workflow_context, credit_amount, bill_id):
         bill['status'] = 'paid'
 
 
-@then(parsers.parse('{bill_id} should be paid'))
+@then(parsers.re(r'(?P<bill_id>BILL-\d+) should be paid'))
 def bill_is_paid(workflow_context, bill_id):
     """Verify bill is paid."""
     assert workflow_context['bills'][bill_id]['status'] == 'paid'
 
 
-@then(parsers.parse('{bill_id} balance should be ${amount:f}'))
+@then(parsers.re(r'(?P<bill_id>BILL-\d+) balance should be \$(?P<amount>[\d.]+)'))
 def bill_balance_is(workflow_context, bill_id, amount):
     """Verify bill balance."""
     assert workflow_context['bills'][bill_id]['balance_due'] == Decimal(str(amount))
+
+
+@then(parsers.parse('the invoice balance should be ${amount:f}'))
+def invoice_balance_is(workflow_context, amount):
+    """Verify invoice balance."""
+    inv_id = workflow_context.get('current_invoice')
+    if inv_id:
+        assert workflow_context['invoices'][inv_id]['balance_due'] == Decimal(str(amount))
+
+
+@then(parsers.parse('the bank balance should be ${amount:f}'))
+def bank_balance_is(workflow_context, amount):
+    """Verify bank balance."""
+    account = workflow_context['accounts'].get('batch-account')
+    if account:
+        assert account['balance'] == Decimal(str(amount))
 
 
 # Customer credit workflow

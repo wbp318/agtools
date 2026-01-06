@@ -5,6 +5,24 @@ from pytest_bdd import scenarios, given, when, then, parsers
 from decimal import Decimal
 from datetime import date, timedelta
 
+
+class MockBill:
+    """Mock bill for testing."""
+    def __init__(self, vendor: str, amount):
+        self.vendor = vendor
+        self.amount = amount
+        self.status = "Unpaid"
+        self.due_date = None
+
+
+class MockVendorCredit:
+    """Mock vendor credit for testing."""
+    def __init__(self, vendor: str, amount):
+        self.vendor = vendor
+        self.amount = amount
+        self.consumed = False
+
+
 # Load scenarios from feature file
 scenarios('../features/bill_workflow.feature')
 
@@ -25,7 +43,6 @@ def vendor_exists(genfin_context, vendor_name):
 @given("I have the following unpaid bills:")
 def create_unpaid_bills(genfin_context, datatable):
     """Create multiple unpaid bills from a data table."""
-    from tests.conftest import MockBill
     # Convert datatable (list of lists) to list of dicts
     headers = datatable[0]
     for row in datatable[1:]:
@@ -40,7 +57,6 @@ def create_unpaid_bills(genfin_context, datatable):
 @given(parsers.parse('a bill exists from "{vendor_name}" for ${amount:f}'))
 def bill_exists(genfin_context, vendor_name, amount):
     """Create a bill from a vendor."""
-    from tests.conftest import MockBill
     bill = MockBill(vendor_name, Decimal(str(amount)))
     genfin_context.bills.append(bill)
     genfin_context.current_bill = bill
@@ -50,7 +66,6 @@ def bill_exists(genfin_context, vendor_name, amount):
 @given(parsers.parse('a vendor credit exists from "{vendor_name}" for ${amount:f}'))
 def vendor_credit_exists(genfin_context, vendor_name, amount):
     """Create a vendor credit."""
-    from tests.conftest import MockVendorCredit
     credit = MockVendorCredit(vendor_name, Decimal(str(amount)))
     if vendor_name in genfin_context.vendors:
         genfin_context.vendors[vendor_name].credits.append(credit)
@@ -70,7 +85,6 @@ def purchase_order_exists(genfin_context, vendor_name, amount):
 @when(parsers.parse('I enter a bill from "{vendor_name}" for ${amount:f}'))
 def enter_bill(genfin_context, vendor_name, amount):
     """Enter a new bill from a vendor."""
-    from tests.conftest import MockBill
     bill = MockBill(vendor_name, Decimal(str(amount)))
     genfin_context.current_bill = bill
 
@@ -135,7 +149,6 @@ def pay_bill_with_credit(genfin_context):
 @when("I receive the items and create a bill")
 def receive_items_create_bill(genfin_context):
     """Receive items from PO and create bill."""
-    from tests.conftest import MockBill
     po = genfin_context.purchase_orders[0]
     po["status"] = "Received"
 

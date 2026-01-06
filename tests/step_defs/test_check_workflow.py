@@ -5,6 +5,19 @@ from pytest_bdd import scenarios, given, when, then, parsers
 from decimal import Decimal
 from datetime import date
 
+
+class MockCheck:
+    """Mock check for testing."""
+    def __init__(self, check_number: int, amount):
+        self.check_number = check_number
+        self.amount = amount
+        self.status = "Pending"
+        self.printed = False
+        self.print_date = None
+        self.expense_lines = []
+        self.vendor = None
+
+
 # Load scenarios from feature file
 scenarios('../features/check_workflow.feature')
 
@@ -32,7 +45,6 @@ def vendor_exists(genfin_context, vendor_name):
 @given(parsers.parse('a check #{check_number:d} exists for ${amount:f}'))
 def check_exists(genfin_context, check_number, amount):
     """Create an existing check."""
-    from tests.conftest import MockCheck
     check = MockCheck(check_number, Decimal(str(amount)))
     genfin_context.checks.append(check)
     genfin_context.current_check = check
@@ -45,7 +57,6 @@ def check_exists(genfin_context, check_number, amount):
 @given(parsers.parse('I have {count:d} unprinted checks'))
 def have_unprinted_checks(genfin_context, count):
     """Create multiple unprinted checks."""
-    from tests.conftest import MockCheck
     for i in range(count):
         check = MockCheck(genfin_context.get_next_check_number(), Decimal("100.00"))
         check.printed = False
@@ -55,7 +66,6 @@ def have_unprinted_checks(genfin_context, count):
 @when(parsers.parse('I write a check to "{vendor_name}" for ${amount:f}'))
 def write_check(genfin_context, vendor_name, amount):
     """Write a new check to a vendor."""
-    from tests.conftest import MockCheck
     check = MockCheck(0, Decimal(str(amount)))  # Number assigned on save
     check.vendor = vendor_name
     genfin_context.current_check = check
@@ -64,7 +74,6 @@ def write_check(genfin_context, vendor_name, amount):
 @when(parsers.parse('I write a check to "{vendor_name}"'))
 def write_check_no_amount(genfin_context, vendor_name):
     """Start writing a check to a vendor (amount TBD)."""
-    from tests.conftest import MockCheck
     check = MockCheck(0, Decimal("0.00"))
     check.vendor = vendor_name
     genfin_context.current_check = check
