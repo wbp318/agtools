@@ -148,3 +148,11 @@ CHANGELOG.md linguist-detectable=true
 *.feature linguist-detectable=true
 tests/features/*.feature linguist-language=Gherkin
 tests/features/*.feature linguist-detectable=true
+
+# All services should be detected as Python
+backend/services/*.py linguist-language=Python
+backend/services/*.py linguist-detectable=true
+
+# Frontend screens should be detected as Python
+frontend/ui/screens/*.py linguist-language=Python
+frontend/ui/screens/*.py linguist-detectable=true

@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.7.15 | **Last Updated:** January 5, 2026
+> **Current Version:** 6.7.16 | **Last Updated:** January 5, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -13,7 +13,6 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 ### Week of Jan 6-12, 2026
 - **Real-time Bank Feed Integration** - Automatic transaction import from major banks (Plaid API)
 - **Mobile App Offline Mode** - Full offline capability with background sync
-- **Photo Receipt Capture** - Snap receipts, auto-extract vendor/amount via OCR
 
 ### Week of Jan 13-19, 2026
 - **Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, drill-down reports
@@ -41,6 +40,43 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.7.16 (January 5, 2026)
+
+### Receipt/Invoice OCR Feature
+
+**Implemented complete Receipt OCR scanning with intelligent data extraction.**
+
+**New Components:**
+- `backend/services/receipt_ocr_service.py` - Multi-provider OCR service
+- `GenFinScanReceiptScreen` - Full UI screen for receipt scanning
+- API endpoints at `/api/v1/genfin/receipts/scan`
+
+**OCR Capabilities:**
+- **Multi-Provider Support**: Tesseract (local), Google Vision API, AWS Textract
+- **Intelligent Data Extraction**:
+  - Vendor/merchant name detection
+  - Date parsing (multiple formats)
+  - Total, subtotal, and tax amounts
+  - Line item extraction with quantities and prices
+  - Currency and payment method detection
+- **Image Preprocessing**: Auto-rotation, grayscale conversion, contrast enhancement
+
+**UI Features:**
+- "Scan Rcpt" button on GenFin homescreen (Row 10: Tools)
+- File browser for image selection (PNG, JPG, PDF support)
+- Real-time OCR progress indicator
+- Editable extracted data fields
+- One-click "Create Bill" or "Create Expense" from scan data
+- Line items table with description, qty, price, amount
+
+**Integration:**
+- Direct bill creation from scanned receipts
+- Direct expense creation from scanned receipts
+- Receipt scan history stored in database
+- Source tracking ("ocr_scan") for audit trail
 
 ---
 

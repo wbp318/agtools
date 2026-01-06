@@ -392,6 +392,11 @@ from services.genfin_fixed_assets_service import (
     AssetCategory
 )
 
+from services.receipt_ocr_service import (
+    receipt_ocr_service,
+    ReceiptData
+)
+
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
@@ -13056,6 +13061,99 @@ async def get_1099_summary(year: int, user: AuthenticatedUser = Depends(get_curr
 async def get_bills_due(days_ahead: int = 30, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Get bills due summary"""
     return genfin_payables_service.get_bills_due_summary(days_ahead)
+
+
+# ------------ GenFin Receipt OCR ------------
+
+class ReceiptScanRequest(BaseModel):
+    """Request model for receipt scanning."""
+    image_data: str  # Base64 encoded image
+    filename: str
+    ocr_provider: Optional[str] = "tesseract"  # tesseract, google_vision, aws_textract
+
+class ReceiptScanResponse(BaseModel):
+    """Response model for receipt scanning."""
+    success: bool
+    data: Optional[Dict] = None
+    scan_id: Optional[str] = None
+    error: Optional[str] = None
+
+@app.post("/api/v1/genfin/receipts/scan", response_model=ReceiptScanResponse, tags=["GenFin Receipt OCR"])
+async def scan_receipt(request: ReceiptScanRequest, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """
+    Scan a receipt/invoice image and extract data using OCR.
+
+    The extracted data includes:
+    - vendor_name: The vendor/merchant name
+    - date: Transaction date
+    - total: Total amount
+    - subtotal: Subtotal before tax (if available)
+    - tax: Tax amount (if available)
+    - line_items: Individual line items with descriptions and amounts
+    """
+    try:
+        import base64
+
+        # Decode base64 image
+        image_bytes = base64.b64decode(request.image_data)
+
+        # Call OCR service
+        result = await receipt_ocr_service.extract_receipt_data(
+            image_bytes,
+            request.filename,
+            request.ocr_provider
+        )
+
+        if result:
+            return ReceiptScanResponse(
+                success=True,
+                data={
+                    "vendor_name": result.vendor_name,
+                    "date": result.date,
+                    "total": result.total,
+                    "subtotal": result.subtotal,
+                    "tax": result.tax,
+                    "line_items": [
+                        {
+                            "description": item.description,
+                            "quantity": item.quantity,
+                            "unit_price": item.unit_price,
+                            "amount": item.amount
+                        }
+                        for item in result.line_items
+                    ],
+                    "currency": result.currency,
+                    "payment_method": result.payment_method
+                },
+                scan_id=result.scan_id
+            )
+        else:
+            return ReceiptScanResponse(
+                success=False,
+                error="Failed to extract data from receipt"
+            )
+    except Exception as e:
+        return ReceiptScanResponse(
+            success=False,
+            error=str(e)
+        )
+
+@app.get("/api/v1/genfin/receipts/scans", tags=["GenFin Receipt OCR"])
+async def list_receipt_scans(
+    limit: int = 50,
+    offset: int = 0,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List recent receipt scans."""
+    return receipt_ocr_service.list_scans(limit, offset)
+
+@app.get("/api/v1/genfin/receipts/scans/{scan_id}", tags=["GenFin Receipt OCR"])
+async def get_receipt_scan(scan_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get a specific receipt scan by ID."""
+    result = receipt_ocr_service.get_scan(scan_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return result
 
 
 # ------------ GenFin Purchase Orders ------------

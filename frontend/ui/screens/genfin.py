@@ -8895,6 +8895,11 @@ class GenFinHomeScreen(QWidget):
             ("Memorized", "@", "memorized"),
             ("Settings", "*", "settings"),
             ("Help", "?", "help"),
+            # Row 10: Tools
+            ("Scan Rcpt", "O", "scan_receipt"),
+            ("Sales Ord", "L", "salesorders"),
+            ("Classes", "K", "classes"),
+            ("Locations", "^", "locations"),
         ]
 
         for i, (title, icon, nav_id) in enumerate(icons):
@@ -14932,6 +14937,423 @@ class GenFinHelpScreen(QWidget):
 
 
 # =============================================================================
+# SCAN RECEIPT - OCR Receipt/Invoice Capture
+# =============================================================================
+
+class GenFinScanReceiptScreen(QWidget):
+    """Receipt/Invoice OCR scanning screen with auto-populate to bills/expenses."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._extracted_data = None
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        # Header
+        header = QLabel("SCAN RECEIPT / INVOICE")
+        header.setStyleSheet(f"""
+            color: {GENFIN_COLORS['teal_dark']};
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px 0;
+        """)
+        layout.addWidget(header)
+
+        # Instructions
+        instructions = QLabel(
+            "Upload a photo of a receipt or invoice to automatically extract vendor, "
+            "date, amounts, and line items. The data can be used to create bills or expenses."
+        )
+        instructions.setWordWrap(True)
+        instructions.setStyleSheet(f"color: {GENFIN_COLORS['text_dark']}; margin-bottom: 8px;")
+        layout.addWidget(instructions)
+
+        # Upload section
+        upload_frame = QFrame()
+        upload_frame.setProperty("class", "genfin-panel")
+        upload_frame.setMinimumHeight(200)
+        upload_layout = QVBoxLayout(upload_frame)
+        upload_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.upload_icon = QLabel("📷")
+        self.upload_icon.setStyleSheet("font-size: 48px;")
+        self.upload_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        upload_layout.addWidget(self.upload_icon)
+
+        self.upload_label = QLabel("Drag and drop an image here, or click to browse")
+        self.upload_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.upload_label.setStyleSheet(f"color: {GENFIN_COLORS['text_light']}; font-size: 14px;")
+        upload_layout.addWidget(self.upload_label)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.browse_btn = QPushButton("📁 Browse Files")
+        self.browse_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {GENFIN_COLORS['teal_light']}, stop:1 {GENFIN_COLORS['teal']});
+                color: white;
+                border: 2px outset {GENFIN_COLORS['teal']};
+                padding: 8px 24px;
+                font-weight: bold;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background: {GENFIN_COLORS['teal']};
+            }}
+            QPushButton:pressed {{
+                border-style: inset;
+            }}
+        """)
+        self.browse_btn.clicked.connect(self._browse_file)
+        btn_layout.addWidget(self.browse_btn)
+
+        self.camera_btn = QPushButton("📸 Take Photo")
+        self.camera_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ffffff, stop:1 {GENFIN_COLORS['window_bg']});
+                border: 2px outset {GENFIN_COLORS['bevel_shadow']};
+                padding: 8px 24px;
+                font-weight: bold;
+                font-size: 12px;
+                color: {GENFIN_COLORS['teal_dark']};
+            }}
+            QPushButton:hover {{
+                background: {GENFIN_COLORS['teal_light']};
+                color: white;
+            }}
+        """)
+        self.camera_btn.clicked.connect(self._take_photo)
+        btn_layout.addWidget(self.camera_btn)
+
+        upload_layout.addLayout(btn_layout)
+
+        self.file_label = QLabel("")
+        self.file_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.file_label.setStyleSheet(f"color: {GENFIN_COLORS['teal']}; font-weight: bold;")
+        upload_layout.addWidget(self.file_label)
+
+        layout.addWidget(upload_frame)
+
+        # Extracted Data Section
+        data_group = QGroupBox("Extracted Data")
+        data_group.setStyleSheet(f"""
+            QGroupBox {{
+                font-weight: bold;
+                color: {GENFIN_COLORS['teal_dark']};
+            }}
+        """)
+        data_layout = QFormLayout(data_group)
+        data_layout.setSpacing(8)
+
+        self.vendor_field = QLineEdit()
+        self.vendor_field.setPlaceholderText("Vendor will be extracted from receipt...")
+        data_layout.addRow("Vendor:", self.vendor_field)
+
+        self.date_field = QLineEdit()
+        self.date_field.setPlaceholderText("Date will be extracted from receipt...")
+        data_layout.addRow("Date:", self.date_field)
+
+        self.total_field = QLineEdit()
+        self.total_field.setPlaceholderText("Total amount will be extracted...")
+        data_layout.addRow("Total:", self.total_field)
+
+        self.subtotal_field = QLineEdit()
+        self.subtotal_field.setPlaceholderText("Subtotal if available...")
+        data_layout.addRow("Subtotal:", self.subtotal_field)
+
+        self.tax_field = QLineEdit()
+        self.tax_field.setPlaceholderText("Tax amount if available...")
+        data_layout.addRow("Tax:", self.tax_field)
+
+        layout.addWidget(data_group)
+
+        # Line Items Table
+        items_group = QGroupBox("Line Items")
+        items_layout = QVBoxLayout(items_group)
+
+        self.items_table = QTableWidget()
+        self.items_table.setColumnCount(4)
+        self.items_table.setHorizontalHeaderLabels(["Description", "Qty", "Unit Price", "Amount"])
+        self.items_table.horizontalHeader().setStretchLastSection(True)
+        self.items_table.setMinimumHeight(150)
+        items_layout.addWidget(self.items_table)
+
+        layout.addWidget(items_group)
+
+        # Action Buttons
+        action_layout = QHBoxLayout()
+        action_layout.addStretch()
+
+        self.scan_btn = QPushButton("🔍 Scan Receipt")
+        self.scan_btn.setEnabled(False)
+        self.scan_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {GENFIN_COLORS['teal_light']}, stop:1 {GENFIN_COLORS['teal']});
+                color: white;
+                border: 2px outset {GENFIN_COLORS['teal']};
+                padding: 10px 24px;
+                font-weight: bold;
+                font-size: 12px;
+            }}
+            QPushButton:disabled {{
+                background: {GENFIN_COLORS['bevel_shadow']};
+                color: {GENFIN_COLORS['text_light']};
+            }}
+        """)
+        self.scan_btn.clicked.connect(self._scan_receipt)
+        action_layout.addWidget(self.scan_btn)
+
+        self.create_bill_btn = QPushButton("📝 Create Bill")
+        self.create_bill_btn.setEnabled(False)
+        self.create_bill_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4CAF50, stop:1 #388E3C);
+                color: white;
+                border: 2px outset #4CAF50;
+                padding: 10px 24px;
+                font-weight: bold;
+            }}
+            QPushButton:disabled {{
+                background: {GENFIN_COLORS['bevel_shadow']};
+                color: {GENFIN_COLORS['text_light']};
+            }}
+        """)
+        self.create_bill_btn.clicked.connect(self._create_bill)
+        action_layout.addWidget(self.create_bill_btn)
+
+        self.create_expense_btn = QPushButton("💵 Create Expense")
+        self.create_expense_btn.setEnabled(False)
+        self.create_expense_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2196F3, stop:1 #1976D2);
+                color: white;
+                border: 2px outset #2196F3;
+                padding: 10px 24px;
+                font-weight: bold;
+            }}
+            QPushButton:disabled {{
+                background: {GENFIN_COLORS['bevel_shadow']};
+                color: {GENFIN_COLORS['text_light']};
+            }}
+        """)
+        self.create_expense_btn.clicked.connect(self._create_expense)
+        action_layout.addWidget(self.create_expense_btn)
+
+        self.clear_btn = QPushButton("Clear")
+        self.clear_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #ffffff, stop:1 {GENFIN_COLORS['window_bg']});
+                border: 2px outset {GENFIN_COLORS['bevel_shadow']};
+                padding: 10px 24px;
+                font-weight: bold;
+                color: {GENFIN_COLORS['text_dark']};
+            }}
+        """)
+        self.clear_btn.clicked.connect(self._clear_form)
+        action_layout.addWidget(self.clear_btn)
+
+        layout.addLayout(action_layout)
+
+        self._selected_file = None
+
+    def load_data(self):
+        """Nothing to load on initial display."""
+        pass
+
+    def _browse_file(self):
+        """Open file browser for receipt image."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Receipt Image",
+            "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif *.tiff *.webp);;PDF Files (*.pdf);;All Files (*.*)"
+        )
+        if file_path:
+            self._selected_file = file_path
+            filename = os.path.basename(file_path)
+            self.file_label.setText(f"Selected: {filename}")
+            self.upload_icon.setText("✅")
+            self.scan_btn.setEnabled(True)
+
+    def _take_photo(self):
+        """Placeholder for camera capture functionality."""
+        QMessageBox.information(
+            self,
+            "Camera Capture",
+            "Camera capture is available in the mobile app.\n\n"
+            "On desktop, please use 'Browse Files' to select an image."
+        )
+
+    def _scan_receipt(self):
+        """Send image to OCR API and display results."""
+        if not self._selected_file:
+            return
+
+        # Show progress
+        progress = QProgressDialog("Scanning receipt...", "Cancel", 0, 100, self)
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(10)
+        QApplication.processEvents()
+
+        try:
+            # Read file and send to API
+            with open(self._selected_file, 'rb') as f:
+                import base64
+                image_data = base64.b64encode(f.read()).decode('utf-8')
+
+            progress.setValue(30)
+            QApplication.processEvents()
+
+            # Call OCR API
+            result = api_post("/receipts/scan", {
+                "image_data": image_data,
+                "filename": os.path.basename(self._selected_file)
+            })
+
+            progress.setValue(80)
+            QApplication.processEvents()
+
+            if result and result.get("success"):
+                self._extracted_data = result.get("data", {})
+                self._populate_fields(self._extracted_data)
+                self.create_bill_btn.setEnabled(True)
+                self.create_expense_btn.setEnabled(True)
+                progress.setValue(100)
+                QMessageBox.information(self, "Success", "Receipt scanned successfully!")
+            else:
+                error = result.get("error", "Unknown error") if result else "API request failed"
+                QMessageBox.warning(self, "Scan Failed", f"Could not scan receipt: {error}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to scan receipt: {str(e)}")
+        finally:
+            progress.close()
+
+    def _populate_fields(self, data: dict):
+        """Populate form fields with extracted data."""
+        self.vendor_field.setText(data.get("vendor_name", ""))
+        self.date_field.setText(data.get("date", ""))
+        self.total_field.setText(f"${data.get('total', 0):.2f}" if data.get('total') else "")
+        self.subtotal_field.setText(f"${data.get('subtotal', 0):.2f}" if data.get('subtotal') else "")
+        self.tax_field.setText(f"${data.get('tax', 0):.2f}" if data.get('tax') else "")
+
+        # Populate line items
+        line_items = data.get("line_items", [])
+        self.items_table.setRowCount(len(line_items))
+        for i, item in enumerate(line_items):
+            self.items_table.setItem(i, 0, QTableWidgetItem(item.get("description", "")))
+            self.items_table.setItem(i, 1, QTableWidgetItem(str(item.get("quantity", 1))))
+            self.items_table.setItem(i, 2, QTableWidgetItem(f"${item.get('unit_price', 0):.2f}"))
+            self.items_table.setItem(i, 3, QTableWidgetItem(f"${item.get('amount', 0):.2f}"))
+
+    def _create_bill(self):
+        """Create a bill from the extracted data."""
+        if not self._extracted_data:
+            return
+
+        # Pre-populate bill dialog
+        bill_data = {
+            "vendor_name": self.vendor_field.text(),
+            "bill_date": self.date_field.text(),
+            "total": self._parse_currency(self.total_field.text()),
+            "tax": self._parse_currency(self.tax_field.text()),
+            "line_items": self._get_line_items(),
+            "source": "ocr_scan"
+        }
+
+        result = api_post("/bills", bill_data)
+        if result and result.get("success"):
+            QMessageBox.information(
+                self,
+                "Bill Created",
+                f"Bill created successfully!\n\nBill #: {result.get('bill_number', 'N/A')}"
+            )
+            self._clear_form()
+        else:
+            error = result.get("error", "Unknown error") if result else "API request failed"
+            QMessageBox.warning(self, "Error", f"Failed to create bill: {error}")
+
+    def _create_expense(self):
+        """Create an expense from the extracted data."""
+        if not self._extracted_data:
+            return
+
+        expense_data = {
+            "payee": self.vendor_field.text(),
+            "expense_date": self.date_field.text(),
+            "amount": self._parse_currency(self.total_field.text()),
+            "tax": self._parse_currency(self.tax_field.text()),
+            "memo": "Created from receipt scan",
+            "source": "ocr_scan"
+        }
+
+        result = api_post("/expenses", expense_data)
+        if result and result.get("success"):
+            QMessageBox.information(
+                self,
+                "Expense Created",
+                f"Expense recorded successfully!"
+            )
+            self._clear_form()
+        else:
+            error = result.get("error", "Unknown error") if result else "API request failed"
+            QMessageBox.warning(self, "Error", f"Failed to create expense: {error}")
+
+    def _parse_currency(self, text: str) -> float:
+        """Parse currency string to float."""
+        try:
+            return float(text.replace("$", "").replace(",", "").strip())
+        except (ValueError, AttributeError):
+            return 0.0
+
+    def _get_line_items(self) -> list:
+        """Get line items from table."""
+        items = []
+        for row in range(self.items_table.rowCount()):
+            desc_item = self.items_table.item(row, 0)
+            qty_item = self.items_table.item(row, 1)
+            price_item = self.items_table.item(row, 2)
+            amt_item = self.items_table.item(row, 3)
+
+            if desc_item and desc_item.text():
+                items.append({
+                    "description": desc_item.text(),
+                    "quantity": int(qty_item.text()) if qty_item else 1,
+                    "unit_price": self._parse_currency(price_item.text()) if price_item else 0,
+                    "amount": self._parse_currency(amt_item.text()) if amt_item else 0
+                })
+        return items
+
+    def _clear_form(self):
+        """Clear all form fields."""
+        self._selected_file = None
+        self._extracted_data = None
+        self.file_label.setText("")
+        self.upload_icon.setText("📷")
+        self.vendor_field.clear()
+        self.date_field.clear()
+        self.total_field.clear()
+        self.subtotal_field.clear()
+        self.tax_field.clear()
+        self.items_table.setRowCount(0)
+        self.scan_btn.setEnabled(False)
+        self.create_bill_btn.setEnabled(False)
+        self.create_expense_btn.setEnabled(False)
+
+
+# =============================================================================
 # PAYROLL CENTER - QuickBooks Style Scheduled/Unscheduled Payroll
 # =============================================================================
 
@@ -16641,6 +17063,12 @@ class GenFinScreen(QWidget):
         self._add_screen("entities", GenFinEntitiesScreen())
         self._add_screen("settings", GenFinSettingsScreen())
         self._add_screen("help", GenFinHelpScreen())
+
+        # Tools - OCR, Classes, Locations
+        self._add_screen("scan_receipt", GenFinScanReceiptScreen())
+        # Classes and Locations use placeholder for now
+        self._add_placeholder_screen("classes")
+        self._add_placeholder_screen("locations")
 
     def _add_placeholder_screen(self, nav_id: str):
         """Add a placeholder screen for features in development."""
