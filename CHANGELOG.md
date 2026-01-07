@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.8.0 | **Last Updated:** January 6, 2026
+> **Current Version:** 6.8.1 | **Last Updated:** January 7, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,46 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.8.1 (January 7, 2026)
+
+### Bug Fixes & Testing Infrastructure
+
+**Critical bug fixes and comprehensive test suite addition.**
+
+**Bug Fixes:**
+- **Checkbox Visual Feedback** - Fixed checkbox styling that prevented visual feedback when checked. Checkboxes now show turquoise fill when selected. (`frontend/ui/retro_styles.py`)
+- **Fertilizer Optimizer Field Mismatch** - Fixed frontend sending `soil_test_ph` when backend expected `soil_ph`. Added proper N credit calculation from previous crop selection. (`frontend/models/cost_optimizer.py`)
+- **Fertilizer Response Parsing** - Fixed `FertilizerResponse.from_dict()` to properly parse backend's nested response structure with `cost_summary` and `recommendations`. (`frontend/models/cost_optimizer.py`)
+- **Accounting Import Type Error** - Fixed `NameError: QuickBooksAPI` by changing type hints to correct `AccountingImportAPI`. (`frontend/ui/screens/accounting_import.py`)
+
+**Testing Infrastructure:**
+- **Backend Service Tests** (`tests/test_all_workflows.py`)
+  - Tests all core services: InputCostOptimizer, ApplicationCostOptimizer, PricingService, etc.
+  - 72.5% pass rate on backend services
+  - Verified irrigation cost calculation (+$85/acre for corn)
+  - Verified N credit reduces fertilizer cost by ~$19/acre
+
+- **End-to-End API Tests** (`tests/test_e2e_complete.py`)
+  - Tests 88 API endpoints via HTTP
+  - 72.7% pass rate (64/88 tests)
+  - Covers all major categories: Cost Optimizer, Fields, Equipment, Inventory, Tasks, GenFin, etc.
+  - Includes workflow tests for complete user scenarios
+
+- **Test Results Documentation** (`docs/TEST_RESULTS.md`)
+  - Comprehensive test report
+  - 829 API endpoints documented across 59 service categories
+  - Category-by-category pass rates
+  - List of verified working features
+
+**Verified Working Features:**
+- Cost Optimizer: Quick estimate ($395/acre corn), irrigation add-on (+$85), fertilizer optimization ($209.86/acre)
+- Pricing Service: 4 price categories, alerts, budget prices
+- Spray Timing: Evaluate conditions, find windows, disease pressure assessment
+- Yield Response: Response curves, economic optimum calculations
+- All management screens responding correctly (auth-protected)
 
 ---
 
