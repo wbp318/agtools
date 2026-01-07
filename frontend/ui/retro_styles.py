@@ -563,8 +563,12 @@ def get_retro_stylesheet():
     }}
 
     QCheckBox::indicator:checked {{
-        background-color: {c['input_bg']};
-        image: none;
+        background-color: {c['turquoise_dark']};
+        border: 2px solid;
+        border-top-color: {c['bevel_dark']};
+        border-left-color: {c['bevel_dark']};
+        border-bottom-color: {c['bevel_light']};
+        border-right-color: {c['bevel_light']};
     }}
 
     QRadioButton::indicator {{

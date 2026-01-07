@@ -252,16 +252,25 @@ class FertilizerRequest:
     soil_test_k_ppm: float = 150
     soil_test_ph: float = 6.5
     previous_crop: Optional[str] = None
+    organic_matter_percent: float = 3.0
 
     def to_dict(self) -> dict:
+        # Calculate nitrogen credit from previous crop
+        n_credit = 0
+        if self.previous_crop == "soybean":
+            n_credit = 40  # Soybean N credit
+        elif self.previous_crop == "alfalfa":
+            n_credit = 100  # Alfalfa N credit
+
         return {
             "crop": self.crop,
             "acres": self.acres,
             "yield_goal": self.yield_goal,
             "soil_test_p_ppm": self.soil_test_p_ppm,
             "soil_test_k_ppm": self.soil_test_k_ppm,
-            "soil_test_ph": self.soil_test_ph,
-            "previous_crop": self.previous_crop,
+            "soil_ph": self.soil_test_ph,  # Backend expects soil_ph
+            "organic_matter_percent": self.organic_matter_percent,
+            "nitrogen_credit_lb_per_acre": n_credit,
         }
 
 
@@ -286,20 +295,37 @@ class FertilizerResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "FertilizerResponse":
         recs = []
-        for rec in data.get("nutrient_recommendations", data.get("recommendations", [])):
+        acres = data.get("acres", 1)
+
+        # Parse recommendations from backend format
+        for rec in data.get("recommendations", []):
+            # Backend format: {product, rate_per_acre, nutrient_supplied, cost_per_acre, timing}
+            # Get nutrient name from nutrient_supplied dict (first key)
+            nutrient_supplied = rec.get("nutrient_supplied", {})
+            nutrient = list(nutrient_supplied.keys())[0] if nutrient_supplied else rec.get("nutrient", "")
+
             recs.append(NutrientRecommendation(
-                nutrient=rec.get("nutrient", ""),
-                recommended_rate=rec.get("recommended_rate_lb_per_acre", rec.get("rate", 0)),
-                recommended_product=rec.get("recommended_product", ""),
+                nutrient=nutrient,
+                recommended_rate=rec.get("rate_per_acre", rec.get("recommended_rate_lb_per_acre", 0)),
+                recommended_product=rec.get("product", rec.get("recommended_product", "")),
                 cost_per_acre=rec.get("cost_per_acre", 0),
-                total_cost=rec.get("total_cost", 0),
+                total_cost=rec.get("cost_per_acre", 0) * acres,
             ))
+
+        # Get cost summary from backend
+        cost_summary = data.get("cost_summary", {})
+        total_cost_per_acre = cost_summary.get("cost_per_acre", data.get("total_fertilizer_cost_per_acre", 0))
+        total_cost = cost_summary.get("total_cost", data.get("total_fertilizer_cost", 0))
+
+        # Calculate potential savings from optimization opportunities
+        opportunities = data.get("optimization_opportunities", [])
+        potential_savings = sum(opp.get("potential_savings", 0) for opp in opportunities) if opportunities else 0
 
         return cls(
             recommendations=recs,
-            total_cost_per_acre=data.get("total_fertilizer_cost_per_acre", 0),
-            total_cost=data.get("total_fertilizer_cost", 0),
-            potential_savings=data.get("potential_savings", 0),
+            total_cost_per_acre=total_cost_per_acre,
+            total_cost=total_cost,
+            potential_savings=potential_savings,
         )
 
 

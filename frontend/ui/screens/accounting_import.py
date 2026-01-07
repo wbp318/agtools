@@ -47,7 +47,7 @@ class PreviewWorker(QThread):
     """Background worker for previewing QB import."""
     finished = pyqtSignal(object, str)  # (preview, error)
 
-    def __init__(self, api: QuickBooksAPI, file_path: str):
+    def __init__(self, api: AccountingImportAPI, file_path: str):
         super().__init__()
         self.api = api
         self.file_path = file_path
@@ -61,7 +61,7 @@ class ImportWorker(QThread):
     """Background worker for importing QB data."""
     finished = pyqtSignal(object, str)  # (summary, error)
 
-    def __init__(self, api: QuickBooksAPI, file_path: str, mappings: dict,
+    def __init__(self, api: AccountingImportAPI, file_path: str, mappings: dict,
                  tax_year: int = None, save_mappings: bool = True):
         super().__init__()
         self.api = api
