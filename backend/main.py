@@ -15725,6 +15725,8 @@ async def delete_livestock_group(
 
 
 # --- Animals ---
+# IMPORTANT: Static routes (health, breeding, weights, sales) MUST be defined
+# AFTER /livestock but BEFORE /livestock/{animal_id} to avoid route conflicts
 
 @app.get("/api/v1/livestock", tags=["Livestock"])
 async def list_animals(
@@ -15748,6 +15750,122 @@ async def list_animals(
         raise HTTPException(status_code=400, detail=error)
     return {"animals": [a.model_dump() for a in animals], "count": len(animals)}
 
+
+# --- Health Records (BEFORE /{animal_id} to avoid route conflicts) ---
+
+@app.get("/api/v1/livestock/health", tags=["Livestock"])
+async def list_health_records_route(
+    animal_id: Optional[int] = None,
+    group_id: Optional[int] = None,
+    record_type: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List health records"""
+    from datetime import date as dt_date
+    type_enum = HealthRecordType(record_type) if record_type else None
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    records, error = livestock_service.list_health_records(
+        animal_id, group_id, type_enum, from_dt, to_dt
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.get("/api/v1/livestock/health/alerts", tags=["Livestock"])
+async def get_health_alerts_route(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get upcoming health alerts"""
+    alerts, error = livestock_service.get_health_alerts()
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"alerts": [a.model_dump() for a in alerts], "count": len(alerts)}
+
+
+# --- Breeding Records (BEFORE /{animal_id}) ---
+
+@app.get("/api/v1/livestock/breeding", tags=["Livestock"])
+async def list_breeding_records_route(
+    female_id: Optional[int] = None,
+    status: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List breeding records"""
+    from datetime import date as dt_date
+    status_enum = BreedingStatus(status) if status else None
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    records, error = livestock_service.list_breeding_records(
+        female_id, status_enum, from_dt, to_dt
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+@app.get("/api/v1/livestock/breeding/due", tags=["Livestock"])
+async def get_upcoming_due_dates_route(
+    days: int = 60,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get breeding records with upcoming due dates"""
+    records, error = livestock_service.get_upcoming_due_dates(days)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+# --- Weight Records (BEFORE /{animal_id}) ---
+
+@app.get("/api/v1/livestock/weights", tags=["Livestock"])
+async def list_weight_records_route(
+    animal_id: Optional[int] = None,
+    group_id: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List weight records"""
+    from datetime import date as dt_date
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    records, error = livestock_service.list_weight_records(
+        animal_id, group_id, from_dt, to_dt
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+# --- Sales Records (BEFORE /{animal_id}) ---
+
+@app.get("/api/v1/livestock/sales", tags=["Livestock"])
+async def list_sale_records_route(
+    animal_id: Optional[int] = None,
+    group_id: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    sale_type: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List sale records"""
+    from datetime import date as dt_date
+    from_dt = dt_date.fromisoformat(from_date) if from_date else None
+    to_dt = dt_date.fromisoformat(to_date) if to_date else None
+    type_enum = SaleType(sale_type) if sale_type else None
+    records, error = livestock_service.list_sale_records(
+        animal_id, group_id, from_dt, to_dt, type_enum
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"records": [r.model_dump() for r in records], "count": len(records)}
+
+
+# --- Animal CRUD (parameterized routes LAST) ---
 
 @app.get("/api/v1/livestock/{animal_id}", tags=["Livestock"])
 async def get_animal(
@@ -15798,38 +15916,7 @@ async def delete_animal(
     return {"success": success}
 
 
-# --- Health Records ---
-
-@app.get("/api/v1/livestock/health", tags=["Livestock"])
-async def list_health_records(
-    animal_id: Optional[int] = None,
-    group_id: Optional[int] = None,
-    record_type: Optional[str] = None,
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List health records"""
-    from datetime import date as dt_date
-    type_enum = HealthRecordType(record_type) if record_type else None
-    from_dt = dt_date.fromisoformat(from_date) if from_date else None
-    to_dt = dt_date.fromisoformat(to_date) if to_date else None
-    records, error = livestock_service.list_health_records(
-        animal_id, group_id, type_enum, from_dt, to_dt
-    )
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"records": [r.model_dump() for r in records], "count": len(records)}
-
-
-@app.get("/api/v1/livestock/health/alerts", tags=["Livestock"])
-async def get_health_alerts(user: AuthenticatedUser = Depends(get_current_active_user)):
-    """Get upcoming health alerts"""
-    alerts, error = livestock_service.get_health_alerts()
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"alerts": [a.model_dump() for a in alerts], "count": len(alerts)}
-
+# --- Health Records (POST only - GET moved before /{animal_id}) ---
 
 @app.post("/api/v1/livestock/health", tags=["Livestock"])
 async def create_health_record(
@@ -15843,40 +15930,7 @@ async def create_health_record(
     return record.model_dump()
 
 
-# --- Breeding Records ---
-
-@app.get("/api/v1/livestock/breeding", tags=["Livestock"])
-async def list_breeding_records(
-    female_id: Optional[int] = None,
-    status: Optional[str] = None,
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List breeding records"""
-    from datetime import date as dt_date
-    status_enum = BreedingStatus(status) if status else None
-    from_dt = dt_date.fromisoformat(from_date) if from_date else None
-    to_dt = dt_date.fromisoformat(to_date) if to_date else None
-    records, error = livestock_service.list_breeding_records(
-        female_id, status_enum, from_dt, to_dt
-    )
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"records": [r.model_dump() for r in records], "count": len(records)}
-
-
-@app.get("/api/v1/livestock/breeding/due", tags=["Livestock"])
-async def get_upcoming_due_dates(
-    days: int = 60,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Get breeding records with upcoming due dates"""
-    records, error = livestock_service.get_upcoming_due_dates(days)
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"records": [r.model_dump() for r in records], "count": len(records)}
-
+# --- Breeding Records (POST/PUT only - GET moved before /{animal_id}) ---
 
 @app.post("/api/v1/livestock/breeding", tags=["Livestock"])
 async def create_breeding_record(
@@ -15903,27 +15957,7 @@ async def update_breeding_record(
     return record.model_dump()
 
 
-# --- Weight Records ---
-
-@app.get("/api/v1/livestock/weights", tags=["Livestock"])
-async def list_weight_records(
-    animal_id: Optional[int] = None,
-    group_id: Optional[int] = None,
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List weight records"""
-    from datetime import date as dt_date
-    from_dt = dt_date.fromisoformat(from_date) if from_date else None
-    to_dt = dt_date.fromisoformat(to_date) if to_date else None
-    records, error = livestock_service.list_weight_records(
-        animal_id, group_id, from_dt, to_dt
-    )
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"records": [r.model_dump() for r in records], "count": len(records)}
-
+# --- Weight Records (POST only - GET moved before /{animal_id}) ---
 
 @app.post("/api/v1/livestock/weights", tags=["Livestock"])
 async def create_weight_record(
@@ -15937,29 +15971,7 @@ async def create_weight_record(
     return record.model_dump()
 
 
-# --- Sales Records ---
-
-@app.get("/api/v1/livestock/sales", tags=["Livestock"])
-async def list_sale_records(
-    animal_id: Optional[int] = None,
-    group_id: Optional[int] = None,
-    from_date: Optional[str] = None,
-    to_date: Optional[str] = None,
-    sale_type: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List sale records"""
-    from datetime import date as dt_date
-    from_dt = dt_date.fromisoformat(from_date) if from_date else None
-    to_dt = dt_date.fromisoformat(to_date) if to_date else None
-    type_enum = SaleType(sale_type) if sale_type else None
-    records, error = livestock_service.list_sale_records(
-        animal_id, group_id, from_dt, to_dt, type_enum
-    )
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return {"records": [r.model_dump() for r in records], "count": len(records)}
-
+# --- Sales Records (POST only - GET moved before /{animal_id}) ---
 
 @app.post("/api/v1/livestock/sales", tags=["Livestock"])
 async def create_sale_record(
