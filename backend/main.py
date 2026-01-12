@@ -397,6 +397,17 @@ from services.receipt_ocr_service import (
     ReceiptData
 )
 
+from services.crop_cost_analysis_service import (
+    get_crop_cost_analysis_service,
+    CropAnalysisSummary,
+    FieldCostDetail,
+    FieldComparisonMatrix,
+    CropComparisonItem,
+    YearOverYearData,
+    ROIAnalysisItem,
+    TrendDataPoint
+)
+
 from mobile import mobile_router, configure_templates
 
 # Initialize FastAPI app
@@ -16198,6 +16209,162 @@ async def create_emergence_record(
     if error:
         raise HTTPException(status_code=400, detail=error)
     return record.model_dump()
+
+
+# ============================================================================
+# CROP COST ANALYSIS ENDPOINTS (v6.9.0)
+# ============================================================================
+
+@app.get("/api/v1/crop-analysis/summary", response_model=CropAnalysisSummary, tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_crop_analysis_summary(
+    request: Request,
+    crop_year: int,
+    field_ids: Optional[str] = None,
+    crop_types: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get high-level KPIs for crop cost analysis dashboard.
+
+    Returns aggregate metrics: total cost, cost/acre, cost/bushel, ROI, yields.
+    """
+    service = get_crop_cost_analysis_service()
+    field_ids_list = [int(x) for x in field_ids.split(",")] if field_ids else None
+    crop_types_list = crop_types.split(",") if crop_types else None
+    return service.get_summary(crop_year, field_ids_list, crop_types_list)
+
+
+@app.get("/api/v1/crop-analysis/comparison", response_model=FieldComparisonMatrix, tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_crop_analysis_comparison(
+    request: Request,
+    crop_year: int,
+    field_ids: Optional[str] = None,
+    sort_by: str = "cost_per_acre",
+    sort_order: str = "desc",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get field-by-field comparison matrix.
+
+    Returns cost, yield, and ROI metrics for each field.
+    """
+    service = get_crop_cost_analysis_service()
+    field_ids_list = [int(x) for x in field_ids.split(",")] if field_ids else None
+    return service.get_field_comparison(crop_year, field_ids_list, sort_by, sort_order)
+
+
+@app.get("/api/v1/crop-analysis/crops", response_model=List[CropComparisonItem], tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_crop_comparison(
+    request: Request,
+    crop_year: int,
+    crop_types: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare crops across all fields.
+
+    Returns aggregate metrics by crop type.
+    """
+    service = get_crop_cost_analysis_service()
+    crop_types_list = crop_types.split(",") if crop_types else None
+    return service.get_crop_comparison(crop_year, crop_types_list)
+
+
+@app.get("/api/v1/crop-analysis/crops/{crop_type}", tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_crop_type_analysis(
+    request: Request,
+    crop_type: str,
+    crop_year: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get detailed analysis for a specific crop type across all fields.
+    """
+    service = get_crop_cost_analysis_service()
+    return service.get_crop_detail(crop_type, crop_year)
+
+
+@app.get("/api/v1/crop-analysis/field/{field_id}/history", response_model=List[YearOverYearData], tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_field_cost_history(
+    request: Request,
+    field_id: int,
+    years: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get multi-year cost history for a specific field.
+    """
+    service = get_crop_cost_analysis_service()
+    years_list = [int(x) for x in years.split(",")] if years else None
+    return service.get_field_history(field_id, years_list)
+
+
+@app.get("/api/v1/crop-analysis/years", response_model=List[YearOverYearData], tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_year_comparison(
+    request: Request,
+    years: str,
+    field_id: Optional[int] = None,
+    crop_type: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Compare costs and yields across multiple years.
+    """
+    service = get_crop_cost_analysis_service()
+    years_list = [int(x) for x in years.split(",")]
+    return service.get_year_comparison(years_list, field_id, crop_type)
+
+
+@app.get("/api/v1/crop-analysis/roi", response_model=List[ROIAnalysisItem], tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_roi_analysis(
+    request: Request,
+    crop_year: int,
+    group_by: str = "field",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get ROI breakdown and profitability ranking.
+
+    group_by: 'field' or 'crop'
+    """
+    service = get_crop_cost_analysis_service()
+    return service.get_roi_breakdown(crop_year, group_by)
+
+
+@app.get("/api/v1/crop-analysis/trends", response_model=List[TrendDataPoint], tags=["Crop Analysis"])
+@limiter.limit("60/minute")
+async def get_cost_trends(
+    request: Request,
+    start_year: int,
+    end_year: int,
+    metric: str = "cost_per_acre",
+    field_id: Optional[int] = None,
+    crop_type: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Get trend data for charting.
+
+    metric: 'cost_per_acre', 'cost_per_bushel', 'yield_per_acre', 'roi_percent', 'profit'
+    """
+    service = get_crop_cost_analysis_service()
+    return service.get_trend_data(start_year, end_year, metric, field_id, crop_type)
+
+
+@app.get("/api/v1/crop-analysis/service-summary", tags=["Crop Analysis"])
+async def get_crop_analysis_service_summary(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get crop cost analysis service summary."""
+    service = get_crop_cost_analysis_service()
+    return service.get_service_summary()
 
 
 # ============================================================================

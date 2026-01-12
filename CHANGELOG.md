@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.8.1 | **Last Updated:** January 7, 2026
+> **Current Version:** 6.9.0 | **Last Updated:** January 12, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -13,7 +13,7 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 ### Week of Jan 6-12, 2026
 - ~~**Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, drill-down reports~~ **DONE v6.8.0**
 - **Export Suite** - Excel, PDF, CSV export for all reports
-- **Crop Cost Analysis Module** - Per-acre cost tracking, yield comparison, ROI calculations
+- ~~**Crop Cost Analysis Module** - Per-acre cost tracking, yield comparison, ROI calculations~~ **DONE v6.9.0**
 
 ### Week of Jan 13-19, 2026
 - **Real-time Bank Feed Integration** - Automatic transaction import from major banks (Plaid API)
@@ -40,6 +40,55 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.9.0 (January 12, 2026)
+
+### Crop Cost Analysis Module
+
+**Comprehensive crop cost analysis dashboard with per-acre tracking, yield comparisons, and ROI calculations across all fields and crops.**
+
+**New Backend Service:**
+- `backend/services/crop_cost_analysis_service.py` - Aggregation service for cost analysis
+- Combines data from expense_allocations, field_operations (yields), and fields
+- Market price integration for revenue calculations
+- ROI and break-even analysis
+
+**New API Endpoints:**
+- `GET /api/v1/crop-analysis/summary` - High-level KPIs (total cost, cost/acre, cost/bushel, ROI)
+- `GET /api/v1/crop-analysis/comparison` - Field-by-field comparison matrix
+- `GET /api/v1/crop-analysis/crops` - Crop type comparison across fields
+- `GET /api/v1/crop-analysis/crops/{crop_type}` - Detailed analysis for specific crop
+- `GET /api/v1/crop-analysis/field/{field_id}/history` - Multi-year field history
+- `GET /api/v1/crop-analysis/years` - Year-over-year comparison
+- `GET /api/v1/crop-analysis/roi` - ROI breakdown by field or crop
+- `GET /api/v1/crop-analysis/trends` - Trend data for charting
+
+**New Frontend Components:**
+- `frontend/api/crop_cost_analysis_api.py` - API client with dataclasses
+- `frontend/ui/screens/crop_cost_analysis.py` - 5-tab analysis dashboard
+
+**Dashboard Features (5 Tabs):**
+
+| Tab | Content |
+|-----|---------|
+| **Overview** | KPI cards (Total Cost, Cost/Acre, Cost/Bu, ROI), category breakdown pie chart, profit by field bar chart |
+| **Field Comparison** | Sort controls, cost/acre bar chart, yield/acre bar chart, detailed comparison table |
+| **Crop Comparison** | Crop summary cards, cost by crop chart, ROI by crop chart, comparison table |
+| **Year over Year** | Year range selector, cost trend line chart, yield trend line chart, ROI trend chart |
+| **ROI Analysis** | Group by field/crop selector, profitability ranking chart, margin of safety chart, break-even data |
+
+**Key Calculations:**
+- Cost per bushel = Total cost / Total yield
+- ROI % = (Revenue - Cost) / Cost x 100
+- Break-even yield = Total cost / Market price
+- Margin of safety = (Actual yield - Break-even yield) / Actual yield x 100
+
+**UI Integration:**
+- Added "Crop Analysis" to sidebar under Analytics section
+- Retro turquoise theme styling
+- PyQtGraph charts for data visualization
 
 ---
 

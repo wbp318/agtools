@@ -40,6 +40,7 @@ from ui.screens.genfin import GenFinScreen
 from ui.screens.livestock_management import LivestockManagementScreen
 from ui.screens.seed_planting import SeedPlantingScreen
 from ui.screens.advanced_reporting_dashboard import AdvancedReportingDashboard
+from ui.screens.crop_cost_analysis import CropCostAnalysisScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -456,6 +457,10 @@ class MainWindow(QMainWindow):
         analytics_dashboard = AdvancedReportingDashboard()
         analytics_dashboard.navigate_to.connect(self._navigate_to)
         self._add_screen("analytics_dashboard", analytics_dashboard)
+
+        # Crop Cost Analysis Dashboard (v6.9.0) - All users
+        crop_analysis_screen = CropCostAnalysisScreen(current_user=self._current_user)
+        self._add_screen("crop_analysis", crop_analysis_screen)
 
         # Accounting Import Screen (v2.9) - All users
         accounting_import_screen = AccountingImportScreen(current_user=self._current_user)

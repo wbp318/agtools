@@ -206,6 +206,7 @@ class Sidebar(QFrame):
         # Analytics Section (Phase 5)
         nav_layout.addWidget(SectionHeader("Analytics"))
         self._add_nav_item(nav_layout, "Analytics Dashboard", icon="\u2637")  # Chart/analytics
+        self._add_nav_item(nav_layout, "Crop Analysis", icon="\u2698")  # Crop/analysis
         self._add_nav_item(nav_layout, "Reports", icon="\u2637")  # Chart/analytics
 
         # Import Section (v2.9)
@@ -234,7 +235,7 @@ class Sidebar(QFrame):
         layout.addWidget(scroll, 1)
 
         # Version info at bottom - Windows 98 sunken panel style
-        version_label = QLabel("v6.6.0")
+        version_label = QLabel("v6.9.0")
         version_label.setStyleSheet(f"""
             color: {c['turquoise_pale']};
             background: {c['turquoise_dark']};

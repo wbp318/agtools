@@ -757,6 +757,93 @@ def test_reporting_service():
 
 
 # ==============================================================================
+# CROP COST ANALYSIS SERVICE
+# ==============================================================================
+
+def test_crop_cost_analysis_service():
+    """Test CropCostAnalysisService"""
+    print("\n" + "="*70)
+    print("CROP COST ANALYSIS SERVICE")
+    print("="*70)
+
+    try:
+        from services.crop_cost_analysis_service import (
+            get_crop_cost_analysis_service,
+            CropAnalysisSummary,
+            FieldCostDetail,
+            FieldComparisonMatrix,
+            CropComparisonItem,
+            YearOverYearData,
+            ROIAnalysisItem,
+            TrendDataPoint
+        )
+        service = get_crop_cost_analysis_service()
+        log_result("Crop Analysis", "Service initialization", True)
+
+        crop_year = datetime.now().year
+
+        # Test 1: Get summary
+        try:
+            summary = service.get_summary(crop_year)
+            assert isinstance(summary, CropAnalysisSummary)
+            log_result("Crop Analysis", "Get summary", True,
+                       f"fields={summary.field_count}, total_cost=${summary.total_cost:.2f}")
+        except Exception as e:
+            log_result("Crop Analysis", "Get summary", False, str(e)[:50])
+
+        # Test 2: Field comparison
+        try:
+            comparison = service.get_field_comparison(crop_year)
+            assert isinstance(comparison, FieldComparisonMatrix)
+            log_result("Crop Analysis", "Field comparison", True,
+                       f"fields={len(comparison.fields)}")
+        except Exception as e:
+            log_result("Crop Analysis", "Field comparison", False, str(e)[:50])
+
+        # Test 3: Crop comparison
+        try:
+            crops = service.get_crop_comparison(crop_year)
+            assert isinstance(crops, list)
+            log_result("Crop Analysis", "Crop comparison", True,
+                       f"crops={len(crops)}")
+        except Exception as e:
+            log_result("Crop Analysis", "Crop comparison", False, str(e)[:50])
+
+        # Test 4: Year over year
+        try:
+            yoy = service.get_year_comparison([crop_year - 1, crop_year])
+            assert isinstance(yoy, list)
+            log_result("Crop Analysis", "Year over year", True,
+                       f"years={len(yoy)}")
+        except Exception as e:
+            log_result("Crop Analysis", "Year over year", False, str(e)[:50])
+
+        # Test 5: ROI breakdown
+        try:
+            roi = service.get_roi_breakdown(crop_year)
+            assert isinstance(roi, list)
+            log_result("Crop Analysis", "ROI breakdown", True,
+                       f"items={len(roi)}")
+        except Exception as e:
+            log_result("Crop Analysis", "ROI breakdown", False, str(e)[:50])
+
+        # Test 6: Trend data
+        try:
+            trends = service.get_trend_data(crop_year - 2, crop_year, "cost_per_acre")
+            assert isinstance(trends, list)
+            log_result("Crop Analysis", "Trend data", True,
+                       f"points={len(trends)}")
+        except Exception as e:
+            log_result("Crop Analysis", "Trend data", False, str(e)[:50])
+
+        return True
+    except Exception as e:
+        log_result("Crop Analysis", "Service initialization", False, str(e))
+        traceback.print_exc()
+        return False
+
+
+# ==============================================================================
 # API ENDPOINT TESTS (via HTTP)
 # ==============================================================================
 
@@ -834,6 +921,9 @@ def run_all_tests():
 
         # Reporting
         test_reporting_service,
+
+        # Analytics
+        test_crop_cost_analysis_service,
 
         # API endpoints
         test_api_endpoints,
