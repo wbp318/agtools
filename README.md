@@ -25,7 +25,7 @@ We offer commercial licensing options:
 
 **Contact:** See [LICENSE](LICENSE) for full terms and contact information.
 
-**Copyright © 2025 William Brooks Parker. All Rights Reserved.**
+**Copyright © 2025 New Generation Farms. All Rights Reserved.**
 
 ---
 
@@ -1123,7 +1123,7 @@ This is a living system designed to grow:
 
 **PROPRIETARY LICENSE** - This software is proprietary and confidential. Commercial use is strictly prohibited without a license agreement. See [LICENSE](LICENSE) file for complete terms.
 
-**All intellectual property rights reserved by William Brooks Parker.**
+**All intellectual property rights reserved by New Generation Farms.**
 
 ## 🌟 What's Different?
 
