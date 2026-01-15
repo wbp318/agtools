@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.12.0 | **Last Updated:** January 15, 2026
+> **Current Version:** 6.12.1 | **Last Updated:** January 15, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,41 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.12.1 (January 15, 2026)
+
+### F# Domain Models and Documentation Updates
+
+**Added comprehensive F# domain modeling for agricultural analytics.**
+
+**New F# Files (1,052 lines total):**
+- `pipeline.fsx` (78 lines) - 5-stage analysis pipeline definition
+- `agtools_domain.fsx` (974 lines) - Complete domain models and calculations
+
+**F# Domain Modules:**
+| Module | Purpose |
+|--------|---------|
+| Domain Types | Crops, fields, equipment, weather, pests, financials |
+| Calculations | GDD, spray conditions, break-even, ROI |
+| FertilizerOptimization | Nutrient costs, nitrogen rate calculator with OM/legume credits |
+| YieldResponse | Economic Optimum Rate (EOR), response curves, profitability |
+| Sustainability | Carbon footprint (EPA/IPCC factors), scores, A-F grading |
+| Reports | Field performance tables, report metadata |
+| GrainMarketing | Basis calculation, contracts, storage decisions |
+| Livestock | Animals, weights, ADG, breeding records |
+
+**Documentation Updates:**
+- Updated all .md docs with pipeline and test suite information
+- Added FAILED_TESTS_REPORT.md with detailed failure analysis
+- Updated copyright to "New Generation Farms and William Brooks Parker"
+- Fixed .gitattributes for F# linguist detection
+
+**Files Modified:**
+- CHANGELOG.md, README.md, TEST_RESULTS.md, PROFESSIONAL_SYSTEM_GUIDE.md
+- .gitattributes (F# detection, .pyw as Python, .bat/.env as generated)
+- LICENSE (copyright holder update)
 
 ---
 
@@ -1319,6 +1354,7 @@ GET /api/v1/export/crop-cost-analysis/{format}
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 6.12.1 | Jan 15, 2026 | F# Domain Models (1,052 lines), documentation updates |
 | 6.12.0 | Jan 15, 2026 | Comprehensive Test Suite (620+ tests, 98.9% pass rate) |
 | 6.11.0 | Jan 15, 2026 | Critical Path Testing (20 core tests, 100% pass rate) |
 | 6.10.0 | Jan 15, 2026 | Export Suite (CSV, Excel, PDF for all reports) |
