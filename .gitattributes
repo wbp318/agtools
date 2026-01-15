@@ -25,6 +25,12 @@
 # Shell scripts
 *.sh text eol=lf
 
+# F# files
+*.fs text eol=lf
+*.fsx text eol=lf
+*.fsi text eol=lf
+*.fsproj text eol=lf
+
 # HTML/Template files
 *.html text eol=lf
 *.htm text eol=lf
@@ -156,3 +162,13 @@ backend/services/*.py linguist-detectable=true
 # Frontend screens should be detected as Python
 frontend/ui/screens/*.py linguist-language=Python
 frontend/ui/screens/*.py linguist-detectable=true
+
+# F# files - show in language stats
+*.fs linguist-language=FSharp
+*.fs linguist-detectable=true
+*.fsx linguist-language=FSharp
+*.fsx linguist-detectable=true
+*.fsi linguist-language=FSharp
+*.fsi linguist-detectable=true
+pipeline.fsx linguist-language=FSharp
+pipeline.fsx linguist-detectable=true
