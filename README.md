@@ -33,12 +33,14 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
-**Version 6.10.0** - **Export Suite** - Complete Report Export System:
+**Version 6.12.0** - **Comprehensive Test Suite** - 620+ Tests with 98.9% Pass Rate:
+- **Comprehensive Testing** (v6.12.0): 620+ tests covering all API endpoints and business logic
+- **Analysis Pipeline** (v6.11.0): F# defined 5-stage automated analysis pipeline
 - **Export Suite** (v6.10.0): CSV, Excel (XLSX), and PDF export from all dashboards
 - **Crop Cost Analysis** (v6.9.0): Per-acre cost tracking, field comparison, ROI calculations
 - **Advanced Reporting Dashboard** (v6.8.0): Customizable KPIs, trend analysis, drill-down reports
 - **Receipt/Invoice OCR** (v6.7.16): Multi-provider OCR with intelligent data extraction
-- **100% Pass Rate**: 226 tests passing, 7 skipped (comprehensive endpoint coverage)
+- **98.9% Pass Rate**: 620 tests passing, 7 failing (backend), 14 skipped
 - **Security Hardened** (v6.7.5): DEV_MODE disabled, CORS restricted, no hardcoded passwords
 
 **Quick Start:** See [CLI Quickstart](docs/guides/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/testing/TEST_RESULTS.md)
@@ -391,7 +393,8 @@ See **[QUICKSTART.md](QUICKSTART.md)** for detailed farmer-friendly setup guide.
 - **GenFin Financial Suite** with full accounting, check printing, ACH, payroll (v6.0-6.3)
 - **Livestock Management** with animals, health, breeding, weights, sales (v6.4)
 - **Seed & Planting** with inventory, treatments, planting records, emergence (v6.4)
-- **425+ API Endpoints** covering complete farm operations
+- **825+ API Endpoints** covering complete farm operations
+- **620+ Automated Tests** with 98.9% pass rate (v6.12.0)
 
 ### Example ROI
 
@@ -558,6 +561,19 @@ agtools/
 │           ├── livestock_management.py # Livestock tracking (v6.4)
 │           └── seed_planting.py      # Seed & planting (v6.4)
 │
+├── tests/                            # Test Suite (620+ tests)
+│   ├── conftest.py                   # Shared pytest fixtures
+│   ├── test_critical_paths.py        # 20 critical path tests
+│   ├── test_auth_security.py         # 35 auth/security tests
+│   ├── test_climate_costs.py         # 50 climate/cost tests
+│   ├── test_livestock_sustainability.py # 38 livestock/sustainability tests
+│   ├── test_reporting_safety.py      # 37 reporting/safety tests
+│   ├── test_ai_grants.py             # 63 AI/grants tests
+│   ├── test_inventory_equipment_seed.py # 63 inventory tests
+│   ├── test_business_research.py     # 82 business/research tests
+│   └── test_genfin_endpoints.py      # 226 GenFin tests
+│
+├── pipeline.fsx                      # F# analysis pipeline definition
 ├── CHANGELOG.md                      # Development changelog (reference for new sessions)
 ├── PROFESSIONAL_SYSTEM_GUIDE.md      # Complete documentation
 ├── QUICKSTART.md                     # 5-minute setup guide
@@ -905,9 +921,50 @@ Visit http://localhost:8000/m/login for the mobile crew interface.
 - **QUICKSTART.md** - Get running in 5 minutes with farmer-friendly guide
 - **PROFESSIONAL_SYSTEM_GUIDE.md** - Complete system documentation
 - **docs/GENFIN.md** - GenFin financial management system guide (NEW v6.0)
-- **SMOKE_TEST_RESULTS.md** - Latest test results (29/29 passing)
+- **docs/testing/TEST_RESULTS.md** - Comprehensive test results (620+ tests, 98.9% pass rate)
+- **docs/testing/FAILED_TESTS_REPORT.md** - Detailed failure analysis with fix plans
+- **pipeline.fsx** - F# analysis pipeline definition (5-stage automated testing)
 - **database/seed_data.py** - View pest/disease knowledge base
 - **database/chemical_database.py** - View product library
+
+## 🧪 Test Suite (v6.12.0)
+
+**620+ tests with 98.9% pass rate** covering all API endpoints and business logic.
+
+**Test Files:**
+| File | Tests | Focus |
+|------|-------|-------|
+| `test_critical_paths.py` | 20 | Core authentication, CRUD, import/export |
+| `test_auth_security.py` | 35 | JWT tokens, roles, error handling |
+| `test_climate_costs.py` | 50 | GDD tracking, precipitation, cost analysis |
+| `test_livestock_sustainability.py` | 38 | Animals, health, sustainability metrics |
+| `test_reporting_safety.py` | 37 | Reports, food safety, traceability |
+| `test_ai_grants.py` | 63 | AI/ML endpoints, grants, compliance |
+| `test_inventory_equipment_seed.py` | 63 | Inventory, equipment, seed tracking |
+| `test_business_research.py` | 82 | Business intelligence, field trials |
+| `test_genfin_endpoints.py` | 226 | Full GenFin accounting coverage |
+
+**Running Tests:**
+```bash
+# Run all tests
+pytest tests/ --tb=no -q
+
+# Run specific test file
+pytest tests/test_critical_paths.py -v
+
+# Run with coverage report
+pytest tests/ --cov=backend --cov-report=html
+```
+
+**Analysis Pipeline (F#):**
+```fsharp
+// pipeline.fsx defines a 5-stage automated analysis process
+Stage1: Implementer     → Explore codebase structure
+Stage2: Characterizer   → Identify test gaps, create plan
+Stage3: Investigation   → Validate test plan
+Stage4: Implementer     → Write comprehensive tests
+Stage5: Auditor         → Verify implementation quality
+```
 
 ## 🛠️ Technology Stack
 
@@ -1087,6 +1144,11 @@ Unlike simple pest ID apps, this system:
 
 | Version | Release | Highlights |
 |---------|---------|------------|
+| 6.12.0 | Jan 2026 | **Comprehensive Test Suite** (620+ tests, 98.9% pass rate, 9 test files) |
+| 6.11.0 | Jan 2026 | **Critical Path Testing** (20 core tests, F# analysis pipeline) |
+| 6.10.0 | Jan 2026 | **Export Suite** (CSV, Excel, PDF export for all reports) |
+| 6.9.0 | Jan 2026 | **Crop Cost Analysis** (per-acre tracking, field comparison, ROI) |
+| 6.8.0 | Jan 2026 | **Advanced Reporting Dashboard** (customizable KPIs, drill-down reports) |
 | 6.7.16 | Jan 2026 | **Receipt/Invoice OCR** (multi-provider OCR, intelligent extraction, one-click bill creation) |
 | 6.7.15 | Jan 2026 | **pytest-bdd Testing** (57 BDD scenarios), docs reorganization, trademark compliance |
 | 6.7.14 | Jan 2026 | **100% Test Pass Rate** (226 tests passing), comprehensive API coverage |

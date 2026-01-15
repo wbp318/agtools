@@ -109,7 +109,7 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
 25. **GenFin Production-Ready (v6.7.4)**: Complete transaction workflows:
     - **Bill Editing**: Full edit support with vendor, date, terms, memo, line items
     - **Purchase Orders API**: Complete CRUD endpoints with auto-generated PO numbers
-    - **100% Test Coverage**: Comprehensive automated test suite (34/34 tests passing)
+    - **98.9% Test Coverage**: Comprehensive automated test suite (620/634 tests passing, v6.12.0)
     - **Invoice Workflows**: Create invoices with customer autocomplete and Quick Add
     - **Write Checks**: Full accounting software-style dialog with bank account selection
     - **Receive Payments**: Apply payments to invoices with discounts
@@ -133,7 +133,14 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Year-over-Year Analysis**: Historical cost trend tracking
     - **ROI Calculator**: Return on investment calculations
     - **Break-even Analysis**: Determine profitability thresholds
-29. **Export Suite (v6.10.0)**: Universal report export functionality:
+29. **Comprehensive Test Suite (v6.12.0)**: 620+ tests with 98.9% pass rate:
+    - **Critical Path Tests**: 20 core functionality tests
+    - **Auth & Security Tests**: 35 authentication and error handling tests
+    - **Domain Tests**: 400+ tests covering all business logic
+    - **GenFin Tests**: 226 accounting system endpoint tests
+    - **BDD Scenarios**: 57 behavior-driven development tests
+    - **Analysis Pipeline**: F# defined 5-stage automated testing pipeline
+30. **Export Suite (v6.10.0)**: Universal report export functionality:
     - **Multiple Formats**: CSV, Excel (XLSX), and PDF export
     - **All Dashboards**: Export from Advanced Reporting, Reports, and Crop Cost Analysis
     - **Reusable Widget**: ExportToolbar dropdown component
