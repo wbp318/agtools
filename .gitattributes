@@ -164,18 +164,17 @@ frontend/ui/screens/*.py linguist-language=Python
 frontend/ui/screens/*.py linguist-detectable=true
 
 # F# files - show in language stats
-# Note: GitHub linguist auto-detects F# for .fs/.fsx/.fsi extensions
+*.fs linguist-language="F#"
 *.fs linguist-detectable=true
 *.fs linguist-vendored=false
-*.fs linguist-generated=false
+*.fsx linguist-language="F#"
 *.fsx linguist-detectable=true
 *.fsx linguist-vendored=false
-*.fsx linguist-generated=false
+*.fsi linguist-language="F#"
 *.fsi linguist-detectable=true
-*.fsi linguist-vendored=false
+pipeline.fsx linguist-language="F#"
 pipeline.fsx linguist-detectable=true
 pipeline.fsx linguist-vendored=false
-pipeline.fsx linguist-generated=false
 
 # Python Windows scripts - detect as Python
 *.pyw linguist-language=Python
