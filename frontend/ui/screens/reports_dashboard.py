@@ -26,6 +26,9 @@ from api.reports_api import (
     OperationsReport, FinancialReport, EquipmentReport,
     InventoryReport, FieldPerformanceReport, DashboardSummary
 )
+from api.export_api import get_export_api
+
+from ui.widgets.export_toolbar import ExportToolbar
 
 # Try to import pyqtgraph for charts
 try:
@@ -148,23 +151,10 @@ class ReportsDashboardScreen(QWidget):
         refresh_btn.clicked.connect(self._load_reports)
         header_layout.addWidget(refresh_btn)
 
-        # Export button
-        export_btn = QPushButton("Export CSV")
-        export_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {COLORS["primary"]};
-                color: white;
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {COLORS["primary_dark"]};
-            }}
-        """)
-        export_btn.clicked.connect(self._export_csv)
-        header_layout.addWidget(export_btn)
+        # Export toolbar (CSV, Excel, PDF)
+        self._export_toolbar = ExportToolbar()
+        self._export_toolbar.set_export_handler(self._handle_export)
+        header_layout.addWidget(self._export_toolbar)
 
         layout.addLayout(header_layout)
 
@@ -912,35 +902,27 @@ class ReportsDashboardScreen(QWidget):
     # EXPORT
     # ========================================================================
 
-    def _export_csv(self):
-        """Export current tab's report to CSV."""
+    def _handle_export(self, format_type: str):
+        """
+        Handle export request from toolbar.
+
+        Args:
+            format_type: Export format (csv, excel, pdf)
+
+        Returns:
+            Tuple of (content_bytes, filename, content_type)
+        """
         current_tab = self._tabs.currentIndex()
         report_types = ["operations", "financial", "equipment", "fields"]
         report_type = report_types[current_tab] if current_tab < len(report_types) else "operations"
 
-        # Get file path
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Report",
-            f"{report_type}_report.csv",
-            "CSV Files (*.csv)"
-        )
-
-        if not file_path:
-            return
-
         date_from = self._date_from.date().toString("yyyy-MM-dd")
         date_to = self._date_to.date().toString("yyyy-MM-dd")
 
-        csv_content, error = self._reports_api.export_csv(report_type, date_from, date_to)
+        api = get_export_api()
+        result, error = api.export_reports(report_type, format_type, date_from, date_to)
 
         if error:
-            QMessageBox.warning(self, "Export Error", f"Failed to export: {error}")
-            return
+            raise Exception(error)
 
-        try:
-            with open(file_path, 'w', newline='') as f:
-                f.write(csv_content)
-            QMessageBox.information(self, "Export Complete", f"Report exported to:\n{file_path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Export Error", f"Failed to write file: {str(e)}")
+        return result.content, result.filename, result.content_type

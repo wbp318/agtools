@@ -31,6 +31,9 @@ from api.crop_cost_analysis_api import (
     ROIAnalysisItem,
     TrendDataPoint
 )
+from api.export_api import get_export_api
+
+from ui.widgets.export_toolbar import ExportToolbar
 
 # Try to import pyqtgraph for charts
 try:
@@ -145,6 +148,11 @@ class CropCostAnalysisScreen(QWidget):
         """)
         refresh_btn.clicked.connect(self._load_data)
         header_layout.addWidget(refresh_btn)
+
+        # Export toolbar
+        self._export_toolbar = ExportToolbar()
+        self._export_toolbar.set_export_handler(self._handle_export)
+        header_layout.addWidget(self._export_toolbar)
 
         layout.addLayout(header_layout)
 
@@ -1118,3 +1126,26 @@ class CropCostAnalysisScreen(QWidget):
         ax = self._roi_margin_chart.getAxis('bottom')
         ax.setTicks([[(i, labels[i]) for i in x]])
         self._roi_margin_chart.addLine(y=0, pen=pg.mkPen('#ccc', style=Qt.PenStyle.DashLine))
+
+    def _handle_export(self, format_type: str):
+        """
+        Handle export request from toolbar.
+
+        Args:
+            format_type: Export format (csv, excel, pdf)
+
+        Returns:
+            Tuple of (content_bytes, filename, content_type)
+        """
+        crop_year = self._year_spin.value()
+        tab_names = ["overview", "field_comparison", "crop_comparison", "yoy", "roi"]
+        current_tab = self._tabs.currentIndex()
+        tab = tab_names[current_tab] if current_tab < len(tab_names) else "overview"
+
+        api = get_export_api()
+        result, error = api.export_crop_cost_analysis(format_type, crop_year, tab)
+
+        if error:
+            raise Exception(error)
+
+        return result.content, result.filename, result.content_type

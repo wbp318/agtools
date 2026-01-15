@@ -22,11 +22,13 @@ from PyQt6.QtGui import QFont
 from ..styles import COLORS, set_widget_class
 from ..widgets.kpi_card import KPICard, KPICardGrid
 from ..widgets.common import LoadingOverlay, StatusMessage
+from ..widgets.export_toolbar import ExportToolbar
 
 from api.unified_dashboard_api import (
     get_unified_dashboard_api, UnifiedDashboard, KPI,
     TransactionList, KPIDetail
 )
+from api.export_api import get_export_api
 
 
 class SectionHeader(QFrame):
@@ -277,6 +279,11 @@ class AdvancedReportingDashboard(QWidget):
         refresh_btn.clicked.connect(self._load_dashboard)
         header_layout.addWidget(refresh_btn)
 
+        # Export toolbar
+        self._export_toolbar = ExportToolbar()
+        self._export_toolbar.set_export_handler(self._handle_export)
+        header_layout.addWidget(self._export_toolbar)
+
         layout.addLayout(header_layout)
 
         # Status message
@@ -512,3 +519,24 @@ class AdvancedReportingDashboard(QWidget):
         if self._auto_refresh_timer:
             self._auto_refresh_timer.stop()
             self._auto_refresh_timer = None
+
+    def _handle_export(self, format_type: str):
+        """
+        Handle export request from toolbar.
+
+        Args:
+            format_type: Export format (csv, excel, pdf)
+
+        Returns:
+            Tuple of (content_bytes, filename, content_type)
+        """
+        date_from = self._date_from.date().toString("yyyy-MM-dd")
+        date_to = self._date_to.date().toString("yyyy-MM-dd")
+
+        api = get_export_api()
+        result, error = api.export_unified_dashboard(format_type, date_from, date_to)
+
+        if error:
+            raise Exception(error)
+
+        return result.content, result.filename, result.content_type

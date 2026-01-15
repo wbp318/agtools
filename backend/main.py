@@ -10,7 +10,7 @@ import os
 # Add parent directory to path so we can import from database/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -6543,9 +6543,432 @@ async def get_export_status():
             "/api/v1/export/inventory/{format}",
             "/api/v1/export/tasks/{format}",
             "/api/v1/export/custom/{format}",
-            "/api/v1/export/full-report/excel"
+            "/api/v1/export/full-report/excel",
+            "/api/v1/export/unified-dashboard/{format}",
+            "/api/v1/export/reports/{report_type}/{format}",
+            "/api/v1/export/crop-cost-analysis/{format}"
         ] if EXPORT_SERVICE_AVAILABLE else []
     }
+
+
+# ============================================================================
+# DASHBOARD EXPORT ENDPOINTS (v6.10.0 Export Suite)
+# ============================================================================
+
+@app.get("/api/v1/export/unified-dashboard/{format}", tags=["Export"])
+async def export_unified_dashboard(
+    format: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export unified dashboard KPIs to CSV, Excel, or PDF.
+
+    Args:
+        format: Export format (csv, excel, pdf)
+        date_from: Optional start date (YYYY-MM-DD)
+        date_to: Optional end date (YYYY-MM-DD)
+    """
+    from fastapi.responses import Response
+    from services.unified_dashboard_service import get_unified_dashboard_service
+
+    service = get_unified_dashboard_service()
+
+    # Get dashboard data
+    dashboard = service.get_dashboard(date_from, date_to)
+
+    # Prepare data for export
+    kpi_data = []
+    for kpi in dashboard.get("kpis", []):
+        kpi_data.append({
+            "KPI": kpi.get("title", ""),
+            "Value": kpi.get("formatted_value", kpi.get("value", "")),
+            "Trend": kpi.get("trend", ""),
+            "Change %": kpi.get("change_percent", 0),
+            "Category": kpi.get("category", "")
+        })
+
+    format_lower = format.lower()
+
+    if format_lower == "pdf":
+        # Generate PDF report
+        try:
+            from services.pdf_report_service import get_pdf_report_service
+            pdf_service = get_pdf_report_service()
+            content = pdf_service.generate_dashboard_summary_pdf(dashboard, date_from, date_to)
+            return Response(
+                content=content,
+                media_type="application/pdf",
+                headers={"Content-Disposition": "attachment; filename=unified_dashboard_report.pdf"}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+    elif format_lower == "excel":
+        if not EXPORT_SERVICE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Export service not available")
+
+        export_service = get_data_export_service()
+        content = export_service.export_to_excel(kpi_data, columns=["KPI", "Value", "Trend", "Change %", "Category"])
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=unified_dashboard_report.xlsx"}
+        )
+
+    else:  # CSV
+        if not EXPORT_SERVICE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Export service not available")
+
+        export_service = get_data_export_service()
+        content = export_service.export_to_csv(kpi_data, columns=["KPI", "Value", "Trend", "Change %", "Category"])
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=unified_dashboard_report.csv"}
+        )
+
+
+@app.get("/api/v1/export/reports/{report_type}/{format}", tags=["Export"])
+async def export_reports_dashboard(
+    report_type: str,
+    format: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export reports dashboard data to CSV, Excel, or PDF.
+
+    Args:
+        report_type: Report type (operations, financial, equipment, fields)
+        format: Export format (csv, excel, pdf)
+        date_from: Optional start date (YYYY-MM-DD)
+        date_to: Optional end date (YYYY-MM-DD)
+    """
+    from fastapi.responses import Response
+
+    report_service = get_reporting_service()
+    format_lower = format.lower()
+
+    # Helper to convert Pydantic model or dict
+    def to_dict(obj):
+        if hasattr(obj, 'model_dump'):
+            return obj.model_dump()
+        elif hasattr(obj, 'dict'):
+            return obj.dict()
+        return obj if isinstance(obj, dict) else {}
+
+    # Get report data based on type
+    if report_type == "operations":
+        report_obj = report_service.get_operations_report(date_from, date_to)
+        report_data = to_dict(report_obj)
+        export_data = [{
+            "Metric": "Total Operations",
+            "Value": report_data.get("total_operations", 0)
+        }, {
+            "Metric": "Total Cost",
+            "Value": f"${report_data.get('total_cost', 0):,.2f}"
+        }, {
+            "Metric": "Avg Cost/Acre",
+            "Value": f"${report_data.get('avg_cost_per_acre', 0):,.2f}"
+        }, {
+            "Metric": "Top Operation Type",
+            "Value": report_data.get("top_operation_type", "N/A")
+        }]
+        # Add operations by type
+        for op_type, count in report_data.get("operations_by_type", {}).items():
+            export_data.append({"Metric": f"{op_type} Count", "Value": count})
+        filename = "operations_report"
+
+    elif report_type == "financial":
+        report_obj = report_service.get_financial_report(date_from, date_to)
+        report_data = to_dict(report_obj)
+        export_data = [{
+            "Metric": "Total Input Costs",
+            "Value": f"${report_data.get('total_input_costs', 0):,.2f}"
+        }, {
+            "Metric": "Total Equipment Costs",
+            "Value": f"${report_data.get('total_equipment_costs', 0):,.2f}"
+        }, {
+            "Metric": "Total Revenue",
+            "Value": f"${report_data.get('total_revenue', 0):,.2f}"
+        }, {
+            "Metric": "Net Profit",
+            "Value": f"${report_data.get('net_profit', 0):,.2f}"
+        }]
+        # Add cost by category
+        for category, cost in report_data.get("cost_by_category", {}).items():
+            export_data.append({"Metric": f"{category} Cost", "Value": f"${cost:,.2f}"})
+        filename = "financial_report"
+
+    elif report_type == "equipment":
+        report_obj = report_service.get_equipment_report()
+        report_data = to_dict(report_obj)
+        export_data = [{
+            "Metric": "Total Equipment",
+            "Value": report_data.get("total_equipment", 0)
+        }, {
+            "Metric": "Fleet Value",
+            "Value": f"${report_data.get('fleet_value', 0):,.2f}"
+        }, {
+            "Metric": "Maintenance Due",
+            "Value": report_data.get("maintenance_due", 0)
+        }, {
+            "Metric": "Avg Utilization",
+            "Value": f"{report_data.get('avg_utilization', 0):.1f}%"
+        }]
+        filename = "equipment_report"
+
+    elif report_type == "fields":
+        report_obj = report_service.get_field_performance_report(date_from, date_to)
+        report_data = to_dict(report_obj)
+        export_data = [{
+            "Metric": "Total Fields",
+            "Value": report_data.get("total_fields", 0)
+        }, {
+            "Metric": "Total Acreage",
+            "Value": f"{report_data.get('total_acreage', 0):,.1f}"
+        }, {
+            "Metric": "Avg Yield",
+            "Value": f"{report_data.get('avg_yield', 0) or 0:.1f} bu/ac"
+        }, {
+            "Metric": "Best Field",
+            "Value": report_data.get("best_field", "N/A")
+        }]
+        filename = "field_performance_report"
+
+    elif report_type == "inventory":
+        report_obj = report_service.get_inventory_report()
+        report_data = to_dict(report_obj)
+        export_data = [{
+            "Metric": "Total Items",
+            "Value": report_data.get("total_items", 0)
+        }, {
+            "Metric": "Total Value",
+            "Value": f"${report_data.get('total_value', 0):,.2f}"
+        }, {
+            "Metric": "Low Stock Items",
+            "Value": report_data.get("low_stock_count", 0)
+        }, {
+            "Metric": "Expiring Items",
+            "Value": report_data.get("expiring_count", 0)
+        }]
+        # Add value by category
+        for cat, value in report_data.get("value_by_category", {}).items():
+            export_data.append({"Metric": f"{cat} Value", "Value": f"${value:,.2f}"})
+        filename = "inventory_report"
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown report type: {report_type}")
+
+    if format_lower == "pdf":
+        try:
+            from services.pdf_report_service import get_pdf_report_service
+            pdf_service = get_pdf_report_service()
+            content = pdf_service.generate_report_pdf(report_type, report_data, date_from, date_to)
+            return Response(
+                content=content,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}.pdf"}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+    elif format_lower == "excel":
+        if not EXPORT_SERVICE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Export service not available")
+
+        export_service = get_data_export_service()
+        content = export_service.export_to_excel(export_data, columns=["Metric", "Value"])
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}.xlsx"}
+        )
+
+    else:  # CSV
+        if not EXPORT_SERVICE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Export service not available")
+
+        export_service = get_data_export_service()
+        content = export_service.export_to_csv(export_data, columns=["Metric", "Value"])
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}.csv"}
+        )
+
+
+@app.get("/api/v1/export/crop-cost-analysis/{format}", tags=["Export"])
+async def export_crop_cost_analysis(
+    format: str,
+    crop_year: int = Query(default=2026, description="Crop year"),
+    tab: str = Query(default="overview", description="Tab to export"),
+    current_user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """
+    Export crop cost analysis data to CSV, Excel, or PDF.
+
+    Args:
+        format: Export format (csv, excel, pdf)
+        crop_year: Year of analysis
+        tab: Dashboard tab (overview, field_comparison, crop_comparison, yoy, roi)
+    """
+    from fastapi.responses import Response
+    from services.crop_cost_analysis_service import get_crop_cost_analysis_service
+
+    service = get_crop_cost_analysis_service()
+    format_lower = format.lower()
+
+    # Helper to convert Pydantic model or dict
+    def to_dict(obj):
+        if hasattr(obj, 'model_dump'):
+            return obj.model_dump()
+        elif hasattr(obj, 'dict'):
+            return obj.dict()
+        return obj if isinstance(obj, dict) else {}
+
+    # Get data based on tab
+    if tab == "overview":
+        summary_obj = service.get_summary(crop_year)
+        summary = to_dict(summary_obj)
+        export_data = [{
+            "Metric": "Total Cost",
+            "Value": f"${summary.get('total_cost', 0):,.2f}"
+        }, {
+            "Metric": "Cost Per Acre",
+            "Value": f"${summary.get('cost_per_acre', 0):,.2f}"
+        }, {
+            "Metric": "Cost Per Bushel",
+            "Value": f"${summary.get('cost_per_bushel', 0):,.2f}"
+        }, {
+            "Metric": "Total Acres",
+            "Value": f"{summary.get('total_acres', 0):,.1f}"
+        }, {
+            "Metric": "Total Yield",
+            "Value": f"{summary.get('total_yield', 0):,.0f} bu"
+        }, {
+            "Metric": "ROI %",
+            "Value": f"{summary.get('roi_percent', 0):,.1f}%"
+        }]
+        filename = f"crop_cost_overview_{crop_year}"
+
+    elif tab == "field_comparison":
+        comparison_obj = service.get_field_comparison(crop_year)
+        comparison = to_dict(comparison_obj)
+        export_data = []
+        for field_obj in comparison.get("fields", []):
+            field = to_dict(field_obj) if not isinstance(field_obj, dict) else field_obj
+            export_data.append({
+                "Field": field.get("field_name", ""),
+                "Acres": field.get("acres", 0),
+                "Total Cost": f"${field.get('total_cost', 0):,.2f}",
+                "Cost/Acre": f"${field.get('cost_per_acre', 0):,.2f}",
+                "Yield/Acre": f"{field.get('yield_per_acre', 0):.1f}",
+                "ROI %": f"{field.get('roi_percent', 0):.1f}%"
+            })
+        filename = f"crop_cost_field_comparison_{crop_year}"
+
+    elif tab == "crop_comparison":
+        crops_list = service.get_crop_comparison(crop_year)
+        export_data = []
+        for crop_obj in (crops_list if isinstance(crops_list, list) else []):
+            crop = to_dict(crop_obj) if not isinstance(crop_obj, dict) else crop_obj
+            export_data.append({
+                "Crop": crop.get("crop_type", ""),
+                "Acres": crop.get("total_acres", 0),
+                "Total Cost": f"${crop.get('total_cost', 0):,.2f}",
+                "Cost/Acre": f"${crop.get('cost_per_acre', 0):,.2f}",
+                "Avg Yield": f"{crop.get('avg_yield', 0):.1f}",
+                "ROI %": f"{crop.get('roi_percent', 0):.1f}%"
+            })
+        filename = f"crop_cost_crop_comparison_{crop_year}"
+
+    elif tab == "yoy":
+        yoy_list = service.get_year_over_year(crop_year - 4, crop_year)
+        export_data = []
+        for year_obj in (yoy_list if isinstance(yoy_list, list) else []):
+            year_data = to_dict(year_obj) if not isinstance(year_obj, dict) else year_obj
+            export_data.append({
+                "Year": year_data.get("year", ""),
+                "Total Cost": f"${year_data.get('total_cost', 0):,.2f}",
+                "Cost/Acre": f"${year_data.get('cost_per_acre', 0):,.2f}",
+                "Avg Yield": f"{year_data.get('avg_yield', 0):.1f}",
+                "ROI %": f"{year_data.get('roi_percent', 0):.1f}%"
+            })
+        filename = f"crop_cost_yoy_{crop_year}"
+
+    elif tab == "roi":
+        roi_obj = service.get_roi_analysis(crop_year)
+        roi_data = to_dict(roi_obj)
+        export_data = []
+        for item_obj in roi_data.get("items", []):
+            item = to_dict(item_obj) if not isinstance(item_obj, dict) else item_obj
+            export_data.append({
+                "Field/Crop": item.get("name", ""),
+                "Revenue": f"${item.get('revenue', 0):,.2f}",
+                "Total Cost": f"${item.get('total_cost', 0):,.2f}",
+                "Profit": f"${item.get('profit', 0):,.2f}",
+                "ROI %": f"{item.get('roi_percent', 0):.1f}%",
+                "Break-even": f"{item.get('break_even_yield', 0):.1f} bu/ac"
+            })
+        filename = f"crop_cost_roi_{crop_year}"
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown tab: {tab}")
+
+    if format_lower == "pdf":
+        try:
+            from services.pdf_report_service import get_pdf_report_service
+            pdf_service = get_pdf_report_service()
+
+            # Convert Pydantic models to dicts
+            summary_dict = to_dict(service.get_summary(crop_year))
+            field_comparison_dict = to_dict(service.get_field_comparison(crop_year))
+            crop_comparison_list = service.get_crop_comparison(crop_year)
+            crop_comparison_dicts = [to_dict(c) if not isinstance(c, dict) else c for c in crop_comparison_list]
+
+            content = pdf_service.generate_crop_cost_analysis_pdf(
+                summary_dict,
+                field_comparison_dict,
+                crop_comparison_dicts,
+                crop_year
+            )
+            return Response(
+                content=content,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}.pdf"}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+    elif format_lower == "excel":
+        if not EXPORT_SERVICE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Export service not available")
+
+        export_service = get_data_export_service()
+        columns = list(export_data[0].keys()) if export_data else []
+        content = export_service.export_to_excel(export_data, columns=columns)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}.xlsx"}
+        )
+
+    else:  # CSV
+        if not EXPORT_SERVICE_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Export service not available")
+
+        export_service = get_data_export_service()
+        columns = list(export_data[0].keys()) if export_data else []
+        content = export_service.export_to_csv(export_data, columns=columns)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}.csv"}
+        )
 
 
 # ============================================================================

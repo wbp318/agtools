@@ -852,5 +852,10 @@ def get_unified_dashboard_service(db_path: str = "agtools.db") -> UnifiedDashboa
     """Get or create the unified dashboard service singleton."""
     global _unified_dashboard_service
     if _unified_dashboard_service is None:
-        _unified_dashboard_service = UnifiedDashboardService(db_path)
+        # Note: UnifiedDashboardService uses __new__ singleton pattern
+        # so we call without args and set db_path after
+        _unified_dashboard_service = UnifiedDashboardService()
+        if not _unified_dashboard_service._initialized:
+            _unified_dashboard_service.db_path = db_path
+            _unified_dashboard_service._initialized = True
     return _unified_dashboard_service

@@ -1674,6 +1674,360 @@ class PDFReportService:
         buffer.seek(0)
         return buffer.getvalue()
 
+    # =========================================================================
+    # DASHBOARD EXPORT METHODS (v6.10.0 Export Suite)
+    # =========================================================================
+
+    def generate_dashboard_summary_pdf(
+        self,
+        dashboard_data: Dict,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        config: Optional[ReportConfig] = None
+    ) -> bytes:
+        """
+        Generate PDF from unified dashboard KPIs.
+
+        Args:
+            dashboard_data: Dashboard data dict with kpis list
+            date_from: Start date for report period
+            date_to: End date for report period
+            config: Optional report configuration
+
+        Returns:
+            PDF bytes
+        """
+        buffer = io.BytesIO()
+
+        if config is None:
+            config = ReportConfig(
+                title="Analytics Dashboard Report",
+                subtitle="Key Performance Indicators Summary",
+                farm_name="AgTools Farm"
+            )
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=50,
+            leftMargin=50,
+            topMargin=60,
+            bottomMargin=60
+        )
+
+        elements = []
+
+        # Header
+        elements.extend(self._create_header(config))
+
+        # Date range
+        if date_from and date_to:
+            elements.append(Paragraph(
+                f"<b>Report Period:</b> {date_from} to {date_to}",
+                self.styles['Normal']
+            ))
+            elements.append(Spacer(1, 12))
+
+        # KPI Summary Table
+        elements.append(Paragraph("Key Performance Indicators", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 8))
+
+        kpis = dashboard_data.get("kpis", [])
+        if kpis:
+            kpi_data = [["KPI", "Value", "Trend", "Change %"]]
+            for kpi in kpis:
+                trend_symbol = "\u25B2" if kpi.get("trend") == "up" else (
+                    "\u25BC" if kpi.get("trend") == "down" else "\u25CF"
+                )
+                kpi_data.append([
+                    kpi.get("title", ""),
+                    kpi.get("formatted_value", str(kpi.get("value", ""))),
+                    trend_symbol,
+                    f"{kpi.get('change_percent', 0):.1f}%"
+                ])
+            elements.append(self._create_table(kpi_data))
+        else:
+            elements.append(Paragraph("No KPI data available.", self.styles['Normal']))
+
+        elements.append(Spacer(1, 20))
+
+        # Alerts section if present
+        alerts = dashboard_data.get("alerts", [])
+        if alerts:
+            elements.append(Paragraph("Active Alerts", self.styles['SectionHeader']))
+            elements.append(Spacer(1, 8))
+            alert_data = [["Severity", "Message", "KPI"]]
+            for alert in alerts:
+                alert_data.append([
+                    alert.get("severity", "").upper(),
+                    alert.get("message", ""),
+                    alert.get("kpi_id", "")
+                ])
+            elements.append(self._create_table(alert_data))
+
+        # Generated timestamp
+        elements.append(Spacer(1, 30))
+        elements.append(Paragraph(
+            f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+            self.styles['Normal']
+        ))
+
+        doc.build(elements, onFirstPage=self._create_footer, onLaterPages=self._create_footer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def generate_report_pdf(
+        self,
+        report_type: str,
+        report_data: Dict,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        config: Optional[ReportConfig] = None
+    ) -> bytes:
+        """
+        Generate PDF from reports dashboard data.
+
+        Args:
+            report_type: Type of report (operations, financial, equipment, fields)
+            report_data: Report data dictionary
+            date_from: Start date for report period
+            date_to: End date for report period
+            config: Optional report configuration
+
+        Returns:
+            PDF bytes
+        """
+        buffer = io.BytesIO()
+
+        # Set title based on report type
+        titles = {
+            "operations": "Operations Report",
+            "financial": "Financial Analysis Report",
+            "equipment": "Equipment Report",
+            "fields": "Field Performance Report"
+        }
+
+        if config is None:
+            config = ReportConfig(
+                title=titles.get(report_type, "Report"),
+                subtitle=f"{'Date Range: ' + date_from + ' to ' + date_to if date_from and date_to else ''}",
+                farm_name="AgTools Farm"
+            )
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=50,
+            leftMargin=50,
+            topMargin=60,
+            bottomMargin=60
+        )
+
+        elements = []
+
+        # Header
+        elements.extend(self._create_header(config))
+
+        # Build content based on report type
+        if report_type == "operations":
+            elements.append(Paragraph("Operations Summary", self.styles['SectionHeader']))
+            summary_data = [
+                ["Total Operations", str(report_data.get("total_operations", 0))],
+                ["Total Cost", f"${report_data.get('total_cost', 0):,.2f}"],
+                ["Avg Cost/Acre", f"${report_data.get('avg_cost_per_acre', 0):,.2f}"],
+                ["Top Operation Type", report_data.get("top_operation_type", "N/A")]
+            ]
+            elements.append(self._create_table([["Metric", "Value"]] + summary_data))
+
+            # Operations by type
+            ops_by_type = report_data.get("operations_by_type", {})
+            if ops_by_type:
+                elements.append(Spacer(1, 15))
+                elements.append(Paragraph("Operations by Type", self.styles['SectionHeader']))
+                type_data = [["Operation Type", "Count"]]
+                for op_type, count in ops_by_type.items():
+                    type_data.append([op_type.title(), str(count)])
+                elements.append(self._create_table(type_data))
+
+        elif report_type == "financial":
+            elements.append(Paragraph("Financial Summary", self.styles['SectionHeader']))
+            summary_data = [
+                ["Total Input Costs", f"${report_data.get('total_input_costs', 0):,.2f}"],
+                ["Total Equipment Costs", f"${report_data.get('total_equipment_costs', 0):,.2f}"],
+                ["Total Revenue", f"${report_data.get('total_revenue', 0):,.2f}"],
+                ["Net Profit", f"${report_data.get('net_profit', 0):,.2f}"]
+            ]
+            elements.append(self._create_table([["Metric", "Value"]] + summary_data))
+
+            # Cost by category
+            cost_by_cat = report_data.get("cost_by_category", {})
+            if cost_by_cat:
+                elements.append(Spacer(1, 15))
+                elements.append(Paragraph("Cost by Category", self.styles['SectionHeader']))
+                cat_data = [["Category", "Cost"]]
+                for cat, cost in cost_by_cat.items():
+                    cat_data.append([cat.title(), f"${cost:,.2f}"])
+                elements.append(self._create_table(cat_data))
+
+        elif report_type == "equipment":
+            elements.append(Paragraph("Equipment Summary", self.styles['SectionHeader']))
+            summary_data = [
+                ["Total Equipment", str(report_data.get("total_equipment", 0))],
+                ["Fleet Value", f"${report_data.get('fleet_value', 0):,.2f}"],
+                ["Maintenance Due", str(report_data.get("maintenance_due", 0))],
+                ["Avg Utilization", f"{report_data.get('avg_utilization', 0):.1f}%"]
+            ]
+            elements.append(self._create_table([["Metric", "Value"]] + summary_data))
+
+        elif report_type == "fields":
+            elements.append(Paragraph("Field Performance Summary", self.styles['SectionHeader']))
+            summary_data = [
+                ["Total Fields", str(report_data.get("total_fields", 0))],
+                ["Total Acreage", f"{report_data.get('total_acreage', 0):,.1f} ac"],
+                ["Avg Yield", f"{report_data.get('avg_yield', 0) or 0:.1f} bu/ac"],
+                ["Best Field", report_data.get("best_field", "N/A")]
+            ]
+            elements.append(self._create_table([["Metric", "Value"]] + summary_data))
+
+        elif report_type == "inventory":
+            elements.append(Paragraph("Inventory Summary", self.styles['SectionHeader']))
+            summary_data = [
+                ["Total Items", str(report_data.get("total_items", 0))],
+                ["Total Value", f"${report_data.get('total_value', 0):,.2f}"],
+                ["Low Stock Items", str(report_data.get("low_stock_count", 0))],
+                ["Expiring Items", str(report_data.get("expiring_count", 0))]
+            ]
+            elements.append(self._create_table([["Metric", "Value"]] + summary_data))
+
+            # Value by category
+            value_by_cat = report_data.get("value_by_category", {})
+            if value_by_cat:
+                elements.append(Spacer(1, 15))
+                elements.append(Paragraph("Value by Category", self.styles['SectionHeader']))
+                cat_data = [["Category", "Value"]]
+                for cat, value in value_by_cat.items():
+                    cat_data.append([cat.title(), f"${value:,.2f}"])
+                elements.append(self._create_table(cat_data))
+
+        # Generated timestamp
+        elements.append(Spacer(1, 30))
+        elements.append(Paragraph(
+            f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+            self.styles['Normal']
+        ))
+
+        doc.build(elements, onFirstPage=self._create_footer, onLaterPages=self._create_footer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def generate_crop_cost_analysis_pdf(
+        self,
+        summary: Dict,
+        field_comparison: Dict,
+        crop_comparison: List[Dict],
+        crop_year: int,
+        config: Optional[ReportConfig] = None
+    ) -> bytes:
+        """
+        Generate comprehensive crop cost analysis PDF.
+
+        Args:
+            summary: Summary metrics dictionary
+            field_comparison: Field comparison data
+            crop_comparison: Crop comparison data list
+            crop_year: Year of analysis
+            config: Optional report configuration
+
+        Returns:
+            PDF bytes
+        """
+        buffer = io.BytesIO()
+
+        if config is None:
+            config = ReportConfig(
+                title=f"Crop Cost Analysis Report - {crop_year}",
+                subtitle="Comprehensive Cost and ROI Analysis",
+                farm_name="AgTools Farm"
+            )
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=50,
+            leftMargin=50,
+            topMargin=60,
+            bottomMargin=60
+        )
+
+        elements = []
+
+        # Header
+        elements.extend(self._create_header(config))
+
+        # Summary Section
+        elements.append(Paragraph("Cost Summary", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 8))
+
+        summary_data = [
+            ["Total Cost", f"${summary.get('total_cost', 0):,.2f}"],
+            ["Cost Per Acre", f"${summary.get('cost_per_acre', 0):,.2f}"],
+            ["Cost Per Bushel", f"${summary.get('cost_per_bushel', 0):,.2f}"],
+            ["Total Acres", f"{summary.get('total_acres', 0):,.1f}"],
+            ["Total Yield", f"{summary.get('total_yield', 0):,.0f} bu"],
+            ["ROI %", f"{summary.get('roi_percent', 0):,.1f}%"]
+        ]
+        elements.append(self._create_table([["Metric", "Value"]] + summary_data))
+
+        # Field Comparison Section
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("Field Comparison", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 8))
+
+        fields = field_comparison.get("fields", [])
+        if fields:
+            field_data = [["Field", "Acres", "Cost/Acre", "Yield/Acre", "ROI %"]]
+            for field in fields[:10]:  # Limit to 10 fields
+                field_data.append([
+                    field.get("field_name", "")[:20],
+                    f"{field.get('acres', 0):.0f}",
+                    f"${field.get('cost_per_acre', 0):,.2f}",
+                    f"{field.get('yield_per_acre', 0):.1f}",
+                    f"{field.get('roi_percent', 0):.1f}%"
+                ])
+            elements.append(self._create_table(field_data))
+        else:
+            elements.append(Paragraph("No field data available.", self.styles['Normal']))
+
+        # Crop Comparison Section
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("Crop Comparison", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 8))
+
+        if crop_comparison:
+            crop_data = [["Crop", "Acres", "Cost/Acre", "Avg Yield", "ROI %"]]
+            for crop in crop_comparison:
+                crop_data.append([
+                    crop.get("crop_type", "").title(),
+                    f"{crop.get('total_acres', 0):.0f}",
+                    f"${crop.get('cost_per_acre', 0):,.2f}",
+                    f"{crop.get('avg_yield', 0):.1f}",
+                    f"{crop.get('roi_percent', 0):.1f}%"
+                ])
+            elements.append(self._create_table(crop_data))
+        else:
+            elements.append(Paragraph("No crop data available.", self.styles['Normal']))
+
+        # Generated timestamp
+        elements.append(Spacer(1, 30))
+        elements.append(Paragraph(
+            f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+            self.styles['Normal']
+        ))
+
+        doc.build(elements, onFirstPage=self._create_footer, onLaterPages=self._create_footer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
 
 # Singleton instance
 _pdf_service: Optional[PDFReportService] = None

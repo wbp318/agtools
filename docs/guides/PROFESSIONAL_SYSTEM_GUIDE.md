@@ -119,6 +119,27 @@ You now have a **professional-grade crop consulting system** designed with 30 ye
     - **Intelligent Extraction**: Vendor, date, amounts, line items with quantities
     - **One-Click Bill Creation**: Scan receipt → Create Bill or Expense instantly
     - **Scan History**: Audit trail of all scanned receipts
+27. **Advanced Reporting Dashboard (v6.8.0)**: Customizable analytics platform:
+    - **Unified Dashboard**: Central hub for all KPIs and metrics
+    - **KPI Cards**: 12+ key performance indicators with trend analysis
+    - **Change Tracking**: Period-over-period comparisons with visual indicators
+    - **Alert System**: Warning and critical alerts for threshold breaches
+    - **Tab Navigation**: Quick access to different report categories
+    - **Date Range Filtering**: Analyze any custom time period
+28. **Crop Cost Analysis Module (v6.9.0)**: Comprehensive cost tracking:
+    - **Cost Summary**: Total costs, cost per acre, cost per bushel
+    - **Field Comparison**: Side-by-side field profitability analysis
+    - **Crop Comparison**: Compare ROI across different crop types
+    - **Year-over-Year Analysis**: Historical cost trend tracking
+    - **ROI Calculator**: Return on investment calculations
+    - **Break-even Analysis**: Determine profitability thresholds
+29. **Export Suite (v6.10.0)**: Universal report export functionality:
+    - **Multiple Formats**: CSV, Excel (XLSX), and PDF export
+    - **All Dashboards**: Export from Advanced Reporting, Reports, and Crop Cost Analysis
+    - **Reusable Widget**: ExportToolbar dropdown component
+    - **Professional PDFs**: Styled reports with headers, tables, and branding
+    - **Tab-Aware Exports**: Exports respect current dashboard tab selection
+    - **Date Range Support**: Include date parameters in exports
 
 ---
 

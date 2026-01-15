@@ -33,14 +33,13 @@ We offer commercial licensing options:
 
 **AgTools** is a professional-grade crop consulting platform designed with 30 years of field experience and modern AI technology. This system provides data-driven pest/disease identification, intelligent spray recommendations, economic threshold analysis, **input cost optimization**, **profitability analysis**, **enterprise operations management**, **precision agriculture intelligence**, **grain storage management**, **complete farm financial management**, **livestock management**, **seed & planting tracking**, and complete decision support for corn and soybean production.
 
-**Version 6.7.16** - **100% Test Pass Rate** - Production-Ready:
-- **Receipt/Invoice OCR** (v6.7.16): Multi-provider OCR (Tesseract, Google Vision, AWS Textract) with intelligent data extraction
+**Version 6.10.0** - **Export Suite** - Complete Report Export System:
+- **Export Suite** (v6.10.0): CSV, Excel (XLSX), and PDF export from all dashboards
+- **Crop Cost Analysis** (v6.9.0): Per-acre cost tracking, field comparison, ROI calculations
+- **Advanced Reporting Dashboard** (v6.8.0): Customizable KPIs, trend analysis, drill-down reports
+- **Receipt/Invoice OCR** (v6.7.16): Multi-provider OCR with intelligent data extraction
 - **100% Pass Rate**: 226 tests passing, 7 skipped (comprehensive endpoint coverage)
-- **234 Individual Tests**: All 257 GenFin API endpoints covered with pytest
 - **Security Hardened** (v6.7.5): DEV_MODE disabled, CORS restricted, no hardcoded passwords
-- **Print Preview System** (v6.6.0): Preview checks, invoices, reports with PDF export
-- **Import/Export** (v6.6.0): QIF, CSV, IIF formats for data migration
-- **Bank Feed Auto-Matching** (v6.6.0): Smart 5-tier matching with confidence scoring
 
 **Quick Start:** See [CLI Quickstart](docs/guides/CLI_QUICKSTART.md) | **Test Results:** [TEST_RESULTS.md](docs/testing/TEST_RESULTS.md)
 

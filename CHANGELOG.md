@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.9.0 | **Last Updated:** January 12, 2026
+> **Current Version:** 6.10.0 | **Last Updated:** January 15, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -12,7 +12,7 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ### Week of Jan 6-12, 2026
 - ~~**Advanced Reporting Dashboard** - Customizable KPIs, trend analysis, drill-down reports~~ **DONE v6.8.0**
-- **Export Suite** - Excel, PDF, CSV export for all reports
+- ~~**Export Suite** - Excel, PDF, CSV export for all reports~~ **DONE v6.10.0**
 - ~~**Crop Cost Analysis Module** - Per-acre cost tracking, yield comparison, ROI calculations~~ **DONE v6.9.0**
 
 ### Week of Jan 13-19, 2026
@@ -40,6 +40,57 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.10.0 (January 15, 2026)
+
+### Export Suite - Complete Report Export System
+
+**Unified export functionality (CSV, Excel, PDF) for all report dashboards.**
+
+**New Reusable Widget:**
+- `frontend/ui/widgets/export_toolbar.py` - Dropdown button with CSV/Excel/PDF options
+- Turquoise retro theme styling
+- Signal-based architecture for export events
+- File save dialog with format-specific filters
+
+**New API Client:**
+- `frontend/api/export_api.py` - Export API client
+- Methods for all three dashboards
+- Binary file download handling
+
+**New Backend Endpoints:**
+```
+GET /api/v1/export/unified-dashboard/{format}
+GET /api/v1/export/reports/{report_type}/{format}
+GET /api/v1/export/crop-cost-analysis/{format}
+```
+
+**New PDF Generators (`pdf_report_service.py`):**
+- `generate_dashboard_summary_pdf()` - KPI summary with alerts
+- `generate_report_pdf()` - Operations, financial, equipment, field reports
+- `generate_crop_cost_analysis_pdf()` - Comprehensive cost analysis
+
+**Dashboard Integrations:**
+
+| Dashboard | Previous | Now |
+|-----------|----------|-----|
+| Advanced Reporting Dashboard | No export | CSV, Excel, PDF |
+| Reports Dashboard | CSV only | CSV, Excel, PDF |
+| Crop Cost Analysis | No export | CSV, Excel, PDF |
+
+**Export Features:**
+- Dropdown menu button with consistent styling
+- Automatic filename generation with timestamp
+- File extension validation
+- Error handling with user feedback
+- Integration with existing DataExportService and PDFReportService
+
+**UI Integration:**
+- Export button appears in header next to Refresh
+- Tab-aware exports (exports current tab's data)
+- Date range parameters included in exports
 
 ---
 
@@ -1157,11 +1208,16 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 6.10.0 | Jan 15, 2026 | Export Suite (CSV, Excel, PDF for all reports) |
+| 6.9.0 | Jan 12, 2026 | Crop Cost Analysis Module |
+| 6.8.1 | Jan 7, 2026 | Bug fixes, comprehensive workflow tests (95.2%) |
+| 6.8.0 | Jan 6, 2026 | Advanced Reporting Dashboard |
+| 6.7.x | Jan 3-5, 2026 | Test suite expansion, security fixes, BDD tests |
+| 6.6.x | Dec 30, 2025 | Print preview, import/export, bank feed matching |
 | 6.5.1 | Dec 30, 2025 | Company switcher, Write Checks improvements |
 | 6.5.0 | Dec 30, 2025 | GenFin 100% complete (17 new screens) |
 | 6.4.0 | Dec 29, 2025 | Farm Operations (Livestock, Seed & Planting) |
-| 6.3.1 | Dec 29, 2025 | 90s QuickBooks teal UI theme |
-| 6.3.0 | Dec 29, 2025 | Payroll, Multi-Entity, Budgets, 1099 |
+| 6.3.x | Dec 29, 2025 | 90s QuickBooks theme, Payroll, Multi-Entity |
 | 6.2.0 | Dec 29, 2025 | Recurring transactions, Bank feeds, Fixed assets |
 | 6.1.0 | Dec 29, 2025 | GenFin core (accounts, invoices, bills, reports) |
 | 5.0.0 | Dec 29, 2025 | Professional crop consulting system |

@@ -1,4 +1,4 @@
-# Quick Start Guide - AgTools v6.7.16
+# Quick Start Guide - AgTools v6.10.0
 
 Get up and running with AgTools in 5 minutes.
 
@@ -14,8 +14,10 @@ AgTools is a **professional farm management platform** that helps you:
 - **Track farm operations** including fields, equipment, inventory, and tasks
 - **Manage finances** with GenFin (complete accounting, check printing, payroll)
 - **Analyze data** with 50+ reports, sustainability metrics, and yield predictions
+- **Export reports** to CSV, Excel, and PDF from all dashboards
+- **Track crop costs** with per-acre cost analysis and ROI calculations
 
-**Current Version:** 6.7.16 (January 2026) - Now with Receipt/Invoice OCR scanning
+**Current Version:** 6.10.0 (January 2026) - Export Suite with CSV/Excel/PDF support
 
 ---
 
