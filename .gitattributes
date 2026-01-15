@@ -164,11 +164,32 @@ frontend/ui/screens/*.py linguist-language=Python
 frontend/ui/screens/*.py linguist-detectable=true
 
 # F# files - show in language stats
-*.fs linguist-language=FSharp
+# Note: GitHub linguist auto-detects F# for .fs/.fsx/.fsi extensions
 *.fs linguist-detectable=true
-*.fsx linguist-language=FSharp
+*.fs linguist-vendored=false
+*.fs linguist-generated=false
 *.fsx linguist-detectable=true
-*.fsi linguist-language=FSharp
+*.fsx linguist-vendored=false
+*.fsx linguist-generated=false
 *.fsi linguist-detectable=true
-pipeline.fsx linguist-language=FSharp
+*.fsi linguist-vendored=false
 pipeline.fsx linguist-detectable=true
+pipeline.fsx linguist-vendored=false
+pipeline.fsx linguist-generated=false
+
+# Python Windows scripts - detect as Python
+*.pyw linguist-language=Python
+*.pyw linguist-detectable=true
+start_agtools.pyw linguist-language=Python
+
+# Batch files - detect as Batchfile (or mark as generated to hide)
+*.bat linguist-generated=true
+*.cmd linguist-generated=true
+
+# Environment files - mark as generated (config, not code)
+.env* linguist-generated=true
+*.env linguist-generated=true
+
+# Build artifacts - mark as generated
+build/** linguist-generated=true
+dist/** linguist-generated=true
