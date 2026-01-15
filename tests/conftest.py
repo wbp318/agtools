@@ -1,9 +1,321 @@
-"""Pytest configuration and shared fixtures for GenFin BDD tests."""
+"""
+Pytest configuration and shared fixtures for AgTools tests.
 
+Includes:
+- Test database fixtures (SQLite in-memory)
+- Auth token generation fixtures
+- Authenticated client fixtures
+- Sample data factories
+- GenFin BDD test fixtures
+"""
+
+import os
+import sys
 import pytest
+import tempfile
+import secrets
 from decimal import Decimal
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from typing import Dict, Any, Optional, Generator
 from unittest.mock import MagicMock
+
+# Add backend to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend"))
+
+# Set test environment before importing app
+os.environ["AGTOOLS_DEV_MODE"] = "1"
+os.environ["AGTOOLS_TEST_MODE"] = "1"
+
+from fastapi.testclient import TestClient
+
+
+# ============================================================================
+# TEST DATABASE FIXTURES
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def test_db_path() -> Generator[str, None, None]:
+    """
+    Create a temporary SQLite database for test isolation.
+    Each test function gets its own fresh database.
+    """
+    # Create a temp file for the test database
+    fd, db_path = tempfile.mkstemp(suffix=".db", prefix="agtools_test_")
+    os.close(fd)
+
+    # Set environment to use test database
+    original_path = os.environ.get("AGTOOLS_DB_PATH")
+    os.environ["AGTOOLS_DB_PATH"] = db_path
+
+    yield db_path
+
+    # Cleanup
+    if original_path:
+        os.environ["AGTOOLS_DB_PATH"] = original_path
+    else:
+        os.environ.pop("AGTOOLS_DB_PATH", None)
+
+    # Remove temp database file
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
+
+
+@pytest.fixture(scope="module")
+def test_db_path_module() -> Generator[str, None, None]:
+    """
+    Create a temporary SQLite database for test isolation at module level.
+    Shared across all tests in a module for better performance.
+    """
+    fd, db_path = tempfile.mkstemp(suffix=".db", prefix="agtools_test_module_")
+    os.close(fd)
+
+    original_path = os.environ.get("AGTOOLS_DB_PATH")
+    os.environ["AGTOOLS_DB_PATH"] = db_path
+
+    yield db_path
+
+    if original_path:
+        os.environ["AGTOOLS_DB_PATH"] = original_path
+    else:
+        os.environ.pop("AGTOOLS_DB_PATH", None)
+
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
+
+
+# ============================================================================
+# FASTAPI TEST CLIENT FIXTURES
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def client() -> Generator[TestClient, None, None]:
+    """
+    Provide a TestClient for the FastAPI application.
+    Fresh client for each test function.
+    """
+    # Import app after env vars are set
+    from main import app
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture(scope="module")
+def client_module() -> Generator[TestClient, None, None]:
+    """
+    Provide a TestClient for the FastAPI application at module level.
+    Shared across tests in a module for better performance.
+    """
+    from main import app
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+# ============================================================================
+# AUTHENTICATION FIXTURES
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def admin_credentials() -> Dict[str, str]:
+    """Default admin credentials for testing."""
+    return {
+        "username": "admin",
+        "password": "admin123"  # Default dev mode password
+    }
+
+
+@pytest.fixture(scope="function")
+def test_user_data() -> Dict[str, Any]:
+    """Generate unique test user data."""
+    suffix = secrets.token_hex(4)
+    return {
+        "username": f"testuser_{suffix}",
+        "email": f"testuser_{suffix}@example.com",
+        "password": "TestPass123!",
+        "first_name": "Test",
+        "last_name": "User",
+        "phone": "555-0100",
+        "role": "crew"
+    }
+
+
+@pytest.fixture(scope="function")
+def auth_token(client: TestClient, admin_credentials: Dict[str, str]) -> Optional[str]:
+    """
+    Get an authentication token using admin credentials.
+    Returns None if authentication fails.
+    """
+    response = client.post(
+        "/api/v1/auth/login",
+        json=admin_credentials
+    )
+
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("tokens", {}).get("access_token")
+    return None
+
+
+@pytest.fixture(scope="function")
+def auth_headers(auth_token: Optional[str]) -> Dict[str, str]:
+    """
+    Provide authorization headers for authenticated requests.
+    """
+    if auth_token:
+        return {"Authorization": f"Bearer {auth_token}"}
+    return {}
+
+
+@pytest.fixture(scope="function")
+def authenticated_client(client: TestClient, auth_headers: Dict[str, str]) -> TestClient:
+    """
+    Provide a TestClient with authentication headers pre-configured.
+    """
+    # Store original headers
+    original_headers = client.headers.copy() if hasattr(client, 'headers') else {}
+
+    # Add auth headers to client
+    client.headers.update(auth_headers)
+
+    yield client
+
+    # Restore original headers
+    client.headers = original_headers
+
+
+# ============================================================================
+# SAMPLE DATA FACTORIES
+# ============================================================================
+
+class DataFactory:
+    """Factory for generating test data."""
+
+    @staticmethod
+    def field(suffix: str = None) -> Dict[str, Any]:
+        """Generate test field data."""
+        suffix = suffix or secrets.token_hex(4)
+        return {
+            "name": f"Test Field {suffix}",
+            "farm_name": "Test Farm",
+            "acreage": 160.5,
+            "current_crop": "corn",
+            "soil_type": "loam",
+            "irrigation_type": "center_pivot",
+            "latitude": 42.0,
+            "longitude": -93.5,
+            "notes": "Test field for automated testing"
+        }
+
+    @staticmethod
+    def task(suffix: str = None) -> Dict[str, Any]:
+        """Generate test task data."""
+        suffix = suffix or secrets.token_hex(4)
+        return {
+            "title": f"Test Task {suffix}",
+            "description": "Test task description",
+            "priority": "high",
+            "due_date": (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
+            "estimated_hours": 4.0,
+            "notes": "Test task for automated testing"
+        }
+
+    @staticmethod
+    def equipment(suffix: str = None) -> Dict[str, Any]:
+        """Generate test equipment data."""
+        suffix = suffix or secrets.token_hex(4)
+        return {
+            "name": f"Test Tractor {suffix}",
+            "equipment_type": "tractor",
+            "make": "John Deere",
+            "model": "8R 410",
+            "year": 2023,
+            "serial_number": f"SN{suffix}",
+            "purchase_cost": 350000.00,
+            "status": "available",
+            "current_hours": 500.0,
+            "notes": "Test equipment"
+        }
+
+    @staticmethod
+    def inventory_item(suffix: str = None) -> Dict[str, Any]:
+        """Generate test inventory item data."""
+        suffix = suffix or secrets.token_hex(4)
+        return {
+            "name": f"Test Herbicide {suffix}",
+            "category": "herbicide",
+            "quantity": 50.0,
+            "unit": "gallons",
+            "unit_cost": 125.00,
+            "min_quantity": 10.0,
+            "storage_location": "Main Barn",
+            "notes": "Test inventory item"
+        }
+
+    @staticmethod
+    def user(suffix: str = None, role: str = "crew") -> Dict[str, Any]:
+        """Generate test user data."""
+        suffix = suffix or secrets.token_hex(4)
+        return {
+            "username": f"testuser_{suffix}",
+            "email": f"testuser_{suffix}@example.com",
+            "password": "TestPass123!",
+            "first_name": "Test",
+            "last_name": "User",
+            "phone": "555-0100",
+            "role": role
+        }
+
+    @staticmethod
+    def gdd_record(field_id: int, suffix: str = None) -> Dict[str, Any]:
+        """Generate test GDD record data."""
+        return {
+            "field_id": field_id,
+            "record_date": datetime.now().strftime("%Y-%m-%d"),
+            "high_temp_f": 85.0,
+            "low_temp_f": 62.0
+        }
+
+    @staticmethod
+    def csv_import_data() -> str:
+        """Generate sample CSV data for import testing."""
+        return """Date,Description,Amount,Category
+2024-01-15,Fertilizer Purchase,1500.00,fertilizer
+2024-01-16,Seed Purchase,2500.00,seed
+2024-01-17,Equipment Repair,750.00,repairs"""
+
+
+@pytest.fixture
+def data_factory() -> DataFactory:
+    """Provide access to the data factory."""
+    return DataFactory()
+
+
+# ============================================================================
+# TEST HELPERS
+# ============================================================================
+
+@pytest.fixture
+def test_ids() -> Dict[str, Optional[int]]:
+    """Store created entity IDs for use across tests in a session."""
+    return {
+        "field_id": None,
+        "task_id": None,
+        "equipment_id": None,
+        "inventory_id": None,
+        "user_id": None,
+        "crew_id": None,
+        "operation_id": None,
+    }
+
+
+# ============================================================================
+# GENFIN BDD TEST FIXTURES (Legacy - preserved for compatibility)
+# ============================================================================
 
 
 class MockAccount:
