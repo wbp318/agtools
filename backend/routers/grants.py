@@ -9,8 +9,8 @@ Handles:
 - Carbon programs
 """
 
-from typing import List, Optional
-from datetime import date
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -21,10 +21,78 @@ router = APIRouter(prefix="/api/v1", tags=["Grants"])
 
 
 # ============================================================================
+# RESPONSE MODELS
+# ============================================================================
+
+class GrantProgramResponse(BaseModel):
+    id: str
+    name: str
+    agency: str
+    description: Optional[str] = None
+    max_funding: Optional[float] = None
+    deadline: Optional[date] = None
+    eligibility: Optional[List[str]] = None
+
+class GrantProgramListResponse(BaseModel):
+    programs: List[GrantProgramResponse]
+    total: int
+
+class NRCSPracticeResponse(BaseModel):
+    code: str
+    name: str
+    category: str
+    description: Optional[str] = None
+    payment_rate: Optional[float] = None
+
+class NRCSPracticeListResponse(BaseModel):
+    practices: List[Dict[str, Any]]
+
+class BenchmarksResponse(BaseModel):
+    benchmarks: Dict[str, Any]
+
+class CarbonProgramResponse(BaseModel):
+    id: str
+    name: str
+    price_per_ton: Optional[float] = None
+    verification_required: Optional[bool] = None
+
+class CarbonProgramListResponse(BaseModel):
+    programs: List[Dict[str, Any]]
+
+class TechnologyResponse(BaseModel):
+    technologies: Dict[str, Any]
+
+class DataRequirementsResponse(BaseModel):
+    requirements: Dict[str, Any]
+
+class GrantApplicationResponse(BaseModel):
+    id: int
+    program_id: str
+    title: str
+    description: Optional[str] = None
+    status: str
+    created_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+    submitted_at: Optional[datetime] = None
+
+class GrantApplicationListResponse(BaseModel):
+    applications: List[GrantApplicationResponse]
+    total: int
+
+class ComplianceStatusResponse(BaseModel):
+    overall_status: str
+    items: List[Dict[str, Any]]
+    score: Optional[float] = None
+
+class ComplianceRequirementsResponse(BaseModel):
+    requirements: List[Dict[str, Any]]
+
+
+# ============================================================================
 # GRANT PROGRAMS
 # ============================================================================
 
-@router.get("/grants/programs", tags=["Grants"])
+@router.get("/grants/programs", response_model=GrantProgramListResponse, tags=["Grants"])
 async def list_grant_programs(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -35,7 +103,7 @@ async def list_grant_programs(
     return service.list_programs()
 
 
-@router.get("/grants/programs/{program_id}", tags=["Grants"])
+@router.get("/grants/programs/{program_id}", response_model=GrantProgramResponse, tags=["Grants"])
 async def get_grant_program(
     program_id: str,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -56,7 +124,7 @@ async def get_grant_program(
 # NRCS PRACTICES
 # ============================================================================
 
-@router.get("/grants/nrcs-practices", tags=["Grants"])
+@router.get("/grants/nrcs-practices", response_model=NRCSPracticeListResponse, tags=["Grants"])
 async def list_nrcs_practices(
     category: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -72,7 +140,7 @@ async def list_nrcs_practices(
     return {"practices": practices}
 
 
-@router.get("/grants/benchmarks", tags=["Grants"])
+@router.get("/grants/benchmarks", response_model=BenchmarksResponse, tags=["Grants"])
 async def get_benchmarks(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -86,7 +154,7 @@ async def get_benchmarks(
 # CARBON PROGRAMS
 # ============================================================================
 
-@router.get("/grants/carbon-programs", tags=["Grants"])
+@router.get("/grants/carbon-programs", response_model=CarbonProgramListResponse, tags=["Grants"])
 async def list_carbon_programs(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -100,7 +168,7 @@ async def list_carbon_programs(
 # PRECISION AG TECHNOLOGIES
 # ============================================================================
 
-@router.get("/grants/technologies", tags=["Grants"])
+@router.get("/grants/technologies", response_model=TechnologyResponse, tags=["Grants"])
 async def list_precision_ag_technologies(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -110,7 +178,7 @@ async def list_precision_ag_technologies(
     return {"technologies": TECHNOLOGY_BENEFITS}
 
 
-@router.get("/grants/data-requirements", tags=["Grants"])
+@router.get("/grants/data-requirements", response_model=DataRequirementsResponse, tags=["Grants"])
 async def get_grant_data_requirements(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -124,7 +192,7 @@ async def get_grant_data_requirements(
 # GRANT APPLICATIONS
 # ============================================================================
 
-@router.get("/grants/applications", tags=["Grant Applications"])
+@router.get("/grants/applications", response_model=GrantApplicationListResponse, tags=["Grant Applications"])
 async def list_grant_applications(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -136,7 +204,7 @@ async def list_grant_applications(
     return service.list_applications(status=status)
 
 
-@router.post("/grants/applications", tags=["Grant Applications"])
+@router.post("/grants/applications", response_model=GrantApplicationResponse, tags=["Grant Applications"])
 async def create_grant_application(
     program_id: str,
     title: str,
@@ -157,7 +225,7 @@ async def create_grant_application(
     return result
 
 
-@router.get("/grants/applications/{application_id}", tags=["Grant Applications"])
+@router.get("/grants/applications/{application_id}", response_model=GrantApplicationResponse, tags=["Grant Applications"])
 async def get_grant_application(
     application_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -174,7 +242,7 @@ async def get_grant_application(
     return application
 
 
-@router.put("/grants/applications/{application_id}/status", tags=["Grant Applications"])
+@router.put("/grants/applications/{application_id}/status", response_model=GrantApplicationResponse, tags=["Grant Applications"])
 async def update_application_status(
     application_id: int,
     status: str,
@@ -199,7 +267,7 @@ async def update_application_status(
 # COMPLIANCE
 # ============================================================================
 
-@router.get("/grants/compliance", tags=["Compliance"])
+@router.get("/grants/compliance", response_model=ComplianceStatusResponse, tags=["Compliance"])
 async def get_compliance_status(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -210,7 +278,7 @@ async def get_compliance_status(
     return service.get_compliance_status()
 
 
-@router.get("/grants/compliance/requirements", tags=["Compliance"])
+@router.get("/grants/compliance/requirements", response_model=ComplianceRequirementsResponse, tags=["Compliance"])
 async def get_compliance_requirements(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):

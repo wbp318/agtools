@@ -203,10 +203,115 @@ class PriceSetRequest(BaseModel):
 
 
 # ============================================================================
+# RESPONSE MODELS
+# ============================================================================
+
+class ScoutingCostResponse(BaseModel):
+    total_cost: float
+    cost_per_acre: float
+    hours_required: float
+    breakdown: dict
+
+class ApplicationLaborResponse(BaseModel):
+    total_cost: float
+    hours_required: float
+    cost_per_acre: float
+    breakdown: dict
+
+class SeasonalBudgetResponse(BaseModel):
+    total_cost: float
+    cost_per_acre: float
+    labor_breakdown: dict
+    recommendations: Optional[List[str]] = None
+
+class FertilizerOptimizationResponse(BaseModel):
+    total_cost: float
+    cost_per_acre: float
+    recommendations: List[dict]
+    nutrient_plan: dict
+    potential_savings: Optional[float] = None
+
+class PesticideComparisonResponse(BaseModel):
+    products: List[dict]
+    recommended: str
+    potential_savings: Optional[float] = None
+
+class SprayProgramResponse(BaseModel):
+    total_cost: float
+    cost_per_acre: float
+    applications: List[dict]
+
+class WaterNeedResponse(BaseModel):
+    crop_coefficient: float
+    daily_water_need_inches: float
+    irrigation_recommendation: str
+    deficit_inches: Optional[float] = None
+
+class IrrigationCostResponse(BaseModel):
+    total_cost: float
+    cost_per_acre: float
+    cost_per_acre_inch: float
+    breakdown: dict
+
+class IrrigationSeasonResponse(BaseModel):
+    total_cost: float
+    total_water_applied_inches: float
+    schedule: List[dict]
+    efficiency_rating: Optional[str] = None
+
+class SystemComparisonResponse(BaseModel):
+    systems: List[dict]
+    recommended: str
+    roi_years: Optional[float] = None
+
+class WaterSavingsResponse(BaseModel):
+    current_annual_cost: float
+    potential_savings: float
+    strategies: List[dict]
+
+class CompleteFarmAnalysisResponse(BaseModel):
+    total_cost: float
+    cost_per_acre: float
+    breakdown_by_category: dict
+    recommendations: List[str]
+    optimization_opportunities: Optional[List[dict]] = None
+
+class QuickEstimateResponse(BaseModel):
+    estimated_cost: float
+    cost_per_acre: float
+    assumptions: dict
+
+class BudgetWorksheetResponse(BaseModel):
+    total_budget: float
+    line_items: List[dict]
+    scenarios: Optional[List[dict]] = None
+
+class PriceListResponse(BaseModel):
+    region: str
+    category: str
+    count: int
+    prices: List[dict]
+
+class PriceResponse(BaseModel):
+    product_id: str
+    price: float
+    unit: str
+    source: str
+    last_updated: Optional[str] = None
+
+class PriceAlertsResponse(BaseModel):
+    alerts: List[dict]
+
+class BudgetPricesResponse(BaseModel):
+    crop: str
+    prices: dict
+
+
+# ============================================================================
 # INPUT COST OPTIMIZATION ENDPOINTS
 # ============================================================================
 
-@router.post("/optimize/labor/scouting", tags=["Cost Optimization"])
+@router.post("/optimize/labor/scouting", response_model=ScoutingCostResponse, tags=["Cost Optimization"])
 async def calculate_scouting_costs(request: LaborCostRequest):
     """Calculate and optimize scouting labor costs."""
     from services.labor_optimizer import get_labor_optimizer
@@ -223,7 +328,7 @@ async def calculate_scouting_costs(request: LaborCostRequest):
     return result
 
 
-@router.post("/optimize/labor/application", tags=["Cost Optimization"])
+@router.post("/optimize/labor/application", response_model=ApplicationLaborResponse, tags=["Cost Optimization"])
 async def calculate_application_labor(request: ApplicationLaborRequest):
     """Calculate labor costs for spray/fertilizer applications."""
     from services.labor_optimizer import get_labor_optimizer
@@ -243,7 +348,7 @@ async def calculate_application_labor(request: ApplicationLaborRequest):
     return result
 
 
-@router.post("/optimize/labor/seasonal-budget", tags=["Cost Optimization"])
+@router.post("/optimize/labor/seasonal-budget", response_model=SeasonalBudgetResponse, tags=["Cost Optimization"])
 async def calculate_seasonal_labor_budget(
     total_acres: float,
     crop: CropType,
@@ -269,7 +374,7 @@ async def calculate_seasonal_labor_budget(
     return result
 
 
-@router.post("/optimize/fertilizer", tags=["Cost Optimization"])
+@router.post("/optimize/fertilizer", response_model=FertilizerOptimizationResponse, tags=["Cost Optimization"])
 async def optimize_fertilizer_program(request: FertilizerOptimizationRequest):
     """Optimize fertilizer program based on yield goal and soil tests."""
     from services.application_cost_optimizer import get_application_optimizer
@@ -294,7 +399,7 @@ async def optimize_fertilizer_program(request: FertilizerOptimizationRequest):
     return result
 
 
-@router.post("/optimize/pesticides/compare", tags=["Cost Optimization"])
+@router.post("/optimize/pesticides/compare", response_model=PesticideComparisonResponse, tags=["Cost Optimization"])
 async def compare_pesticide_options(request: PesticideComparisonRequest):
     """Compare pesticide options to find most economical choice."""
     from services.application_cost_optimizer import get_application_optimizer
@@ -311,7 +416,7 @@ async def compare_pesticide_options(request: PesticideComparisonRequest):
     return result
 
 
-@router.post("/optimize/spray-program", tags=["Cost Optimization"])
+@router.post("/optimize/spray-program", response_model=SprayProgramResponse, tags=["Cost Optimization"])
 async def calculate_spray_program_costs(request: SprayProgramRequest):
     """Calculate total costs for a complete spray program."""
     from services.application_cost_optimizer import get_application_optimizer
@@ -328,7 +433,7 @@ async def calculate_spray_program_costs(request: SprayProgramRequest):
     return result
 
 
-@router.post("/optimize/irrigation/water-need", tags=["Irrigation"])
+@router.post("/optimize/irrigation/water-need", response_model=WaterNeedResponse, tags=["Irrigation"])
 async def calculate_crop_water_need(request: IrrigationWaterNeedRequest):
     """Calculate current crop water need based on growth stage and conditions."""
     from services.irrigation_optimizer import get_irrigation_optimizer
@@ -346,7 +451,7 @@ async def calculate_crop_water_need(request: IrrigationWaterNeedRequest):
     return result
 
 
-@router.post("/optimize/irrigation/cost", tags=["Irrigation"])
+@router.post("/optimize/irrigation/cost", response_model=IrrigationCostResponse, tags=["Irrigation"])
 async def calculate_irrigation_cost(request: IrrigationCostRequest):
     """Calculate total cost of an irrigation event."""
     from services.irrigation_optimizer import get_irrigation_optimizer
@@ -364,7 +469,7 @@ async def calculate_irrigation_cost(request: IrrigationCostRequest):
     return result
 
 
-@router.post("/optimize/irrigation/season", tags=["Irrigation"])
+@router.post("/optimize/irrigation/season", response_model=IrrigationSeasonResponse, tags=["Irrigation"])
 async def optimize_irrigation_season(request: IrrigationSeasonRequest):
     """Create optimized irrigation schedule for the entire season."""
     from services.irrigation_optimizer import get_irrigation_optimizer
@@ -386,7 +491,7 @@ async def optimize_irrigation_season(request: IrrigationSeasonRequest):
     return result
 
 
-@router.get("/optimize/irrigation/system-comparison", tags=["Irrigation"])
+@router.get("/optimize/irrigation/system-comparison", response_model=SystemComparisonResponse, tags=["Irrigation"])
 async def compare_irrigation_systems(
     acres: float,
     annual_water_need_inches: float = 18,
@@ -408,7 +513,7 @@ async def compare_irrigation_systems(
     return result
 
 
-@router.post("/optimize/irrigation/water-savings", tags=["Irrigation"])
+@router.post("/optimize/irrigation/water-savings", response_model=WaterSavingsResponse, tags=["Irrigation"])
 async def analyze_water_savings(request: WaterSavingsAnalysisRequest):
     """Analyze strategies to reduce water usage and costs."""
     from services.irrigation_optimizer import get_irrigation_optimizer
@@ -425,7 +530,7 @@ async def analyze_water_savings(request: WaterSavingsAnalysisRequest):
     return result
 
 
-@router.post("/optimize/complete-analysis", tags=["Cost Optimization"])
+@router.post("/optimize/complete-analysis", response_model=CompleteFarmAnalysisResponse, tags=["Cost Optimization"])
 async def complete_farm_cost_analysis(request: CompleteFarmAnalysisRequest):
     """Perform complete farm input cost analysis."""
     from services.input_cost_optimizer import InputCostOptimizer, FarmProfile
@@ -471,7 +576,7 @@ async def complete_farm_cost_analysis(request: CompleteFarmAnalysisRequest):
     return result
 
 
-@router.post("/optimize/quick-estimate", tags=["Cost Optimization"])
+@router.post("/optimize/quick-estimate", response_model=QuickEstimateResponse, tags=["Cost Optimization"])
 async def quick_cost_estimate(request: QuickEstimateRequest):
     """Quick cost estimate for planning purposes."""
     from services.input_cost_optimizer import InputCostOptimizer
@@ -488,7 +593,7 @@ async def quick_cost_estimate(request: QuickEstimateRequest):
     return result
 
 
-@router.post("/optimize/budget-worksheet", tags=["Cost Optimization"])
+@router.post("/optimize/budget-worksheet", response_model=BudgetWorksheetResponse, tags=["Cost Optimization"])
 async def generate_budget_worksheet(request: CompleteFarmAnalysisRequest):
     """Generate a complete budget worksheet for the farm."""
     from services.input_cost_optimizer import InputCostOptimizer, FarmProfile
@@ -529,7 +634,7 @@ async def generate_budget_worksheet(request: CompleteFarmAnalysisRequest):
 # PRICING SERVICE ENDPOINTS
 # ============================================================================
 
-@router.get("/pricing/prices", tags=["Pricing"])
+@router.get("/pricing/prices", response_model=PriceListResponse, tags=["Pricing"])
 async def get_all_prices(
     category: Optional[InputCategory] = None,
     region: Region = Region.MIDWEST_CORN_BELT
@@ -558,7 +663,7 @@ async def get_all_prices(
     }
 
 
-@router.get("/pricing/price/{product_id}", tags=["Pricing"])
+@router.get("/pricing/price/{product_id}", response_model=PriceResponse, tags=["Pricing"])
 async def get_price(
     product_id: str,
     region: Region = Region.MIDWEST_CORN_BELT
@@ -575,7 +680,7 @@ async def get_price(
     return price
 
 
-@router.post("/pricing/set-price", tags=["Pricing"])
+@router.post("/pricing/set-price", response_model=PriceResponse, tags=["Pricing"])
 async def set_custom_price(
     request: PriceSetRequest,
     region: Region = Region.MIDWEST_CORN_BELT,
@@ -596,7 +701,7 @@ async def set_custom_price(
     return result
 
 
-@router.get("/pricing/alerts", tags=["Pricing"])
+@router.get("/pricing/alerts", response_model=PriceAlertsResponse, tags=["Pricing"])
 async def get_price_alerts(
     region: Region = Region.MIDWEST_CORN_BELT
 ):
@@ -609,7 +714,7 @@ async def get_price_alerts(
     return {"alerts": alerts}
 
 
-@router.get("/pricing/budget-prices/{crop}", tags=["Pricing"])
+@router.get("/pricing/budget-prices/{crop}", response_model=BudgetPricesResponse, tags=["Pricing"])
 async def get_budget_prices(
     crop: CropType,
     region: Region = Region.MIDWEST_CORN_BELT

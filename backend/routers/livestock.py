@@ -10,8 +10,8 @@ Handles:
 - Sales management
 """
 
-from typing import List, Optional
-from datetime import date
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -22,10 +22,98 @@ router = APIRouter(prefix="/api/v1/livestock", tags=["Livestock"])
 
 
 # ============================================================================
+# RESPONSE MODELS
+# ============================================================================
+
+class AnimalResponse(BaseModel):
+    id: int
+    tag_number: str
+    species: str
+    breed: Optional[str] = None
+    birth_date: Optional[date] = None
+    sex: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = "active"
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class AnimalListResponse(BaseModel):
+    animals: List[AnimalResponse]
+    total: int
+
+class HealthRecordResponse(BaseModel):
+    id: int
+    animal_id: int
+    record_type: str
+    record_date: date
+    description: str
+    treatment: Optional[str] = None
+    vet_name: Optional[str] = None
+    cost: Optional[float] = None
+    created_at: Optional[datetime] = None
+
+class HealthRecordListResponse(BaseModel):
+    records: List[HealthRecordResponse]
+    total: int
+
+class BreedingRecordResponse(BaseModel):
+    id: int
+    female_id: int
+    male_id: Optional[int] = None
+    breeding_date: date
+    method: str
+    expected_due: Optional[date] = None
+    actual_birth_date: Optional[date] = None
+    offspring_count: Optional[int] = None
+    status: Optional[str] = "pending"
+    created_at: Optional[datetime] = None
+
+class BreedingRecordListResponse(BaseModel):
+    records: List[BreedingRecordResponse]
+    total: int
+
+class WeightRecordResponse(BaseModel):
+    id: int
+    animal_id: int
+    weight: float
+    weight_date: date
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class WeightRecordListResponse(BaseModel):
+    records: List[WeightRecordResponse]
+    total: int
+
+class SaleRecordResponse(BaseModel):
+    id: int
+    animal_id: int
+    sale_date: date
+    sale_price: float
+    buyer: Optional[str] = None
+    weight_at_sale: Optional[float] = None
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class SaleRecordListResponse(BaseModel):
+    sales: List[SaleRecordResponse]
+    total: int
+
+class TimelineEventResponse(BaseModel):
+    event_type: str
+    event_date: date
+    description: str
+    details: Optional[Dict[str, Any]] = None
+
+class AnimalTimelineResponse(BaseModel):
+    animal_id: int
+    events: List[TimelineEventResponse]
+
+
+# ============================================================================
 # ANIMAL MANAGEMENT
 # ============================================================================
 
-@router.get("", tags=["Livestock"])
+@router.get("", response_model=AnimalListResponse, tags=["Livestock"])
 async def list_animals(
     species: Optional[str] = None,
     status: Optional[str] = None,
@@ -43,7 +131,7 @@ async def list_animals(
     )
 
 
-@router.post("", tags=["Livestock"])
+@router.post("", response_model=AnimalResponse, tags=["Livestock"])
 async def create_animal(
     tag_number: str,
     species: str,
@@ -72,7 +160,7 @@ async def create_animal(
 
 # IMPORTANT: Static routes must come BEFORE /{animal_id} to avoid route conflicts
 
-@router.get("/health", tags=["Livestock Health"])
+@router.get("/health", response_model=HealthRecordListResponse, tags=["Livestock Health"])
 async def list_health_records(
     animal_id: Optional[int] = None,
     date_from: Optional[date] = None,
@@ -90,7 +178,7 @@ async def list_health_records(
     )
 
 
-@router.post("/health", tags=["Livestock Health"])
+@router.post("/health", response_model=HealthRecordResponse, tags=["Livestock Health"])
 async def create_health_record(
     animal_id: int,
     record_type: str,
@@ -119,7 +207,7 @@ async def create_health_record(
     return result
 
 
-@router.get("/breeding", tags=["Livestock Breeding"])
+@router.get("/breeding", response_model=BreedingRecordListResponse, tags=["Livestock Breeding"])
 async def list_breeding_records(
     animal_id: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -131,7 +219,7 @@ async def list_breeding_records(
     return service.list_breeding_records(animal_id=animal_id)
 
 
-@router.post("/breeding", tags=["Livestock Breeding"])
+@router.post("/breeding", response_model=BreedingRecordResponse, tags=["Livestock Breeding"])
 async def create_breeding_record(
     female_id: int,
     male_id: Optional[int] = None,
@@ -156,7 +244,7 @@ async def create_breeding_record(
     return result
 
 
-@router.get("/weights", tags=["Livestock Weights"])
+@router.get("/weights", response_model=WeightRecordListResponse, tags=["Livestock Weights"])
 async def list_weight_records(
     animal_id: Optional[int] = None,
     date_from: Optional[date] = None,
@@ -174,7 +262,7 @@ async def list_weight_records(
     )
 
 
-@router.post("/weights", tags=["Livestock Weights"])
+@router.post("/weights", response_model=WeightRecordResponse, tags=["Livestock Weights"])
 async def record_weight(
     animal_id: int,
     weight: float,
@@ -197,7 +285,7 @@ async def record_weight(
     return result
 
 
-@router.get("/sales", tags=["Livestock Sales"])
+@router.get("/sales", response_model=SaleRecordListResponse, tags=["Livestock Sales"])
 async def list_sales(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
@@ -213,7 +301,7 @@ async def list_sales(
     )
 
 
-@router.post("/sales", tags=["Livestock Sales"])
+@router.post("/sales", response_model=SaleRecordResponse, tags=["Livestock Sales"])
 async def record_sale(
     animal_id: int,
     sale_date: date,
@@ -242,7 +330,7 @@ async def record_sale(
 
 # Dynamic route must come AFTER static routes
 
-@router.get("/{animal_id}", tags=["Livestock"])
+@router.get("/{animal_id}", response_model=AnimalResponse, tags=["Livestock"])
 async def get_animal(
     animal_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -259,7 +347,7 @@ async def get_animal(
     return animal
 
 
-@router.put("/{animal_id}", tags=["Livestock"])
+@router.put("/{animal_id}", response_model=AnimalResponse, tags=["Livestock"])
 async def update_animal(
     animal_id: int,
     tag_number: Optional[str] = None,
@@ -289,7 +377,7 @@ async def update_animal(
     return result
 
 
-@router.get("/{animal_id}/timeline", tags=["Livestock"])
+@router.get("/{animal_id}/timeline", response_model=AnimalTimelineResponse, tags=["Livestock"])
 async def get_animal_timeline(
     animal_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)

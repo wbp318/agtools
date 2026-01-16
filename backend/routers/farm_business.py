@@ -11,8 +11,8 @@ Handles:
 - Research/field trials
 """
 
-from typing import List, Optional
-from datetime import date
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -23,10 +23,133 @@ router = APIRouter(prefix="/api/v1", tags=["Farm Business"])
 
 
 # ============================================================================
+# RESPONSE MODELS
+# ============================================================================
+
+class EntityResponse(BaseModel):
+    id: int
+    name: str
+    entity_type: str
+    tax_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    created_by: Optional[int] = None
+
+class EntityListResponse(BaseModel):
+    entities: List[EntityResponse]
+    total: int
+
+class EmployeeResponse(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    employee_type: str
+    pay_type: str
+    pay_rate: float
+    status: Optional[str] = "active"
+    created_at: Optional[datetime] = None
+
+class EmployeeListResponse(BaseModel):
+    employees: List[EmployeeResponse]
+    total: int
+
+class TimeEntryResponse(BaseModel):
+    id: int
+    employee_id: int
+    work_date: date
+    hours: float
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class TimeEntryListResponse(BaseModel):
+    entries: List[TimeEntryResponse]
+    total: int
+
+class LeaseResponse(BaseModel):
+    id: int
+    landlord_name: str
+    acres: float
+    lease_type: str
+    annual_rent: float
+    start_date: date
+    end_date: date
+    status: Optional[str] = "active"
+    created_at: Optional[datetime] = None
+
+class LeaseListResponse(BaseModel):
+    leases: List[LeaseResponse]
+    total: int
+
+class CashTransactionResponse(BaseModel):
+    id: int
+    transaction_date: date
+    amount: float
+    category: str
+    description: Optional[str] = None
+    transaction_type: str  # income or expense
+
+class CashTransactionListResponse(BaseModel):
+    transactions: List[CashTransactionResponse]
+    total: int
+
+class CashFlowSummaryResponse(BaseModel):
+    year: int
+    total_income: float
+    total_expenses: float
+    net_cash_flow: float
+    by_category: Dict[str, float]
+
+class CashFlowForecastResponse(BaseModel):
+    months: List[Dict[str, Any]]
+    projected_balance: float
+
+class MarketPricesResponse(BaseModel):
+    prices: Dict[str, float]
+
+class MarketingContractResponse(BaseModel):
+    id: int
+    crop: str
+    quantity: float
+    price: float
+    delivery_date: date
+    buyer: Optional[str] = None
+    status: str
+
+class MarketingContractListResponse(BaseModel):
+    contracts: List[MarketingContractResponse]
+    total: int
+
+class InsuranceRatesResponse(BaseModel):
+    rates: Dict[str, Any]
+
+class TrialResponse(BaseModel):
+    id: int
+    name: str
+    trial_type: str
+    field_id: int
+    start_date: date
+    end_date: Optional[date] = None
+    status: Optional[str] = "active"
+    created_at: Optional[datetime] = None
+
+class TrialDetailResponse(TrialResponse):
+    treatments: Optional[List[Dict[str, Any]]] = None
+    measurements: Optional[List[Dict[str, Any]]] = None
+
+class TrialListResponse(BaseModel):
+    trials: List[TrialResponse]
+    total: int
+
+class TrialAnalysisResponse(BaseModel):
+    trial_id: int
+    statistics: Dict[str, Any]
+    recommendations: Optional[List[str]] = None
+
+
+# ============================================================================
 # ENTITY MANAGEMENT
 # ============================================================================
 
-@router.get("/entities", tags=["Entities"])
+@router.get("/entities", response_model=EntityListResponse, tags=["Entities"])
 async def list_entities(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -37,7 +160,7 @@ async def list_entities(
     return service.list_entities()
 
 
-@router.post("/entities", tags=["Entities"])
+@router.post("/entities", response_model=EntityResponse, tags=["Entities"])
 async def create_entity(
     name: str,
     entity_type: str,
@@ -58,7 +181,7 @@ async def create_entity(
     return result
 
 
-@router.get("/entities/{entity_id}", tags=["Entities"])
+@router.get("/entities/{entity_id}", response_model=EntityResponse, tags=["Entities"])
 async def get_entity(
     entity_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -79,7 +202,7 @@ async def get_entity(
 # LABOR MANAGEMENT
 # ============================================================================
 
-@router.get("/labor/employees", tags=["Labor"])
+@router.get("/labor/employees", response_model=EmployeeListResponse, tags=["Labor"])
 async def list_employees(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -91,7 +214,7 @@ async def list_employees(
     return service.list_employees(status=status)
 
 
-@router.post("/labor/employees", tags=["Labor"])
+@router.post("/labor/employees", response_model=EmployeeResponse, tags=["Labor"])
 async def create_employee(
     first_name: str,
     last_name: str,
@@ -116,7 +239,7 @@ async def create_employee(
     return result
 
 
-@router.get("/labor/time-entries", tags=["Labor"])
+@router.get("/labor/time-entries", response_model=TimeEntryListResponse, tags=["Labor"])
 async def list_time_entries(
     employee_id: Optional[int] = None,
     date_from: Optional[date] = None,
@@ -134,7 +257,7 @@ async def list_time_entries(
     )
 
 
-@router.post("/labor/time-entries", tags=["Labor"])
+@router.post("/labor/time-entries", response_model=TimeEntryResponse, tags=["Labor"])
 async def create_time_entry(
     employee_id: int,
     work_date: date,
@@ -161,7 +284,7 @@ async def create_time_entry(
 # LAND/LEASE MANAGEMENT
 # ============================================================================
 
-@router.get("/land/leases", tags=["Land"])
+@router.get("/land/leases", response_model=LeaseListResponse, tags=["Land"])
 async def list_leases(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -173,7 +296,7 @@ async def list_leases(
     return service.list_leases(status=status)
 
 
-@router.post("/land/leases", tags=["Land"])
+@router.post("/land/leases", response_model=LeaseResponse, tags=["Land"])
 async def create_lease(
     landlord_name: str,
     acres: float,
@@ -200,7 +323,7 @@ async def create_lease(
     return result
 
 
-@router.get("/land/leases/{lease_id}", tags=["Land"])
+@router.get("/land/leases/{lease_id}", response_model=LeaseResponse, tags=["Land"])
 async def get_lease(
     lease_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -221,7 +344,7 @@ async def get_lease(
 # CASH FLOW MANAGEMENT
 # ============================================================================
 
-@router.get("/cashflow/transactions", tags=["Cash Flow"])
+@router.get("/cashflow/transactions", response_model=CashTransactionListResponse, tags=["Cash Flow"])
 async def list_cash_transactions(
     category: Optional[str] = None,
     date_from: Optional[date] = None,
@@ -239,7 +362,7 @@ async def list_cash_transactions(
     )
 
 
-@router.get("/cashflow/summary", tags=["Cash Flow"])
+@router.get("/cashflow/summary", response_model=CashFlowSummaryResponse, tags=["Cash Flow"])
 async def get_cash_flow_summary(
     year: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -251,7 +374,7 @@ async def get_cash_flow_summary(
     return service.get_cash_flow_summary(year=year)
 
 
-@router.get("/cashflow/forecast", tags=["Cash Flow"])
+@router.get("/cashflow/forecast", response_model=CashFlowForecastResponse, tags=["Cash Flow"])
 async def get_cash_flow_forecast(
     months_ahead: int = 12,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -267,7 +390,7 @@ async def get_cash_flow_forecast(
 # MARKET INTELLIGENCE
 # ============================================================================
 
-@router.get("/market/prices", tags=["Market"])
+@router.get("/market/prices", response_model=MarketPricesResponse, tags=["Market"])
 async def get_market_prices(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -277,7 +400,7 @@ async def get_market_prices(
     return {"prices": CURRENT_PRICES}
 
 
-@router.get("/market/contracts", tags=["Market"])
+@router.get("/market/contracts", response_model=MarketingContractListResponse, tags=["Market"])
 async def list_marketing_contracts(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -289,7 +412,7 @@ async def list_marketing_contracts(
     return service.list_contracts(status=status)
 
 
-@router.get("/market/insurance-rates", tags=["Market"])
+@router.get("/market/insurance-rates", response_model=InsuranceRatesResponse, tags=["Market"])
 async def get_insurance_rates(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -303,7 +426,7 @@ async def get_insurance_rates(
 # RESEARCH/FIELD TRIALS
 # ============================================================================
 
-@router.get("/research/trials", tags=["Research"])
+@router.get("/research/trials", response_model=TrialListResponse, tags=["Research"])
 async def list_trials(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -315,7 +438,7 @@ async def list_trials(
     return service.list_trials(status=status)
 
 
-@router.post("/research/trials", tags=["Research"])
+@router.post("/research/trials", response_model=TrialResponse, tags=["Research"])
 async def create_trial(
     name: str,
     trial_type: str,
@@ -338,7 +461,7 @@ async def create_trial(
     return result
 
 
-@router.get("/research/trials/{trial_id}", tags=["Research"])
+@router.get("/research/trials/{trial_id}", response_model=TrialDetailResponse, tags=["Research"])
 async def get_trial(
     trial_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -355,7 +478,7 @@ async def get_trial(
     return trial
 
 
-@router.get("/research/trials/{trial_id}/analysis", tags=["Research"])
+@router.get("/research/trials/{trial_id}/analysis", response_model=TrialAnalysisResponse, tags=["Research"])
 async def get_trial_analysis(
     trial_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)

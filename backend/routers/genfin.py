@@ -15,8 +15,8 @@ Handles:
 - 1099 tracking
 """
 
-from typing import List, Optional
-from datetime import date
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
@@ -27,10 +27,277 @@ router = APIRouter(prefix="/api/v1/genfin", tags=["GenFin"])
 
 
 # ============================================================================
+# RESPONSE MODELS
+# ============================================================================
+
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+
+class AccountResponse(BaseModel):
+    id: int
+    name: str
+    account_type: str
+    account_number: Optional[str] = None
+    sub_type: Optional[str] = None
+    description: Optional[str] = None
+    balance: Optional[float] = 0
+
+class AccountListResponse(BaseModel):
+    accounts: List[AccountResponse]
+    total: int
+
+class CustomerResponse(BaseModel):
+    id: int
+    display_name: str
+    company_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = "active"
+    balance: Optional[float] = 0
+
+class CustomerListResponse(BaseModel):
+    customers: List[CustomerResponse]
+    total: int
+
+class VendorResponse(BaseModel):
+    id: int
+    display_name: str
+    company_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = "active"
+    balance: Optional[float] = 0
+
+class VendorListResponse(BaseModel):
+    vendors: List[VendorResponse]
+    total: int
+
+class EmployeeResponse(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = "active"
+
+class EmployeeListResponse(BaseModel):
+    employees: List[EmployeeResponse]
+    total: int
+
+class InvoiceLineResponse(BaseModel):
+    description: str
+    quantity: float
+    unit_price: float
+    amount: float
+
+class InvoiceResponse(BaseModel):
+    id: int
+    customer_id: int
+    invoice_number: Optional[str] = None
+    invoice_date: date
+    due_date: date
+    status: str
+    total: float
+    balance_due: Optional[float] = None
+    lines: Optional[List[InvoiceLineResponse]] = None
+    memo: Optional[str] = None
+
+class InvoiceListResponse(BaseModel):
+    invoices: List[InvoiceResponse]
+    total: int
+
+class BillResponse(BaseModel):
+    id: int
+    vendor_id: int
+    bill_number: Optional[str] = None
+    bill_date: date
+    due_date: date
+    status: str
+    total: float
+    balance_due: Optional[float] = None
+    memo: Optional[str] = None
+
+class BillListResponse(BaseModel):
+    bills: List[BillResponse]
+    total: int
+
+class CheckResponse(BaseModel):
+    id: int
+    bank_account_id: int
+    check_number: Optional[str] = None
+    payee_name: str
+    check_date: date
+    amount: float
+    status: str
+    memo: Optional[str] = None
+
+class CheckListResponse(BaseModel):
+    checks: List[CheckResponse]
+    total: int
+
+class BankAccountResponse(BaseModel):
+    id: int
+    account_name: str
+    account_type: str
+    account_number: Optional[str] = None
+    routing_number: Optional[str] = None
+    balance: float
+
+class BankAccountListResponse(BaseModel):
+    accounts: List[BankAccountResponse]
+    total: int
+
+class TrialBalanceResponse(BaseModel):
+    as_of_date: date
+    accounts: List[Dict[str, Any]]
+    total_debits: float
+    total_credits: float
+
+class BalanceSheetResponse(BaseModel):
+    as_of_date: date
+    assets: Dict[str, Any]
+    liabilities: Dict[str, Any]
+    equity: Dict[str, Any]
+
+class ProfitLossResponse(BaseModel):
+    start_date: date
+    end_date: date
+    revenue: Dict[str, Any]
+    expenses: Dict[str, Any]
+    net_income: float
+
+class CashFlowReportResponse(BaseModel):
+    start_date: date
+    end_date: date
+    operating: Dict[str, Any]
+    investing: Dict[str, Any]
+    financing: Dict[str, Any]
+    net_change: float
+
+class AgingReportResponse(BaseModel):
+    as_of_date: date
+    current: float
+    days_1_30: float
+    days_31_60: float
+    days_61_90: float
+    over_90: float
+    total: float
+    details: List[Dict[str, Any]]
+
+class PayScheduleResponse(BaseModel):
+    id: int
+    name: str
+    frequency: str
+    next_pay_date: date
+
+class PayScheduleListResponse(BaseModel):
+    schedules: List[PayScheduleResponse]
+    total: int
+
+class PayRunResponse(BaseModel):
+    id: int
+    schedule_id: int
+    pay_date: date
+    status: str
+    total_gross: float
+    total_net: float
+
+class PayRunListResponse(BaseModel):
+    pay_runs: List[PayRunResponse]
+    total: int
+
+class RecurringTemplateResponse(BaseModel):
+    id: int
+    template_type: str
+    name: str
+    frequency: str
+    amount: float
+    next_date: date
+    status: Optional[str] = "active"
+
+class RecurringTemplateListResponse(BaseModel):
+    templates: List[RecurringTemplateResponse]
+    total: int
+
+class BankFeedSummaryResponse(BaseModel):
+    pending_count: int
+    matched_count: int
+    total_pending_amount: float
+
+class BankFeedTransactionResponse(BaseModel):
+    id: int
+    bank_account_id: int
+    transaction_date: date
+    amount: float
+    description: str
+    status: str
+
+class BankFeedTransactionListResponse(BaseModel):
+    transactions: List[BankFeedTransactionResponse]
+    total: int
+
+class FixedAssetResponse(BaseModel):
+    id: int
+    name: str
+    category: str
+    purchase_date: date
+    purchase_price: float
+    depreciation_method: str
+    useful_life_years: int
+    salvage_value: float
+    accumulated_depreciation: Optional[float] = 0
+    book_value: Optional[float] = None
+
+class FixedAssetListResponse(BaseModel):
+    assets: List[FixedAssetResponse]
+    total: int
+
+class FixedAssetsSummaryResponse(BaseModel):
+    total_assets: int
+    total_purchase_price: float
+    total_accumulated_depreciation: float
+    total_book_value: float
+    by_category: Dict[str, float]
+
+class GenFinEntityResponse(BaseModel):
+    id: int
+    name: str
+    entity_type: str
+    tax_id: Optional[str] = None
+    status: Optional[str] = "active"
+
+class GenFinEntityListResponse(BaseModel):
+    entities: List[GenFinEntityResponse]
+    total: int
+
+class EntitiesSummaryResponse(BaseModel):
+    total_entities: int
+    by_type: Dict[str, int]
+
+class Summary1099Response(BaseModel):
+    year: int
+    total_vendors: int
+    total_payments: float
+    threshold: float
+
+class Vendor1099Response(BaseModel):
+    vendor_id: int
+    vendor_name: str
+    tax_id: Optional[str] = None
+    total_payments: float
+    requires_1099: bool
+
+class Vendor1099ListResponse(BaseModel):
+    vendors: List[Vendor1099Response]
+    total: int
+
+
+# ============================================================================
 # HEALTH CHECK
 # ============================================================================
 
-@router.get("/health", tags=["GenFin"])
+@router.get("/health", response_model=HealthResponse, tags=["GenFin"])
 async def genfin_health_check():
     """GenFin health check endpoint."""
     return {"status": "ok", "service": "genfin"}
@@ -40,7 +307,7 @@ async def genfin_health_check():
 # CHART OF ACCOUNTS
 # ============================================================================
 
-@router.get("/accounts", tags=["Accounts"])
+@router.get("/accounts", response_model=AccountListResponse, tags=["Accounts"])
 async def list_accounts(
     account_type: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -51,7 +318,7 @@ async def list_accounts(
     return genfin_core_service.list_accounts(account_type=account_type)
 
 
-@router.post("/accounts", tags=["Accounts"])
+@router.post("/accounts", response_model=AccountResponse, tags=["Accounts"])
 async def create_account(
     name: str,
     account_type: str,
@@ -74,7 +341,7 @@ async def create_account(
     return result
 
 
-@router.get("/accounts/{account_id}", tags=["Accounts"])
+@router.get("/accounts/{account_id}", response_model=AccountResponse, tags=["Accounts"])
 async def get_account(
     account_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -94,7 +361,7 @@ async def get_account(
 # CUSTOMERS
 # ============================================================================
 
-@router.get("/customers", tags=["Customers"])
+@router.get("/customers", response_model=CustomerListResponse, tags=["Customers"])
 async def list_customers(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -105,7 +372,7 @@ async def list_customers(
     return genfin_receivables_service.list_customers(status=status)
 
 
-@router.post("/customers", tags=["Customers"])
+@router.post("/customers", response_model=CustomerResponse, tags=["Customers"])
 async def create_customer(
     display_name: str,
     company_name: Optional[str] = None,
@@ -126,7 +393,7 @@ async def create_customer(
     return result
 
 
-@router.get("/customers/{customer_id}", tags=["Customers"])
+@router.get("/customers/{customer_id}", response_model=CustomerResponse, tags=["Customers"])
 async def get_customer(
     customer_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -146,7 +413,7 @@ async def get_customer(
 # VENDORS
 # ============================================================================
 
-@router.get("/vendors", tags=["Vendors"])
+@router.get("/vendors", response_model=VendorListResponse, tags=["Vendors"])
 async def list_vendors(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -157,7 +424,7 @@ async def list_vendors(
     return genfin_payables_service.list_vendors(status=status)
 
 
-@router.post("/vendors", tags=["Vendors"])
+@router.post("/vendors", response_model=VendorResponse, tags=["Vendors"])
 async def create_vendor(
     display_name: str,
     company_name: Optional[str] = None,
@@ -178,7 +445,7 @@ async def create_vendor(
     return result
 
 
-@router.get("/vendors/{vendor_id}", tags=["Vendors"])
+@router.get("/vendors/{vendor_id}", response_model=VendorResponse, tags=["Vendors"])
 async def get_vendor(
     vendor_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -198,7 +465,7 @@ async def get_vendor(
 # EMPLOYEES
 # ============================================================================
 
-@router.get("/employees", tags=["Employees"])
+@router.get("/employees", response_model=EmployeeListResponse, tags=["Employees"])
 async def list_genfin_employees(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -209,7 +476,7 @@ async def list_genfin_employees(
     return genfin_payroll_service.list_employees(status=status)
 
 
-@router.post("/employees", tags=["Employees"])
+@router.post("/employees", response_model=EmployeeResponse, tags=["Employees"])
 async def create_genfin_employee(
     first_name: str,
     last_name: str,
@@ -234,7 +501,7 @@ async def create_genfin_employee(
 # INVOICES
 # ============================================================================
 
-@router.get("/invoices", tags=["Invoices"])
+@router.get("/invoices", response_model=InvoiceListResponse, tags=["Invoices"])
 async def list_invoices(
     status: Optional[str] = None,
     customer_id: Optional[int] = None,
@@ -249,7 +516,7 @@ async def list_invoices(
     )
 
 
-@router.post("/invoices", tags=["Invoices"])
+@router.post("/invoices", response_model=InvoiceResponse, tags=["Invoices"])
 async def create_invoice(
     customer_id: int,
     invoice_date: date,
@@ -272,7 +539,7 @@ async def create_invoice(
     return result
 
 
-@router.get("/invoices/{invoice_id}", tags=["Invoices"])
+@router.get("/invoices/{invoice_id}", response_model=InvoiceResponse, tags=["Invoices"])
 async def get_invoice(
     invoice_id: int,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -292,7 +559,7 @@ async def get_invoice(
 # BILLS
 # ============================================================================
 
-@router.get("/bills", tags=["Bills"])
+@router.get("/bills", response_model=BillListResponse, tags=["Bills"])
 async def list_bills(
     status: Optional[str] = None,
     vendor_id: Optional[int] = None,
@@ -307,7 +574,7 @@ async def list_bills(
     )
 
 
-@router.post("/bills", tags=["Bills"])
+@router.post("/bills", response_model=BillResponse, tags=["Bills"])
 async def create_bill(
     vendor_id: int,
     bill_date: date,
@@ -334,7 +601,7 @@ async def create_bill(
 # CHECKS
 # ============================================================================
 
-@router.get("/checks", tags=["Checks"])
+@router.get("/checks", response_model=CheckListResponse, tags=["Checks"])
 async def list_checks(
     bank_account_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -349,7 +616,7 @@ async def list_checks(
     )
 
 
-@router.post("/checks", tags=["Checks"])
+@router.post("/checks", response_model=CheckResponse, tags=["Checks"])
 async def create_check(
     bank_account_id: int,
     payee_name: str,
@@ -378,7 +645,7 @@ async def create_check(
 # BANK ACCOUNTS
 # ============================================================================
 
-@router.get("/bank-accounts", tags=["Banking"])
+@router.get("/bank-accounts", response_model=BankAccountListResponse, tags=["Banking"])
 async def list_bank_accounts(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -388,7 +655,7 @@ async def list_bank_accounts(
     return genfin_banking_service.list_bank_accounts()
 
 
-@router.post("/bank-accounts", tags=["Banking"])
+@router.post("/bank-accounts", response_model=BankAccountResponse, tags=["Banking"])
 async def create_bank_account(
     account_name: str,
     account_type: str,
@@ -415,7 +682,7 @@ async def create_bank_account(
 # FINANCIAL REPORTS
 # ============================================================================
 
-@router.get("/reports/trial-balance", tags=["Reports"])
+@router.get("/reports/trial-balance", response_model=TrialBalanceResponse, tags=["Reports"])
 async def get_trial_balance(
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -426,7 +693,7 @@ async def get_trial_balance(
     return genfin_reports_service.get_trial_balance(as_of_date=as_of_date)
 
 
-@router.get("/reports/balance-sheet", tags=["Reports"])
+@router.get("/reports/balance-sheet", response_model=BalanceSheetResponse, tags=["Reports"])
 async def get_balance_sheet(
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -437,7 +704,7 @@ async def get_balance_sheet(
     return genfin_reports_service.get_balance_sheet(as_of_date=as_of_date)
 
 
-@router.get("/reports/profit-loss", tags=["Reports"])
+@router.get("/reports/profit-loss", response_model=ProfitLossResponse, tags=["Reports"])
 async def get_profit_loss(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -452,7 +719,7 @@ async def get_profit_loss(
     )
 
 
-@router.get("/reports/cash-flow", tags=["Reports"])
+@router.get("/reports/cash-flow", response_model=CashFlowReportResponse, tags=["Reports"])
 async def get_cash_flow_report(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -467,7 +734,7 @@ async def get_cash_flow_report(
     )
 
 
-@router.get("/reports/ar-aging", tags=["Reports"])
+@router.get("/reports/ar-aging", response_model=AgingReportResponse, tags=["Reports"])
 async def get_ar_aging(
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -478,7 +745,7 @@ async def get_ar_aging(
     return genfin_reports_service.get_ar_aging(as_of_date=as_of_date)
 
 
-@router.get("/reports/ap-aging", tags=["Reports"])
+@router.get("/reports/ap-aging", response_model=AgingReportResponse, tags=["Reports"])
 async def get_ap_aging(
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -493,7 +760,7 @@ async def get_ap_aging(
 # PAYROLL
 # ============================================================================
 
-@router.get("/payroll/schedules", tags=["Payroll"])
+@router.get("/payroll/schedules", response_model=PayScheduleListResponse, tags=["Payroll"])
 async def list_pay_schedules(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -503,7 +770,7 @@ async def list_pay_schedules(
     return genfin_payroll_service.list_pay_schedules()
 
 
-@router.post("/payroll/schedules", tags=["Payroll"])
+@router.post("/payroll/schedules", response_model=PayScheduleResponse, tags=["Payroll"])
 async def create_pay_schedule(
     name: str,
     frequency: str,
@@ -522,7 +789,7 @@ async def create_pay_schedule(
     return result
 
 
-@router.get("/payroll/runs", tags=["Payroll"])
+@router.get("/payroll/runs", response_model=PayRunListResponse, tags=["Payroll"])
 async def list_pay_runs(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -537,7 +804,7 @@ async def list_pay_runs(
 # RECURRING TRANSACTIONS
 # ============================================================================
 
-@router.get("/recurring", tags=["Recurring"])
+@router.get("/recurring", response_model=RecurringTemplateListResponse, tags=["Recurring"])
 async def list_recurring_templates(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -547,7 +814,7 @@ async def list_recurring_templates(
     return genfin_recurring_service.list_templates()
 
 
-@router.post("/recurring", tags=["Recurring"])
+@router.post("/recurring", response_model=RecurringTemplateResponse, tags=["Recurring"])
 async def create_recurring_template(
     template_type: str,
     name: str,
@@ -574,7 +841,7 @@ async def create_recurring_template(
 # BANK FEEDS
 # ============================================================================
 
-@router.get("/bank-feeds/summary", tags=["Bank Feeds"])
+@router.get("/bank-feeds/summary", response_model=BankFeedSummaryResponse, tags=["Bank Feeds"])
 async def get_bank_feed_summary(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -584,7 +851,7 @@ async def get_bank_feed_summary(
     return genfin_bank_feeds_service.get_summary()
 
 
-@router.get("/bank-feeds/transactions", tags=["Bank Feeds"])
+@router.get("/bank-feeds/transactions", response_model=BankFeedTransactionListResponse, tags=["Bank Feeds"])
 async def list_bank_feed_transactions(
     status: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -599,7 +866,7 @@ async def list_bank_feed_transactions(
 # FIXED ASSETS
 # ============================================================================
 
-@router.get("/fixed-assets", tags=["Fixed Assets"])
+@router.get("/fixed-assets", response_model=FixedAssetListResponse, tags=["Fixed Assets"])
 async def list_fixed_assets(
     category: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -610,7 +877,7 @@ async def list_fixed_assets(
     return genfin_fixed_assets_service.list_assets(category=category)
 
 
-@router.post("/fixed-assets", tags=["Fixed Assets"])
+@router.post("/fixed-assets", response_model=FixedAssetResponse, tags=["Fixed Assets"])
 async def create_fixed_asset(
     name: str = Query(...),
     category: str = Query(...),
@@ -637,7 +904,7 @@ async def create_fixed_asset(
     return result
 
 
-@router.get("/fixed-assets/summary", tags=["Fixed Assets"])
+@router.get("/fixed-assets/summary", response_model=FixedAssetsSummaryResponse, tags=["Fixed Assets"])
 async def get_fixed_assets_summary(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -651,7 +918,7 @@ async def get_fixed_assets_summary(
 # ENTITIES (MULTI-COMPANY)
 # ============================================================================
 
-@router.get("/entities", tags=["Entities"])
+@router.get("/entities", response_model=GenFinEntityListResponse, tags=["Entities"])
 async def list_genfin_entities(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -661,7 +928,7 @@ async def list_genfin_entities(
     return genfin_core_service.list_entities()
 
 
-@router.get("/entities/summary", tags=["Entities"])
+@router.get("/entities/summary", response_model=EntitiesSummaryResponse, tags=["Entities"])
 async def get_entities_summary(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
@@ -675,7 +942,7 @@ async def get_entities_summary(
 # 1099 TRACKING
 # ============================================================================
 
-@router.get("/1099/summary", tags=["1099"])
+@router.get("/1099/summary", response_model=Summary1099Response, tags=["1099"])
 async def get_1099_summary(
     year: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -686,7 +953,7 @@ async def get_1099_summary(
     return genfin_1099_service.get_summary(year=year)
 
 
-@router.get("/1099/vendors", tags=["1099"])
+@router.get("/1099/vendors", response_model=Vendor1099ListResponse, tags=["1099"])
 async def list_1099_vendors(
     year: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)

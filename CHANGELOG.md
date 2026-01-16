@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.0 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.1 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,38 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.1 (January 16, 2026)
+
+### Pydantic Response Models - API Documentation Enhancement
+
+**Added Pydantic response_model to 106 router endpoints for improved API documentation and type safety.**
+
+This addresses the second item in the v6.12.2 "Remaining Items" list (85% endpoints lack response_model).
+
+**Routers Updated:**
+
+| Router | Endpoints Updated | Coverage |
+|--------|------------------|----------|
+| `farm_business.py` | 20 | 100% |
+| `genfin.py` | 41 | 100% |
+| `livestock.py` | 13 | 100% |
+| `grants.py` | 13 | 100% |
+| `optimization.py` | 19 | 100% |
+
+**Benefits:**
+- **API Documentation**: Swagger/ReDoc now shows response schemas
+- **Type Safety**: Pydantic validates response data
+- **Client Generation**: Enables automatic client SDK generation
+- **IDE Support**: Better autocomplete and type hints
+
+**Response Model Categories Added:**
+- Entity/CRUD responses (list, detail, create, update)
+- Financial reports (balance sheet, P&L, cash flow, aging)
+- Optimization results (costs, recommendations, schedules)
+- Grant/compliance tracking responses
 
 ---
 
@@ -158,7 +190,7 @@ These were identified but not fixed as they require architectural decisions:
 | Issue | Priority | Notes |
 |-------|----------|-------|
 | ~~`main.py` is 16,804 lines~~ | ~~Medium~~ | ~~Refactor to FastAPI routers recommended~~ **DONE v6.13.0** |
-| 85% endpoints lack `response_model` | Medium | Add Pydantic response models |
+| ~~85% endpoints lack `response_model`~~ | ~~Medium~~ | ~~Add Pydantic response models~~ **DONE v6.13.1** |
 | Rate limiting on 1% of endpoints | Medium | Extend slowapi coverage |
 | Plaintext token storage | Low | `~/.agtools/settings.json` needs crypto library |
 | HTTP default in frontend | Low | Configure HTTPS for production deployment |
@@ -1480,6 +1512,7 @@ GET /api/v1/export/crop-cost-analysis/{format}
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 6.13.1 | Jan 16, 2026 | Pydantic response models added to 106 router endpoints |
 | 6.13.0 | Jan 16, 2026 | Main.py refactoring - FastAPI routers architecture (14 router files) |
 | 6.12.2 | Jan 15, 2026 | Security audit - 19 vulnerabilities fixed |
 | 6.12.1 | Jan 15, 2026 | F# Domain Models (1,052 lines), documentation updates |
