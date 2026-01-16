@@ -262,24 +262,38 @@ async def record_gdd(
     return result
 
 
-@router.get("/climate/gdd/accumulated", response_model=GDDSummary, tags=["Climate"])
+@router.get("/climate/gdd/accumulated", tags=["Climate"])
 async def get_accumulated_gdd(
     field_id: int,
-    crop: str,
+    crop_type: str,
+    planting_date: date,
+    end_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get accumulated GDD and growth stage estimate."""
+    """Get accumulated GDD and growth stage estimate from planting date."""
     service = get_climate_service()
-    return service.get_accumulated_gdd(field_id, crop)
+    accumulated, entries = service.get_accumulated_gdd(field_id, crop_type, planting_date, end_date)
+    return {
+        "accumulated": accumulated,
+        "total_gdd": accumulated,
+        "entries_count": len(entries),
+        "field_id": field_id,
+        "crop_type": crop_type,
+        "planting_date": planting_date.isoformat(),
+        "end_date": (end_date or date.today()).isoformat()
+    }
 
 
 @router.get("/climate/gdd/summary", tags=["Climate"])
 async def get_gdd_summary(
+    field_id: int,
+    crop_type: str,
+    planting_date: date,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get GDD summary across all fields."""
+    """Get GDD summary with crop stage predictions for a specific field."""
     service = get_climate_service()
-    return service.get_gdd_summary()
+    return service.get_gdd_summary(field_id, crop_type, planting_date)
 
 
 # ============================================================================
