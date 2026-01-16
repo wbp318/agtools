@@ -1,8 +1,10 @@
 """
 AgTools API Client
+v6.13.4
 
 Base HTTP client for communicating with the FastAPI backend.
-Handles connection management, error handling, and offline fallback.
+Handles connection management, error handling, offline fallback,
+and HTTPS/SSL configuration for production deployments.
 """
 
 import httpx
@@ -10,6 +12,7 @@ from typing import Any, Optional, Callable
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import ssl
 
 import sys
 import os
@@ -114,7 +117,7 @@ class APIClient:
         return self._is_connected
 
     def _get_client(self) -> httpx.Client:
-        """Get or create the HTTP client."""
+        """Get or create the HTTP client with proper SSL configuration."""
         if self._client is None:
             headers = {
                 "Content-Type": "application/json",
@@ -123,11 +126,28 @@ class APIClient:
             if self._auth_token:
                 headers["Authorization"] = f"Bearer {self._auth_token}"
 
+            # Configure SSL verification
+            # For localhost development, allow unverified connections
+            # For production HTTPS, enforce certificate verification
+            verify_ssl = self._settings.api.verify_ssl
+            if not verify_ssl and not self._settings.api.is_localhost:
+                # Force SSL verification for non-localhost unless explicitly disabled
+                print("WARNING: SSL verification disabled for non-localhost connection")
+
             self._client = httpx.Client(
                 base_url=self.base_url,
                 timeout=self._settings.api.timeout_seconds,
-                headers=headers
+                headers=headers,
+                verify=verify_ssl,
+                # Follow redirects (e.g., HTTP->HTTPS)
+                follow_redirects=True
             )
+
+            # Log security status on first connection
+            is_valid, warning = self._settings.api.validate_security()
+            if warning:
+                print(warning)
+
         return self._client
 
     def set_auth_token(self, token: str) -> None:

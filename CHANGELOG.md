@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.3 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.4 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,61 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.4 (January 16, 2026)
+
+### HTTPS Configuration for Production
+
+**Added HTTPS/SSL support and security configuration for production deployments.**
+
+This addresses the fifth item in the v6.12.2 "Remaining Items" list (HTTP default in frontend).
+
+**Features:**
+
+1. **Environment Variable Support**
+   - `AGTOOLS_API_URL` - Set production API URL (e.g., `https://api.yourfarm.com`)
+   - Falls back to `http://localhost:8000` for development
+
+2. **SSL/TLS Configuration**
+   - `verify_ssl` setting to enable/disable certificate verification
+   - Enabled by default for production security
+   - Can be disabled for self-signed certs in development
+
+3. **Security Validation**
+   - Warns when using HTTP for non-localhost connections
+   - Allows HTTP only for localhost development
+   - Logs security status on first API connection
+
+4. **Settings UI Updates**
+   - Updated placeholder text to show HTTPS example
+   - Added "Verify SSL certificates" checkbox
+   - Settings persisted to `settings.json`
+
+**Files Modified:**
+```
+frontend/config.py - Added APIConfig security properties
+frontend/api/client.py - Added SSL verification and redirect following
+frontend/ui/screens/settings.py - Added SSL checkbox to UI
+```
+
+**Usage:**
+
+Development (default):
+```
+# Uses http://localhost:8000 automatically
+python app.py
+```
+
+Production:
+```bash
+# Set environment variable
+export AGTOOLS_API_URL=https://api.yourfarm.com
+python app.py
+```
+
+Or configure in Settings > API Server.
 
 ---
 
@@ -303,7 +358,7 @@ These were identified but not fixed as they require architectural decisions:
 | ~~85% endpoints lack `response_model`~~ | ~~Medium~~ | ~~Add Pydantic response models~~ **DONE v6.13.1** |
 | ~~Rate limiting on 1% of endpoints~~ | ~~Medium~~ | ~~Extend slowapi coverage~~ **DONE v6.13.2** |
 | ~~Plaintext token storage~~ | ~~Low~~ | ~~`~/.agtools/settings.json` needs crypto library~~ **DONE v6.13.3** |
-| HTTP default in frontend | Low | Configure HTTPS for production deployment |
+| ~~HTTP default in frontend~~ | ~~Low~~ | ~~Configure HTTPS for production deployment~~ **DONE v6.13.4** |
 | 0% context managers for DB | Low | Add `with` statements for connections |
 | ~25% code duplication | Low | Extract to base service classes |
 

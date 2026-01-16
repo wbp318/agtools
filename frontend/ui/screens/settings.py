@@ -201,9 +201,15 @@ class ConnectionSettingsTab(QWidget):
         api_layout.setSpacing(12)
 
         self._base_url_edit = QLineEdit()
-        self._base_url_edit.setPlaceholderText("http://localhost:8000")
+        self._base_url_edit.setPlaceholderText("https://api.yourfarm.com or http://localhost:8000")
         self._base_url_edit.textChanged.connect(self._on_change)
         api_layout.addRow("Server URL:", self._base_url_edit)
+
+        # SSL verification checkbox
+        self._verify_ssl_check = QCheckBox("Verify SSL certificates (recommended for production)")
+        self._verify_ssl_check.setChecked(True)
+        self._verify_ssl_check.stateChanged.connect(self._on_change)
+        api_layout.addRow("Security:", self._verify_ssl_check)
 
         self._timeout_spin = QSpinBox()
         self._timeout_spin.setRange(5, 120)
@@ -253,6 +259,7 @@ class ConnectionSettingsTab(QWidget):
 
     def _load_settings(self) -> None:
         self._base_url_edit.setText(self._settings.api.base_url)
+        self._verify_ssl_check.setChecked(self._settings.api.verify_ssl)
         self._timeout_spin.setValue(int(self._settings.api.timeout_seconds))
         self._refresh_status()
 
@@ -309,6 +316,7 @@ class ConnectionSettingsTab(QWidget):
     def save_settings(self) -> None:
         """Save settings from UI to config."""
         self._settings.api.base_url = self._base_url_edit.text()
+        self._settings.api.verify_ssl = self._verify_ssl_check.isChecked()
         self._settings.api.timeout_seconds = float(self._timeout_spin.value())
         self._settings.save()
 

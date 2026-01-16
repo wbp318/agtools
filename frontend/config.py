@@ -40,17 +40,62 @@ CACHE_DIR = USER_DATA_DIR / "cache"
 SETTINGS_FILE = USER_DATA_DIR / "settings.json"
 
 
+def _get_default_base_url() -> str:
+    """
+    Get the default API base URL.
+
+    Priority:
+    1. AGTOOLS_API_URL environment variable
+    2. Default to localhost for development
+
+    For production, set AGTOOLS_API_URL=https://api.yourfarm.com
+    """
+    env_url = os.getenv("AGTOOLS_API_URL")
+    if env_url:
+        return env_url.rstrip("/")
+    return "http://localhost:8000"
+
+
 @dataclass
 class APIConfig:
     """API connection configuration."""
-    base_url: str = "http://localhost:8000"
+    base_url: str = None  # Set in __post_init__
     api_prefix: str = "/api/v1"
     timeout_seconds: float = 30.0
     retry_attempts: int = 3
+    verify_ssl: bool = True  # SSL certificate verification
+    allow_insecure_localhost: bool = True  # Allow HTTP for localhost only
+
+    def __post_init__(self):
+        if self.base_url is None:
+            self.base_url = _get_default_base_url()
 
     @property
     def full_url(self) -> str:
         return f"{self.base_url}{self.api_prefix}"
+
+    @property
+    def is_https(self) -> bool:
+        """Check if using HTTPS."""
+        return self.base_url.startswith("https://")
+
+    @property
+    def is_localhost(self) -> bool:
+        """Check if connecting to localhost."""
+        return "localhost" in self.base_url or "127.0.0.1" in self.base_url
+
+    def validate_security(self) -> tuple[bool, str]:
+        """
+        Validate security configuration.
+
+        Returns:
+            (is_valid, warning_message)
+        """
+        if not self.is_https:
+            if self.is_localhost and self.allow_insecure_localhost:
+                return True, ""
+            return False, "WARNING: Using HTTP for non-localhost. Set AGTOOLS_API_URL to an HTTPS URL for production."
+        return True, ""
 
 
 @dataclass
@@ -133,6 +178,7 @@ class AppSettings:
             "api": {
                 "base_url": self.api.base_url,
                 "timeout_seconds": self.api.timeout_seconds,
+                "verify_ssl": self.api.verify_ssl,
             },
             "ui": {
                 "theme": self.ui.theme,
@@ -170,6 +216,7 @@ class AppSettings:
                 if "api" in data:
                     settings.api.base_url = data["api"].get("base_url", settings.api.base_url)
                     settings.api.timeout_seconds = data["api"].get("timeout_seconds", settings.api.timeout_seconds)
+                    settings.api.verify_ssl = data["api"].get("verify_ssl", settings.api.verify_ssl)
 
                 if "ui" in data:
                     settings.ui.theme = data["ui"].get("theme", settings.ui.theme)
