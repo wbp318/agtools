@@ -45,28 +45,73 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ## v6.13.7 (January 16, 2026)
 
-### Security Audit Fixes
+### Security Audit & Fixes
 
-**Fixed critical security issues identified during code audit.**
+**Comprehensive security audit of v6.13.5-v6.13.6 changes with critical fixes applied.**
 
-**Fixes:**
+**Audit Pipeline:** Investigation → Test → Audit → Implementer → Re-Test → Done
 
-1. **SQL Injection Prevention - ORDER BY**
-   - Added `_sanitize_order_by()` method to validate ORDER BY clauses
-   - Regex whitelist allows only valid column names with ASC/DESC
-   - Blocks injection attempts like `id; DROP TABLE users`
+**Audit Summary:**
+- Files Analyzed: 4 (base_service.py, field_service.py, task_service.py, db_utils.py)
+- Issues Found: 4 Critical, 13 High, 5 Medium
+- Issues Fixed: 2 Critical (immediate security risks)
+- Issues Deferred: Architectural changes requiring v6.14.x
 
-2. **Query Limit DoS Protection**
-   - Added `MAX_LIMIT = 10000` constant
-   - `list_entities()` now caps limit parameter to prevent memory exhaustion
+---
+
+### Fixed Issues
+
+#### 1. SQL Injection Prevention - ORDER BY (CRITICAL)
+- **Risk:** Dynamic ORDER BY clause could allow SQL injection
+- **Fix:** Added `_sanitize_order_by()` regex whitelist validation
+- **Pattern:** Only allows `column_name ASC/DESC` format
+- **Blocked:** `id; DROP TABLE users`, `1=1--`, etc.
+
+#### 2. Query Limit DoS Protection (CRITICAL)
+- **Risk:** Unlimited LIMIT parameter could cause memory exhaustion
+- **Fix:** Added `MAX_LIMIT = 10000` constant
+- **Behavior:** `list_entities()` caps limit to prevent abuse
+
+---
+
+### Deferred Issues (v6.14.x)
+
+#### 1. Auth Service Thread Safety (CRITICAL - Architectural)
+- **Risk:** Global singleton with mutable `db` attribute causes race conditions
+- **Location:** `auth_service.py`, pattern used in all services
+- **Issue:** `self.auth_service.db = conn` reassignment not thread-safe
+- **Impact:** Concurrent requests may share/corrupt connections
+- **Solution Required:** Dependency injection or thread-local storage
+
+#### 2. Transaction Isolation (HIGH - Architectural)
+- **Risk:** Status checks (SELECT) and updates not atomic
+- **Location:** `task_service.py` lines 530-535
+- **Issue:** Race condition between SELECT status and UPDATE
+- **Solution Required:** Optimistic locking or SELECT FOR UPDATE
+
+#### 3. Error Message Sanitization (HIGH)
+- **Risk:** Raw exception messages exposed to clients
+- **Location:** All service exception handlers
+- **Issue:** `return None, str(e)` leaks internal details
+- **Solution Required:** Error classification and sanitized messages
+
+#### 4. Audit Log Failure Handling (MEDIUM)
+- **Risk:** Failed audit logs silently ignored
+- **Location:** `auth_service.py` log_action method
+- **Issue:** Exceptions caught and printed, not logged/alerted
+- **Solution Required:** Proper logging infrastructure
+
+---
 
 **Files Modified:**
 ```
-backend/services/base_service.py - Added security validations
+backend/services/base_service.py - Added _sanitize_order_by(), MAX_LIMIT
 ```
 
-**Deferred (Architectural):**
-- Auth service thread safety (requires design change for v7.x)
+**Test Results:**
+- 8/8 SQL injection attempts blocked
+- All service instantiation tests passed
+- Inheritance chain verified
 
 ---
 
