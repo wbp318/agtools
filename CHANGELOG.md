@@ -60,7 +60,17 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 **File Modified:** `backend/routers/sustainability.py`
 
-**Test Results:** All 20 critical path tests passing (previously 2 failures)
+**Full Test Suite Results (v6.13.9):**
+
+| Test File | Result |
+|-----------|--------|
+| `test_critical_paths.py` | ✅ 20 passed |
+| `test_auth_security.py` | ✅ 29 passed, 6 skipped |
+| `test_farm_workflow.py` | ✅ 14 passed |
+| `test_genfin_workflow.py` | ✅ 26 passed |
+| `test_genfin_endpoints.py` | ✅ 226 passed, 7 skipped |
+| `test_reporting_safety.py` | ✅ 40 passed |
+| **Total** | **355 passed, 13 skipped** |
 
 ---
 
