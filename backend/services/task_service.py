@@ -2,7 +2,7 @@
 Task Service for Farm Operations Manager
 Handles task CRUD operations, status management, and role-based access.
 
-AgTools v6.13.5
+AgTools v6.13.6
 """
 
 import sqlite3
@@ -12,8 +12,9 @@ from typing import Optional, List, Tuple
 
 from pydantic import BaseModel, Field
 
-from .auth_service import get_auth_service, UserRole
-from database.db_utils import get_db_connection, DatabaseManager
+from .auth_service import UserRole
+from database.db_utils import get_db_connection
+from .base_service import BaseService
 
 
 # ============================================================================
@@ -91,13 +92,17 @@ class StatusChangeRequest(BaseModel):
 # TASK SERVICE CLASS
 # ============================================================================
 
-class TaskService:
+class TaskService(BaseService[TaskResponse]):
     """
     Task service handling:
     - Task CRUD operations
     - Status management
     - Role-based access control
+
+    Inherits from BaseService for common CRUD patterns.
     """
+
+    TABLE_NAME = "tasks"
 
     # Valid status transitions
     VALID_TRANSITIONS = {
@@ -114,10 +119,7 @@ class TaskService:
         Args:
             db_path: Path to SQLite database
         """
-        self.db_path = db_path
-        self.db = DatabaseManager(db_path)
-        self.auth_service = get_auth_service()
-        self._init_database()
+        super().__init__(db_path)
 
     def _init_database(self) -> None:
         """Initialize database tables if they don't exist."""
@@ -161,7 +163,7 @@ class TaskService:
     # HELPER METHODS
     # ========================================================================
 
-    def _row_to_response(self, row: sqlite3.Row) -> TaskResponse:
+    def _row_to_response(self, row: sqlite3.Row, **kwargs) -> TaskResponse:
         """Convert a database row to TaskResponse."""
         return TaskResponse(
             id=row["id"],
@@ -642,28 +644,7 @@ class TaskService:
         Returns:
             Tuple of (success, error_message)
         """
-        with get_db_connection(self.db_path) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE tasks SET is_active = 0, updated_at = ? WHERE id = ?
-            """, (datetime.utcnow(), task_id))
-
-            if cursor.rowcount == 0:
-                return False, "Task not found"
-
-            # Log action
-            self.auth_service.db = conn
-            self.auth_service.log_action(
-                user_id=deleted_by,
-                action="delete_task",
-                entity_type="task",
-                entity_id=task_id
-            )
-
-            conn.commit()
-
-        return True, None
+        return self.soft_delete(task_id, deleted_by, entity_name="Task")
 
 
 # ============================================================================

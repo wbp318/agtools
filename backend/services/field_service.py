@@ -2,7 +2,7 @@
 Field Service for Farm Operations Manager
 Handles field CRUD operations and field management.
 
-AgTools v6.13.5
+AgTools v6.13.6
 """
 
 import sqlite3
@@ -12,8 +12,8 @@ from typing import Optional, List, Tuple
 
 from pydantic import BaseModel, Field
 
-from .auth_service import get_auth_service
-from database.db_utils import get_db_connection, DatabaseManager
+from database.db_utils import get_db_connection
+from .base_service import BaseService
 
 
 # ============================================================================
@@ -127,13 +127,17 @@ class FieldSummary(BaseModel):
 # FIELD SERVICE CLASS
 # ============================================================================
 
-class FieldService:
+class FieldService(BaseService[FieldResponse]):
     """
     Field service handling:
     - Field CRUD operations
     - Field listing and filtering
     - Field statistics
+
+    Inherits from BaseService for common CRUD patterns.
     """
+
+    TABLE_NAME = "fields"
 
     def __init__(self, db_path: str = "agtools.db"):
         """
@@ -142,10 +146,7 @@ class FieldService:
         Args:
             db_path: Path to SQLite database
         """
-        self.db_path = db_path
-        self.db = DatabaseManager(db_path)
-        self.auth_service = get_auth_service()
-        self._init_database()
+        super().__init__(db_path)
 
     def _init_database(self) -> None:
         """Initialize database tables if they don't exist."""
@@ -188,14 +189,7 @@ class FieldService:
     # HELPER METHODS
     # ========================================================================
 
-    def _safe_get(self, row: sqlite3.Row, key: str, default=None):
-        """Safely get a value from a sqlite3.Row."""
-        try:
-            return row[key]
-        except (KeyError, IndexError):
-            return default
-
-    def _row_to_response(self, row: sqlite3.Row, include_stats: bool = False) -> FieldResponse:
+    def _row_to_response(self, row: sqlite3.Row, include_stats: bool = False, **kwargs) -> FieldResponse:
         """Convert a database row to FieldResponse."""
         response = FieldResponse(
             id=row["id"],
@@ -511,28 +505,7 @@ class FieldService:
         Returns:
             Tuple of (success, error_message)
         """
-        with get_db_connection(self.db_path) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE fields SET is_active = 0, updated_at = ? WHERE id = ?
-            """, (datetime.utcnow(), field_id))
-
-            if cursor.rowcount == 0:
-                return False, "Field not found"
-
-            # Log action
-            self.auth_service.db = conn
-            self.auth_service.log_action(
-                user_id=deleted_by,
-                action="delete_field",
-                entity_type="field",
-                entity_id=field_id
-            )
-
-            conn.commit()
-
-        return True, None
+        return self.soft_delete(field_id, deleted_by, entity_name="Field")
 
     # ========================================================================
     # STATISTICS METHODS

@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.5 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.6 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,69 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.6 (January 16, 2026)
+
+### Base Service Class for Code Deduplication
+
+**Created abstract base service class to reduce ~25% code duplication across services.**
+
+This addresses the final item in the v6.12.2 "Remaining Items" list (duplicate code extraction).
+
+**New: `backend/services/base_service.py`**
+
+1. **BaseService Abstract Class**
+   - Generic typed: `BaseService[ResponseT]`
+   - `TABLE_NAME` class attribute for table identification
+   - Lazy-loaded `auth_service` to avoid circular imports
+
+2. **Common Methods Extracted**
+   - `_safe_get()` - Safe row value access
+   - `get_by_id()` - Generic entity retrieval
+   - `list_entities()` - Filtered listing with pagination
+   - `soft_delete()` - Standardized soft delete with audit logging
+
+3. **Query Building Helpers**
+   - `build_conditions()` - WHERE clause from filter dict
+   - `build_like_conditions()` - Multi-field LIKE search
+   - `build_update_params()` - UPDATE clause from Pydantic model
+
+4. **ServiceRegistry Singleton Factory**
+   - Centralized service instance management
+   - Support for multiple database paths
+
+**Services Updated:**
+- `field_service.py` - Inherits from `BaseService[FieldResponse]`
+- `task_service.py` - Inherits from `BaseService[TaskResponse]`
+
+**Code Reduction Examples:**
+```python
+# Before: 25+ lines per service
+def delete_field(self, field_id, deleted_by):
+    with get_db_connection(...) as conn:
+        cursor.execute("UPDATE ... SET is_active = 0 ...")
+        if cursor.rowcount == 0: return False, "Not found"
+        self.auth_service.log_action(...)
+        conn.commit()
+    return True, None
+
+# After: 1 line
+def delete_field(self, field_id, deleted_by):
+    return self.soft_delete(field_id, deleted_by, entity_name="Field")
+```
+
+**Files Created:**
+```
+backend/services/base_service.py - Abstract base service with common patterns
+```
+
+**Files Modified:**
+```
+backend/services/field_service.py - Now inherits from BaseService
+backend/services/task_service.py - Now inherits from BaseService
+```
 
 ---
 
