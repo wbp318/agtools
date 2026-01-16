@@ -1,6 +1,6 @@
 """
 Inventory Management Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Inventory items (CRUD operations)
@@ -11,13 +11,15 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel
 
 from middleware.auth_middleware import (
     get_current_active_user,
     require_manager,
     AuthenticatedUser
 )
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.inventory_service import (
     get_inventory_service,
     InventoryItemCreate,
@@ -73,11 +75,13 @@ async def list_inventory(
 
 
 @router.post("/inventory", response_model=InventoryItemResponse, tags=["Inventory"])
+@limiter.limit(RATE_MODERATE)
 async def create_inventory_item(
+    request: Request,
     item_data: InventoryItemCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new inventory item."""
+    """Create a new inventory item. Rate limited: 30/minute."""
     inv_service = get_inventory_service()
     item, error = inv_service.create_item(item_data, user.id)
 
@@ -144,12 +148,14 @@ async def get_inventory_item(
 
 
 @router.put("/inventory/{item_id}", response_model=InventoryItemResponse, tags=["Inventory"])
+@limiter.limit(RATE_MODERATE)
 async def update_inventory_item(
+    request: Request,
     item_id: int,
     item_data: InventoryItemUpdate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Update inventory item."""
+    """Update inventory item. Rate limited: 30/minute."""
     inv_service = get_inventory_service()
     item, error = inv_service.update_item(item_id, item_data, user.id)
 
@@ -182,12 +188,14 @@ async def delete_inventory_item(
 # ============================================================================
 
 @router.post("/inventory/transaction", response_model=TransactionResponse, tags=["Inventory"])
+@limiter.limit(RATE_MODERATE)
 async def record_inventory_transaction(
+    request: Request,
     trans_data: TransactionCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Record an inventory transaction.
+    Record an inventory transaction. Rate limited: 30/minute.
 
     Use positive quantity for additions (purchase, return, adjustment up).
     Use negative quantity for deductions (usage, waste, adjustment down).
@@ -222,12 +230,14 @@ async def get_item_transactions(
 
 
 @router.post("/inventory/purchase", response_model=InventoryItemResponse, tags=["Inventory"])
+@limiter.limit(RATE_MODERATE)
 async def quick_purchase(
+    request: Request,
     purchase_data: QuickPurchaseRequest,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Quick purchase entry.
+    Quick purchase entry. Rate limited: 30/minute.
 
     Adds quantity to inventory and records a purchase transaction.
     """
@@ -241,12 +251,14 @@ async def quick_purchase(
 
 
 @router.post("/inventory/adjust", response_model=InventoryItemResponse, tags=["Inventory"])
+@limiter.limit(RATE_MODERATE)
 async def adjust_quantity(
+    request: Request,
     adjust_data: AdjustQuantityRequest,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Adjust inventory quantity (for counts, corrections).
+    Adjust inventory quantity (for counts, corrections). Rate limited: 30/minute.
 
     Sets the quantity to the new value and records an adjustment transaction.
     """

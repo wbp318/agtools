@@ -1,6 +1,6 @@
 """
 Equipment and Maintenance Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Equipment management (CRUD operations)
@@ -11,13 +11,15 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel
 
 from middleware.auth_middleware import (
     get_current_active_user,
     require_manager,
     AuthenticatedUser
 )
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.equipment_service import (
     get_equipment_service,
     EquipmentCreate,
@@ -69,11 +71,13 @@ async def list_equipment(
 
 
 @router.post("/equipment", response_model=EquipmentResponse, tags=["Equipment"])
+@limiter.limit(RATE_MODERATE)
 async def create_equipment(
+    request: Request,
     equip_data: EquipmentCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new equipment record."""
+    """Create a new equipment record. Rate limited: 30/minute."""
     equip_service = get_equipment_service()
     equipment, error = equip_service.create_equipment(equip_data, user.id)
 
@@ -126,12 +130,14 @@ async def get_equipment(
 
 
 @router.put("/equipment/{equipment_id}", response_model=EquipmentResponse, tags=["Equipment"])
+@limiter.limit(RATE_MODERATE)
 async def update_equipment(
+    request: Request,
     equipment_id: int,
     equip_data: EquipmentUpdate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Update equipment."""
+    """Update equipment. Rate limited: 30/minute."""
     equip_service = get_equipment_service()
     equipment, error = equip_service.update_equipment(equipment_id, equip_data, user.id)
 
@@ -205,11 +211,13 @@ async def list_maintenance(
 
 
 @router.post("/maintenance", response_model=MaintenanceResponse, tags=["Maintenance"])
+@limiter.limit(RATE_MODERATE)
 async def create_maintenance(
+    request: Request,
     maint_data: MaintenanceCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Log a maintenance record."""
+    """Log a maintenance record. Rate limited: 30/minute."""
     equip_service = get_equipment_service()
     maintenance, error = equip_service.create_maintenance(maint_data, user.id)
 
@@ -277,11 +285,13 @@ async def get_equipment_usage_history(
 
 
 @router.post("/equipment/usage", response_model=EquipmentUsageResponse, tags=["Equipment"])
+@limiter.limit(RATE_MODERATE)
 async def log_equipment_usage(
+    request: Request,
     usage_data: EquipmentUsageCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Log equipment usage (hours, fuel, operator)."""
+    """Log equipment usage (hours, fuel, operator). Rate limited: 30/minute."""
     equip_service = get_equipment_service()
     usage, error = equip_service.log_usage(usage_data, user.id)
 

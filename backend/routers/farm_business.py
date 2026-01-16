@@ -1,6 +1,6 @@
 """
 Farm Business Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Entity management
@@ -14,10 +14,11 @@ Handles:
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, require_manager, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1", tags=["Farm Business"])
 
@@ -161,13 +162,15 @@ async def list_entities(
 
 
 @router.post("/entities", response_model=EntityResponse, tags=["Entities"])
+@limiter.limit(RATE_MODERATE)
 async def create_entity(
+    request: Request,
     name: str,
     entity_type: str,
     tax_id: Optional[str] = None,
     user: AuthenticatedUser = Depends(require_manager)
 ):
-    """Create a new entity."""
+    """Create a new entity. Rate limited: 30/minute."""
     from services.enterprise_operations_service import get_enterprise_operations_service
 
     service = get_enterprise_operations_service()
@@ -215,7 +218,9 @@ async def list_employees(
 
 
 @router.post("/labor/employees", response_model=EmployeeResponse, tags=["Labor"])
+@limiter.limit(RATE_MODERATE)
 async def create_employee(
+    request: Request,
     first_name: str,
     last_name: str,
     employee_type: str,
@@ -223,7 +228,7 @@ async def create_employee(
     pay_rate: float,
     user: AuthenticatedUser = Depends(require_manager)
 ):
-    """Create a new employee record."""
+    """Create a new employee record. Rate limited: 30/minute."""
     from services.enterprise_operations_service import get_enterprise_operations_service
 
     service = get_enterprise_operations_service()
@@ -258,14 +263,16 @@ async def list_time_entries(
 
 
 @router.post("/labor/time-entries", response_model=TimeEntryResponse, tags=["Labor"])
+@limiter.limit(RATE_MODERATE)
 async def create_time_entry(
+    request: Request,
     employee_id: int,
     work_date: date,
     hours: float,
     description: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a time entry."""
+    """Create a time entry. Rate limited: 30/minute."""
     from services.enterprise_operations_service import get_enterprise_operations_service
 
     service = get_enterprise_operations_service()
@@ -297,7 +304,9 @@ async def list_leases(
 
 
 @router.post("/land/leases", response_model=LeaseResponse, tags=["Land"])
+@limiter.limit(RATE_MODERATE)
 async def create_lease(
+    request: Request,
     landlord_name: str,
     acres: float,
     lease_type: str,
@@ -306,7 +315,7 @@ async def create_lease(
     end_date: date,
     user: AuthenticatedUser = Depends(require_manager)
 ):
-    """Create a new lease."""
+    """Create a new lease. Rate limited: 30/minute."""
     from services.enterprise_operations_service import get_enterprise_operations_service
 
     service = get_enterprise_operations_service()
@@ -439,14 +448,16 @@ async def list_trials(
 
 
 @router.post("/research/trials", response_model=TrialResponse, tags=["Research"])
+@limiter.limit(RATE_MODERATE)
 async def create_trial(
+    request: Request,
     name: str,
     trial_type: str,
     field_id: int,
     start_date: date,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new field trial."""
+    """Create a new field trial. Rate limited: 30/minute."""
     from services.research_service import get_research_service
 
     service = get_research_service()

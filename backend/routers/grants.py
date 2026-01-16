@@ -1,6 +1,6 @@
 """
 Grants Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Grant programs and NRCS practices
@@ -12,10 +12,11 @@ Handles:
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, require_manager, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1", tags=["Grants"])
 
@@ -205,13 +206,15 @@ async def list_grant_applications(
 
 
 @router.post("/grants/applications", response_model=GrantApplicationResponse, tags=["Grant Applications"])
+@limiter.limit(RATE_MODERATE)
 async def create_grant_application(
+    request: Request,
     program_id: str,
     title: str,
     description: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new grant application."""
+    """Create a new grant application. Rate limited: 30/minute."""
     from services.grant_operations_service import get_grant_operations_service
 
     service = get_grant_operations_service()
@@ -243,13 +246,15 @@ async def get_grant_application(
 
 
 @router.put("/grants/applications/{application_id}/status", response_model=GrantApplicationResponse, tags=["Grant Applications"])
+@limiter.limit(RATE_MODERATE)
 async def update_application_status(
+    request: Request,
     application_id: int,
     status: str,
     notes: Optional[str] = None,
     user: AuthenticatedUser = Depends(require_manager)
 ):
-    """Update grant application status."""
+    """Update grant application status. Rate limited: 30/minute."""
     from services.grant_operations_service import get_grant_operations_service
 
     service = get_grant_operations_service()

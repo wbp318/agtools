@@ -1,6 +1,6 @@
 """
 Optimization Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Input cost optimization (labor, fertilizer, pesticides, irrigation)
@@ -13,10 +13,11 @@ from typing import List, Optional
 from datetime import date
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from pydantic import BaseModel, Field
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1", tags=["Optimization"])
 
@@ -312,17 +313,18 @@ class BudgetPricesResponse(BaseModel):
 # ============================================================================
 
 @router.post("/optimize/labor/scouting", response_model=ScoutingCostResponse, tags=["Cost Optimization"])
-async def calculate_scouting_costs(request: LaborCostRequest):
-    """Calculate and optimize scouting labor costs."""
+@limiter.limit(RATE_MODERATE)
+async def calculate_scouting_costs(request: Request, labor_request: LaborCostRequest):
+    """Calculate and optimize scouting labor costs. Rate limited: 30/minute."""
     from services.labor_optimizer import get_labor_optimizer
 
-    optimizer = get_labor_optimizer(request.custom_labor_rates)
-    fields = [{"name": f.name, "acres": f.acres} for f in request.fields]
+    optimizer = get_labor_optimizer(labor_request.custom_labor_rates)
+    fields = [{"name": f.name, "acres": f.acres} for f in labor_request.fields]
 
     result = optimizer.calculate_scouting_costs(
         fields=fields,
-        scouting_frequency_days=request.scouting_frequency_days,
-        season_length_days=request.season_length_days
+        scouting_frequency_days=labor_request.scouting_frequency_days,
+        season_length_days=labor_request.season_length_days
     )
 
     return result
@@ -531,32 +533,33 @@ async def analyze_water_savings(request: WaterSavingsAnalysisRequest):
 
 
 @router.post("/optimize/complete-analysis", response_model=CompleteFarmAnalysisResponse, tags=["Cost Optimization"])
-async def complete_farm_cost_analysis(request: CompleteFarmAnalysisRequest):
-    """Perform complete farm input cost analysis."""
+@limiter.limit(RATE_MODERATE)
+async def complete_farm_cost_analysis(request: Request, analysis_request: CompleteFarmAnalysisRequest):
+    """Perform complete farm input cost analysis. Rate limited: 30/minute."""
     from services.input_cost_optimizer import InputCostOptimizer, FarmProfile
     from services.input_cost_optimizer import OptimizationPriority as OPEnum
 
     optimizer = InputCostOptimizer()
 
     soil_test = None
-    if request.soil_test_p_ppm is not None and request.soil_test_k_ppm is not None:
+    if analysis_request.soil_test_p_ppm is not None and analysis_request.soil_test_k_ppm is not None:
         soil_test = {
-            "P": request.soil_test_p_ppm,
-            "K": request.soil_test_k_ppm
+            "P": analysis_request.soil_test_p_ppm,
+            "K": analysis_request.soil_test_k_ppm
         }
 
     farm_profile = FarmProfile(
-        total_acres=request.total_acres,
+        total_acres=analysis_request.total_acres,
         crops=[
             {
                 "crop": c.crop.value,
                 "acres": c.acres,
                 "yield_goal": c.yield_goal
             }
-            for c in request.crops
+            for c in analysis_request.crops
         ],
-        irrigation_system=request.irrigation_type.value if request.irrigation_type else None,
-        water_source=request.water_source.value if request.water_source else None,
+        irrigation_system=analysis_request.irrigation_type.value if analysis_request.irrigation_type else None,
+        water_source=analysis_request.water_source.value if analysis_request.water_source else None,
         soil_test_results=soil_test
     )
 
@@ -569,8 +572,8 @@ async def complete_farm_cost_analysis(request: CompleteFarmAnalysisRequest):
 
     result = optimizer.analyze_complete_farm_costs(
         farm_profile=farm_profile,
-        season_length_days=request.season_length_days,
-        optimization_priority=priority_map[request.optimization_priority]
+        season_length_days=analysis_request.season_length_days,
+        optimization_priority=priority_map[analysis_request.optimization_priority]
     )
 
     return result

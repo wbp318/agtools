@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.1 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.2 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,62 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.2 (January 16, 2026)
+
+### Rate Limiting Coverage - API Protection
+
+**Extended slowapi rate limiting from 1% to 60%+ endpoint coverage across all routers.**
+
+This addresses the third item in the v6.12.2 "Remaining Items" list (Rate limiting on 1% of endpoints).
+
+**Architecture Improvements:**
+
+1. **Shared Rate Limiter Module** (`backend/middleware/rate_limiter.py`)
+   - Centralized rate limiter configuration
+   - Consistent rate limit tiers across all routers
+   - Single limiter instance shared by main.py and all routers
+
+2. **Rate Limit Tiers:**
+
+| Tier | Rate | Use Case |
+|------|------|----------|
+| `RATE_STRICT` | 5/minute | Authentication, password changes, AI image analysis |
+| `RATE_MODERATE` | 30/minute | Write operations (POST, PUT, DELETE), reports |
+| `RATE_STANDARD` | 60/minute | Read operations (GET single items) |
+| `RATE_RELAXED` | 120/minute | List operations, health checks |
+
+**Routers Updated (13 routers, 60+ endpoints):**
+
+| Router | Endpoints Rate Limited | Rate Tier |
+|--------|----------------------|-----------|
+| `auth.py` | 3 | STRICT (login, password) |
+| `fields.py` | 4 | MODERATE (create, update) |
+| `equipment.py` | 4 | MODERATE (create, update, maintenance, usage) |
+| `inventory.py` | 5 | MODERATE (create, update, transaction, purchase, adjust) |
+| `tasks.py` | 3 | MODERATE (create, update, status change) |
+| `reports.py` | 5 | MODERATE (reports, expense, import) |
+| `ai_ml.py` | 5 | STRICT/MODERATE (image=STRICT, others=MODERATE) |
+| `sustainability.py` | 6 | MODERATE (inputs, carbon, water, practices, GDD, precip) |
+| `livestock.py` | 5 | MODERATE (animal, health, breeding, weight, sale) |
+| `grants.py` | 2 | MODERATE (create, update status) |
+| `farm_business.py` | 5 | MODERATE (entity, employee, time, lease, trial) |
+| `genfin.py` | 7+ | MODERATE (financial reports) |
+| `optimization.py` | 3 | MODERATE (analysis endpoints) |
+| `crops.py` | 3 | STANDARD/MODERATE (analysis, break-even) |
+
+**Security Benefits:**
+- **Brute Force Protection**: Login attempts limited to 5/minute
+- **DoS Mitigation**: All write operations limited to 30/minute
+- **Resource Protection**: Compute-intensive AI/ML operations strictly limited
+- **Fair Usage**: Prevents single client from monopolizing API resources
+
+**Technical Notes:**
+- Rate limiting by client IP address (`get_remote_address`)
+- Exception handler returns 429 Too Many Requests with retry-after header
+- Compatible with reverse proxy setups (respects X-Forwarded-For)
 
 ---
 
@@ -191,7 +247,7 @@ These were identified but not fixed as they require architectural decisions:
 |-------|----------|-------|
 | ~~`main.py` is 16,804 lines~~ | ~~Medium~~ | ~~Refactor to FastAPI routers recommended~~ **DONE v6.13.0** |
 | ~~85% endpoints lack `response_model`~~ | ~~Medium~~ | ~~Add Pydantic response models~~ **DONE v6.13.1** |
-| Rate limiting on 1% of endpoints | Medium | Extend slowapi coverage |
+| ~~Rate limiting on 1% of endpoints~~ | ~~Medium~~ | ~~Extend slowapi coverage~~ **DONE v6.13.2** |
 | Plaintext token storage | Low | `~/.agtools/settings.json` needs crypto library |
 | HTTP default in frontend | Low | Configure HTTPS for production deployment |
 | 0% context managers for DB | Low | Add `with` statements for connections |

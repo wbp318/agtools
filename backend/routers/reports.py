@@ -1,6 +1,6 @@
 """
 Reports and Data Export Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Operations, financial, equipment, inventory reports
@@ -12,10 +12,11 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.reporting_service import (
     get_reporting_service,
     OperationsReport,
@@ -53,35 +54,41 @@ router = APIRouter(prefix="/api/v1", tags=["Reports"])
 # ============================================================================
 
 @router.get("/reports/operations", response_model=OperationsReport, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_operations_report(
+    request: Request,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     field_id: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get operations report with aggregations."""
+    """Get operations report with aggregations. Rate limited: 30/minute."""
     report_service = get_reporting_service()
     return report_service.get_operations_report(date_from, date_to, field_id)
 
 
 @router.get("/reports/financial", response_model=FinancialReport, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_financial_report(
+    request: Request,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get financial analysis report."""
+    """Get financial analysis report. Rate limited: 30/minute."""
     report_service = get_reporting_service()
     return report_service.get_financial_report(date_from, date_to)
 
 
 @router.get("/reports/equipment", response_model=EquipmentReport, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_equipment_report(
+    request: Request,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get equipment utilization report."""
+    """Get equipment utilization report. Rate limited: 30/minute."""
     report_service = get_reporting_service()
     return report_service.get_equipment_report(date_from, date_to)
 
@@ -145,11 +152,13 @@ async def list_expenses(
 
 
 @router.post("/costs/expenses", response_model=ExpenseResponse, tags=["Cost Tracking"])
+@limiter.limit(RATE_MODERATE)
 async def create_expense(
+    request: Request,
     expense_data: ExpenseCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new expense."""
+    """Create a new expense. Rate limited: 30/minute."""
     cost_service = get_cost_tracking_service()
     expense, error = cost_service.create_expense(expense_data, user.id)
 
@@ -297,12 +306,14 @@ async def preview_csv_import(
 
 
 @router.post("/costs/import/csv", response_model=ImportResult, tags=["Cost Tracking"])
+@limiter.limit(RATE_MODERATE)
 async def import_csv(
+    request: Request,
     file: UploadFile = File(...),
     mapping: Optional[ColumnMapping] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Import expenses from CSV file."""
+    """Import expenses from CSV file. Rate limited: 30/minute."""
     cost_service = get_cost_tracking_service()
 
     content = await file.read()

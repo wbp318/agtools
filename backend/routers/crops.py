@@ -1,6 +1,6 @@
 """
 Crops Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Seed and planting management
@@ -11,10 +11,11 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.crop_cost_analysis_service import (
     get_crop_cost_analysis_service,
     CropAnalysisSummary,
@@ -152,21 +153,25 @@ async def create_planting_record(
 # ============================================================================
 
 @router.get("/crop-analysis/summary", response_model=CropAnalysisSummary, tags=["Crop Analysis"])
+@limiter.limit(RATE_STANDARD)
 async def get_crop_analysis_summary(
+    request: Request,
     year: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get crop cost analysis summary."""
+    """Get crop cost analysis summary. Rate limited: 60/minute."""
     service = get_crop_cost_analysis_service()
     return service.get_summary(year=year)
 
 
 @router.get("/crop-analysis/comparison", response_model=FieldComparisonMatrix, tags=["Crop Analysis"])
+@limiter.limit(RATE_STANDARD)
 async def get_field_comparison(
+    request: Request,
     year: Optional[int] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get field-by-field comparison."""
+    """Get field-by-field comparison. Rate limited: 60/minute."""
     service = get_crop_cost_analysis_service()
     return service.get_field_comparison(year=year)
 
@@ -241,13 +246,15 @@ async def get_trend_data(
 # ============================================================================
 
 @router.post("/profitability/break-even", response_model=BreakEvenResponse, tags=["Profitability"])
+@limiter.limit(RATE_MODERATE)
 async def calculate_break_even(
-    request: BreakEvenRequest,
+    request: Request,
+    break_even_request: BreakEvenRequest,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Calculate break-even analysis."""
+    """Calculate break-even analysis. Rate limited: 30/minute."""
     service = get_profitability_service()
-    return service.calculate_break_even(request)
+    return service.calculate_break_even(break_even_request)
 
 
 @router.post("/profitability/input-roi", response_model=InputROIResponse, tags=["Profitability"])

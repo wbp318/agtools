@@ -1,6 +1,6 @@
 """
 Livestock Management Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Animal management
@@ -13,10 +13,11 @@ Handles:
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, require_manager, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1/livestock", tags=["Livestock"])
 
@@ -132,7 +133,9 @@ async def list_animals(
 
 
 @router.post("", response_model=AnimalResponse, tags=["Livestock"])
+@limiter.limit(RATE_MODERATE)
 async def create_animal(
+    request: Request,
     tag_number: str,
     species: str,
     breed: Optional[str] = None,
@@ -141,7 +144,7 @@ async def create_animal(
     location: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new animal record."""
+    """Create a new animal record. Rate limited: 30/minute."""
     from services.livestock_service import get_livestock_service
 
     service = get_livestock_service()
@@ -179,7 +182,9 @@ async def list_health_records(
 
 
 @router.post("/health", response_model=HealthRecordResponse, tags=["Livestock Health"])
+@limiter.limit(RATE_MODERATE)
 async def create_health_record(
+    request: Request,
     animal_id: int,
     record_type: str,
     record_date: date,
@@ -189,7 +194,7 @@ async def create_health_record(
     cost: Optional[float] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a health record."""
+    """Create a health record. Rate limited: 30/minute."""
     from services.livestock_service import get_livestock_service
 
     service = get_livestock_service()
@@ -220,7 +225,9 @@ async def list_breeding_records(
 
 
 @router.post("/breeding", response_model=BreedingRecordResponse, tags=["Livestock Breeding"])
+@limiter.limit(RATE_MODERATE)
 async def create_breeding_record(
+    request: Request,
     female_id: int,
     male_id: Optional[int] = None,
     breeding_date: date = None,
@@ -228,7 +235,7 @@ async def create_breeding_record(
     expected_due: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a breeding record."""
+    """Create a breeding record. Rate limited: 30/minute."""
     from services.livestock_service import get_livestock_service
 
     service = get_livestock_service()
@@ -263,14 +270,16 @@ async def list_weight_records(
 
 
 @router.post("/weights", response_model=WeightRecordResponse, tags=["Livestock Weights"])
+@limiter.limit(RATE_MODERATE)
 async def record_weight(
+    request: Request,
     animal_id: int,
     weight: float,
     weight_date: date,
     notes: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record an animal weight."""
+    """Record an animal weight. Rate limited: 30/minute."""
     from services.livestock_service import get_livestock_service
 
     service = get_livestock_service()
@@ -302,7 +311,9 @@ async def list_sales(
 
 
 @router.post("/sales", response_model=SaleRecordResponse, tags=["Livestock Sales"])
+@limiter.limit(RATE_MODERATE)
 async def record_sale(
+    request: Request,
     animal_id: int,
     sale_date: date,
     sale_price: float,
@@ -311,7 +322,7 @@ async def record_sale(
     notes: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record a livestock sale."""
+    """Record a livestock sale. Rate limited: 30/minute."""
     from services.livestock_service import get_livestock_service
 
     service = get_livestock_service()

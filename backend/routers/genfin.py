@@ -1,6 +1,6 @@
 """
 GenFin Accounting Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Chart of accounts
@@ -18,10 +18,11 @@ Handles:
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, require_manager, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE, RATE_RELAXED
 
 router = APIRouter(prefix="/api/v1/genfin", tags=["GenFin"])
 
@@ -298,7 +299,8 @@ class Vendor1099ListResponse(BaseModel):
 # ============================================================================
 
 @router.get("/health", response_model=HealthResponse, tags=["GenFin"])
-async def genfin_health_check():
+@limiter.limit(RATE_RELAXED)
+async def genfin_health_check(request: Request):
     """GenFin health check endpoint."""
     return {"status": "ok", "service": "genfin"}
 
@@ -683,34 +685,40 @@ async def create_bank_account(
 # ============================================================================
 
 @router.get("/reports/trial-balance", response_model=TrialBalanceResponse, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_trial_balance(
+    request: Request,
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get trial balance report."""
+    """Get trial balance report. Rate limited: 30/minute."""
     from services.genfin_reports_service import genfin_reports_service
 
     return genfin_reports_service.get_trial_balance(as_of_date=as_of_date)
 
 
 @router.get("/reports/balance-sheet", response_model=BalanceSheetResponse, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_balance_sheet(
+    request: Request,
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get balance sheet report."""
+    """Get balance sheet report. Rate limited: 30/minute."""
     from services.genfin_reports_service import genfin_reports_service
 
     return genfin_reports_service.get_balance_sheet(as_of_date=as_of_date)
 
 
 @router.get("/reports/profit-loss", response_model=ProfitLossResponse, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_profit_loss(
+    request: Request,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get profit and loss statement."""
+    """Get profit and loss statement. Rate limited: 30/minute."""
     from services.genfin_reports_service import genfin_reports_service
 
     return genfin_reports_service.get_profit_loss(
@@ -720,12 +728,14 @@ async def get_profit_loss(
 
 
 @router.get("/reports/cash-flow", response_model=CashFlowReportResponse, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_cash_flow_report(
+    request: Request,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get cash flow report."""
+    """Get cash flow report. Rate limited: 30/minute."""
     from services.genfin_reports_service import genfin_reports_service
 
     return genfin_reports_service.get_cash_flow(
@@ -735,22 +745,26 @@ async def get_cash_flow_report(
 
 
 @router.get("/reports/ar-aging", response_model=AgingReportResponse, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_ar_aging(
+    request: Request,
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get accounts receivable aging report."""
+    """Get accounts receivable aging report. Rate limited: 30/minute."""
     from services.genfin_reports_service import genfin_reports_service
 
     return genfin_reports_service.get_ar_aging(as_of_date=as_of_date)
 
 
 @router.get("/reports/ap-aging", response_model=AgingReportResponse, tags=["Reports"])
+@limiter.limit(RATE_MODERATE)
 async def get_ap_aging(
+    request: Request,
     as_of_date: Optional[date] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Get accounts payable aging report."""
+    """Get accounts payable aging report. Rate limited: 30/minute."""
     from services.genfin_reports_service import genfin_reports_service
 
     return genfin_reports_service.get_ap_aging(as_of_date=as_of_date)

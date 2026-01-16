@@ -1,6 +1,6 @@
 """
 Task Management Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Task CRUD operations
@@ -11,7 +11,7 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import (
@@ -19,6 +19,7 @@ from middleware.auth_middleware import (
     require_manager,
     AuthenticatedUser
 )
+from middleware.rate_limiter import limiter, RATE_MODERATE
 from services.auth_service import UserRole
 from services.task_service import (
     get_task_service,
@@ -91,12 +92,14 @@ async def list_tasks(
 
 
 @router.post("/tasks", response_model=TaskResponse, tags=["Tasks"])
+@limiter.limit(RATE_MODERATE)
 async def create_task(
+    request: Request,
     task_data: TaskCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Create a new task.
+    Create a new task. Rate limited: 30/minute.
 
     - All users can create tasks
     - Crew members can only assign tasks to themselves
@@ -141,13 +144,15 @@ async def get_task(
 
 
 @router.put("/tasks/{task_id}", response_model=TaskResponse, tags=["Tasks"])
+@limiter.limit(RATE_MODERATE)
 async def update_task(
+    request: Request,
     task_id: int,
     task_data: TaskUpdate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Update a task.
+    Update a task. Rate limited: 30/minute.
 
     - Admin: can update any task
     - Manager: can update own tasks, created tasks, or crew-assigned tasks
@@ -201,13 +206,15 @@ async def delete_task(
 
 
 @router.post("/tasks/{task_id}/status", response_model=TaskResponse, tags=["Tasks"])
+@limiter.limit(RATE_MODERATE)
 async def change_task_status(
+    request: Request,
     task_id: int,
     status_data: StatusChangeRequest,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Change task status.
+    Change task status. Rate limited: 30/minute.
 
     Valid transitions:
     - todo -> in_progress, cancelled

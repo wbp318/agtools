@@ -1,6 +1,6 @@
 """
 AI/ML Intelligence Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Crop health scoring
@@ -14,10 +14,11 @@ from typing import List, Optional, Dict, Any
 from datetime import date
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
 from pydantic import BaseModel, Field
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STRICT, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1", tags=["AI/ML"])
 
@@ -115,44 +116,48 @@ class YieldPredictionRequest(BaseModel):
 # ============================================================================
 
 @router.post("/identify/pest", response_model=List[PestInfo], tags=["Identification"])
-async def identify_pest(request: PestIdentificationRequest):
-    """Identify pest based on symptoms and conditions."""
+@limiter.limit(RATE_MODERATE)
+async def identify_pest(request: Request, pest_request: PestIdentificationRequest):
+    """Identify pest based on symptoms and conditions. Rate limited: 30/minute."""
     from services.pest_disease_service import get_pest_disease_service
 
     service = get_pest_disease_service()
     results = service.identify_pest(
-        crop=request.crop.value,
-        growth_stage=request.growth_stage.value,
-        symptoms=request.symptoms,
-        field_conditions=request.field_conditions
+        crop=pest_request.crop.value,
+        growth_stage=pest_request.growth_stage.value,
+        symptoms=pest_request.symptoms,
+        field_conditions=pest_request.field_conditions
     )
 
     return results
 
 
 @router.post("/identify/disease", response_model=List[DiseaseInfo], tags=["Identification"])
-async def identify_disease(request: DiseaseIdentificationRequest):
-    """Identify disease based on symptoms and conditions."""
+@limiter.limit(RATE_MODERATE)
+async def identify_disease(request: Request, disease_request: DiseaseIdentificationRequest):
+    """Identify disease based on symptoms and conditions. Rate limited: 30/minute."""
     from services.pest_disease_service import get_pest_disease_service
 
     service = get_pest_disease_service()
     results = service.identify_disease(
-        crop=request.crop.value,
-        growth_stage=request.growth_stage.value,
-        symptoms=request.symptoms,
-        weather_conditions=request.weather_conditions
+        crop=disease_request.crop.value,
+        growth_stage=disease_request.growth_stage.value,
+        symptoms=disease_request.symptoms,
+        weather_conditions=disease_request.weather_conditions
     )
 
     return results
 
 
 @router.post("/identify/image", tags=["Identification"])
+@limiter.limit(RATE_STRICT)
 async def identify_from_image(
+    request: Request,
     file: UploadFile = File(...),
     crop: Optional[CropType] = None,
     growth_stage: Optional[GrowthStage] = None
 ):
-    """Identify pest or disease from uploaded image."""
+    """Identify pest or disease from uploaded image. Rate limited: 5/minute (compute-intensive)."""
     from services.ai_image_service import get_ai_image_service
 
     service = get_ai_image_service()
@@ -218,22 +223,24 @@ async def calculate_health_score(
 # ============================================================================
 
 @router.post("/yield/predict", tags=["Yield Prediction"])
+@limiter.limit(RATE_MODERATE)
 async def predict_yield(
-    request: YieldPredictionRequest,
+    request: Request,
+    yield_request: YieldPredictionRequest,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Predict yield for a field based on current conditions."""
+    """Predict yield for a field based on current conditions. Rate limited: 30/minute."""
     from services.yield_prediction_service import get_yield_prediction_service
 
     service = get_yield_prediction_service()
     result = service.predict_yield(
-        field_id=request.field_id,
-        crop=request.crop.value,
-        growth_stage=request.growth_stage.value,
-        plant_population=request.plant_population,
-        soil_moisture=request.soil_moisture,
-        rainfall_to_date=request.rainfall_to_date,
-        gdd_accumulated=request.gdd_accumulated
+        field_id=yield_request.field_id,
+        crop=yield_request.crop.value,
+        growth_stage=yield_request.growth_stage.value,
+        plant_population=yield_request.plant_population,
+        soil_moisture=yield_request.soil_moisture,
+        rainfall_to_date=yield_request.rainfall_to_date,
+        gdd_accumulated=yield_request.gdd_accumulated
     )
 
     return result
@@ -277,11 +284,13 @@ async def categorize_expense(
 
 
 @router.post("/expenses/categorize/batch", tags=["Smart Categorization"])
+@limiter.limit(RATE_MODERATE)
 async def categorize_expenses_batch(
+    request: Request,
     expenses: List[dict],
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Categorize multiple expenses at once."""
+    """Categorize multiple expenses at once. Rate limited: 30/minute."""
     from services.expense_categorization_service import get_expense_categorization_service
 
     service = get_expense_categorization_service()

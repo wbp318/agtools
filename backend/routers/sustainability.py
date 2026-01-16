@@ -1,6 +1,6 @@
 """
 Sustainability Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Sustainability metrics and scorecards
@@ -13,10 +13,11 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.sustainability_service import (
     get_sustainability_service,
     InputCategory,
@@ -72,11 +73,13 @@ async def list_input_usage(
 
 
 @router.post("/sustainability/inputs", response_model=InputUsageResponse, tags=["Sustainability"])
+@limiter.limit(RATE_MODERATE)
 async def record_input_usage(
+    request: Request,
     input_data: InputUsageCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record input usage (fertilizer, pesticide, etc.)."""
+    """Record input usage (fertilizer, pesticide, etc.). Rate limited: 30/minute."""
     service = get_sustainability_service()
     result, error = service.record_input_usage(input_data, user.id)
 
@@ -109,11 +112,13 @@ async def list_carbon_entries(
 
 
 @router.post("/sustainability/carbon", response_model=CarbonEntryResponse, tags=["Sustainability"])
+@limiter.limit(RATE_MODERATE)
 async def record_carbon_entry(
+    request: Request,
     carbon_data: CarbonEntryCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record carbon footprint entry."""
+    """Record carbon footprint entry. Rate limited: 30/minute."""
     service = get_sustainability_service()
     result, error = service.record_carbon_entry(carbon_data, user.id)
 
@@ -144,11 +149,13 @@ async def list_water_usage(
 
 
 @router.post("/sustainability/water", response_model=WaterUsageResponse, tags=["Sustainability"])
+@limiter.limit(RATE_MODERATE)
 async def record_water_usage(
+    request: Request,
     water_data: WaterUsageCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record water usage."""
+    """Record water usage. Rate limited: 30/minute."""
     service = get_sustainability_service()
     result, error = service.record_water_usage(water_data, user.id)
 
@@ -177,11 +184,13 @@ async def list_practices(
 
 
 @router.post("/sustainability/practices", response_model=PracticeRecordResponse, tags=["Sustainability"])
+@limiter.limit(RATE_MODERATE)
 async def record_practice(
+    request: Request,
     practice_data: PracticeRecordCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record a conservation practice."""
+    """Record a conservation practice. Rate limited: 30/minute."""
     service = get_sustainability_service()
     result, error = service.record_practice(practice_data, user.id)
 
@@ -237,11 +246,13 @@ async def list_gdd_records(
 
 
 @router.post("/climate/gdd", response_model=GDDRecordResponse, tags=["Climate"])
+@limiter.limit(RATE_MODERATE)
 async def record_gdd(
+    request: Request,
     gdd_data: GDDRecordCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record GDD data."""
+    """Record GDD data. Rate limited: 30/minute."""
     service = get_climate_service()
     result, error = service.record_gdd(gdd_data, user.id)
 
@@ -292,11 +303,13 @@ async def list_precipitation(
 
 
 @router.post("/climate/precipitation", response_model=PrecipitationResponse, tags=["Climate"])
+@limiter.limit(RATE_MODERATE)
 async def record_precipitation(
+    request: Request,
     precip_data: PrecipitationCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Record precipitation data."""
+    """Record precipitation data. Rate limited: 30/minute."""
     service = get_climate_service()
     result, error = service.record_precipitation(precip_data, user.id)
 

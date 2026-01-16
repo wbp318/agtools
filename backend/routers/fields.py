@@ -1,6 +1,6 @@
 """
 Fields and Field Operations Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Field management (CRUD operations)
@@ -11,7 +11,7 @@ Handles:
 from typing import List, Optional
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import (
@@ -19,6 +19,7 @@ from middleware.auth_middleware import (
     require_manager,
     AuthenticatedUser
 )
+from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.field_service import (
     get_field_service,
     FieldCreate,
@@ -99,11 +100,13 @@ async def list_fields(
 
 
 @router.post("/fields", response_model=FieldResponse, tags=["Fields"])
+@limiter.limit(RATE_MODERATE)
 async def create_field(
+    request: Request,
     field_data: FieldCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Create a new field."""
+    """Create a new field. Rate limited: 30/minute."""
     field_service = get_field_service()
 
     field, error = field_service.create_field(field_data, user.id)
@@ -148,12 +151,14 @@ async def get_field(
 
 
 @router.put("/fields/{field_id}", response_model=FieldResponse, tags=["Fields"])
+@limiter.limit(RATE_MODERATE)
 async def update_field(
+    request: Request,
     field_id: int,
     field_data: FieldUpdate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Update a field."""
+    """Update a field. Rate limited: 30/minute."""
     field_service = get_field_service()
 
     field, error = field_service.update_field(field_id, field_data, user.id)
@@ -229,12 +234,14 @@ async def list_operations(
 
 
 @router.post("/operations", response_model=OperationResponse, tags=["Operations"])
+@limiter.limit(RATE_MODERATE)
 async def create_operation(
+    request: Request,
     op_data: OperationCreate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """
-    Log a new field operation.
+    Log a new field operation. Rate limited: 30/minute.
 
     Operation types: spray, fertilizer, planting, harvest, tillage, scouting, irrigation, seed_treatment, cover_crop, other
     """
@@ -285,12 +292,14 @@ async def get_operation(
 
 
 @router.put("/operations/{operation_id}", response_model=OperationResponse, tags=["Operations"])
+@limiter.limit(RATE_MODERATE)
 async def update_operation(
+    request: Request,
     operation_id: int,
     op_data: OperationUpdate,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
-    """Update an operation."""
+    """Update an operation. Rate limited: 30/minute."""
     ops_service = get_field_operations_service()
 
     operation, error = ops_service.update_operation(operation_id, op_data, user.id)

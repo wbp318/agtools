@@ -1,6 +1,6 @@
 """
 Authentication, Users, and Crews Router
-AgTools v6.13.0
+AgTools v6.13.2
 
 Handles:
 - Authentication endpoints (login, logout, refresh, password change)
@@ -12,8 +12,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from middleware.auth_middleware import (
     get_current_user,
@@ -24,6 +22,7 @@ from middleware.auth_middleware import (
     get_client_ip,
     get_user_agent
 )
+from middleware.rate_limiter import limiter, RATE_STRICT, RATE_MODERATE, RATE_STANDARD
 from services.auth_service import (
     UserRole,
     UserCreate,
@@ -40,9 +39,6 @@ from services.user_service import (
     CrewResponse,
     CrewMemberResponse
 )
-
-# Rate limiter for auth routes
-limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1", tags=["Authentication"])
 
@@ -62,7 +58,7 @@ class LoginResponse(BaseModel):
 # ============================================================================
 
 @router.post("/auth/login", response_model=LoginResponse, tags=["Authentication"])
-@limiter.limit("5/minute")
+@limiter.limit(RATE_STRICT)
 async def login(request: Request, login_data: LoginRequest):
     """
     Authenticate user and return JWT tokens.
@@ -146,7 +142,7 @@ async def update_current_user(
 
 
 @router.post("/auth/change-password", tags=["Authentication"])
-@limiter.limit("3/minute")
+@limiter.limit(RATE_STRICT)
 async def change_password(
     request: Request,
     password_data: PasswordChange,

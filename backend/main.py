@@ -20,12 +20,10 @@ from datetime import date, datetime
 from enum import Enum
 import uvicorn
 
-# Rate limiting
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+# Rate limiting (shared module for all routers)
+from middleware.rate_limiter import limiter, configure_rate_limiter
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-
-limiter = Limiter(key_func=get_remote_address)
 
 # Auth imports
 from middleware.auth_middleware import (
@@ -432,7 +430,7 @@ from routers import (
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system with recurring transactions, bank feeds, and fixed assets",
-    version="6.13.0",
+    version="6.13.2",
     docs_url="/docs",
     redoc_url="/redoc"
 )
