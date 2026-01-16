@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.8 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.9 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,27 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.9 (January 16, 2026)
+
+### Bug Fix - Climate GDD Endpoints
+
+**Fixed parameter mismatch in climate GDD API endpoints.**
+
+#### `/climate/gdd/summary`
+- **Issue:** Endpoint accepted no parameters but service required `field_id`, `crop_type`, `planting_date`
+- **Fix:** Added required query parameters to match service method signature
+
+#### `/climate/gdd/accumulated`
+- **Issue:** Parameter name mismatch (`crop` vs `crop_type`) and missing `planting_date`
+- **Fix:** Renamed `crop` → `crop_type`, added `planting_date` and optional `end_date` parameters
+- **Response:** Now returns structured object with `accumulated`, `total_gdd`, `entries_count`, etc.
+
+**File Modified:** `backend/routers/sustainability.py`
+
+**Test Results:** All 20 critical path tests passing (previously 2 failures)
 
 ---
 
