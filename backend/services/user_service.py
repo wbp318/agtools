@@ -20,6 +20,7 @@ from .auth_service import (
     Token,
     get_auth_service
 )
+from .base_service import sanitize_error
 
 
 # ============================================================================
@@ -296,21 +297,22 @@ class UserService:
             role=UserRole(user_dict["role"])
         )
 
-        # Store session
-        self.auth_service.db = conn
+        # Store session (thread-safe - pass connection explicitly)
         self.auth_service.store_session(
             user_id=user_dict["id"],
             access_token=tokens.access_token,
             refresh_token=tokens.refresh_token,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
+            conn=conn
         )
 
-        # Log action
+        # Log action (thread-safe - pass connection explicitly)
         self.auth_service.log_action(
             user_id=user_dict["id"],
             action="login",
-            ip_address=ip_address
+            ip_address=ip_address,
+            conn=conn
         )
 
         conn.close()
@@ -344,14 +346,15 @@ class UserService:
             True if successful
         """
         conn = self._get_connection()
-        self.auth_service.db = conn
 
-        result = self.auth_service.invalidate_session(token)
+        result = self.auth_service.invalidate_session(token, conn=conn)
 
+        # Log action (thread-safe - pass connection explicitly)
         self.auth_service.log_action(
             user_id=user_id,
             action="logout",
-            ip_address=ip_address
+            ip_address=ip_address,
+            conn=conn
         )
 
         conn.close()
@@ -439,13 +442,13 @@ class UserService:
 
             user_id = cursor.lastrowid
 
-            # Log action
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=created_by,
                 action="create_user",
                 entity_type="user",
-                entity_id=user_id
+                entity_id=user_id,
+                conn=conn
             )
 
             conn.commit()
@@ -455,7 +458,7 @@ class UserService:
 
         except Exception as e:
             conn.close()
-            return None, str(e)
+            return None, sanitize_error(e, "user creation")
 
     def get_user_by_id(self, user_id: int) -> Optional[UserResponse]:
         """Get user by ID."""
@@ -651,13 +654,13 @@ class UserService:
                 UPDATE users SET {', '.join(updates)} WHERE id = ?
             """, params)
 
-            # Log action
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=updated_by,
                 action="update_user",
                 entity_type="user",
-                entity_id=user_id
+                entity_id=user_id,
+                conn=conn
             )
 
             conn.commit()
@@ -667,7 +670,7 @@ class UserService:
 
         except Exception as e:
             conn.close()
-            return None, str(e)
+            return None, sanitize_error(e, "user update")
 
     def change_password(
         self,
@@ -707,13 +710,14 @@ class UserService:
             UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?
         """, (new_hash, datetime.utcnow(), user_id))
 
-        # Invalidate all sessions
-        self.auth_service.db = conn
-        self.auth_service.invalidate_all_user_sessions(user_id)
+        # Invalidate all sessions (thread-safe - pass connection explicitly)
+        self.auth_service.invalidate_all_user_sessions(user_id, conn=conn)
 
+        # Log action (thread-safe - pass connection explicitly)
         self.auth_service.log_action(
             user_id=user_id,
-            action="change_password"
+            action="change_password",
+            conn=conn
         )
 
         conn.commit()
@@ -743,15 +747,16 @@ class UserService:
             UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?
         """, (datetime.utcnow(), user_id))
 
-        # Invalidate all sessions
-        self.auth_service.db = conn
-        self.auth_service.invalidate_all_user_sessions(user_id)
+        # Invalidate all sessions (thread-safe - pass connection explicitly)
+        self.auth_service.invalidate_all_user_sessions(user_id, conn=conn)
 
+        # Log action (thread-safe - pass connection explicitly)
         self.auth_service.log_action(
             user_id=deleted_by,
             action="deactivate_user",
             entity_type="user",
-            entity_id=user_id
+            entity_id=user_id,
+            conn=conn
         )
 
         conn.commit()
@@ -776,12 +781,13 @@ class UserService:
 
             crew_id = cursor.lastrowid
 
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=created_by,
                 action="create_crew",
                 entity_type="crew",
-                entity_id=crew_id
+                entity_id=crew_id,
+                conn=conn
             )
 
             conn.commit()
@@ -791,7 +797,7 @@ class UserService:
 
         except Exception as e:
             conn.close()
-            return None, str(e)
+            return None, sanitize_error(e, "crew creation")
 
     def get_crew_by_id(self, crew_id: int) -> Optional[CrewResponse]:
         """Get crew by ID."""
@@ -902,12 +908,13 @@ class UserService:
                 UPDATE crews SET {', '.join(updates)} WHERE id = ?
             """, params)
 
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=updated_by,
                 action="update_crew",
                 entity_type="crew",
-                entity_id=crew_id
+                entity_id=crew_id,
+                conn=conn
             )
 
             conn.commit()
@@ -917,7 +924,7 @@ class UserService:
 
         except Exception as e:
             conn.close()
-            return None, str(e)
+            return None, sanitize_error(e, "crew update")
 
     def add_crew_member(
         self,
@@ -935,13 +942,14 @@ class UserService:
                 VALUES (?, ?)
             """, (crew_id, user_id))
 
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=added_by,
                 action="add_crew_member",
                 entity_type="crew",
                 entity_id=crew_id,
-                details=f'{{"user_id": {user_id}}}'
+                details=f'{{"user_id": {user_id}}}',
+                conn=conn
             )
 
             conn.commit()
@@ -953,7 +961,7 @@ class UserService:
             return False, "User is already a member of this crew"
         except Exception as e:
             conn.close()
-            return False, str(e)
+            return False, sanitize_error(e, "adding crew member")
 
     def remove_crew_member(
         self,
@@ -973,13 +981,14 @@ class UserService:
             conn.close()
             return False, "User is not a member of this crew"
 
-        self.auth_service.db = conn
+        # Log action (thread-safe - pass connection explicitly)
         self.auth_service.log_action(
             user_id=removed_by,
             action="remove_crew_member",
             entity_type="crew",
             entity_id=crew_id,
-            details=f'{{"user_id": {user_id}}}'
+            details=f'{{"user_id": {user_id}}}',
+            conn=conn
         )
 
         conn.commit()

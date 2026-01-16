@@ -259,13 +259,13 @@ class FieldService(BaseService[FieldResponse]):
 
                 field_id = cursor.lastrowid
 
-                # Log action
-                self.auth_service.db = conn
+                # Log action (thread-safe)
                 self.auth_service.log_action(
                     user_id=created_by,
                     action="create_field",
                     entity_type="field",
-                    entity_id=field_id
+                    entity_id=field_id,
+                    conn=conn
                 )
 
                 conn.commit()
@@ -273,7 +273,7 @@ class FieldService(BaseService[FieldResponse]):
             return self.get_field_by_id(field_id), None
 
         except Exception as e:
-            return None, str(e)
+            return None, self._sanitize_error(e, "field creation")
 
     def get_field_by_id(self, field_id: int, include_stats: bool = True) -> Optional[FieldResponse]:
         """Get field by ID with optional operation statistics."""
@@ -474,13 +474,13 @@ class FieldService(BaseService[FieldResponse]):
                     UPDATE fields SET {', '.join(updates)} WHERE id = ?
                 """, params)
 
-                # Log action
-                self.auth_service.db = conn
+                # Log action (thread-safe)
                 self.auth_service.log_action(
                     user_id=updated_by,
                     action="update_field",
                     entity_type="field",
-                    entity_id=field_id
+                    entity_id=field_id,
+                    conn=conn
                 )
 
                 conn.commit()
@@ -488,7 +488,7 @@ class FieldService(BaseService[FieldResponse]):
             return self.get_field_by_id(field_id), None
 
         except Exception as e:
-            return None, str(e)
+            return None, self._sanitize_error(e, "field update")
 
     def delete_field(
         self,

@@ -8,6 +8,7 @@ AgTools v2.5.0
 import os
 import hashlib
 import secrets
+import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Tuple
 from enum import Enum
@@ -313,10 +314,13 @@ class AuthService:
         access_token: str,
         refresh_token: str,
         ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
+        user_agent: Optional[str] = None,
+        conn: Optional[sqlite3.Connection] = None
     ) -> Optional[int]:
         """
         Store a session in the database.
+
+        Thread-safe: Pass connection explicitly via conn parameter.
 
         Args:
             user_id: User's database ID
@@ -324,15 +328,17 @@ class AuthService:
             refresh_token: Refresh token to store
             ip_address: Client IP address
             user_agent: Client user agent
+            conn: Database connection (preferred - thread-safe)
 
         Returns:
             Session ID or None if failed
         """
-        if not self.db:
+        db_conn = conn if conn is not None else self.db
+        if not db_conn:
             return None
 
         try:
-            cursor = self.db.cursor()
+            cursor = db_conn.cursor()
 
             access_hash = self.hash_token_for_storage(access_token)
             refresh_hash = self.hash_token_for_storage(refresh_token)
@@ -346,62 +352,84 @@ class AuthService:
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (user_id, access_hash, refresh_hash, expires_at, refresh_expires_at, ip_address, user_agent))
 
-            self.db.commit()
+            # Only commit if we own the connection (self.db), not if passed externally
+            if conn is None and self.db:
+                self.db.commit()
             return cursor.lastrowid
 
         except Exception as e:
             print(f"Error storing session: {e}")
             return None
 
-    def invalidate_session(self, token: str) -> bool:
+    def invalidate_session(
+        self,
+        token: str,
+        conn: Optional[sqlite3.Connection] = None
+    ) -> bool:
         """
         Invalidate a session (logout).
 
+        Thread-safe: Pass connection explicitly via conn parameter.
+
         Args:
             token: Access token to invalidate
+            conn: Database connection (preferred - thread-safe)
 
         Returns:
             True if invalidated, False otherwise
         """
-        if not self.db:
+        db_conn = conn if conn is not None else self.db
+        if not db_conn:
             return False
 
         try:
-            cursor = self.db.cursor()
+            cursor = db_conn.cursor()
             token_hash = self.hash_token_for_storage(token)
 
             cursor.execute("""
                 UPDATE sessions SET is_valid = 0 WHERE token_hash = ?
             """, (token_hash,))
 
-            self.db.commit()
+            # Only commit if we own the connection (self.db), not if passed externally
+            if conn is None and self.db:
+                self.db.commit()
             return cursor.rowcount > 0
 
         except Exception as e:
             print(f"Error invalidating session: {e}")
             return False
 
-    def invalidate_all_user_sessions(self, user_id: int) -> int:
+    def invalidate_all_user_sessions(
+        self,
+        user_id: int,
+        conn: Optional[sqlite3.Connection] = None
+    ) -> int:
         """
         Invalidate all sessions for a user (e.g., password change).
 
+        Thread-safe: Pass connection explicitly via conn parameter.
+
         Args:
             user_id: User's database ID
+            conn: Database connection (preferred - thread-safe)
 
         Returns:
             Number of sessions invalidated
         """
-        if not self.db:
+        db_conn = conn if conn is not None else self.db
+        if not db_conn:
             return 0
 
         try:
-            cursor = self.db.cursor()
+            cursor = db_conn.cursor()
 
             cursor.execute("""
                 UPDATE sessions SET is_valid = 0 WHERE user_id = ? AND is_valid = 1
             """, (user_id,))
 
-            self.db.commit()
+            # Only commit if we own the connection (self.db), not if passed externally
+            if conn is None and self.db:
+                self.db.commit()
             return cursor.rowcount
 
         except Exception as e:
@@ -480,6 +508,12 @@ class AuthService:
     # AUDIT LOG
     # ========================================================================
 
+    # Critical actions that should trigger fallback logging on failure
+    CRITICAL_AUDIT_ACTIONS = {
+        "login", "logout", "change_password", "create_user", "delete_user",
+        "deactivate_user", "update_user_role"
+    }
+
     def log_action(
         self,
         user_id: Optional[int],
@@ -487,10 +521,16 @@ class AuthService:
         entity_type: Optional[str] = None,
         entity_id: Optional[int] = None,
         details: Optional[str] = None,
-        ip_address: Optional[str] = None
-    ) -> None:
+        ip_address: Optional[str] = None,
+        conn: Optional[sqlite3.Connection] = None
+    ) -> bool:
         """
         Log an action to the audit log.
+
+        Thread-safe: Pass connection explicitly via conn parameter.
+
+        For critical security actions, failures are logged to a fallback file
+        to ensure audit trail is maintained even during database issues.
 
         Args:
             user_id: User performing the action
@@ -499,12 +539,36 @@ class AuthService:
             entity_id: ID of entity affected
             details: JSON string with additional details
             ip_address: Client IP address
+            conn: Database connection (preferred - thread-safe)
+
+        Returns:
+            True if logged successfully, False if failed (but operation continues)
         """
-        if not self.db:
-            return
+        import logging
+        import json
+
+        # Use provided connection (thread-safe) or fall back to self.db (deprecated)
+        db_conn = conn if conn is not None else self.db
+
+        audit_data = {
+            "user_id": user_id,
+            "action": action,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "details": details,
+            "ip_address": ip_address,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        if not db_conn:
+            # No database connection - log warning and use fallback for critical actions
+            logging.warning(f"No database connection for audit log: {action}")
+            if action in self.CRITICAL_AUDIT_ACTIONS:
+                self._fallback_audit_log(audit_data)
+            return False
 
         try:
-            cursor = self.db.cursor()
+            cursor = db_conn.cursor()
 
             cursor.execute("""
                 INSERT INTO audit_log
@@ -512,10 +576,64 @@ class AuthService:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, action, entity_type, entity_id, details, ip_address))
 
-            self.db.commit()
+            # Only commit if we own the connection (self.db), not if passed externally
+            # External connections should be committed by the caller for transaction consistency
+            if conn is None and self.db:
+                self.db.commit()
+
+            return True
 
         except Exception as e:
-            print(f"Error logging action: {e}")
+            # Log detailed error information
+            logging.error(
+                f"Failed to log audit action: action={action}, user_id={user_id}, "
+                f"entity_type={entity_type}, entity_id={entity_id}, error={e}"
+            )
+
+            # For critical security actions, use fallback file-based logging
+            if action in self.CRITICAL_AUDIT_ACTIONS:
+                self._fallback_audit_log(audit_data)
+
+            return False
+
+    def _fallback_audit_log(self, audit_data: dict) -> None:
+        """
+        Write audit log entry to a fallback file when database logging fails.
+
+        This ensures critical security events are never lost, even during
+        database outages. The fallback file should be monitored and
+        entries should be reconciled with the database when it recovers.
+
+        Args:
+            audit_data: Dictionary containing the audit log entry
+        """
+        import logging
+        import json
+        import os
+
+        try:
+            # Write to a fallback audit log file
+            fallback_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                "logs",
+                "audit_fallback.jsonl"
+            )
+
+            # Ensure logs directory exists
+            os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
+
+            # Append as JSON lines format for easy parsing
+            with open(fallback_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(audit_data) + "\n")
+
+            logging.info(f"Critical audit action written to fallback: {audit_data['action']}")
+
+        except Exception as fallback_error:
+            # Last resort: at least log to the standard logger
+            logging.critical(
+                f"CRITICAL: Failed to write fallback audit log! "
+                f"Original data: {audit_data}, Error: {fallback_error}"
+            )
 
 
 # ============================================================================

@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.7 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.8 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -43,6 +43,75 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ---
 
+## v6.13.8 (January 16, 2026)
+
+### Security Fixes - Deferred Items from v6.13.7 Audit
+
+**All 4 deferred architectural security issues from v6.13.7 audit have been resolved.**
+
+---
+
+#### 1. Auth Service Thread Safety (CRITICAL → FIXED)
+- **Risk:** Global singleton with mutable `db` attribute caused race conditions
+- **Solution:** Added optional `conn` parameter to all auth_service methods
+- **Changes:**
+  - `log_action()` - Now accepts `conn` parameter for thread-safe operation
+  - `store_session()` - Added `conn` parameter
+  - `invalidate_session()` - Added `conn` parameter
+  - `invalidate_all_user_sessions()` - Added `conn` parameter
+- **Callers Updated:** All services now pass connection explicitly
+  - `field_service.py` (2 call sites)
+  - `task_service.py` (2 call sites)
+  - `user_service.py` (10 call sites)
+  - `field_operations_service.py` (3 call sites)
+  - `base_service.py` (2 call sites)
+
+#### 2. Transaction Isolation for Task Updates (HIGH → FIXED)
+- **Risk:** Race condition between SELECT status check and UPDATE
+- **Solution:** Implemented optimistic locking using `updated_at` timestamp
+- **Changes to `task_service.py`:**
+  ```python
+  # Now includes version check in UPDATE WHERE clause
+  WHERE id = ? AND updated_at = ?
+  ```
+- **Behavior:** Returns "Task was modified by another user" on conflict
+
+#### 3. Error Message Sanitization (HIGH → FIXED)
+- **Risk:** Raw exception messages exposed internal details to users
+- **Solution:** Added `_sanitize_error()` method to BaseService
+- **Features:**
+  - Logs full error internally for debugging
+  - Returns sanitized messages to users
+  - Allows safe patterns through (not found, already exists, etc.)
+  - Strips file paths and technical details
+  - Generic messages for SQL/database errors
+- **Usage:** `sanitize_error()` function for non-BaseService classes
+- **Services Updated:** field_service, task_service, user_service
+
+#### 4. Audit Log Failure Handling (MEDIUM → FIXED)
+- **Risk:** Failed audit logs were silently ignored
+- **Solution:** Multi-tier logging with fallback mechanism
+- **Changes to `auth_service.py`:**
+  - `log_action()` now returns `bool` success indicator
+  - Critical actions list: login, logout, password changes, user management
+  - File-based fallback for critical actions when DB fails
+  - Detailed error logging with action context
+  - JSONL fallback file at `backend/logs/audit_fallback.jsonl`
+
+---
+
+**Files Modified:**
+```
+backend/services/auth_service.py - Thread-safe methods, fallback audit logging
+backend/services/base_service.py - _sanitize_error(), sanitize_error()
+backend/services/task_service.py - Optimistic locking, sanitized errors
+backend/services/field_service.py - Sanitized errors
+backend/services/user_service.py - Thread-safe audit calls, sanitized errors
+backend/services/field_operations_service.py - Thread-safe audit calls
+```
+
+---
+
 ## v6.13.7 (January 16, 2026)
 
 ### Security Audit & Fixes
@@ -74,32 +143,25 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ---
 
-### Deferred Issues (v6.14.x)
+### Deferred Issues (Fixed in v6.13.8)
 
-#### 1. Auth Service Thread Safety (CRITICAL - Architectural)
+> **Note:** All issues below were resolved in v6.13.8. See that section for implementation details.
+
+#### 1. Auth Service Thread Safety (CRITICAL - Architectural) ✅ FIXED
 - **Risk:** Global singleton with mutable `db` attribute causes race conditions
-- **Location:** `auth_service.py`, pattern used in all services
-- **Issue:** `self.auth_service.db = conn` reassignment not thread-safe
-- **Impact:** Concurrent requests may share/corrupt connections
-- **Solution Required:** Dependency injection or thread-local storage
+- **Solution:** Added `conn` parameter to all auth methods
 
-#### 2. Transaction Isolation (HIGH - Architectural)
+#### 2. Transaction Isolation (HIGH - Architectural) ✅ FIXED
 - **Risk:** Status checks (SELECT) and updates not atomic
-- **Location:** `task_service.py` lines 530-535
-- **Issue:** Race condition between SELECT status and UPDATE
-- **Solution Required:** Optimistic locking or SELECT FOR UPDATE
+- **Solution:** Implemented optimistic locking with `updated_at`
 
-#### 3. Error Message Sanitization (HIGH)
+#### 3. Error Message Sanitization (HIGH) ✅ FIXED
 - **Risk:** Raw exception messages exposed to clients
-- **Location:** All service exception handlers
-- **Issue:** `return None, str(e)` leaks internal details
-- **Solution Required:** Error classification and sanitized messages
+- **Solution:** Added `_sanitize_error()` helper with safe message patterns
 
-#### 4. Audit Log Failure Handling (MEDIUM)
+#### 4. Audit Log Failure Handling (MEDIUM) ✅ FIXED
 - **Risk:** Failed audit logs silently ignored
-- **Location:** `auth_service.py` log_action method
-- **Issue:** Exceptions caught and printed, not logged/alerted
-- **Solution Required:** Proper logging infrastructure
+- **Solution:** File-based fallback and detailed error logging
 
 ---
 

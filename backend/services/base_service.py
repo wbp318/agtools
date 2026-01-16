@@ -2,7 +2,7 @@
 Base Service Class for AgTools
 Provides common CRUD patterns, database management, and utilities.
 
-AgTools v6.13.6
+AgTools v6.13.8
 """
 
 import sqlite3
@@ -108,6 +108,60 @@ class BaseService(ABC, Generic[ResponseT]):
             return row[key]
         except (KeyError, IndexError, TypeError):
             return default
+
+    @staticmethod
+    def _sanitize_error(error: Exception, operation: str = "operation") -> str:
+        """
+        Sanitize error message for user display.
+
+        Logs the full error internally but returns a generic message to prevent
+        information disclosure. Specific safe errors are allowed through.
+
+        Args:
+            error: The exception that occurred
+            operation: Description of the operation for the error message
+
+        Returns:
+            Sanitized error message safe for user display
+        """
+        import logging
+        error_str = str(error)
+
+        # Log full error for debugging (internal only)
+        logging.warning(f"Error during {operation}: {error_str}")
+
+        # Allow specific safe error messages through
+        safe_patterns = [
+            "not found",
+            "already exists",
+            "invalid",
+            "required",
+            "must be",
+            "cannot",
+            "permission denied",
+            "unauthorized",
+            "conflict",
+        ]
+
+        error_lower = error_str.lower()
+        for pattern in safe_patterns:
+            if pattern in error_lower:
+                # Return the error but strip any sensitive path or technical info
+                # Limit length and remove path-like patterns
+                import re
+                sanitized = re.sub(r'[A-Za-z]:\\[^\s]+', '[path]', error_str)
+                sanitized = re.sub(r'/[^\s]+/', '[path]/', sanitized)
+                return sanitized[:200] if len(sanitized) > 200 else sanitized
+
+        # For SQL and other technical errors, return generic message
+        if any(keyword in error_lower for keyword in [
+            'sql', 'database', 'constraint', 'foreign key', 'unique',
+            'syntax', 'column', 'table', 'index', 'transaction'
+        ]):
+            return f"Database error during {operation}. Please try again or contact support."
+
+        # Default generic error
+        return f"An error occurred during {operation}. Please try again."
 
     @abstractmethod
     def _row_to_response(self, row: sqlite3.Row, **kwargs) -> ResponseT:
@@ -383,13 +437,13 @@ class BaseService(ABC, Generic[ResponseT]):
             if cursor.rowcount == 0:
                 return False, f"{name.title()} not found"
 
-            # Log action
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=deleted_by,
                 action=f"delete_{self.TABLE_NAME}",
                 entity_type=self.TABLE_NAME,
-                entity_id=entity_id
+                entity_id=entity_id,
+                conn=conn
             )
 
             conn.commit()
@@ -404,7 +458,7 @@ class BaseService(ABC, Generic[ResponseT]):
         entity_id: Optional[int] = None
     ) -> None:
         """
-        Log an audit action.
+        Log an audit action (thread-safe wrapper).
 
         Args:
             conn: Database connection (for transaction consistency)
@@ -412,12 +466,12 @@ class BaseService(ABC, Generic[ResponseT]):
             action: Action name (e.g., "create_field")
             entity_id: Related entity ID
         """
-        self.auth_service.db = conn
         self.auth_service.log_action(
             user_id=user_id,
             action=action,
             entity_type=self.TABLE_NAME,
-            entity_id=entity_id
+            entity_id=entity_id,
+            conn=conn
         )
 
 
@@ -479,3 +533,19 @@ def get_service(
         Service instance
     """
     return ServiceRegistry.get_service(service_class, db_path)
+
+
+def sanitize_error(error: Exception, operation: str = "operation") -> str:
+    """
+    Sanitize error message for user display (standalone function).
+
+    Use this function in services that don't inherit from BaseService.
+
+    Args:
+        error: The exception that occurred
+        operation: Description of the operation for the error message
+
+    Returns:
+        Sanitized error message safe for user display
+    """
+    return BaseService._sanitize_error(error, operation)

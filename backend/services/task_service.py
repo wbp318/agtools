@@ -328,13 +328,13 @@ class TaskService(BaseService[TaskResponse]):
 
                 task_id = cursor.lastrowid
 
-                # Log action
-                self.auth_service.db = conn
+                # Log action (thread-safe - pass connection explicitly)
                 self.auth_service.log_action(
                     user_id=created_by,
                     action="create_task",
                     entity_type="task",
-                    entity_id=task_id
+                    entity_id=task_id,
+                    conn=conn
                 )
 
                 conn.commit()
@@ -342,7 +342,7 @@ class TaskService(BaseService[TaskResponse]):
             return self.get_task_by_id(task_id), None
 
         except Exception as e:
-            return None, str(e)
+            return None, self._sanitize_error(e, "task creation")
 
     def get_task_by_id(self, task_id: int) -> Optional[TaskResponse]:
         """Get task by ID with joined user/crew names."""
@@ -529,13 +529,14 @@ class TaskService(BaseService[TaskResponse]):
         with get_db_connection(self.db_path) as conn:
             cursor = conn.cursor()
 
-            # Get current task to validate status transition
-            cursor.execute("SELECT status FROM tasks WHERE id = ?", (task_id,))
+            # Get current task to validate status transition and for optimistic locking
+            cursor.execute("SELECT status, updated_at FROM tasks WHERE id = ? AND is_active = 1", (task_id,))
             row = cursor.fetchone()
             if not row:
                 return None, "Task not found"
 
             current_status = TaskStatus(row["status"])
+            original_updated_at = row["updated_at"]  # For optimistic locking
 
             # Build update query dynamically
             updates = []
@@ -586,20 +587,31 @@ class TaskService(BaseService[TaskResponse]):
 
             updates.append("updated_at = ?")
             params.append(datetime.utcnow())
+            # Add optimistic locking: only update if record hasn't changed
             params.append(task_id)
+            params.append(original_updated_at)
 
             try:
                 cursor.execute(f"""
-                    UPDATE tasks SET {', '.join(updates)} WHERE id = ?
+                    UPDATE tasks SET {', '.join(updates)}
+                    WHERE id = ? AND updated_at = ?
                 """, params)
 
-                # Log action
-                self.auth_service.db = conn
+                # Check for concurrent modification (optimistic locking)
+                if cursor.rowcount == 0:
+                    # Verify task still exists to distinguish "not found" from "concurrent update"
+                    cursor.execute("SELECT id FROM tasks WHERE id = ? AND is_active = 1", (task_id,))
+                    if cursor.fetchone():
+                        return None, "Task was modified by another user. Please refresh and try again."
+                    return None, "Task not found"
+
+                # Log action (thread-safe - pass connection explicitly)
                 self.auth_service.log_action(
                     user_id=updated_by,
                     action="update_task",
                     entity_type="task",
-                    entity_id=task_id
+                    entity_id=task_id,
+                    conn=conn
                 )
 
                 conn.commit()
@@ -607,7 +619,7 @@ class TaskService(BaseService[TaskResponse]):
                 return self.get_task_by_id(task_id), None
 
             except Exception as e:
-                return None, str(e)
+                return None, self._sanitize_error(e, "task update")
 
     def change_status(
         self,

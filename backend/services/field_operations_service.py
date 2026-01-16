@@ -374,13 +374,13 @@ class FieldOperationsService:
 
             op_id = cursor.lastrowid
 
-            # Log action
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=created_by,
                 action="create_operation",
                 entity_type="field_operation",
-                entity_id=op_id
+                entity_id=op_id,
+                conn=conn
             )
 
             conn.commit()
@@ -634,13 +634,13 @@ class FieldOperationsService:
                 UPDATE field_operations SET {', '.join(updates)} WHERE id = ?
             """, params)
 
-            # Log action
-            self.auth_service.db = conn
+            # Log action (thread-safe - pass connection explicitly)
             self.auth_service.log_action(
                 user_id=updated_by,
                 action="update_operation",
                 entity_type="field_operation",
-                entity_id=op_id
+                entity_id=op_id,
+                conn=conn
             )
 
             conn.commit()
@@ -678,13 +678,13 @@ class FieldOperationsService:
             conn.close()
             return False, "Operation not found"
 
-        # Log action
-        self.auth_service.db = conn
+        # Log action (thread-safe - pass connection explicitly)
         self.auth_service.log_action(
             user_id=deleted_by,
             action="delete_operation",
             entity_type="field_operation",
-            entity_id=op_id
+            entity_id=op_id,
+            conn=conn
         )
 
         conn.commit()
