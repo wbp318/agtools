@@ -2,7 +2,7 @@
 Field Service for Farm Operations Manager
 Handles field CRUD operations and field management.
 
-AgTools v2.5.0 Phase 3
+AgTools v6.13.5
 """
 
 import sqlite3
@@ -13,6 +13,7 @@ from typing import Optional, List, Tuple
 from pydantic import BaseModel, Field
 
 from .auth_service import get_auth_service
+from database.db_utils import get_db_connection, DatabaseManager
 
 
 # ============================================================================
@@ -142,51 +143,46 @@ class FieldService:
             db_path: Path to SQLite database
         """
         self.db_path = db_path
+        self.db = DatabaseManager(db_path)
         self.auth_service = get_auth_service()
         self._init_database()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        """Get a database connection."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
     def _init_database(self) -> None:
         """Initialize database tables if they don't exist."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        # Create fields table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS fields (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name VARCHAR(100) NOT NULL,
-                farm_name VARCHAR(100),
-                acreage DECIMAL(10, 2) NOT NULL,
-                current_crop VARCHAR(50),
-                soil_type VARCHAR(50),
-                irrigation_type VARCHAR(50),
-                location_lat DECIMAL(10, 7),
-                location_lng DECIMAL(10, 7),
-                boundary TEXT,
-                notes TEXT,
-                created_by_user_id INTEGER NOT NULL,
-                is_active BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (created_by_user_id) REFERENCES users(id)
-            )
-        """)
+            # Create fields table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS fields (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL,
+                    farm_name VARCHAR(100),
+                    acreage DECIMAL(10, 2) NOT NULL,
+                    current_crop VARCHAR(50),
+                    soil_type VARCHAR(50),
+                    irrigation_type VARCHAR(50),
+                    location_lat DECIMAL(10, 7),
+                    location_lng DECIMAL(10, 7),
+                    boundary TEXT,
+                    notes TEXT,
+                    created_by_user_id INTEGER NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+                )
+            """)
 
-        # Create indexes
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_name ON fields(name)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_farm ON fields(farm_name)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_crop ON fields(current_crop)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_created_by ON fields(created_by_user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_active ON fields(is_active)")
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_name ON fields(name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_farm ON fields(farm_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_crop ON fields(current_crop)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_created_by ON fields(created_by_user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_fields_active ON fields(is_active)")
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+            # Connection automatically closed by context manager
 
     # ========================================================================
     # HELPER METHODS
@@ -242,84 +238,81 @@ class FieldService:
         Returns:
             Tuple of (FieldResponse, error_message)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
         try:
-            cursor.execute("""
-                INSERT INTO fields (
-                    name, farm_name, acreage, current_crop, soil_type,
-                    irrigation_type, location_lat, location_lng, boundary,
-                    notes, created_by_user_id
+            with get_db_connection(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute("""
+                    INSERT INTO fields (
+                        name, farm_name, acreage, current_crop, soil_type,
+                        irrigation_type, location_lat, location_lng, boundary,
+                        notes, created_by_user_id
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    field_data.name,
+                    field_data.farm_name,
+                    field_data.acreage,
+                    field_data.current_crop.value if field_data.current_crop else None,
+                    field_data.soil_type.value if field_data.soil_type else None,
+                    field_data.irrigation_type.value if field_data.irrigation_type else None,
+                    field_data.location_lat,
+                    field_data.location_lng,
+                    field_data.boundary,
+                    field_data.notes,
+                    created_by
+                ))
+
+                field_id = cursor.lastrowid
+
+                # Log action
+                self.auth_service.db = conn
+                self.auth_service.log_action(
+                    user_id=created_by,
+                    action="create_field",
+                    entity_type="field",
+                    entity_id=field_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                field_data.name,
-                field_data.farm_name,
-                field_data.acreage,
-                field_data.current_crop.value if field_data.current_crop else None,
-                field_data.soil_type.value if field_data.soil_type else None,
-                field_data.irrigation_type.value if field_data.irrigation_type else None,
-                field_data.location_lat,
-                field_data.location_lng,
-                field_data.boundary,
-                field_data.notes,
-                created_by
-            ))
 
-            field_id = cursor.lastrowid
-
-            # Log action
-            self.auth_service.db = conn
-            self.auth_service.log_action(
-                user_id=created_by,
-                action="create_field",
-                entity_type="field",
-                entity_id=field_id
-            )
-
-            conn.commit()
-            conn.close()
+                conn.commit()
 
             return self.get_field_by_id(field_id), None
 
         except Exception as e:
-            conn.close()
             return None, str(e)
 
     def get_field_by_id(self, field_id: int, include_stats: bool = True) -> Optional[FieldResponse]:
         """Get field by ID with optional operation statistics."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        if include_stats:
-            cursor.execute("""
-                SELECT
-                    f.*,
-                    u.first_name || ' ' || u.last_name as created_by_user_name,
-                    (SELECT COUNT(*) FROM field_operations WHERE field_id = f.id AND is_active = 1) as total_operations,
-                    (SELECT MAX(operation_date) FROM field_operations WHERE field_id = f.id AND is_active = 1) as last_operation_date
-                FROM fields f
-                LEFT JOIN users u ON f.created_by_user_id = u.id
-                WHERE f.id = ?
-            """, (field_id,))
-        else:
-            cursor.execute("""
-                SELECT
-                    f.*,
-                    u.first_name || ' ' || u.last_name as created_by_user_name
-                FROM fields f
-                LEFT JOIN users u ON f.created_by_user_id = u.id
-                WHERE f.id = ?
-            """, (field_id,))
+            if include_stats:
+                cursor.execute("""
+                    SELECT
+                        f.*,
+                        u.first_name || ' ' || u.last_name as created_by_user_name,
+                        (SELECT COUNT(*) FROM field_operations WHERE field_id = f.id AND is_active = 1) as total_operations,
+                        (SELECT MAX(operation_date) FROM field_operations WHERE field_id = f.id AND is_active = 1) as last_operation_date
+                    FROM fields f
+                    LEFT JOIN users u ON f.created_by_user_id = u.id
+                    WHERE f.id = ?
+                """, (field_id,))
+            else:
+                cursor.execute("""
+                    SELECT
+                        f.*,
+                        u.first_name || ' ' || u.last_name as created_by_user_name
+                    FROM fields f
+                    LEFT JOIN users u ON f.created_by_user_id = u.id
+                    WHERE f.id = ?
+                """, (field_id,))
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
-        if not row:
-            return None
+            if not row:
+                return None
 
-        return self._row_to_response(row, include_stats)
+            return self._row_to_response(row, include_stats)
 
     def list_fields(
         self,
@@ -348,69 +341,68 @@ class FieldService:
         Returns:
             List of FieldResponse
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        if include_stats:
-            query = """
-                SELECT
-                    f.*,
-                    u.first_name || ' ' || u.last_name as created_by_user_name,
-                    (SELECT COUNT(*) FROM field_operations WHERE field_id = f.id AND is_active = 1) as total_operations,
-                    (SELECT MAX(operation_date) FROM field_operations WHERE field_id = f.id AND is_active = 1) as last_operation_date
-                FROM fields f
-                LEFT JOIN users u ON f.created_by_user_id = u.id
-            """
-        else:
-            query = """
-                SELECT
-                    f.*,
-                    u.first_name || ' ' || u.last_name as created_by_user_name
-                FROM fields f
-                LEFT JOIN users u ON f.created_by_user_id = u.id
-            """
+            if include_stats:
+                query = """
+                    SELECT
+                        f.*,
+                        u.first_name || ' ' || u.last_name as created_by_user_name,
+                        (SELECT COUNT(*) FROM field_operations WHERE field_id = f.id AND is_active = 1) as total_operations,
+                        (SELECT MAX(operation_date) FROM field_operations WHERE field_id = f.id AND is_active = 1) as last_operation_date
+                    FROM fields f
+                    LEFT JOIN users u ON f.created_by_user_id = u.id
+                """
+            else:
+                query = """
+                    SELECT
+                        f.*,
+                        u.first_name || ' ' || u.last_name as created_by_user_name
+                    FROM fields f
+                    LEFT JOIN users u ON f.created_by_user_id = u.id
+                """
 
-        conditions = []
-        params = []
+            conditions = []
+            params = []
 
-        if farm_name:
-            conditions.append("f.farm_name = ?")
-            params.append(farm_name)
+            if farm_name:
+                conditions.append("f.farm_name = ?")
+                params.append(farm_name)
 
-        if current_crop:
-            conditions.append("f.current_crop = ?")
-            params.append(current_crop.value)
+            if current_crop:
+                conditions.append("f.current_crop = ?")
+                params.append(current_crop.value)
 
-        if soil_type:
-            conditions.append("f.soil_type = ?")
-            params.append(soil_type.value)
+            if soil_type:
+                conditions.append("f.soil_type = ?")
+                params.append(soil_type.value)
 
-        if irrigation_type:
-            conditions.append("f.irrigation_type = ?")
-            params.append(irrigation_type.value)
+            if irrigation_type:
+                conditions.append("f.irrigation_type = ?")
+                params.append(irrigation_type.value)
 
-        if is_active is not None:
-            conditions.append("f.is_active = ?")
-            params.append(1 if is_active else 0)
+            if is_active is not None:
+                conditions.append("f.is_active = ?")
+                params.append(1 if is_active else 0)
 
-        if created_by_user_id:
-            conditions.append("f.created_by_user_id = ?")
-            params.append(created_by_user_id)
+            if created_by_user_id:
+                conditions.append("f.created_by_user_id = ?")
+                params.append(created_by_user_id)
 
-        if search:
-            conditions.append("(f.name LIKE ? OR f.farm_name LIKE ?)")
-            params.extend([f"%{search}%", f"%{search}%"])
+            if search:
+                conditions.append("(f.name LIKE ? OR f.farm_name LIKE ?)")
+                params.extend([f"%{search}%", f"%{search}%"])
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
 
-        query += " ORDER BY f.farm_name, f.name"
+            query += " ORDER BY f.farm_name, f.name"
 
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        conn.close()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-        return [self._row_to_response(row, include_stats) for row in rows]
+            return [self._row_to_response(row, include_stats) for row in rows]
 
     def update_field(
         self,
@@ -429,9 +421,6 @@ class FieldService:
         Returns:
             Tuple of (FieldResponse, error_message)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
         # Build update query dynamically
         updates = []
         params = []
@@ -477,7 +466,6 @@ class FieldService:
             params.append(field_data.notes)
 
         if not updates:
-            conn.close()
             return self.get_field_by_id(field_id), None
 
         updates.append("updated_at = ?")
@@ -485,26 +473,27 @@ class FieldService:
         params.append(field_id)
 
         try:
-            cursor.execute(f"""
-                UPDATE fields SET {', '.join(updates)} WHERE id = ?
-            """, params)
+            with get_db_connection(self.db_path) as conn:
+                cursor = conn.cursor()
 
-            # Log action
-            self.auth_service.db = conn
-            self.auth_service.log_action(
-                user_id=updated_by,
-                action="update_field",
-                entity_type="field",
-                entity_id=field_id
-            )
+                cursor.execute(f"""
+                    UPDATE fields SET {', '.join(updates)} WHERE id = ?
+                """, params)
 
-            conn.commit()
-            conn.close()
+                # Log action
+                self.auth_service.db = conn
+                self.auth_service.log_action(
+                    user_id=updated_by,
+                    action="update_field",
+                    entity_type="field",
+                    entity_id=field_id
+                )
+
+                conn.commit()
 
             return self.get_field_by_id(field_id), None
 
         except Exception as e:
-            conn.close()
             return None, str(e)
 
     def delete_field(
@@ -522,28 +511,26 @@ class FieldService:
         Returns:
             Tuple of (success, error_message)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            UPDATE fields SET is_active = 0, updated_at = ? WHERE id = ?
-        """, (datetime.utcnow(), field_id))
+            cursor.execute("""
+                UPDATE fields SET is_active = 0, updated_at = ? WHERE id = ?
+            """, (datetime.utcnow(), field_id))
 
-        if cursor.rowcount == 0:
-            conn.close()
-            return False, "Field not found"
+            if cursor.rowcount == 0:
+                return False, "Field not found"
 
-        # Log action
-        self.auth_service.db = conn
-        self.auth_service.log_action(
-            user_id=deleted_by,
-            action="delete_field",
-            entity_type="field",
-            entity_id=field_id
-        )
+            # Log action
+            self.auth_service.db = conn
+            self.auth_service.log_action(
+                user_id=deleted_by,
+                action="delete_field",
+                entity_type="field",
+                entity_id=field_id
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
         return True, None
 
@@ -561,48 +548,46 @@ class FieldService:
         Returns:
             FieldSummary with statistics
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        # Total fields and acreage
-        cursor.execute("""
-            SELECT COUNT(*) as total_fields, COALESCE(SUM(acreage), 0) as total_acreage
-            FROM fields WHERE is_active = ?
-        """, (1 if is_active else 0,))
+            # Total fields and acreage
+            cursor.execute("""
+                SELECT COUNT(*) as total_fields, COALESCE(SUM(acreage), 0) as total_acreage
+                FROM fields WHERE is_active = ?
+            """, (1 if is_active else 0,))
 
-        row = cursor.fetchone()
-        total_fields = row["total_fields"]
-        total_acreage = float(row["total_acreage"])
+            row = cursor.fetchone()
+            total_fields = row["total_fields"]
+            total_acreage = float(row["total_acreage"])
 
-        # Fields by crop
-        cursor.execute("""
-            SELECT current_crop, COUNT(*) as count, SUM(acreage) as acreage
-            FROM fields WHERE is_active = ? AND current_crop IS NOT NULL
-            GROUP BY current_crop
-        """, (1 if is_active else 0,))
+            # Fields by crop
+            cursor.execute("""
+                SELECT current_crop, COUNT(*) as count, SUM(acreage) as acreage
+                FROM fields WHERE is_active = ? AND current_crop IS NOT NULL
+                GROUP BY current_crop
+            """, (1 if is_active else 0,))
 
-        fields_by_crop = {}
-        for row in cursor.fetchall():
-            fields_by_crop[row["current_crop"]] = {
-                "count": row["count"],
-                "acreage": float(row["acreage"])
-            }
+            fields_by_crop = {}
+            for row in cursor.fetchall():
+                fields_by_crop[row["current_crop"]] = {
+                    "count": row["count"],
+                    "acreage": float(row["acreage"])
+                }
 
-        # Fields by farm
-        cursor.execute("""
-            SELECT COALESCE(farm_name, 'Unassigned') as farm, COUNT(*) as count, SUM(acreage) as acreage
-            FROM fields WHERE is_active = ?
-            GROUP BY farm_name
-        """, (1 if is_active else 0,))
+            # Fields by farm
+            cursor.execute("""
+                SELECT COALESCE(farm_name, 'Unassigned') as farm, COUNT(*) as count, SUM(acreage) as acreage
+                FROM fields WHERE is_active = ?
+                GROUP BY farm_name
+            """, (1 if is_active else 0,))
 
-        fields_by_farm = {}
-        for row in cursor.fetchall():
-            fields_by_farm[row["farm"]] = {
-                "count": row["count"],
-                "acreage": float(row["acreage"])
-            }
-
-        conn.close()
+            fields_by_farm = {}
+            for row in cursor.fetchall():
+                fields_by_farm[row["farm"]] = {
+                    "count": row["count"],
+                    "acreage": float(row["acreage"])
+                }
 
         return FieldSummary(
             total_fields=total_fields,
@@ -613,19 +598,16 @@ class FieldService:
 
     def get_farm_names(self) -> List[str]:
         """Get list of unique farm names for dropdown filtering."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT DISTINCT farm_name FROM fields
-            WHERE farm_name IS NOT NULL AND is_active = 1
-            ORDER BY farm_name
-        """)
+            cursor.execute("""
+                SELECT DISTINCT farm_name FROM fields
+                WHERE farm_name IS NOT NULL AND is_active = 1
+                ORDER BY farm_name
+            """)
 
-        names = [row["farm_name"] for row in cursor.fetchall()]
-        conn.close()
-
-        return names
+            return [row["farm_name"] for row in cursor.fetchall()]
 
 
 # ============================================================================

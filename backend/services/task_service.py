@@ -2,7 +2,7 @@
 Task Service for Farm Operations Manager
 Handles task CRUD operations, status management, and role-based access.
 
-AgTools v2.5.0 Phase 2
+AgTools v6.13.5
 """
 
 import sqlite3
@@ -13,6 +13,7 @@ from typing import Optional, List, Tuple
 from pydantic import BaseModel, Field
 
 from .auth_service import get_auth_service, UserRole
+from database.db_utils import get_db_connection, DatabaseManager
 
 
 # ============================================================================
@@ -114,53 +115,47 @@ class TaskService:
             db_path: Path to SQLite database
         """
         self.db_path = db_path
+        self.db = DatabaseManager(db_path)
         self.auth_service = get_auth_service()
         self._init_database()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        """Get a database connection."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
     def _init_database(self) -> None:
         """Initialize database tables if they don't exist."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        # Create tasks table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title VARCHAR(200) NOT NULL,
-                description TEXT,
-                status VARCHAR(20) NOT NULL DEFAULT 'todo',
-                priority VARCHAR(20) NOT NULL DEFAULT 'medium',
-                assigned_to_user_id INTEGER,
-                assigned_to_crew_id INTEGER,
-                created_by_user_id INTEGER NOT NULL,
-                due_date DATE,
-                completed_at TIMESTAMP,
-                is_active BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (assigned_to_user_id) REFERENCES users(id),
-                FOREIGN KEY (assigned_to_crew_id) REFERENCES crews(id),
-                FOREIGN KEY (created_by_user_id) REFERENCES users(id)
-            )
-        """)
+            # Create tasks table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    status VARCHAR(20) NOT NULL DEFAULT 'todo',
+                    priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+                    assigned_to_user_id INTEGER,
+                    assigned_to_crew_id INTEGER,
+                    created_by_user_id INTEGER NOT NULL,
+                    due_date DATE,
+                    completed_at TIMESTAMP,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (assigned_to_user_id) REFERENCES users(id),
+                    FOREIGN KEY (assigned_to_crew_id) REFERENCES crews(id),
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+                )
+            """)
 
-        # Create indexes
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_assigned_user ON tasks(assigned_to_user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_assigned_crew ON tasks(assigned_to_crew_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by_user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_active ON tasks(is_active)")
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_assigned_user ON tasks(assigned_to_user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_assigned_crew ON tasks(assigned_to_crew_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by_user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_active ON tasks(is_active)")
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
     # ========================================================================
     # HELPER METHODS
@@ -189,16 +184,14 @@ class TaskService:
 
     def get_user_crew_ids(self, user_id: int) -> List[int]:
         """Get all crew IDs that a user belongs to."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT crew_id FROM crew_members WHERE user_id = ?
-        """, (user_id,))
+            cursor.execute("""
+                SELECT crew_id FROM crew_members WHERE user_id = ?
+            """, (user_id,))
 
-        crew_ids = [row["crew_id"] for row in cursor.fetchall()]
-        conn.close()
-        return crew_ids
+            return [row["crew_id"] for row in cursor.fetchall()]
 
     def _validate_status_transition(self, current: TaskStatus, new: TaskStatus) -> bool:
         """Check if a status transition is valid."""
@@ -221,33 +214,32 @@ class TaskService:
         if user_role == "admin":
             return True
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT assigned_to_user_id, assigned_to_crew_id, created_by_user_id
-            FROM tasks WHERE id = ? AND is_active = 1
-        """, (task_id,))
+            cursor.execute("""
+                SELECT assigned_to_user_id, assigned_to_crew_id, created_by_user_id
+                FROM tasks WHERE id = ? AND is_active = 1
+            """, (task_id,))
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
-        if not row:
-            return False
+            if not row:
+                return False
 
-        # Check direct assignment
-        if row["assigned_to_user_id"] == user_id:
-            return True
-
-        # Check if created by user
-        if row["created_by_user_id"] == user_id:
-            return True
-
-        # Check crew assignment
-        if row["assigned_to_crew_id"]:
-            user_crews = self.get_user_crew_ids(user_id)
-            if row["assigned_to_crew_id"] in user_crews:
+            # Check direct assignment
+            if row["assigned_to_user_id"] == user_id:
                 return True
+
+            # Check if created by user
+            if row["created_by_user_id"] == user_id:
+                return True
+
+            # Check crew assignment
+            if row["assigned_to_crew_id"]:
+                user_crews = self.get_user_crew_ids(user_id)
+                if row["assigned_to_crew_id"] in user_crews:
+                    return True
 
         return False
 
@@ -262,33 +254,32 @@ class TaskService:
         if user_role == "admin":
             return True
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT assigned_to_user_id, assigned_to_crew_id, created_by_user_id
-            FROM tasks WHERE id = ? AND is_active = 1
-        """, (task_id,))
+            cursor.execute("""
+                SELECT assigned_to_user_id, assigned_to_crew_id, created_by_user_id
+                FROM tasks WHERE id = ? AND is_active = 1
+            """, (task_id,))
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
-        if not row:
-            return False
+            if not row:
+                return False
 
-        # Check direct assignment
-        if row["assigned_to_user_id"] == user_id:
-            return True
-
-        # Check if created by user (manager can edit their own created tasks)
-        if user_role == "manager" and row["created_by_user_id"] == user_id:
-            return True
-
-        # Manager can edit crew-assigned tasks
-        if user_role == "manager" and row["assigned_to_crew_id"]:
-            user_crews = self.get_user_crew_ids(user_id)
-            if row["assigned_to_crew_id"] in user_crews:
+            # Check direct assignment
+            if row["assigned_to_user_id"] == user_id:
                 return True
+
+            # Check if created by user (manager can edit their own created tasks)
+            if user_role == "manager" and row["created_by_user_id"] == user_id:
+                return True
+
+            # Manager can edit crew-assigned tasks
+            if user_role == "manager" and row["assigned_to_crew_id"]:
+                user_crews = self.get_user_crew_ids(user_id)
+                if row["assigned_to_crew_id"] in user_crews:
+                    return True
 
         return False
 
@@ -311,75 +302,72 @@ class TaskService:
         Returns:
             Tuple of (TaskResponse, error_message)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
         try:
-            cursor.execute("""
-                INSERT INTO tasks (
-                    title, description, status, priority,
-                    assigned_to_user_id, assigned_to_crew_id, created_by_user_id,
-                    due_date
+            with get_db_connection(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                cursor.execute("""
+                    INSERT INTO tasks (
+                        title, description, status, priority,
+                        assigned_to_user_id, assigned_to_crew_id, created_by_user_id,
+                        due_date
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    task_data.title,
+                    task_data.description,
+                    task_data.status.value,
+                    task_data.priority.value,
+                    task_data.assigned_to_user_id,
+                    task_data.assigned_to_crew_id,
+                    created_by,
+                    task_data.due_date.isoformat() if task_data.due_date else None
+                ))
+
+                task_id = cursor.lastrowid
+
+                # Log action
+                self.auth_service.db = conn
+                self.auth_service.log_action(
+                    user_id=created_by,
+                    action="create_task",
+                    entity_type="task",
+                    entity_id=task_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                task_data.title,
-                task_data.description,
-                task_data.status.value,
-                task_data.priority.value,
-                task_data.assigned_to_user_id,
-                task_data.assigned_to_crew_id,
-                created_by,
-                task_data.due_date.isoformat() if task_data.due_date else None
-            ))
 
-            task_id = cursor.lastrowid
-
-            # Log action
-            self.auth_service.db = conn
-            self.auth_service.log_action(
-                user_id=created_by,
-                action="create_task",
-                entity_type="task",
-                entity_id=task_id
-            )
-
-            conn.commit()
-            conn.close()
+                conn.commit()
 
             return self.get_task_by_id(task_id), None
 
         except Exception as e:
-            conn.close()
             return None, str(e)
 
     def get_task_by_id(self, task_id: int) -> Optional[TaskResponse]:
         """Get task by ID with joined user/crew names."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT
-                t.id, t.title, t.description, t.status, t.priority,
-                t.assigned_to_user_id, t.assigned_to_crew_id, t.created_by_user_id,
-                t.due_date, t.completed_at, t.is_active, t.created_at, t.updated_at,
-                u1.first_name || ' ' || u1.last_name as assigned_to_user_name,
-                c.name as assigned_to_crew_name,
-                u2.first_name || ' ' || u2.last_name as created_by_user_name
-            FROM tasks t
-            LEFT JOIN users u1 ON t.assigned_to_user_id = u1.id
-            LEFT JOIN crews c ON t.assigned_to_crew_id = c.id
-            LEFT JOIN users u2 ON t.created_by_user_id = u2.id
-            WHERE t.id = ?
-        """, (task_id,))
+            cursor.execute("""
+                SELECT
+                    t.id, t.title, t.description, t.status, t.priority,
+                    t.assigned_to_user_id, t.assigned_to_crew_id, t.created_by_user_id,
+                    t.due_date, t.completed_at, t.is_active, t.created_at, t.updated_at,
+                    u1.first_name || ' ' || u1.last_name as assigned_to_user_name,
+                    c.name as assigned_to_crew_name,
+                    u2.first_name || ' ' || u2.last_name as created_by_user_name
+                FROM tasks t
+                LEFT JOIN users u1 ON t.assigned_to_user_id = u1.id
+                LEFT JOIN crews c ON t.assigned_to_crew_id = c.id
+                LEFT JOIN users u2 ON t.created_by_user_id = u2.id
+                WHERE t.id = ?
+            """, (task_id,))
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
 
-        if not row:
-            return None
+            if not row:
+                return None
 
-        return self._row_to_response(row)
+            return self._row_to_response(row)
 
     def list_tasks(
         self,
@@ -415,110 +403,109 @@ class TaskService:
         Returns:
             List of TaskResponse
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        query = """
-            SELECT
-                t.id, t.title, t.description, t.status, t.priority,
-                t.assigned_to_user_id, t.assigned_to_crew_id, t.created_by_user_id,
-                t.due_date, t.completed_at, t.is_active, t.created_at, t.updated_at,
-                u1.first_name || ' ' || u1.last_name as assigned_to_user_name,
-                c.name as assigned_to_crew_name,
-                u2.first_name || ' ' || u2.last_name as created_by_user_name
-            FROM tasks t
-            LEFT JOIN users u1 ON t.assigned_to_user_id = u1.id
-            LEFT JOIN crews c ON t.assigned_to_crew_id = c.id
-            LEFT JOIN users u2 ON t.created_by_user_id = u2.id
-        """
+            query = """
+                SELECT
+                    t.id, t.title, t.description, t.status, t.priority,
+                    t.assigned_to_user_id, t.assigned_to_crew_id, t.created_by_user_id,
+                    t.due_date, t.completed_at, t.is_active, t.created_at, t.updated_at,
+                    u1.first_name || ' ' || u1.last_name as assigned_to_user_name,
+                    c.name as assigned_to_crew_name,
+                    u2.first_name || ' ' || u2.last_name as created_by_user_name
+                FROM tasks t
+                LEFT JOIN users u1 ON t.assigned_to_user_id = u1.id
+                LEFT JOIN crews c ON t.assigned_to_crew_id = c.id
+                LEFT JOIN users u2 ON t.created_by_user_id = u2.id
+            """
 
-        conditions = []
-        params = []
+            conditions = []
+            params = []
 
-        # Apply filters
-        if status:
-            conditions.append("t.status = ?")
-            params.append(status.value)
+            # Apply filters
+            if status:
+                conditions.append("t.status = ?")
+                params.append(status.value)
 
-        if priority:
-            conditions.append("t.priority = ?")
-            params.append(priority.value)
+            if priority:
+                conditions.append("t.priority = ?")
+                params.append(priority.value)
 
-        if assigned_to_user_id:
-            conditions.append("t.assigned_to_user_id = ?")
-            params.append(assigned_to_user_id)
+            if assigned_to_user_id:
+                conditions.append("t.assigned_to_user_id = ?")
+                params.append(assigned_to_user_id)
 
-        if assigned_to_crew_id:
-            conditions.append("t.assigned_to_crew_id = ?")
-            params.append(assigned_to_crew_id)
+            if assigned_to_crew_id:
+                conditions.append("t.assigned_to_crew_id = ?")
+                params.append(assigned_to_crew_id)
 
-        if created_by_user_id:
-            conditions.append("t.created_by_user_id = ?")
-            params.append(created_by_user_id)
+            if created_by_user_id:
+                conditions.append("t.created_by_user_id = ?")
+                params.append(created_by_user_id)
 
-        if due_before:
-            conditions.append("t.due_date <= ?")
-            params.append(due_before.isoformat())
+            if due_before:
+                conditions.append("t.due_date <= ?")
+                params.append(due_before.isoformat())
 
-        if due_after:
-            conditions.append("t.due_date >= ?")
-            params.append(due_after.isoformat())
+            if due_after:
+                conditions.append("t.due_date >= ?")
+                params.append(due_after.isoformat())
 
-        if is_active is not None:
-            conditions.append("t.is_active = ?")
-            params.append(1 if is_active else 0)
+            if is_active is not None:
+                conditions.append("t.is_active = ?")
+                params.append(1 if is_active else 0)
 
-        # Role-based filtering
-        if user_id and user_role:
-            if user_role == "admin":
-                # Admin sees all tasks
-                pass
-            elif user_role == "manager":
-                # Manager sees: own tasks, created tasks, crew-assigned tasks
-                user_crews = self.get_user_crew_ids(user_id)
-                if my_tasks_only:
-                    conditions.append("t.assigned_to_user_id = ?")
-                    params.append(user_id)
-                else:
-                    crew_condition = ""
-                    if user_crews:
-                        placeholders = ",".join("?" * len(user_crews))
-                        crew_condition = f" OR t.assigned_to_crew_id IN ({placeholders})"
-                        params_for_crews = user_crews
+            # Role-based filtering
+            if user_id and user_role:
+                if user_role == "admin":
+                    # Admin sees all tasks
+                    pass
+                elif user_role == "manager":
+                    # Manager sees: own tasks, created tasks, crew-assigned tasks
+                    user_crews = self.get_user_crew_ids(user_id)
+                    if my_tasks_only:
+                        conditions.append("t.assigned_to_user_id = ?")
+                        params.append(user_id)
                     else:
                         crew_condition = ""
-                        params_for_crews = []
+                        if user_crews:
+                            placeholders = ",".join("?" * len(user_crews))
+                            crew_condition = f" OR t.assigned_to_crew_id IN ({placeholders})"
+                            params_for_crews = user_crews
+                        else:
+                            crew_condition = ""
+                            params_for_crews = []
 
-                    conditions.append(f"""
-                        (t.assigned_to_user_id = ?
-                         OR t.created_by_user_id = ?
-                         {crew_condition})
-                    """)
-                    params.extend([user_id, user_id] + params_for_crews)
-            else:  # crew
-                # Crew sees: only own assigned tasks or crew-assigned tasks
-                user_crews = self.get_user_crew_ids(user_id)
-                if my_tasks_only or not user_crews:
-                    conditions.append("t.assigned_to_user_id = ?")
-                    params.append(user_id)
-                else:
-                    placeholders = ",".join("?" * len(user_crews))
-                    conditions.append(f"""
-                        (t.assigned_to_user_id = ?
-                         OR t.assigned_to_crew_id IN ({placeholders}))
-                    """)
-                    params.extend([user_id] + user_crews)
+                        conditions.append(f"""
+                            (t.assigned_to_user_id = ?
+                             OR t.created_by_user_id = ?
+                             {crew_condition})
+                        """)
+                        params.extend([user_id, user_id] + params_for_crews)
+                else:  # crew
+                    # Crew sees: only own assigned tasks or crew-assigned tasks
+                    user_crews = self.get_user_crew_ids(user_id)
+                    if my_tasks_only or not user_crews:
+                        conditions.append("t.assigned_to_user_id = ?")
+                        params.append(user_id)
+                    else:
+                        placeholders = ",".join("?" * len(user_crews))
+                        conditions.append(f"""
+                            (t.assigned_to_user_id = ?
+                             OR t.assigned_to_crew_id IN ({placeholders}))
+                        """)
+                        params.extend([user_id] + user_crews)
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
 
-        query += " ORDER BY t.priority DESC, t.due_date ASC NULLS LAST, t.created_at DESC"
+            query += " ORDER BY t.priority DESC, t.due_date ASC NULLS LAST, t.created_at DESC"
 
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        conn.close()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-        return [self._row_to_response(row) for row in rows]
+            return [self._row_to_response(row) for row in rows]
 
     def update_task(
         self,
@@ -537,93 +524,88 @@ class TaskService:
         Returns:
             Tuple of (TaskResponse, error_message)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        # Get current task to validate status transition
-        cursor.execute("SELECT status FROM tasks WHERE id = ?", (task_id,))
-        row = cursor.fetchone()
-        if not row:
-            conn.close()
-            return None, "Task not found"
+            # Get current task to validate status transition
+            cursor.execute("SELECT status FROM tasks WHERE id = ?", (task_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None, "Task not found"
 
-        current_status = TaskStatus(row["status"])
+            current_status = TaskStatus(row["status"])
 
-        # Build update query dynamically
-        updates = []
-        params = []
+            # Build update query dynamically
+            updates = []
+            params = []
 
-        if task_data.title is not None:
-            updates.append("title = ?")
-            params.append(task_data.title)
+            if task_data.title is not None:
+                updates.append("title = ?")
+                params.append(task_data.title)
 
-        if task_data.description is not None:
-            updates.append("description = ?")
-            params.append(task_data.description)
+            if task_data.description is not None:
+                updates.append("description = ?")
+                params.append(task_data.description)
 
-        if task_data.status is not None:
-            # Validate status transition
-            if not self._validate_status_transition(current_status, task_data.status):
-                conn.close()
-                return None, f"Invalid status transition from {current_status.value} to {task_data.status.value}"
+            if task_data.status is not None:
+                # Validate status transition
+                if not self._validate_status_transition(current_status, task_data.status):
+                    return None, f"Invalid status transition from {current_status.value} to {task_data.status.value}"
 
-            updates.append("status = ?")
-            params.append(task_data.status.value)
+                updates.append("status = ?")
+                params.append(task_data.status.value)
 
-            # Set completed_at if completing
-            if task_data.status == TaskStatus.COMPLETED:
-                updates.append("completed_at = ?")
-                params.append(datetime.utcnow())
-            elif current_status == TaskStatus.COMPLETED:
-                # Reopening - clear completed_at
-                updates.append("completed_at = NULL")
+                # Set completed_at if completing
+                if task_data.status == TaskStatus.COMPLETED:
+                    updates.append("completed_at = ?")
+                    params.append(datetime.utcnow())
+                elif current_status == TaskStatus.COMPLETED:
+                    # Reopening - clear completed_at
+                    updates.append("completed_at = NULL")
 
-        if task_data.priority is not None:
-            updates.append("priority = ?")
-            params.append(task_data.priority.value)
+            if task_data.priority is not None:
+                updates.append("priority = ?")
+                params.append(task_data.priority.value)
 
-        if task_data.assigned_to_user_id is not None:
-            updates.append("assigned_to_user_id = ?")
-            params.append(task_data.assigned_to_user_id if task_data.assigned_to_user_id > 0 else None)
+            if task_data.assigned_to_user_id is not None:
+                updates.append("assigned_to_user_id = ?")
+                params.append(task_data.assigned_to_user_id if task_data.assigned_to_user_id > 0 else None)
 
-        if task_data.assigned_to_crew_id is not None:
-            updates.append("assigned_to_crew_id = ?")
-            params.append(task_data.assigned_to_crew_id if task_data.assigned_to_crew_id > 0 else None)
+            if task_data.assigned_to_crew_id is not None:
+                updates.append("assigned_to_crew_id = ?")
+                params.append(task_data.assigned_to_crew_id if task_data.assigned_to_crew_id > 0 else None)
 
-        if task_data.due_date is not None:
-            updates.append("due_date = ?")
-            params.append(task_data.due_date.isoformat())
+            if task_data.due_date is not None:
+                updates.append("due_date = ?")
+                params.append(task_data.due_date.isoformat())
 
-        if not updates:
-            conn.close()
-            return self.get_task_by_id(task_id), None
+            if not updates:
+                return self.get_task_by_id(task_id), None
 
-        updates.append("updated_at = ?")
-        params.append(datetime.utcnow())
-        params.append(task_id)
+            updates.append("updated_at = ?")
+            params.append(datetime.utcnow())
+            params.append(task_id)
 
-        try:
-            cursor.execute(f"""
-                UPDATE tasks SET {', '.join(updates)} WHERE id = ?
-            """, params)
+            try:
+                cursor.execute(f"""
+                    UPDATE tasks SET {', '.join(updates)} WHERE id = ?
+                """, params)
 
-            # Log action
-            self.auth_service.db = conn
-            self.auth_service.log_action(
-                user_id=updated_by,
-                action="update_task",
-                entity_type="task",
-                entity_id=task_id
-            )
+                # Log action
+                self.auth_service.db = conn
+                self.auth_service.log_action(
+                    user_id=updated_by,
+                    action="update_task",
+                    entity_type="task",
+                    entity_id=task_id
+                )
 
-            conn.commit()
-            conn.close()
+                conn.commit()
 
-            return self.get_task_by_id(task_id), None
+                return self.get_task_by_id(task_id), None
 
-        except Exception as e:
-            conn.close()
-            return None, str(e)
+            except Exception as e:
+                return None, str(e)
 
     def change_status(
         self,
@@ -660,28 +642,26 @@ class TaskService:
         Returns:
             Tuple of (success, error_message)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            UPDATE tasks SET is_active = 0, updated_at = ? WHERE id = ?
-        """, (datetime.utcnow(), task_id))
+            cursor.execute("""
+                UPDATE tasks SET is_active = 0, updated_at = ? WHERE id = ?
+            """, (datetime.utcnow(), task_id))
 
-        if cursor.rowcount == 0:
-            conn.close()
-            return False, "Task not found"
+            if cursor.rowcount == 0:
+                return False, "Task not found"
 
-        # Log action
-        self.auth_service.db = conn
-        self.auth_service.log_action(
-            user_id=deleted_by,
-            action="delete_task",
-            entity_type="task",
-            entity_id=task_id
-        )
+            # Log action
+            self.auth_service.db = conn
+            self.auth_service.log_action(
+                user_id=deleted_by,
+                action="delete_task",
+                entity_type="task",
+                entity_id=task_id
+            )
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
         return True, None
 

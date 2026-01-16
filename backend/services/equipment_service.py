@@ -2,7 +2,7 @@
 Equipment Service for Farm Operations Manager
 Handles equipment fleet management, maintenance scheduling, and usage tracking.
 
-AgTools v2.5.0 Phase 4
+AgTools v6.13.5
 """
 
 import sqlite3
@@ -13,6 +13,7 @@ from typing import Optional, List, Tuple
 from pydantic import BaseModel, Field
 
 from .auth_service import get_auth_service
+from database.db_utils import get_db_connection, DatabaseManager
 
 
 # ============================================================================
@@ -285,104 +286,104 @@ class EquipmentService:
             db_path: Path to SQLite database
         """
         self.db_path = db_path
+        self.db = DatabaseManager(db_path)
         self.auth_service = get_auth_service()
         self._init_database()
 
+    def _init_database(self) -> None:
+        """Initialize database tables if they don't exist."""
+        with get_db_connection(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            # Create equipment table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS equipment (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL,
+                    equipment_type VARCHAR(50) NOT NULL,
+                    make VARCHAR(100),
+                    model VARCHAR(100),
+                    year INTEGER,
+                    serial_number VARCHAR(100),
+                    purchase_date DATE,
+                    purchase_cost DECIMAL(12, 2),
+                    current_value DECIMAL(12, 2),
+                    hourly_rate DECIMAL(8, 2),
+                    current_hours DECIMAL(10, 1) DEFAULT 0,
+                    status VARCHAR(20) DEFAULT 'available',
+                    current_location VARCHAR(100),
+                    notes TEXT,
+                    created_by_user_id INTEGER NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+                )
+            """)
+
+            # Create equipment_maintenance table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS equipment_maintenance (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    equipment_id INTEGER NOT NULL,
+                    maintenance_type VARCHAR(50) NOT NULL,
+                    service_date DATE NOT NULL,
+                    next_service_date DATE,
+                    next_service_hours DECIMAL(10, 1),
+                    cost DECIMAL(10, 2),
+                    performed_by VARCHAR(100),
+                    vendor VARCHAR(100),
+                    description TEXT,
+                    parts_used TEXT,
+                    created_by_user_id INTEGER NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (equipment_id) REFERENCES equipment(id),
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+                )
+            """)
+
+            # Create equipment_usage table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS equipment_usage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    equipment_id INTEGER NOT NULL,
+                    field_operation_id INTEGER,
+                    usage_date DATE NOT NULL,
+                    hours_used DECIMAL(8, 1),
+                    starting_hours DECIMAL(10, 1),
+                    ending_hours DECIMAL(10, 1),
+                    fuel_used DECIMAL(8, 2),
+                    fuel_unit VARCHAR(20) DEFAULT 'gallons',
+                    operator_id INTEGER,
+                    notes TEXT,
+                    created_by_user_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (equipment_id) REFERENCES equipment(id),
+                    FOREIGN KEY (field_operation_id) REFERENCES field_operations(id),
+                    FOREIGN KEY (operator_id) REFERENCES users(id),
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id)
+                )
+            """)
+
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_type ON equipment(equipment_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_status ON equipment(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_active ON equipment(is_active)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_maint_equipment ON equipment_maintenance(equipment_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_maint_type ON equipment_maintenance(maintenance_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_maint_date ON equipment_maintenance(service_date)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_equipment ON equipment_usage(equipment_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_date ON equipment_usage(usage_date)")
+
+            conn.commit()
+
     def _get_connection(self) -> sqlite3.Connection:
-        """Get a database connection."""
+        """Get a database connection. DEPRECATED - use context managers instead."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
-
-    def _init_database(self) -> None:
-        """Initialize database tables if they don't exist."""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        # Create equipment table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS equipment (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name VARCHAR(100) NOT NULL,
-                equipment_type VARCHAR(50) NOT NULL,
-                make VARCHAR(100),
-                model VARCHAR(100),
-                year INTEGER,
-                serial_number VARCHAR(100),
-                purchase_date DATE,
-                purchase_cost DECIMAL(12, 2),
-                current_value DECIMAL(12, 2),
-                hourly_rate DECIMAL(8, 2),
-                current_hours DECIMAL(10, 1) DEFAULT 0,
-                status VARCHAR(20) DEFAULT 'available',
-                current_location VARCHAR(100),
-                notes TEXT,
-                created_by_user_id INTEGER NOT NULL,
-                is_active BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (created_by_user_id) REFERENCES users(id)
-            )
-        """)
-
-        # Create equipment_maintenance table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS equipment_maintenance (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                equipment_id INTEGER NOT NULL,
-                maintenance_type VARCHAR(50) NOT NULL,
-                service_date DATE NOT NULL,
-                next_service_date DATE,
-                next_service_hours DECIMAL(10, 1),
-                cost DECIMAL(10, 2),
-                performed_by VARCHAR(100),
-                vendor VARCHAR(100),
-                description TEXT,
-                parts_used TEXT,
-                created_by_user_id INTEGER NOT NULL,
-                is_active BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (equipment_id) REFERENCES equipment(id),
-                FOREIGN KEY (created_by_user_id) REFERENCES users(id)
-            )
-        """)
-
-        # Create equipment_usage table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS equipment_usage (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                equipment_id INTEGER NOT NULL,
-                field_operation_id INTEGER,
-                usage_date DATE NOT NULL,
-                hours_used DECIMAL(8, 1),
-                starting_hours DECIMAL(10, 1),
-                ending_hours DECIMAL(10, 1),
-                fuel_used DECIMAL(8, 2),
-                fuel_unit VARCHAR(20) DEFAULT 'gallons',
-                operator_id INTEGER,
-                notes TEXT,
-                created_by_user_id INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (equipment_id) REFERENCES equipment(id),
-                FOREIGN KEY (field_operation_id) REFERENCES field_operations(id),
-                FOREIGN KEY (operator_id) REFERENCES users(id),
-                FOREIGN KEY (created_by_user_id) REFERENCES users(id)
-            )
-        """)
-
-        # Create indexes
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_type ON equipment(equipment_type)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_status ON equipment(status)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_active ON equipment(is_active)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_maint_equipment ON equipment_maintenance(equipment_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_maint_type ON equipment_maintenance(maintenance_type)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_maint_date ON equipment_maintenance(service_date)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_equipment ON equipment_usage(equipment_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_date ON equipment_usage(usage_date)")
-
-        conn.commit()
-        conn.close()
 
     # ========================================================================
     # HELPER METHODS

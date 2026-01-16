@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.4 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.5 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,64 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.5 (January 16, 2026)
+
+### Database Context Managers for Safe Connection Handling
+
+**Added database utility module with context managers to ensure connections are properly closed.**
+
+This addresses the sixth item in the v6.12.2 "Remaining Items" list (0% context manager coverage).
+
+**New Module: `backend/database/db_utils.py`**
+
+1. **Context Managers**
+   - `get_db_connection()` - Ensures connections are closed even on exceptions
+   - `get_db_cursor()` - Combined connection + cursor with optional commit
+
+2. **DatabaseManager Class**
+   - `connection()` - Get connection context manager
+   - `cursor()` - Get cursor context manager
+   - `transaction()` - Get cursor with auto-commit on success
+   - `execute()`, `execute_one()`, `execute_write()`, `execute_many()` - Convenience methods
+
+3. **Services Updated**
+   - `field_service.py` - Fully migrated to context managers
+   - `task_service.py` - Fully migrated to context managers
+   - `equipment_service.py` - Imports added, `_init_database` updated
+   - `inventory_service.py` - Imports added, `_init_database` updated
+
+**Files Created:**
+```
+backend/database/__init__.py - Package exports
+backend/database/db_utils.py - Context manager utilities
+```
+
+**Files Modified:**
+```
+backend/services/field_service.py - Full context manager migration
+backend/services/task_service.py - Full context manager migration
+backend/services/equipment_service.py - Partial migration (init only)
+backend/services/inventory_service.py - Partial migration (init only)
+```
+
+**Migration Pattern:**
+```python
+# Before (unsafe - connection may leak)
+conn = self._get_connection()
+cursor = conn.cursor()
+cursor.execute("SELECT ...")
+conn.close()
+
+# After (safe - auto-cleanup guaranteed)
+with get_db_connection(self.db_path) as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT ...")
+```
+
+**Note:** Remaining 21 services have backward-compatible `_get_connection()` marked as deprecated.
 
 ---
 
