@@ -1,7 +1,7 @@
 """
 Professional Crop Consulting System - FastAPI Backend
 Main application entry point with Input Cost Optimization
-Version 2.2.0 - Added Yield Response & Economic Optimum Rate Calculator
+Version 6.13.0 - Refactored to FastAPI Routers Architecture
 """
 
 import sys
@@ -410,11 +410,29 @@ from services.crop_cost_analysis_service import (
 
 from mobile import mobile_router, configure_templates
 
+# Import API routers (v6.13.0 - Refactored to FastAPI routers)
+from routers import (
+    auth_router,
+    fields_router,
+    equipment_router,
+    inventory_router,
+    tasks_router,
+    optimization_router,
+    reports_router,
+    ai_ml_router,
+    grants_router,
+    sustainability_router,
+    farm_business_router,
+    genfin_router,
+    livestock_router,
+    crops_router,
+)
+
 # Initialize FastAPI app
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system with recurring transactions, bank feeds, and fixed assets",
-    version="6.6.0",
+    version="6.13.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -470,6 +488,28 @@ configure_templates(os.path.join(_backend_dir, "templates"))
 
 # Include mobile router (routes under /m/*)
 app.include_router(mobile_router)
+
+# ============================================================================
+# API ROUTERS (v6.13.0 - Refactored from monolithic main.py)
+# ============================================================================
+# These routers organize endpoints into logical modules for better maintainability.
+# Note: Some endpoints are still in main.py during the migration process.
+# As migration completes, duplicate endpoints will be removed from main.py.
+
+app.include_router(auth_router)           # Authentication, users, crews
+app.include_router(fields_router)         # Fields and operations
+app.include_router(equipment_router)      # Equipment and maintenance
+app.include_router(inventory_router)      # Inventory management
+app.include_router(tasks_router)          # Task management
+app.include_router(optimization_router)   # Cost optimization, pricing
+app.include_router(reports_router)        # Reports and cost tracking
+app.include_router(ai_ml_router)          # AI/ML intelligence
+app.include_router(grants_router)         # Grants and compliance
+app.include_router(sustainability_router) # Sustainability and climate
+app.include_router(farm_business_router)  # Farm business operations
+app.include_router(genfin_router)         # GenFin accounting
+app.include_router(livestock_router)      # Livestock management
+app.include_router(crops_router)          # Crops, seeds, planting
 
 # ============================================================================
 # PYDANTIC MODELS (Data Validation)

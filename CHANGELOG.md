@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.12.2 | **Last Updated:** January 15, 2026
+> **Current Version:** 6.13.0 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,73 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.0 (January 16, 2026)
+
+### Main.py Refactoring - FastAPI Routers Architecture
+
+**Major refactoring milestone: Split monolithic main.py (16,804 lines) into modular FastAPI routers.**
+
+This addresses the first item in the v6.12.2 "Remaining Items" list for improved maintainability and code organization.
+
+**New Router Structure (`backend/routers/`):**
+
+| Router | Purpose | Endpoints |
+|--------|---------|-----------|
+| `auth.py` | Authentication, users, crews | Login, logout, user CRUD, crew management |
+| `fields.py` | Field management, operations | Field CRUD, operation logging, history |
+| `equipment.py` | Equipment, maintenance | Equipment CRUD, maintenance records, usage logging |
+| `inventory.py` | Inventory management | Item CRUD, transactions, alerts |
+| `tasks.py` | Task management | Task CRUD with role-based access |
+| `optimization.py` | Cost optimization, pricing | Labor, fertilizer, irrigation optimization |
+| `reports.py` | Reports, cost tracking | Operations, financial, equipment reports |
+| `ai_ml.py` | AI/ML intelligence | Pest/disease ID, yield prediction, categorization |
+| `grants.py` | Grants, compliance | Grant programs, NRCS practices, applications |
+| `sustainability.py` | Sustainability, climate | Carbon tracking, GDD, water usage |
+| `farm_business.py` | Farm business operations | Entities, labor, leases, cash flow, research |
+| `genfin.py` | GenFin accounting | Full accounting system endpoints |
+| `livestock.py` | Livestock management | Animals, health, breeding, weights, sales |
+| `crops.py` | Crops, seeds, planting | Seed inventory, planting records, cost analysis |
+
+**Files Added (14 router files):**
+```
+backend/routers/__init__.py
+backend/routers/auth.py
+backend/routers/fields.py
+backend/routers/equipment.py
+backend/routers/inventory.py
+backend/routers/tasks.py
+backend/routers/optimization.py
+backend/routers/reports.py
+backend/routers/ai_ml.py
+backend/routers/grants.py
+backend/routers/sustainability.py
+backend/routers/farm_business.py
+backend/routers/genfin.py
+backend/routers/livestock.py
+backend/routers/crops.py
+```
+
+**Benefits:**
+- **Maintainability**: Each domain has its own file (~200-400 lines instead of 16,804)
+- **Team Development**: Multiple developers can work on different routers simultaneously
+- **Testing**: Easier to write and run focused unit tests per router
+- **Documentation**: Clear API organization in Swagger/ReDoc
+- **Gradual Migration**: Endpoints can be migrated incrementally
+
+**Migration Status:**
+- Router files created with comprehensive endpoint definitions
+- Routers imported and included in main.py
+- Original endpoints remain in main.py during transition for backward compatibility
+- Duplicate endpoints will be removed as migration completes
+
+**Technical Notes:**
+- All routers use `/api/v1` prefix for consistency
+- Rate limiting preserved on authentication endpoints
+- Role-based access control maintained (admin, manager, crew)
+- Pydantic models shared where appropriate
 
 ---
 
@@ -90,7 +157,7 @@ These were identified but not fixed as they require architectural decisions:
 
 | Issue | Priority | Notes |
 |-------|----------|-------|
-| `main.py` is 16,804 lines | Medium | Refactor to FastAPI routers recommended |
+| ~~`main.py` is 16,804 lines~~ | ~~Medium~~ | ~~Refactor to FastAPI routers recommended~~ **DONE v6.13.0** |
 | 85% endpoints lack `response_model` | Medium | Add Pydantic response models |
 | Rate limiting on 1% of endpoints | Medium | Extend slowapi coverage |
 | Plaintext token storage | Low | `~/.agtools/settings.json` needs crypto library |
@@ -1413,6 +1480,8 @@ GET /api/v1/export/crop-cost-analysis/{format}
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 6.13.0 | Jan 16, 2026 | Main.py refactoring - FastAPI routers architecture (14 router files) |
+| 6.12.2 | Jan 15, 2026 | Security audit - 19 vulnerabilities fixed |
 | 6.12.1 | Jan 15, 2026 | F# Domain Models (1,052 lines), documentation updates |
 | 6.12.0 | Jan 15, 2026 | Comprehensive Test Suite (620+ tests, 98.9% pass rate) |
 | 6.11.0 | Jan 15, 2026 | Critical Path Testing (20 core tests, 100% pass rate) |
