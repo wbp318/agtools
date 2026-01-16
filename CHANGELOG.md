@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.2 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.3 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,60 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.3 (January 16, 2026)
+
+### Encrypted Token Storage - Security Enhancement
+
+**Added encrypted storage for authentication tokens in settings.json.**
+
+This addresses the fourth item in the v6.12.2 "Remaining Items" list (Plaintext token storage).
+
+**Implementation:**
+
+1. **New Secure Storage Module** (`frontend/utils/secure_storage.py`)
+   - Fernet symmetric encryption using `cryptography` library
+   - Machine-specific key derivation using PBKDF2-HMAC-SHA256
+   - Key derived from username + hostname + platform info
+   - Tokens encrypted on one machine cannot be decrypted on another
+
+2. **Key Derivation:**
+   - PBKDF2 with 100,000 iterations
+   - Fixed salt for consistent key derivation
+   - 32-byte key output, base64-encoded for Fernet
+
+3. **Automatic Migration:**
+   - Existing plaintext tokens automatically migrated to encrypted format
+   - Backward-compatible: handles both encrypted and legacy formats
+   - Migration logged to console on first load
+
+**Files Added:**
+```
+frontend/utils/__init__.py
+frontend/utils/secure_storage.py
+```
+
+**Files Modified:**
+```
+frontend/config.py - Updated save/load to encrypt/decrypt tokens
+frontend/requirements.txt - Added cryptography>=41.0.0
+```
+
+**Security Features:**
+- **Machine Binding**: Tokens tied to specific machine identity
+- **Encryption at Rest**: Tokens never stored in plaintext
+- **Graceful Fallback**: Works without crypto library (with warning)
+- **Format Marker**: `_encrypted` flag in settings.json indicates format
+
+**Example settings.json (encrypted):**
+```json
+{
+  "auth_token": "gAAAAABl...<encrypted>...",
+  "_encrypted": true
+}
+```
 
 ---
 
@@ -248,7 +302,7 @@ These were identified but not fixed as they require architectural decisions:
 | ~~`main.py` is 16,804 lines~~ | ~~Medium~~ | ~~Refactor to FastAPI routers recommended~~ **DONE v6.13.0** |
 | ~~85% endpoints lack `response_model`~~ | ~~Medium~~ | ~~Add Pydantic response models~~ **DONE v6.13.1** |
 | ~~Rate limiting on 1% of endpoints~~ | ~~Medium~~ | ~~Extend slowapi coverage~~ **DONE v6.13.2** |
-| Plaintext token storage | Low | `~/.agtools/settings.json` needs crypto library |
+| ~~Plaintext token storage~~ | ~~Low~~ | ~~`~/.agtools/settings.json` needs crypto library~~ **DONE v6.13.3** |
 | HTTP default in frontend | Low | Configure HTTPS for production deployment |
 | 0% context managers for DB | Low | Add `with` statements for connections |
 | ~25% code duplication | Low | Extract to base service classes |

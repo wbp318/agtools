@@ -1,7 +1,9 @@
 """
 AgTools Frontend Configuration
+v6.13.3
 
 Application settings, API configuration, and environment management.
+Includes secure encrypted storage for authentication tokens.
 """
 
 import os
@@ -9,6 +11,14 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 import json
+
+# Secure token storage
+from utils.secure_storage import (
+    encrypt_token,
+    decrypt_token,
+    migrate_plaintext_token,
+    is_encryption_available
+)
 
 
 # Application Info
@@ -113,8 +123,11 @@ class AppSettings:
             self._extra[key] = value
 
     def save(self) -> None:
-        """Save settings to disk."""
+        """Save settings to disk with encrypted token storage."""
         USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Encrypt the auth token before saving
+        encrypted_token = encrypt_token(self.auth_token) if self.auth_token else ""
 
         settings_dict = {
             "api": {
@@ -132,7 +145,8 @@ class AppSettings:
             "region": self.region,
             "default_crop": self.default_crop,
             "last_sync": self.last_sync,
-            "auth_token": self.auth_token,
+            "auth_token": encrypted_token,  # Stored encrypted
+            "_encrypted": True,  # Marker for encrypted storage format
         }
 
         with open(SETTINGS_FILE, "w") as f:
@@ -140,8 +154,12 @@ class AppSettings:
 
     @classmethod
     def load(cls) -> "AppSettings":
-        """Load settings from disk or return defaults."""
+        """Load settings from disk or return defaults.
+
+        Handles decryption of stored tokens and migration from plaintext.
+        """
         settings = cls()
+        needs_resave = False
 
         if SETTINGS_FILE.exists():
             try:
@@ -164,10 +182,32 @@ class AppSettings:
                 settings.region = data.get("region", settings.region)
                 settings.default_crop = data.get("default_crop", settings.default_crop)
                 settings.last_sync = data.get("last_sync")
-                settings.auth_token = data.get("auth_token", "")
+
+                # Handle token - decrypt if encrypted, migrate if plaintext
+                stored_token = data.get("auth_token", "")
+                is_encrypted_format = data.get("_encrypted", False)
+
+                if stored_token:
+                    if is_encrypted_format:
+                        # Token is encrypted, decrypt it
+                        settings.auth_token = decrypt_token(stored_token)
+                    else:
+                        # Legacy plaintext token - migrate to encrypted
+                        settings.auth_token = stored_token
+                        needs_resave = True  # Re-save with encryption
+                else:
+                    settings.auth_token = ""
 
             except (json.JSONDecodeError, KeyError) as e:
                 print(f"Warning: Could not load settings: {e}")
+
+        # Re-save if we migrated a plaintext token
+        if needs_resave and settings.auth_token:
+            try:
+                settings.save()
+                print("Settings migrated to encrypted token storage.")
+            except Exception as e:
+                print(f"Warning: Could not migrate settings: {e}")
 
         return settings
 
