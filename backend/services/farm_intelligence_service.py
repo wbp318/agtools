@@ -1150,7 +1150,8 @@ class FarmIntelligenceService:
                     "projected_revenue": round(crop_revenue, 2)
                 })
                 total_revenue += crop_revenue
-            except:
+            except (ValueError, TypeError, KeyError) as e:
+                # Skip invalid field data
                 pass
 
         # Insurance coverage

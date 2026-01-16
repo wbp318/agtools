@@ -214,16 +214,21 @@ class UserService:
             """, ("admin", "admin@farm.local", password_hash, "Farm", "Admin", "admin"))
             conn.commit()
 
-            # Display password once - user must save it
-            print("=" * 60)
-            print("  DEFAULT ADMIN ACCOUNT CREATED")
-            print("=" * 60)
-            print(f"  Username: admin")
-            print(f"  Password: {random_password}")
-            print()
-            print("  IMPORTANT: Save this password now!")
-            print("  Use scripts/reset_admin_password.py to reset if lost.")
-            print("=" * 60)
+            # SECURITY: Write credentials to secure file instead of console
+            # User must check this file and delete it after reading
+            import logging
+            logging.warning("DEFAULT ADMIN ACCOUNT CREATED - Check admin_credentials.txt")
+            credentials_file = os.path.join(os.path.dirname(self.db_path), "admin_credentials.txt")
+            with open(credentials_file, "w") as f:
+                f.write("=" * 60 + "\n")
+                f.write("  DEFAULT ADMIN ACCOUNT CREATED\n")
+                f.write("=" * 60 + "\n")
+                f.write("  Username: admin\n")
+                f.write(f"  Password: {random_password}\n")
+                f.write("\n")
+                f.write("  IMPORTANT: Delete this file after saving the password!\n")
+                f.write("  Use scripts/reset_admin_password.py to reset if lost.\n")
+                f.write("=" * 60 + "\n")
 
         conn.close()
 

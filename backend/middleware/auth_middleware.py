@@ -23,8 +23,7 @@ from services.user_service import UserService, UserResponse, get_user_service
 
 # Dev mode for local desktop app - bypasses auth for testing
 # SECURITY: Defaults to DISABLED. Set AGTOOLS_DEV_MODE=1 to enable (local dev only!)
-# TEMP: Enabled for testing
-DEV_MODE = True
+DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "0") == "1"
 
 
 # ============================================================================

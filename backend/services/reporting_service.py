@@ -649,7 +649,8 @@ class ReportingService:
                         urgency = "overdue"
                     elif days_until <= 7:
                         urgency = "due_soon"
-                except:
+                except (ValueError, TypeError) as e:
+                    # Invalid date format, skip urgency calculation
                     pass
 
             maintenance_alerts.append(MaintenanceItem(
@@ -744,7 +745,8 @@ class ReportingService:
                     if days_until <= expiry_threshold:
                         is_expiring = True
                         expiring_count += 1
-                except:
+                except (ValueError, TypeError) as e:
+                    # Invalid date format, skip expiry check
                     pass
 
             inv_item = InventoryItem(

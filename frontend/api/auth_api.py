@@ -144,9 +144,10 @@ class AuthAPI:
         Returns:
             Tuple of (AuthToken, error_message)
         """
+        # SECURITY: Send refresh token in body, not query params (avoids logging)
         response = self._client.post(
             "/auth/refresh",
-            params={"refresh_token": refresh_token}
+            data={"refresh_token": refresh_token}
         )
 
         if not response.success:

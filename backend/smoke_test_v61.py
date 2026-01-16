@@ -52,7 +52,8 @@ def test(name, method, endpoint, params=None, json_data=None, expect_status=None
                 detail = str(r.json().get('detail', ''))[:50]
                 if detail:
                     status += f' - {detail}'
-            except:
+            except (ValueError, KeyError, TypeError) as e:
+                # Response might not be JSON
                 pass
 
         results.append(f'{status}: {method} {endpoint}')

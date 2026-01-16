@@ -894,10 +894,10 @@ class SustainabilityService:
         rows = cursor.fetchall()
 
         # Get total acres
-        acres_query = "SELECT SUM(acreage) as total FROM fields WHERE is_active = 1"
         if field_id:
-            acres_query = f"SELECT acreage as total FROM fields WHERE id = {field_id}"
-        cursor.execute(acres_query)
+            cursor.execute("SELECT acreage as total FROM fields WHERE id = ?", (field_id,))
+        else:
+            cursor.execute("SELECT SUM(acreage) as total FROM fields WHERE is_active = 1")
         acres_row = cursor.fetchone()
         total_acres = acres_row["total"] or 1
 
@@ -1311,7 +1311,7 @@ class SustainabilityService:
         try:
             water_summary = self.get_water_summary(year, field_id)
             water_score_value = water_summary.efficiency_score
-        except:
+        except (ValueError, AttributeError, TypeError) as e:
             water_score_value = 70  # Default if no water data
 
         water_efficiency_score = SustainabilityScore(
@@ -1564,7 +1564,7 @@ class SustainabilityService:
 
         try:
             water_summary = self.get_water_summary(year, field_id)
-        except:
+        except (ValueError, AttributeError, TypeError) as e:
             water_summary = None
 
         practices = self.list_practices(year=year, field_id=field_id)

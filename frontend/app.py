@@ -17,8 +17,8 @@ from api.auth_api import UserInfo, get_auth_api
 from api.client import get_api_client
 
 # Enable dev mode for local desktop app - skip login
-# Set AGTOOLS_DEV_MODE=0 to disable
-DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "1") == "1"
+# SECURITY: Defaults to DISABLED. Set AGTOOLS_DEV_MODE=1 to enable (local dev only!)
+DEV_MODE = os.environ.get("AGTOOLS_DEV_MODE", "0") == "1"
 
 
 class AgToolsApp(QApplication):

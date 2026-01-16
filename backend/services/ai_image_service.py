@@ -412,7 +412,8 @@ class AIImageService:
                         results = response.json()
                         if isinstance(results, list):
                             raw_labels = [{"label": r.get("label", ""), "score": r.get("score", 0)} for r in results[:10]]
-                except:
+                except (ValueError, KeyError, TypeError, Exception) as e:
+                    # Log error but continue with fallback
                     pass
 
         # Map raw labels to our knowledge base

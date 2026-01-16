@@ -577,7 +577,8 @@ class GenFin1099Service:
         if row["box_amounts"]:
             try:
                 box_amounts = {int(k): v for k, v in json.loads(row["box_amounts"]).items()}
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError) as e:
+                # Invalid JSON or data format, use empty dict
                 pass
 
         # Mask tax ID
