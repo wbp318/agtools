@@ -272,6 +272,33 @@ class BaseService(ABC, Generic[ResponseT]):
 
             return self._row_to_response(row)
 
+    # Maximum records per query to prevent memory exhaustion
+    MAX_LIMIT = 10000
+
+    @staticmethod
+    def _sanitize_order_by(order_by: str) -> str:
+        """
+        Sanitize ORDER BY clause to prevent SQL injection.
+
+        Only allows alphanumeric column names with optional ASC/DESC.
+
+        Args:
+            order_by: Raw ORDER BY clause
+
+        Returns:
+            Sanitized ORDER BY clause
+
+        Raises:
+            ValueError: If order_by contains invalid characters
+        """
+        import re
+        # Pattern: column_name (ASC|DESC)?, column_name (ASC|DESC)?
+        # Allows: id DESC, name ASC, created_at, f.name DESC
+        pattern = r'^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?)*$'
+        if not re.match(pattern, order_by.strip(), re.IGNORECASE):
+            raise ValueError(f"Invalid ORDER BY clause: {order_by}")
+        return order_by
+
     def list_entities(
         self,
         query: str,
@@ -288,13 +315,23 @@ class BaseService(ABC, Generic[ResponseT]):
             query: Base SELECT query
             conditions: List of WHERE conditions
             params: Parameters for conditions
-            order_by: ORDER BY clause
-            limit: Maximum records to return
+            order_by: ORDER BY clause (sanitized for SQL injection)
+            limit: Maximum records to return (capped at MAX_LIMIT)
             offset: Records to skip
 
         Returns:
             List of response models
+
+        Raises:
+            ValueError: If order_by contains invalid characters
         """
+        # Sanitize order_by to prevent SQL injection
+        safe_order_by = self._sanitize_order_by(order_by)
+
+        # Cap limit to prevent memory exhaustion
+        if limit is not None and limit > self.MAX_LIMIT:
+            limit = self.MAX_LIMIT
+
         with get_db_connection(self.db_path) as conn:
             cursor = conn.cursor()
 
@@ -304,7 +341,7 @@ class BaseService(ABC, Generic[ResponseT]):
             if conditions:
                 final_query += " WHERE " + " AND ".join(conditions)
 
-            final_query += f" ORDER BY {order_by}"
+            final_query += f" ORDER BY {safe_order_by}"
 
             if limit:
                 final_query += " LIMIT ? OFFSET ?"

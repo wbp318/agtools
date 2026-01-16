@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.13.6 | **Last Updated:** January 16, 2026
+> **Current Version:** 6.13.7 | **Last Updated:** January 16, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,33 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.13.7 (January 16, 2026)
+
+### Security Audit Fixes
+
+**Fixed critical security issues identified during code audit.**
+
+**Fixes:**
+
+1. **SQL Injection Prevention - ORDER BY**
+   - Added `_sanitize_order_by()` method to validate ORDER BY clauses
+   - Regex whitelist allows only valid column names with ASC/DESC
+   - Blocks injection attempts like `id; DROP TABLE users`
+
+2. **Query Limit DoS Protection**
+   - Added `MAX_LIMIT = 10000` constant
+   - `list_entities()` now caps limit parameter to prevent memory exhaustion
+
+**Files Modified:**
+```
+backend/services/base_service.py - Added security validations
+```
+
+**Deferred (Architectural):**
+- Auth service thread safety (requires design change for v7.x)
 
 ---
 
