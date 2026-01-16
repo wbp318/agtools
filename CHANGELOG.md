@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.12.1 | **Last Updated:** January 15, 2026
+> **Current Version:** 6.12.2 | **Last Updated:** January 15, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -40,6 +40,65 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Documentation & training materials**
 - **Beta program with select farms**
 - **Public launch preparation**
+
+---
+
+## v6.12.2 (January 15, 2026)
+
+### Security Audit - 19 Vulnerabilities Fixed
+
+**Full security audit of frontend and backend completed. All critical and high-priority issues resolved.**
+
+| Severity | Found | Fixed |
+|----------|-------|-------|
+| CRITICAL | 6 | 6 |
+| HIGH | 5 | 5 |
+| MEDIUM | 8 | 8 |
+| **Total** | **19** | **19** |
+
+**Critical Fixes:**
+- `backend/middleware/auth_middleware.py` - DEV_MODE was hardcoded `True`, bypassing all authentication
+- `frontend/app.py` - DEV_MODE defaulted to enabled, skipping login
+- `backend/services/sustainability_service.py` - SQL injection vulnerability via f-string query
+- `backend/services/user_service.py` - Admin password printed to console (now writes to secure file)
+- `frontend/api/auth_api.py` - Refresh token sent in query params (now in request body)
+- `backend/main.py` - Added HSTS and CSP security headers
+
+**Medium Fixes:**
+- Replaced 8 bare `except:` clauses with specific exception handling across services
+
+**Files Modified (11):**
+```
+backend/middleware/auth_middleware.py
+backend/main.py
+backend/services/sustainability_service.py
+backend/services/user_service.py
+backend/services/ai_image_service.py
+backend/services/farm_intelligence_service.py
+backend/services/genfin_1099_service.py
+backend/services/reporting_service.py
+backend/smoke_test_v61.py
+frontend/app.py
+frontend/api/auth_api.py
+```
+
+**Added:** `docs/SECURITY_AUDIT_v6.12.2.md` - Full audit report
+
+### Remaining Items (Future Work)
+
+These were identified but not fixed as they require architectural decisions:
+
+| Issue | Priority | Notes |
+|-------|----------|-------|
+| `main.py` is 16,804 lines | Medium | Refactor to FastAPI routers recommended |
+| 85% endpoints lack `response_model` | Medium | Add Pydantic response models |
+| Rate limiting on 1% of endpoints | Medium | Extend slowapi coverage |
+| Plaintext token storage | Low | `~/.agtools/settings.json` needs crypto library |
+| HTTP default in frontend | Low | Configure HTTPS for production deployment |
+| 0% context managers for DB | Low | Add `with` statements for connections |
+| ~25% code duplication | Low | Extract to base service classes |
+
+**Verification:** All syntax verified. Core modules import successfully. DEV_MODE now correctly defaults to disabled.
 
 ---
 
