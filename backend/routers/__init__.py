@@ -19,6 +19,7 @@ from .farm_business import router as farm_business_router
 from .genfin import router as genfin_router
 from .livestock import router as livestock_router
 from .crops import router as crops_router
+from .converters import router as converters_router
 
 __all__ = [
     'auth_router',
@@ -35,4 +36,5 @@ __all__ = [
     'genfin_router',
     'livestock_router',
     'crops_router',
+    'converters_router',
 ]

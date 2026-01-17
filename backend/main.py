@@ -424,6 +424,7 @@ from routers import (
     genfin_router,
     livestock_router,
     crops_router,
+    converters_router,
 )
 
 # Initialize FastAPI app
@@ -508,6 +509,7 @@ app.include_router(farm_business_router)  # Farm business operations
 app.include_router(genfin_router)         # GenFin accounting
 app.include_router(livestock_router)      # Livestock management
 app.include_router(crops_router)          # Crops, seeds, planting
+app.include_router(converters_router)     # Measurement conversions (imperial to metric)
 
 # ============================================================================
 # PYDANTIC MODELS (Data Validation)

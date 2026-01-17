@@ -41,6 +41,7 @@ from ui.screens.livestock_management import LivestockManagementScreen
 from ui.screens.seed_planting import SeedPlantingScreen
 from ui.screens.advanced_reporting_dashboard import AdvancedReportingDashboard
 from ui.screens.crop_cost_analysis import CropCostAnalysisScreen
+from ui.screens.measurement_converter import MeasurementConverterScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -477,6 +478,10 @@ class MainWindow(QMainWindow):
         # Seed & Planting Screen (v6.4.0) - All users
         seed_planting_screen = SeedPlantingScreen(current_user=self._current_user)
         self._add_screen("seeds", seed_planting_screen)
+
+        # Measurement Converter Screen (v6.14.0) - All users
+        converter_screen = MeasurementConverterScreen()
+        self._add_screen("unit_converter", converter_screen)
 
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:

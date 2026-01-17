@@ -18,6 +18,7 @@ from database.chemical_database import (
     RESISTANCE_MANAGEMENT_STRATEGIES
 )
 from database.seed_data import CORN_PESTS, SOYBEAN_PESTS, CORN_DISEASES, SOYBEAN_DISEASES
+from services.measurement_converter_service import convert_rate_string
 
 class SprayRecommender:
     """Professional spray recommendation system"""
@@ -340,12 +341,26 @@ class SprayRecommender:
         # Estimate cost (placeholder - real system would have pricing database)
         estimated_cost = self._estimate_product_cost(product, rate)
 
+        # Convert rate to metric (v6.14.0 - for international operators)
+        rate_metric = None
+        rate_imperial = rate
+        if rate and rate != "See label":
+            try:
+                conversion = convert_rate_string(rate)
+                rate_metric = conversion.metric_display
+                rate_imperial = conversion.imperial_display
+            except (ValueError, AttributeError):
+                # If conversion fails, leave rate_metric as None
+                pass
+
         return {
             "product_name": product.get("trade_name", ""),
             "manufacturer": product.get("manufacturer", ""),
             "active_ingredient": product.get("active_ingredient", ""),
             "formulation": product.get("formulation", ""),
             "rate": rate,
+            "rate_imperial": rate_imperial,
+            "rate_metric": rate_metric,
             "cost_per_acre": estimated_cost,
             "efficacy_rating": 8,  # Placeholder - real system would have efficacy data
             "application_timing": product.get("timing", "See label"),

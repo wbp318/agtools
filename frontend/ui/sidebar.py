@@ -196,6 +196,7 @@ class Sidebar(QFrame):
         nav_layout.addWidget(SectionHeader("Recommend"))
         self._add_nav_item(nav_layout, "Spray", icon="\u2744")  # Spray-like
         self._add_nav_item(nav_layout, "Timing", icon="\u23F1")  # Clock
+        self._add_nav_item(nav_layout, "Unit Converter", icon="\u21C4")  # Conversion arrows
 
         # Optimize Section
         nav_layout.addWidget(SectionHeader("Optimize"))

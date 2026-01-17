@@ -70,9 +70,8 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
    - **Reference Products Tab** - Searchable table with herbicides, fungicides, insecticides
 
 4. **Integration Points**
-   - Spray recommendations now show both imperial and metric side-by-side
-   - Spray timing screen displays dual units
-   - "Unit Converter" added to sidebar navigation
+   - Spray recommendations now show `rate_imperial` and `rate_metric` fields
+   - "Unit Converter" added to sidebar navigation under Recommend section
 
 **Conversion Constants:**
 ```
@@ -94,11 +93,15 @@ docs/MEASUREMENT_CONVERTER_PLAN.md
 
 **Files Modified:**
 ```
-backend/services/spray_recommender.py - Added metric equivalents to recommendations
-frontend/ui/screens/spray_timing.py - Dual unit display
-frontend/ui/sidebar.py - Added Unit Converter menu item
+backend/services/spray_recommender.py - Added rate_imperial/rate_metric to recommendations
+backend/routers/__init__.py - Added converters_router export
 backend/main.py - Added converters router
+frontend/ui/sidebar.py - Added Unit Converter menu item
+frontend/ui/main_window.py - Added MeasurementConverterScreen
 ```
+
+**Future Enhancement (v6.14.1):**
+- Add dual unit display to spray_timing.py SpraySettingsPanel inputs
 
 ---
 
