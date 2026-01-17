@@ -19,6 +19,13 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 - **Real-time Bank Feed Integration** - Automatic transaction import from major banks (Plaid API)
 - **Mobile App Offline Mode** - Full offline capability with background sync
 
+### Sunday, January 19, 2026 - CUSTOMER DEMO
+**Goal: Workable demo ready for screen-share walkthrough with potential customer.**
+- Full app walkthrough capability
+- Key features demonstrable end-to-end
+- Clean UI, no broken screens
+- Sample data loaded for realistic demo
+
 ### Week of Jan 20-26, 2026
 - **Equipment Maintenance Scheduler** - Service reminders, maintenance history, parts inventory
 - **Inventory Barcode Scanning** - Mobile barcode/QR scanning for inventory management
