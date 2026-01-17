@@ -100,6 +100,34 @@ def client() -> Generator[TestClient, None, None]:
     # Import app after env vars are set
     from main import app
 
+    # Ensure all services are initialized (creates their tables)
+    # This is needed because some services have cross-table dependencies
+    from services.field_operations_service import get_field_operations_service
+    from services.base_service import ServiceRegistry
+    from services.user_service import get_user_service
+    from services.auth_service import get_auth_service
+
+    # Clear cached service instances to ensure fresh DB path is used
+    ServiceRegistry.clear()
+
+    # Initialize field_operations_service to create its table
+    # (field_service queries depend on this table existing)
+    get_field_operations_service()
+
+    # Initialize user service and set known test password for admin
+    user_service = get_user_service()
+    auth_service = get_auth_service()
+
+    # Update admin password to known test value
+    import sqlite3
+    conn = sqlite3.connect(user_service.db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    test_password_hash = auth_service.hash_password("admin123")
+    cursor.execute("UPDATE users SET password_hash = ? WHERE username = 'admin'", (test_password_hash,))
+    conn.commit()
+    conn.close()
+
     with TestClient(app) as test_client:
         yield test_client
 

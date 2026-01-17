@@ -81,6 +81,8 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+admin_credentials.txt
+agtools_test*.db
 
 # =============================================================================
 # Type Checkers & Linters
@@ -121,6 +123,7 @@ ipython_config.py
 ehthumbs.db
 Thumbs.db
 desktop.ini
+nul
 
 # =============================================================================
 # Database

@@ -5,7 +5,10 @@ Tests all CRUD operations for every GenFin endpoint
 
 import sys
 import io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# Fix Windows encoding (skip if running under pytest to avoid capture issues)
+if "pytest" not in sys.modules:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 import requests
 import json

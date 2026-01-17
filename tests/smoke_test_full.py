@@ -10,8 +10,8 @@ import sys
 import io
 from datetime import datetime
 
-# Fix Windows console encoding for emojis
-if sys.platform == 'win32':
+# Fix Windows console encoding for emojis (skip if running under pytest)
+if sys.platform == 'win32' and "pytest" not in sys.modules:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 

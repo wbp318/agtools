@@ -12,13 +12,23 @@ Rate Limit Tiers:
 - RELAXED (120/minute): List operations, health checks
 """
 
+import os
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
+# Check if running in test mode
+IS_TEST_MODE = os.environ.get("AGTOOLS_TEST_MODE") == "1"
+
+# In test mode, use a no-op key function that returns None (disables rate limiting)
+def _get_key_func():
+    if IS_TEST_MODE:
+        return lambda request: None  # Disable rate limiting in tests
+    return get_remote_address
+
 # Shared rate limiter instance
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=_get_key_func(), enabled=not IS_TEST_MODE)
 
 # Rate limit constants for consistent application
 RATE_STRICT = "5/minute"       # Auth, password changes
