@@ -50,6 +50,120 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ---
 
+## Test Gap Analysis & Audit Findings (January 17, 2026)
+
+**Multi-stage pipeline analysis identified test gaps and implementation issues for future resolution.**
+
+### Stage 3: Test Gap Analysis Results
+
+**Backend Services Test Coverage:**
+- 68.1% of services have NO tests (49/72 services)
+- 31.9% have some coverage (23/72 services)
+
+**Frontend Test Coverage:**
+- 98.75% test gap (80 frontend files, only 1 test file)
+
+**Critical Services Without Tests:**
+| Priority | Service | Workflows | Risk |
+|----------|---------|-----------|------|
+| #1 | GenFin Payroll | Employee CRUD, pay runs, taxes, deposits | HIGH |
+| #2 | GenFin Bills/Invoicing | Bill management, invoice generation | HIGH |
+| #3 | Cost Tracking | Expense CRUD, CSV import, allocation | MEDIUM |
+| #4 | Cost Analysis | Per-acre costs, yield analysis, ROI | MEDIUM |
+| #5 | AI/ML Identification | Pest/disease/weed ID endpoints | MEDIUM |
+
+### Stage 5: Tests Written
+
+Created 3 new test files with 82 total tests:
+- `tests/test_genfin_payroll_critical.py` - 27 tests for payroll workflows
+- `tests/test_cost_tracking_critical.py` - 30 tests for expense/cost workflows
+- `tests/test_ai_service_critical.py` - 25 tests for AI/ML identification
+
+### Stage 6: Audit Findings (13 Issues Identified)
+
+**FIXED (4 issues):**
+1. ✅ `test_list_employees` - Weak assertion replaced with proper structure validation
+2. ✅ `test_overtime_threshold` - Math error fixed (15 → 17)
+3. ✅ `pest_disease_service.py` - Created missing service file
+4. ✅ `crop_health_service.py` - Added missing methods (get_field_health_score, get_health_summary, calculate_health_score)
+
+**REMAINING (9 issues - for future resolution):**
+
+5. **Pest Identification Endpoint** (`/api/v1/identify/pest`)
+   - Tests failing with import/routing error
+   - Service created but endpoint not properly wired
+   - File: `backend/routers/ai_ml.py`
+
+6. **Disease Identification Endpoint** (`/api/v1/identify/disease`)
+   - Same issue as pest identification
+   - File: `backend/routers/ai_ml.py`
+
+7. **GenFin Employee API Routes**
+   - `/api/v1/genfin/employees` endpoint returns 404
+   - Service exists but router may not be registered
+   - Files: `backend/routers/genfin/payroll.py`, `backend/main.py`
+
+8. **GenFin Pay Run Endpoints**
+   - `/api/v1/genfin/pay-runs` returns 404
+   - Need to verify router registration
+   - File: `backend/routers/genfin/payroll.py`
+
+9. **Direct Deposit Endpoints**
+   - `/api/v1/genfin/employees/{id}/direct-deposit` returns 404
+   - May need new endpoint or router fix
+   - File: `backend/routers/genfin/payroll.py`
+
+10. **Tax Withholding Endpoints**
+    - `/api/v1/genfin/tax/withholdings` returns 404
+    - May need dedicated tax router
+    - File: `backend/routers/genfin/` (new file needed?)
+
+11. **Cost Tracking Expense Endpoints**
+    - `/api/v1/costs/expenses` endpoints inconsistent
+    - Some return 404, others work
+    - File: `backend/routers/costs.py`
+
+12. **Image Upload Endpoint**
+    - `/api/v1/identify/image` may have file handling issues
+    - File: `backend/routers/ai_ml.py`
+
+13. **Missing API Response Models**
+    - Several endpoints return data but not in expected format
+    - Need Pydantic response models for consistency
+    - Files: Various routers
+
+### Test Run Results
+
+**Before Fixes:** 57/82 passed (70%)
+**After Fixes:** Health scoring tests pass, payroll unit tests pass
+**Still Failing:** Pest/disease identification API tests
+
+### Files Created/Modified
+
+**Created:**
+```
+backend/services/pest_disease_service.py
+tests/test_genfin_payroll_critical.py
+tests/test_cost_tracking_critical.py
+tests/test_ai_service_critical.py
+```
+
+**Modified:**
+```
+backend/services/crop_health_service.py - Added 3 missing methods
+tests/test_genfin_payroll_critical.py - Fixed 2 test assertions
+```
+
+### Next Steps (Priority Order)
+
+1. Wire up GenFin payroll router in main.py
+2. Fix ai_ml.py pest/disease endpoint routing
+3. Add missing cost tracking API endpoints
+4. Create response models for API consistency
+5. Run full test suite to verify fixes
+
+---
+
 ## v6.14.0 (January 16, 2026)
 
 ### Measurement Converter for Spray Applications
