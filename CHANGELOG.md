@@ -43,6 +43,65 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 ---
 
+## v6.14.0 (January 16, 2026) - IN PROGRESS
+
+### Measurement Converter for Spray Applications
+
+**Imperial to Metric conversion system for international operators (South Africa, Brazil).**
+
+**New Features:**
+
+1. **Measurement Converter Service** (`backend/services/measurement_converter_service.py`)
+   - Application rate conversions (gal/acre → L/ha, oz/acre → g/ha, etc.)
+   - Volume, weight, area, speed, pressure, temperature conversions
+   - Tank mix calculator for field-ready calculations
+   - Reference products database with pre-converted rates
+
+2. **API Endpoints** (`backend/routers/converters.py`)
+   - `POST /api/v1/convert/spray-rate` - Convert single spray rate
+   - `POST /api/v1/convert/tank-mix` - Calculate tank mix amounts
+   - `GET /api/v1/convert/reference-products` - Common products with both units
+   - `POST /api/v1/convert/batch` - Bulk conversions
+   - `POST /api/v1/convert/recommendation` - Convert AgTools recommendations
+
+3. **Frontend Converter Screen** (`frontend/ui/screens/measurement_converter.py`)
+   - **Quick Converter Tab** - Unit type selection, value input, dual display
+   - **Tank Mix Calculator Tab** - Tank size, rate, field size → product amounts
+   - **Reference Products Tab** - Searchable table with herbicides, fungicides, insecticides
+
+4. **Integration Points**
+   - Spray recommendations now show both imperial and metric side-by-side
+   - Spray timing screen displays dual units
+   - "Unit Converter" added to sidebar navigation
+
+**Conversion Constants:**
+```
+1 gal/acre = 9.354 L/ha    |  1 lb/acre = 1.121 kg/ha
+1 oz/acre = 70.05 g/ha     |  1 fl oz/acre = 73.08 mL/ha
+1 pt/acre = 1.169 L/ha     |  1 qt/acre = 2.338 L/ha
+1 acre = 0.4047 ha         |  1 mph = 1.609 km/h
+```
+
+**Files Added:**
+```
+backend/services/measurement_converter_service.py
+backend/routers/converters.py
+frontend/models/measurement_converter.py
+frontend/api/measurement_converter_api.py
+frontend/ui/screens/measurement_converter.py
+docs/MEASUREMENT_CONVERTER_PLAN.md
+```
+
+**Files Modified:**
+```
+backend/services/spray_recommender.py - Added metric equivalents to recommendations
+frontend/ui/screens/spray_timing.py - Dual unit display
+frontend/ui/sidebar.py - Added Unit Converter menu item
+backend/main.py - Added converters router
+```
+
+---
+
 ## v6.13.9 (January 16, 2026)
 
 ### Bug Fix - Climate GDD Endpoints
