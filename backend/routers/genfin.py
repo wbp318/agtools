@@ -499,6 +499,200 @@ async def create_genfin_employee(
     return result
 
 
+@router.get("/employees/{employee_id}", response_model=EmployeeResponse, tags=["Employees"])
+async def get_genfin_employee(
+    employee_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get employee by ID."""
+    from services.genfin_payroll_service import genfin_payroll_service
+
+    result = genfin_payroll_service.get_employee(employee_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    result["id"] = 1  # Add numeric id for response model
+    return result
+
+
+# ============================================================================
+# DIRECT DEPOSIT
+# ============================================================================
+
+class DirectDepositRequest(BaseModel):
+    routing_number: str
+    account_number: str
+    account_type: str = "checking"
+    amount_type: str = "full"  # "full" or "fixed"
+    fixed_amount: Optional[float] = None
+
+
+class DirectDepositResponse(BaseModel):
+    employee_id: str
+    routing_number: str
+    account_number_last4: str
+    account_type: str
+    status: str
+
+
+@router.get("/employees/{employee_id}/direct-deposit", response_model=DirectDepositResponse, tags=["Direct Deposit"])
+async def get_direct_deposit(
+    employee_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get direct deposit info for an employee."""
+    from services.genfin_payroll_service import genfin_payroll_service
+
+    emp = genfin_payroll_service.get_employee(employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    return {
+        "employee_id": employee_id,
+        "routing_number": emp.get("bank_routing_number", ""),
+        "account_number_last4": emp.get("bank_account_number", "")[-4:] if emp.get("bank_account_number") else "",
+        "account_type": emp.get("bank_account_type", "checking"),
+        "status": "active" if emp.get("has_direct_deposit") else "inactive"
+    }
+
+
+@router.put("/employees/{employee_id}/direct-deposit", response_model=DirectDepositResponse, tags=["Direct Deposit"])
+async def update_direct_deposit(
+    employee_id: str,
+    dd_request: DirectDepositRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update direct deposit info for an employee."""
+    from services.genfin_payroll_service import genfin_payroll_service
+
+    result = genfin_payroll_service.update_employee(
+        employee_id,
+        bank_routing_number=dd_request.routing_number,
+        bank_account_number=dd_request.account_number,
+        bank_account_type=dd_request.account_type,
+        payment_method="direct_deposit"
+    )
+
+    if not result.get("success", True):
+        raise HTTPException(status_code=404, detail=result.get("error", "Failed to update"))
+
+    return {
+        "employee_id": employee_id,
+        "routing_number": dd_request.routing_number,
+        "account_number_last4": dd_request.account_number[-4:],
+        "account_type": dd_request.account_type,
+        "status": "active"
+    }
+
+
+# ============================================================================
+# TAX WITHHOLDINGS
+# ============================================================================
+
+class TaxWithholdingRequest(BaseModel):
+    filing_status: str
+    federal_allowances: int = 0
+    federal_additional: float = 0.0
+    state_allowances: int = 0
+    state_additional: float = 0.0
+    is_exempt: bool = False
+
+
+class TaxWithholdingResponse(BaseModel):
+    employee_id: str
+    filing_status: str
+    federal_allowances: int
+    federal_additional: float
+    state_allowances: int
+    state_additional: float
+    is_exempt: bool
+
+
+class TaxWithholdingListResponse(BaseModel):
+    withholdings: List[TaxWithholdingResponse]
+    total: int
+
+
+@router.get("/tax/withholdings", response_model=TaxWithholdingListResponse, tags=["Tax"])
+async def list_tax_withholdings(
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List tax withholding settings for all employees."""
+    from services.genfin_payroll_service import genfin_payroll_service
+
+    employees = genfin_payroll_service.list_employees()
+    withholdings = []
+
+    for emp in employees.get("employees", []):
+        withholdings.append({
+            "employee_id": emp.get("employee_id", ""),
+            "filing_status": emp.get("filing_status", "single"),
+            "federal_allowances": emp.get("federal_allowances", 0),
+            "federal_additional": emp.get("federal_additional_withholding", 0.0),
+            "state_allowances": emp.get("state_allowances", 0),
+            "state_additional": emp.get("state_additional_withholding", 0.0),
+            "is_exempt": emp.get("is_exempt", False)
+        })
+
+    return {"withholdings": withholdings, "total": len(withholdings)}
+
+
+@router.get("/employees/{employee_id}/tax-withholding", response_model=TaxWithholdingResponse, tags=["Tax"])
+async def get_tax_withholding(
+    employee_id: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get tax withholding info for an employee."""
+    from services.genfin_payroll_service import genfin_payroll_service
+
+    emp = genfin_payroll_service.get_employee(employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    return {
+        "employee_id": employee_id,
+        "filing_status": emp.get("filing_status", "single"),
+        "federal_allowances": emp.get("federal_allowances", 0),
+        "federal_additional": emp.get("federal_additional_withholding", 0.0),
+        "state_allowances": emp.get("state_allowances", 0),
+        "state_additional": emp.get("state_additional_withholding", 0.0),
+        "is_exempt": False
+    }
+
+
+@router.put("/employees/{employee_id}/tax-withholding", response_model=TaxWithholdingResponse, tags=["Tax"])
+async def update_tax_withholding(
+    employee_id: str,
+    tax_request: TaxWithholdingRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update tax withholding for an employee."""
+    from services.genfin_payroll_service import genfin_payroll_service
+
+    result = genfin_payroll_service.update_employee(
+        employee_id,
+        filing_status=tax_request.filing_status,
+        federal_allowances=tax_request.federal_allowances,
+        federal_additional_withholding=tax_request.federal_additional,
+        state_allowances=tax_request.state_allowances,
+        state_additional_withholding=tax_request.state_additional,
+        is_exempt=tax_request.is_exempt
+    )
+
+    if not result.get("success", True):
+        raise HTTPException(status_code=404, detail=result.get("error", "Failed to update"))
+
+    return {
+        "employee_id": employee_id,
+        "filing_status": tax_request.filing_status,
+        "federal_allowances": tax_request.federal_allowances,
+        "federal_additional": tax_request.federal_additional,
+        "state_allowances": tax_request.state_allowances,
+        "state_additional": tax_request.state_additional,
+        "is_exempt": tax_request.is_exempt
+    }
+
+
 # ============================================================================
 # INVOICES
 # ============================================================================

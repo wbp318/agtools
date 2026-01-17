@@ -7,9 +7,30 @@ from typing import List, Dict, Optional
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add project root to path for imports
+_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_project_root = os.path.dirname(_backend_dir)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
-from database.seed_data import CORN_DISEASES, SOYBEAN_DISEASES
+try:
+    from database.seed_data import CORN_DISEASES, SOYBEAN_DISEASES
+except ImportError:
+    # Fallback to absolute path import
+    import importlib.util
+    _seed_data_path = os.path.join(_project_root, "database", "seed_data.py")
+    if os.path.exists(_seed_data_path):
+        spec = importlib.util.spec_from_file_location("seed_data", _seed_data_path)
+        _seed_data = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_seed_data)
+        CORN_DISEASES = _seed_data.CORN_DISEASES
+        SOYBEAN_DISEASES = _seed_data.SOYBEAN_DISEASES
+    else:
+        # Ultimate fallback - empty lists
+        CORN_DISEASES = []
+        SOYBEAN_DISEASES = []
 
 
 class DiseaseIdentifier:

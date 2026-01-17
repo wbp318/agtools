@@ -758,6 +758,19 @@ class CostTrackingService:
 
         return self._row_to_expense_response(row)
 
+    def get_expense_with_allocations(self, expense_id: int) -> Optional[ExpenseWithAllocations]:
+        """Get expense with its allocations."""
+        expense = self.get_expense(expense_id)
+        if not expense:
+            return None
+
+        allocations = self.get_allocations(expense_id)
+
+        return ExpenseWithAllocations(
+            expense=expense,
+            allocations=allocations
+        )
+
     def list_expenses(
         self,
         user_id: int,

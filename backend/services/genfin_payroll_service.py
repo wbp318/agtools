@@ -682,10 +682,12 @@ class GenFinPayrollService:
 
         self.pay_schedules[schedule_id] = schedule
 
+        # Return in format expected by PayScheduleResponse model
         return {
-            "success": True,
-            "schedule_id": schedule_id,
-            "schedule": self._schedule_to_dict(schedule)
+            "id": len(self.pay_schedules),
+            "name": name,
+            "frequency": frequency,
+            "next_pay_date": schedule.next_pay_date
         }
 
     def assign_employee_to_schedule(self, employee_id: str, schedule_id: str) -> Dict:
@@ -719,14 +721,19 @@ class GenFinPayrollService:
             return None
         return self._schedule_to_dict(self.pay_schedules[schedule_id])
 
-    def list_pay_schedules(self, active_only: bool = True) -> List[Dict]:
+    def list_pay_schedules(self, active_only: bool = True) -> Dict:
         """List all pay schedules"""
         result = []
         for schedule in self.pay_schedules.values():
             if active_only and not schedule.is_active:
                 continue
-            result.append(self._schedule_to_dict(schedule))
-        return result
+            sched_dict = self._schedule_to_dict(schedule)
+            # Add fields expected by PayScheduleResponse model
+            sched_dict["id"] = schedule.schedule_id
+            sched_dict["frequency"] = schedule.frequency.value
+            sched_dict["next_pay_date"] = schedule.next_pay_date
+            result.append(sched_dict)
+        return {"schedules": result, "total": len(result)}
 
     def get_scheduled_payrolls_due(self, days_ahead: int = 7) -> List[Dict]:
         """Get list of scheduled payrolls that are due or upcoming within specified days"""
@@ -924,13 +931,10 @@ class GenFinPayrollService:
             reason="Initial rate"
         )
 
-        return {
-            "success": True,
-            "employee_id": employee_id,
-            "employee_number": employee_number,
-            "pay_schedule_id": pay_schedule_id,
-            "employee": self._employee_to_dict(employee)
-        }
+        # Return employee in format expected by EmployeeResponse model
+        emp_dict = self._employee_to_dict(employee)
+        emp_dict["id"] = len(self.employees)  # Numeric ID for response model
+        return emp_dict
 
     def update_employee(self, employee_id: str, **kwargs) -> Dict:
         """Update employee information"""
@@ -1018,7 +1022,7 @@ class GenFinPayrollService:
         employee_type: Optional[str] = None,
         department: Optional[str] = None,
         active_only: bool = True
-    ) -> List[Dict]:
+    ) -> Dict:
         """List employees with filtering"""
         result = []
 
@@ -1034,7 +1038,8 @@ class GenFinPayrollService:
 
             result.append(self._employee_to_dict(employee))
 
-        return sorted(result, key=lambda e: e["last_name"])
+        sorted_result = sorted(result, key=lambda e: e["last_name"])
+        return {"employees": sorted_result, "total": len(sorted_result)}
 
     # ==================== DEDUCTIONS ====================
 
@@ -1920,7 +1925,7 @@ NET PAY: ${line.net_pay:,.2f}"""
         status: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
-    ) -> List[Dict]:
+    ) -> Dict:
         """List pay runs with filtering"""
         result = []
 
@@ -1935,18 +1940,21 @@ NET PAY: ${line.net_pay:,.2f}"""
                     continue
 
             result.append({
+                "id": pay_run.pay_run_id,
+                "schedule_id": pay_run.pay_schedule_id or "",
+                "pay_date": pay_run.pay_date,
+                "status": pay_run.status.value,
+                "total_gross": pay_run.total_gross,
+                "total_net": pay_run.total_net,
                 "pay_run_id": pay_run.pay_run_id,
                 "pay_run_number": pay_run.pay_run_number,
                 "pay_period": f"{pay_run.pay_period_start.isoformat()} - {pay_run.pay_period_end.isoformat()}",
-                "pay_date": pay_run.pay_date.isoformat(),
                 "employee_count": len(pay_run.lines),
-                "total_gross": pay_run.total_gross,
-                "total_net": pay_run.total_net,
-                "status": pay_run.status.value,
                 "created_at": pay_run.created_at.isoformat()
             })
 
-        return sorted(result, key=lambda p: p["pay_date"], reverse=True)
+        sorted_result = sorted(result, key=lambda p: str(p["pay_date"]), reverse=True)
+        return {"pay_runs": sorted_result, "total": len(sorted_result)}
 
     # ==================== REPORTS ====================
 

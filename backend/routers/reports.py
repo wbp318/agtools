@@ -9,7 +9,7 @@ Handles:
 - Dashboard export
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
@@ -129,10 +129,10 @@ async def get_dashboard_summary(
 async def list_expenses(
     category: Optional[ExpenseCategory] = None,
     field_id: Optional[int] = None,
-    date_from: Optional[date] = None,
-    date_to: Optional[date] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
     vendor: Optional[str] = None,
-    is_allocated: Optional[bool] = None,
+    unallocated_only: bool = False,
     limit: int = 100,
     offset: int = 0,
     user: AuthenticatedUser = Depends(get_current_active_user)
@@ -140,12 +140,12 @@ async def list_expenses(
     """List expenses with optional filters."""
     cost_service = get_cost_tracking_service()
     return cost_service.list_expenses(
+        user_id=user.id,
         category=category,
-        field_id=field_id,
-        date_from=date_from,
-        date_to=date_to,
         vendor=vendor,
-        is_allocated=is_allocated,
+        unallocated_only=unallocated_only,
+        start_date=start_date,
+        end_date=end_date,
         limit=limit,
         offset=offset
     )
@@ -206,10 +206,10 @@ async def delete_expense(
 ):
     """Delete an expense."""
     cost_service = get_cost_tracking_service()
-    success, error = cost_service.delete_expense(expense_id, user.id)
+    success = cost_service.delete_expense(expense_id, user.id)
 
     if not success:
-        raise HTTPException(status_code=400, detail=error or "Failed to delete expense")
+        raise HTTPException(status_code=404, detail="Expense not found or already deleted")
 
     return {"message": "Expense deleted successfully"}
 
@@ -236,12 +236,73 @@ async def create_allocations(
 ):
     """Create allocations for an expense."""
     cost_service = get_cost_tracking_service()
-    result, error = cost_service.create_allocations(expense_id, allocations, user.id)
+    result, error = cost_service.set_allocations(expense_id, allocations, user.id)
 
     if error:
         raise HTTPException(status_code=400, detail=error)
 
     return result
+
+
+class AutoCategorizeRequest(BaseModel):
+    description: str
+    amount: Optional[float] = None
+    vendor: Optional[str] = None
+
+
+class AutoCategorizeResponse(BaseModel):
+    suggested_category: str
+    confidence: float
+    alternatives: List[Dict[str, Any]] = []
+
+
+@router.post("/costs/expenses/auto-categorize", response_model=AutoCategorizeResponse, tags=["Cost Tracking"])
+async def auto_categorize_expense(
+    request: AutoCategorizeRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Auto-categorize an expense based on description."""
+    # Simple keyword-based categorization
+    description = request.description.lower()
+    vendor = (request.vendor or "").lower()
+
+    categories = {
+        "seed": ["seed", "planting", "corn seed", "soybean seed", "cover crop"],
+        "fertilizer": ["fertilizer", "nitrogen", "phosphate", "potash", "urea", "anhydrous"],
+        "chemical": ["herbicide", "pesticide", "fungicide", "roundup", "dicamba", "insecticide"],
+        "fuel": ["fuel", "diesel", "gas", "gasoline", "propane"],
+        "equipment": ["equipment", "tractor", "combine", "planter", "implement"],
+        "repairs": ["repair", "maintenance", "parts", "service"],
+        "labor": ["labor", "wage", "employee", "payroll"],
+        "insurance": ["insurance", "crop insurance", "liability"],
+        "rent": ["rent", "land rent", "cash rent", "lease"],
+        "utilities": ["utility", "electric", "water", "phone", "internet"],
+        "other": []
+    }
+
+    suggested = "other"
+    confidence = 0.3
+    alternatives = []
+
+    for category, keywords in categories.items():
+        for keyword in keywords:
+            if keyword in description or keyword in vendor:
+                suggested = category
+                confidence = 0.85
+                break
+        if confidence > 0.5:
+            break
+
+    # Add alternatives
+    for category in ["seed", "fertilizer", "chemical", "fuel", "equipment"]:
+        if category != suggested:
+            alternatives.append({"category": category, "confidence": 0.2})
+
+    return {
+        "suggested_category": suggested,
+        "confidence": confidence,
+        "alternatives": alternatives[:3]
+    }
 
 
 # ============================================================================

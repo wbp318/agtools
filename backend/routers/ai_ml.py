@@ -163,13 +163,21 @@ async def identify_from_image(
     service = get_ai_image_service()
 
     content = await file.read()
-    result = service.analyze_image(
-        image_data=content,
-        crop=crop.value if crop else None,
+    # analyze_image is an async method, must await it
+    result = await service.analyze_image(
+        image_bytes=content,
+        crop=crop.value if crop else "corn",
         growth_stage=growth_stage.value if growth_stage else None
     )
 
-    return result
+    # Convert ImageAnalysisResult to dict for JSON response
+    return {
+        "provider": result.provider.value,
+        "identifications": result.mapped_identifications,
+        "confidence": result.confidence,
+        "processing_time_ms": result.processing_time_ms,
+        "notes": result.notes
+    }
 
 
 # ============================================================================
