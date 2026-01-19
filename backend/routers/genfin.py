@@ -1128,12 +1128,14 @@ async def get_fixed_assets_summary(
 
 @router.get("/entities", response_model=GenFinEntityListResponse, tags=["Entities"])
 async def list_genfin_entities(
+    active_only: bool = True,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """List entities (companies)."""
-    from services.genfin_core_service import genfin_core_service
+    from services.genfin_entity_service import get_entity_service
 
-    return genfin_core_service.list_entities()
+    entity_service = get_entity_service()
+    return entity_service.list_entities(active_only)
 
 
 @router.get("/entities/summary", response_model=EntitiesSummaryResponse, tags=["Entities"])
@@ -1141,9 +1143,10 @@ async def get_entities_summary(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get entities summary."""
-    from services.genfin_core_service import genfin_core_service
+    from services.genfin_entity_service import get_entity_service
 
-    return genfin_core_service.get_entities_summary()
+    entity_service = get_entity_service()
+    return entity_service.get_service_summary()
 
 
 # ============================================================================
