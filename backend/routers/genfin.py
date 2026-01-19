@@ -1135,7 +1135,20 @@ async def list_genfin_entities(
     from services.genfin_entity_service import get_entity_service
 
     entity_service = get_entity_service()
-    return entity_service.list_entities(active_only)
+    entities = entity_service.list_entities(active_only)
+
+    # Convert service EntityResponse objects to router's simpler GenFinEntityResponse format
+    entity_list = [
+        {
+            "id": e.id,
+            "name": e.name,
+            "entity_type": e.entity_type,
+            "tax_id": e.tax_id,
+            "status": e.status
+        }
+        for e in entities
+    ]
+    return {"entities": entity_list, "total": len(entity_list)}
 
 
 @router.get("/entities/summary", response_model=EntitiesSummaryResponse, tags=["Entities"])
