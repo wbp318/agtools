@@ -161,7 +161,7 @@ async def get_crop_analysis_summary(
 ):
     """Get crop cost analysis summary. Rate limited: 60/minute."""
     service = get_crop_cost_analysis_service()
-    return service.get_summary(year=year)
+    return service.get_summary(crop_year=year or 2026)
 
 
 @router.get("/crop-analysis/comparison", response_model=FieldComparisonMatrix, tags=["Crop Analysis"])
@@ -173,7 +173,7 @@ async def get_field_comparison(
 ):
     """Get field-by-field comparison. Rate limited: 60/minute."""
     service = get_crop_cost_analysis_service()
-    return service.get_field_comparison(year=year)
+    return service.get_field_comparison(crop_year=year or 2026)
 
 
 @router.get("/crop-analysis/crops", tags=["Crop Analysis"])
@@ -183,7 +183,7 @@ async def get_crop_comparison(
 ):
     """Get crop type comparison."""
     service = get_crop_cost_analysis_service()
-    return service.get_crop_comparison(year=year)
+    return service.get_crop_comparison(crop_year=year or 2026)
 
 
 @router.get("/crop-analysis/crops/{crop_type}", tags=["Crop Analysis"])
@@ -194,7 +194,7 @@ async def get_crop_detail(
 ):
     """Get detailed analysis for a specific crop."""
     service = get_crop_cost_analysis_service()
-    return service.get_crop_detail(crop_type, year=year)
+    return service.get_crop_detail(crop_type, crop_year=year or 2026)
 
 
 @router.get("/crop-analysis/field/{field_id}/history", tags=["Crop Analysis"])
@@ -227,7 +227,7 @@ async def get_roi_analysis(
 ):
     """Get ROI analysis."""
     service = get_crop_cost_analysis_service()
-    return service.get_roi_analysis(group_by=group_by, year=year)
+    return service.get_roi_breakdown(crop_year=year or 2026, group_by=group_by)
 
 
 @router.get("/crop-analysis/trends", tags=["Crop Analysis"])
@@ -293,5 +293,9 @@ async def get_profitability_summary(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get overall profitability summary."""
-    service = get_profitability_service()
-    return service.get_summary(year=year)
+    # Return stub - service method not yet implemented
+    return {
+        "year": year or 2026,
+        "message": "Profitability summary not yet implemented",
+        "status": "pending"
+    }

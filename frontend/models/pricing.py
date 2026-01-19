@@ -85,10 +85,17 @@ class GetPricesResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "GetPricesResponse":
         prices = {}
-        prices_data = data.get("prices", {})
+        prices_data = data.get("prices", [])
 
-        for product_id, price_info in prices_data.items():
-            prices[product_id] = ProductPrice.from_dict(product_id, price_info)
+        # Handle both list and dict formats for backwards compatibility
+        if isinstance(prices_data, list):
+            for price_info in prices_data:
+                product_id = price_info.get("product_id", "")
+                prices[product_id] = ProductPrice.from_dict(product_id, price_info)
+        else:
+            # Legacy dict format
+            for product_id, price_info in prices_data.items():
+                prices[product_id] = ProductPrice.from_dict(product_id, price_info)
 
         return cls(
             region=data.get("region", ""),

@@ -325,7 +325,7 @@ class InventoryAPI:
 
         response = self._client.get("/inventory", params=params)
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [InventoryItem.from_dict(i) for i in response.data], None
 
@@ -333,7 +333,7 @@ class InventoryAPI:
         """Get inventory item by ID."""
         response = self._client.get(f"/inventory/{item_id}")
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventoryItem.from_dict(response.data), None
 
@@ -374,7 +374,7 @@ class InventoryAPI:
 
         response = self._client.post("/inventory", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventoryItem.from_dict(response.data), None
 
@@ -389,7 +389,7 @@ class InventoryAPI:
 
         response = self._client.put(f"/inventory/{item_id}", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventoryItem.from_dict(response.data), None
 
@@ -397,7 +397,7 @@ class InventoryAPI:
         """Delete (deactivate) inventory item."""
         response = self._client.delete(f"/inventory/{item_id}")
         if not response.success:
-            return False, response.error
+            return False, response.error_message
 
         return True, None
 
@@ -405,7 +405,7 @@ class InventoryAPI:
         """Get inventory summary."""
         response = self._client.get("/inventory/summary")
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventorySummary.from_dict(response.data), None
 
@@ -413,7 +413,7 @@ class InventoryAPI:
         """Get list of inventory categories."""
         response = self._client.get("/inventory/categories")
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return response.data, None
 
@@ -421,7 +421,7 @@ class InventoryAPI:
         """Get list of storage locations."""
         response = self._client.get("/inventory/locations")
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return response.data, None
 
@@ -460,7 +460,7 @@ class InventoryAPI:
 
         response = self._client.post("/inventory/transaction", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventoryTransaction.from_dict(response.data), None
 
@@ -486,7 +486,7 @@ class InventoryAPI:
             params=params
         )
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [InventoryTransaction.from_dict(t) for t in response.data], None
 
@@ -513,7 +513,7 @@ class InventoryAPI:
 
         response = self._client.post("/inventory/purchase", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventoryItem.from_dict(response.data), None
 
@@ -534,7 +534,7 @@ class InventoryAPI:
 
         response = self._client.post("/inventory/adjust", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return InventoryItem.from_dict(response.data), None
 
@@ -552,7 +552,7 @@ class InventoryAPI:
             params={"expiry_days": expiry_days}
         )
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [InventoryAlert.from_dict(a) for a in response.data], None
 

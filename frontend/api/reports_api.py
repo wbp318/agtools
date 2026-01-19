@@ -463,8 +463,8 @@ class ReportsAPI:
 
         response = self._client.get("/reports/operations", params=params if params else None)
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         return OperationsReport.from_dict(response.data), None
 
@@ -487,8 +487,8 @@ class ReportsAPI:
 
         response = self._client.get("/reports/financial", params=params if params else None)
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         return FinancialReport.from_dict(response.data), None
 
@@ -511,8 +511,8 @@ class ReportsAPI:
 
         response = self._client.get("/reports/equipment", params=params if params else None)
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         return EquipmentReport.from_dict(response.data), None
 
@@ -525,8 +525,8 @@ class ReportsAPI:
         """
         response = self._client.get("/reports/inventory")
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         return InventoryReport.from_dict(response.data), None
 
@@ -549,8 +549,8 @@ class ReportsAPI:
 
         response = self._client.get("/reports/fields", params=params if params else None)
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         return FieldPerformanceReport.from_dict(response.data), None
 
@@ -563,8 +563,8 @@ class ReportsAPI:
         """
         response = self._client.get("/reports/dashboard")
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         return DashboardSummary.from_dict(response.data), None
 
@@ -588,8 +588,8 @@ class ReportsAPI:
 
         response = self._client.post("/reports/export/csv", json=data)
 
-        if response.error:
-            return None, response.error
+        if response.error_message:
+            return None, response.error_message
 
         # The response should be the CSV content
         if isinstance(response.data, str):

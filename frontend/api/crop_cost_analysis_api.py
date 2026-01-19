@@ -354,10 +354,10 @@ class CropCostAnalysisAPI:
         if crop_types:
             params["crop_types"] = ",".join(crop_types)
 
-        data, error = self._client.get("/api/v1/crop-analysis/summary", params=params)
-        if error:
-            return None, error
-        return CropAnalysisSummary.from_dict(data), None
+        response = self._client.get("/api/v1/crop-analysis/summary", params=params)
+        if not response.success:
+            return None, response.error_message
+        return CropAnalysisSummary.from_dict(response.data), None
 
     def get_field_comparison(
         self,
@@ -375,10 +375,10 @@ class CropCostAnalysisAPI:
         if field_ids:
             params["field_ids"] = ",".join(map(str, field_ids))
 
-        data, error = self._client.get("/api/v1/crop-analysis/comparison", params=params)
-        if error:
-            return None, error
-        return FieldComparisonMatrix.from_dict(data), None
+        response = self._client.get("/api/v1/crop-analysis/comparison", params=params)
+        if not response.success:
+            return None, response.error_message
+        return FieldComparisonMatrix.from_dict(response.data), None
 
     def get_crop_comparison(
         self,
@@ -390,10 +390,10 @@ class CropCostAnalysisAPI:
         if crop_types:
             params["crop_types"] = ",".join(crop_types)
 
-        data, error = self._client.get("/api/v1/crop-analysis/crops", params=params)
-        if error:
-            return None, error
-        return [CropComparisonItem.from_dict(item) for item in data], None
+        response = self._client.get("/api/v1/crop-analysis/crops", params=params)
+        if not response.success:
+            return None, response.error_message
+        return [CropComparisonItem.from_dict(item) for item in response.data], None
 
     def get_crop_detail(
         self,
@@ -402,10 +402,10 @@ class CropCostAnalysisAPI:
     ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         """Get detailed analysis for a specific crop type."""
         params = {"crop_year": crop_year}
-        data, error = self._client.get(f"/api/v1/crop-analysis/crops/{crop_type}", params=params)
-        if error:
-            return None, error
-        return data, None
+        response = self._client.get(f"/api/v1/crop-analysis/crops/{crop_type}", params=params)
+        if not response.success:
+            return None, response.error_message
+        return response.data, None
 
     def get_field_history(
         self,
@@ -417,10 +417,10 @@ class CropCostAnalysisAPI:
         if years:
             params["years"] = ",".join(map(str, years))
 
-        data, error = self._client.get(f"/api/v1/crop-analysis/field/{field_id}/history", params=params)
-        if error:
-            return None, error
-        return [YearOverYearData.from_dict(item) for item in data], None
+        response = self._client.get(f"/api/v1/crop-analysis/field/{field_id}/history", params=params)
+        if not response.success:
+            return None, response.error_message
+        return [YearOverYearData.from_dict(item) for item in response.data], None
 
     def get_year_comparison(
         self,
@@ -435,10 +435,10 @@ class CropCostAnalysisAPI:
         if crop_type:
             params["crop_type"] = crop_type
 
-        data, error = self._client.get("/api/v1/crop-analysis/years", params=params)
-        if error:
-            return None, error
-        return [YearOverYearData.from_dict(item) for item in data], None
+        response = self._client.get("/api/v1/crop-analysis/years", params=params)
+        if not response.success:
+            return None, response.error_message
+        return [YearOverYearData.from_dict(item) for item in response.data], None
 
     def get_roi_analysis(
         self,
@@ -450,10 +450,10 @@ class CropCostAnalysisAPI:
             "crop_year": crop_year,
             "group_by": group_by
         }
-        data, error = self._client.get("/api/v1/crop-analysis/roi", params=params)
-        if error:
-            return None, error
-        return [ROIAnalysisItem.from_dict(item) for item in data], None
+        response = self._client.get("/api/v1/crop-analysis/roi", params=params)
+        if not response.success:
+            return None, response.error_message
+        return [ROIAnalysisItem.from_dict(item) for item in response.data], None
 
     def get_trends(
         self,
@@ -474,10 +474,10 @@ class CropCostAnalysisAPI:
         if crop_type:
             params["crop_type"] = crop_type
 
-        data, error = self._client.get("/api/v1/crop-analysis/trends", params=params)
-        if error:
-            return None, error
-        return [TrendDataPoint.from_dict(item) for item in data], None
+        response = self._client.get("/api/v1/crop-analysis/trends", params=params)
+        if not response.success:
+            return None, response.error_message
+        return [TrendDataPoint.from_dict(item) for item in response.data], None
 
 
 # ============================================================================

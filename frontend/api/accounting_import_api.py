@@ -173,7 +173,7 @@ class AccountingImportAPI:
 
             if response.success and response.data:
                 return QBImportPreview.from_dict(response.data), None
-            return None, response.error or "Unknown error"
+            return None, response.error_message or "Unknown error"
         except Exception as e:
             return None, str(e)
 
@@ -215,7 +215,7 @@ class AccountingImportAPI:
 
             if response.success and response.data:
                 return QBImportSummary.from_dict(response.data), None
-            return None, response.error or "Unknown error"
+            return None, response.error_message or "Unknown error"
         except Exception as e:
             return None, str(e)
 
@@ -224,38 +224,47 @@ class AccountingImportAPI:
         response = self.client.get('/accounting-import/mappings')
         if response.success and response.data:
             return [QBAccountMapping.from_dict(m) for m in response.data], None
-        return [], response.error
+        return [], response.error_message
 
     def save_mappings(self, mappings: Dict[str, str]) -> Tuple[bool, Optional[str]]:
         """Save accounting software account to AgTools category mappings."""
         response = self.client.post('/accounting-import/mappings', data=mappings)
-        return response.success, response.error
+        return response.success, response.error_message
 
     def delete_mapping(self, mapping_id: int) -> Tuple[bool, Optional[str]]:
         """Delete an accounting software account mapping."""
         response = self.client.delete(f'/accounting-import/mappings/{mapping_id}')
-        return response.success, response.error
+        return response.success, response.error_message
 
     def get_supported_formats(self) -> Tuple[List[QBFormat], Optional[str]]:
         """Get list of supported accounting software export formats."""
         response = self.client.get('/accounting-import/formats')
         if response.success and response.data:
             return [QBFormat.from_dict(f) for f in response.data], None
-        return [], response.error
+        return [], response.error_message
 
     def get_default_mappings(self) -> Tuple[Dict[str, str], Optional[str]]:
         """Get default accounting software account to category mappings."""
         response = self.client.get('/accounting-import/default-mappings')
         if response.success and response.data:
             return response.data, None
-        return {}, response.error
+        return {}, response.error_message
 
     def get_categories(self) -> Tuple[List[ExpenseCategory], Optional[str]]:
         """Get list of available expense categories."""
         response = self.client.get('/costs/categories')
         if response.success and response.data:
-            return [ExpenseCategory.from_dict(c) for c in response.data], None
-        return [], response.error
+            # Handle both list of strings and list of dicts
+            categories_data = response.data.get('categories', response.data) if isinstance(response.data, dict) else response.data
+            categories = []
+            for c in categories_data:
+                if isinstance(c, str):
+                    # Convert string to category
+                    categories.append(ExpenseCategory(value=c, name=c.replace('_', ' ').title()))
+                else:
+                    categories.append(ExpenseCategory.from_dict(c))
+            return categories, None
+        return [], response.error_message
 
 
 # ============================================================================

@@ -373,7 +373,7 @@ class EquipmentAPI:
 
         response = self._client.get("/equipment", params=params)
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [EquipmentInfo.from_dict(e) for e in response.data], None
 
@@ -381,7 +381,7 @@ class EquipmentAPI:
         """Get equipment by ID."""
         response = self._client.get(f"/equipment/{equipment_id}")
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return EquipmentInfo.from_dict(response.data), None
 
@@ -424,7 +424,7 @@ class EquipmentAPI:
 
         response = self._client.post("/equipment", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return EquipmentInfo.from_dict(response.data), None
 
@@ -439,7 +439,7 @@ class EquipmentAPI:
 
         response = self._client.put(f"/equipment/{equipment_id}", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return EquipmentInfo.from_dict(response.data), None
 
@@ -447,7 +447,7 @@ class EquipmentAPI:
         """Delete (retire) equipment."""
         response = self._client.delete(f"/equipment/{equipment_id}")
         if not response.success:
-            return False, response.error
+            return False, response.error_message
 
         return True, None
 
@@ -462,7 +462,7 @@ class EquipmentAPI:
             params={"new_hours": new_hours}
         )
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return EquipmentInfo.from_dict(response.data), None
 
@@ -470,7 +470,7 @@ class EquipmentAPI:
         """Get equipment fleet summary."""
         response = self._client.get("/equipment/summary")
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return EquipmentSummary.from_dict(response.data), None
 
@@ -499,7 +499,7 @@ class EquipmentAPI:
 
         response = self._client.get("/maintenance", params=params)
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [MaintenanceInfo.from_dict(m) for m in response.data], None
 
@@ -534,7 +534,7 @@ class EquipmentAPI:
 
         response = self._client.post("/maintenance", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return MaintenanceInfo.from_dict(response.data), None
 
@@ -548,7 +548,7 @@ class EquipmentAPI:
             params={"days_ahead": days_ahead}
         )
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [MaintenanceAlert.from_dict(a) for a in response.data], None
 
@@ -563,7 +563,7 @@ class EquipmentAPI:
             params={"limit": limit}
         )
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [MaintenanceInfo.from_dict(m) for m in response.data], None
 
@@ -602,7 +602,7 @@ class EquipmentAPI:
 
         response = self._client.post("/equipment/usage", json=data)
         if not response.success:
-            return None, response.error
+            return None, response.error_message
 
         return EquipmentUsage.from_dict(response.data), None
 
@@ -625,7 +625,7 @@ class EquipmentAPI:
             params=params
         )
         if not response.success:
-            return [], response.error
+            return [], response.error_message
 
         return [EquipmentUsage.from_dict(u) for u in response.data], None
 

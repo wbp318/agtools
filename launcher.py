@@ -53,6 +53,7 @@ class BackendProcess:
         # Set up environment
         env = os.environ.copy()
         env['PYTHONPATH'] = BACKEND_DIR
+        env['AGTOOLS_DEV_MODE'] = '1'  # Enable dev mode for auto-auth
 
         # Start uvicorn with the FastAPI app
         cmd = [
@@ -166,6 +167,9 @@ def check_port_available(port):
 def start_frontend():
     """Start the PyQt6 frontend application."""
     print("Starting AgTools frontend...")
+
+    # Enable dev mode for auto-login (local development only)
+    os.environ['AGTOOLS_DEV_MODE'] = '1'
 
     # Add frontend to path
     if FRONTEND_DIR not in sys.path:

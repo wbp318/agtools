@@ -316,8 +316,8 @@ class UnifiedDashboardAPI:
 
         response = self._client.get("/unified-dashboard", params=params if params else None)
 
-        if response.error:
-            return None, response.error
+        if not response.success:
+            return None, response.error_message
 
         return UnifiedDashboard.from_dict(response.data), None
 
@@ -352,8 +352,8 @@ class UnifiedDashboardAPI:
 
         response = self._client.get("/unified-dashboard/transactions", params=params)
 
-        if response.error:
-            return None, response.error
+        if not response.success:
+            return None, response.error_message
 
         return TransactionList.from_dict(response.data), None
 
@@ -369,8 +369,8 @@ class UnifiedDashboardAPI:
         """
         response = self._client.get(f"/unified-dashboard/kpi/{kpi_id}/detail")
 
-        if response.error:
-            return None, response.error
+        if not response.success:
+            return None, response.error_message
 
         return KPIDetail.from_dict(response.data), None
 
@@ -383,8 +383,8 @@ class UnifiedDashboardAPI:
         """
         response = self._client.get("/unified-dashboard/summary")
 
-        if response.error:
-            return None, response.error
+        if not response.success:
+            return None, response.error_message
 
         return response.data, None
 

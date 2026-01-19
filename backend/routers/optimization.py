@@ -656,13 +656,26 @@ async def get_all_prices(
     }
 
     cat = category_map.get(category) if category else None
-    prices = service.get_all_prices(category=cat)
+    prices_dict = service.get_all_prices(category=cat)
+
+    # Convert dict to list format for response model
+    prices_list = [
+        {
+            "product_id": k,
+            "price": v.price if hasattr(v, 'price') else v.get('price', 0),
+            "unit": v.unit if hasattr(v, 'unit') else v.get('unit', ''),
+            "description": v.description if hasattr(v, 'description') else v.get('description', ''),
+            "category": v.category.value if hasattr(v, 'category') and hasattr(v.category, 'value') else str(v.get('category', '')),
+            "source": v.source if hasattr(v, 'source') else v.get('source', 'default')
+        }
+        for k, v in prices_dict.items()
+    ]
 
     return {
         "region": region.value,
         "category": category.value if category else "all",
-        "count": len(prices),
-        "prices": prices
+        "count": len(prices_list),
+        "prices": prices_list
     }
 
 
