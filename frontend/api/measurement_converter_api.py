@@ -23,7 +23,7 @@ from models.measurement_converter import (
 class MeasurementConverterAPI:
     """API client for measurement conversion endpoints."""
 
-    BASE_PATH = "/api/v1/convert"
+    BASE_PATH = "/convert"
 
     def __init__(self, client: Optional[APIClient] = None):
         self._client = client or get_api_client()
