@@ -1,6 +1,6 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.14.0 | **Last Updated:** January 19, 2026
+> **Current Version:** 6.14.1 | **Last Updated:** January 19, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
@@ -128,6 +128,30 @@ tests/test_genfin_payroll_critical.py - Fixed test assertions
 tests/test_cost_tracking_critical.py - Fixed test assertions
 tests/test_ai_service_critical.py - Fixed response format assertions
 ```
+
+---
+
+## v6.14.1 (January 19, 2026)
+
+### Bug Fixes - Demo Day Stability Fixes
+
+**Critical fixes for app startup and module functionality.**
+
+**Fixed Issues:**
+
+1. **GenFin Entities Endpoint Serialization** (`backend/routers/genfin.py`)
+   - Fixed Internal Server Error on `/api/v1/genfin/entities` endpoint
+   - Service `EntityResponse` objects now properly converted to router's simpler `GenFinEntityResponse` format
+   - Root cause: Model mismatch between service layer (full entity fields) and router response model (minimal fields)
+
+2. **Unit Converter API Path** (`frontend/api/measurement_converter_api.py`)
+   - Fixed "Not Found" errors when using the measurement converter
+   - Changed BASE_PATH from `/api/v1/convert` to `/convert` since API client base URL already includes `/api/v1`
+   - Root cause: Double prefixing caused requests to go to `/api/v1/api/v1/convert/...`
+
+**Files Changed:**
+- `backend/routers/genfin.py` - Convert EntityResponse to dict with only required fields
+- `frontend/api/measurement_converter_api.py` - Remove duplicate /api/v1 prefix
 
 ---
 
