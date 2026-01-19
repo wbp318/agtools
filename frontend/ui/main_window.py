@@ -494,14 +494,9 @@ class MainWindow(QMainWindow):
             crew_mgmt_screen = CrewManagementScreen()
             self._add_screen("crews", crew_mgmt_screen)
 
-        # Placeholder screens for other features
-        placeholders = [
-            ("spray", "Spray Recommendations"),
-        ]
-
-        for nav_id, title in placeholders:
-            screen = PlaceholderScreen(title)
-            self._add_screen(nav_id, screen)
+        # Spray Recommendations - redirect to Spray Timing screen
+        # (spray nav_id maps to timing screen for now)
+        self._add_screen("spray", spray_timing_screen)
 
     def _add_screen(self, nav_id: str, screen: QWidget) -> None:
         """Add a screen to the stack."""
