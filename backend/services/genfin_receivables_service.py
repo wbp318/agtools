@@ -1,6 +1,7 @@
 """
 GenFin Receivables Service - Customers, Invoices, Payments Received, Estimates
 Complete accounts receivable management for farm operations
+SQLite persistent storage implementation
 """
 
 from datetime import datetime, date, timedelta
@@ -8,6 +9,8 @@ from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
+import sqlite3
+import json
 
 from .genfin_core_service import genfin_core_service, TransactionStatus
 
@@ -50,211 +53,6 @@ class PaymentMethod(Enum):
     OTHER = "other"
 
 
-@dataclass
-class Customer:
-    """Customer record"""
-    customer_id: str
-    company_name: str
-    display_name: str
-    contact_name: str = ""
-    email: str = ""
-    phone: str = ""
-    mobile: str = ""
-    fax: str = ""
-    website: str = ""
-
-    # Billing address
-    billing_address_line1: str = ""
-    billing_address_line2: str = ""
-    billing_city: str = ""
-    billing_state: str = ""
-    billing_zip: str = ""
-    billing_country: str = "USA"
-
-    # Shipping address
-    shipping_address_line1: str = ""
-    shipping_address_line2: str = ""
-    shipping_city: str = ""
-    shipping_state: str = ""
-    shipping_zip: str = ""
-    shipping_country: str = "USA"
-
-    # Financial
-    tax_exempt: bool = False
-    tax_id: str = ""
-    default_income_account_id: Optional[str] = None
-    payment_terms: str = "Net 30"
-    credit_limit: float = 0.0
-
-    # Classification
-    customer_type: str = ""  # Buyer, Wholesaler, Retail, Government
-    notes: str = ""
-    status: CustomerStatus = CustomerStatus.ACTIVE
-
-    # Balance
-    opening_balance: float = 0.0
-    opening_balance_date: Optional[date] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class InvoiceLine:
-    """Line item on an invoice"""
-    line_id: str
-    account_id: str
-    description: str
-    quantity: float = 1.0
-    unit_price: float = 0.0
-    amount: float = 0.0
-    tax_code: Optional[str] = None
-    tax_amount: float = 0.0
-    discount_percent: float = 0.0
-    discount_amount: float = 0.0
-    class_id: Optional[str] = None
-    location_id: Optional[str] = None
-    service_date: Optional[date] = None
-
-
-@dataclass
-class Invoice:
-    """Customer invoice"""
-    invoice_id: str
-    invoice_number: str
-    customer_id: str
-    invoice_date: date
-    due_date: date
-    lines: List[InvoiceLine]
-
-    # Reference
-    po_number: str = ""  # Customer's PO number
-    terms: str = "Net 30"
-    memo: str = ""
-    message_on_invoice: str = ""
-    message_on_statement: str = ""
-
-    # Addresses
-    billing_address: str = ""
-    shipping_address: str = ""
-
-    # Totals
-    subtotal: float = 0.0
-    discount_total: float = 0.0
-    tax_total: float = 0.0
-    total: float = 0.0
-    amount_paid: float = 0.0
-    balance_due: float = 0.0
-
-    # Status
-    status: InvoiceStatus = InvoiceStatus.DRAFT
-    ar_account_id: Optional[str] = None
-    journal_entry_id: Optional[str] = None
-
-    # Email tracking
-    email_sent: bool = False
-    email_sent_date: Optional[datetime] = None
-    last_viewed_date: Optional[datetime] = None
-
-    # From estimate
-    estimate_id: Optional[str] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class PaymentReceived:
-    """Payment received from customer"""
-    payment_id: str
-    payment_date: date
-    customer_id: str
-    deposit_account_id: str
-    payment_method: PaymentMethod
-    reference_number: str = ""  # Check number, transaction ID
-    memo: str = ""
-    total_amount: float = 0.0
-    applied_invoices: List[Dict] = field(default_factory=list)  # [{invoice_id, amount}]
-    unapplied_amount: float = 0.0
-    journal_entry_id: Optional[str] = None
-    is_voided: bool = False
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class CustomerCredit:
-    """Credit memo to customer"""
-    credit_id: str
-    credit_number: str
-    customer_id: str
-    credit_date: date
-    lines: List[InvoiceLine]
-
-    reason: str = ""
-    memo: str = ""
-    total: float = 0.0
-    amount_applied: float = 0.0
-    balance: float = 0.0
-
-    status: str = "open"  # open, applied, refunded
-    journal_entry_id: Optional[str] = None
-    related_invoice_id: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Estimate:
-    """Estimate/Quote for customer"""
-    estimate_id: str
-    estimate_number: str
-    customer_id: str
-    estimate_date: date
-    expiration_date: date
-    lines: List[InvoiceLine]
-
-    # Reference
-    po_number: str = ""
-    terms: str = ""
-    memo: str = ""
-    message_to_customer: str = ""
-
-    # Totals
-    subtotal: float = 0.0
-    tax_total: float = 0.0
-    total: float = 0.0
-
-    # Status
-    status: EstimateStatus = EstimateStatus.DRAFT
-    accepted_date: Optional[date] = None
-    converted_invoice_id: Optional[str] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class SalesReceipt:
-    """Sales receipt (payment at time of sale)"""
-    receipt_id: str
-    receipt_number: str
-    customer_id: Optional[str]
-    receipt_date: date
-    lines: List[InvoiceLine]
-
-    payment_method: PaymentMethod
-    deposit_account_id: str
-    reference_number: str = ""
-    memo: str = ""
-
-    subtotal: float = 0.0
-    tax_total: float = 0.0
-    total: float = 0.0
-
-    journal_entry_id: Optional[str] = None
-    is_voided: bool = False
-    created_at: datetime = field(default_factory=datetime.now)
-
-
 # Payment terms definitions
 PAYMENT_TERMS = {
     "Due on Receipt": 0,
@@ -270,7 +68,7 @@ PAYMENT_TERMS = {
 
 class GenFinReceivablesService:
     """
-    GenFin Accounts Receivable Service
+    GenFin Accounts Receivable Service - SQLite persistent storage
 
     Complete AR functionality:
     - Customer management
@@ -285,32 +83,290 @@ class GenFinReceivablesService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.customers: Dict[str, Customer] = {}
-        self.invoices: Dict[str, Invoice] = {}
-        self.payments: Dict[str, PaymentReceived] = {}
-        self.credits: Dict[str, CustomerCredit] = {}
-        self.estimates: Dict[str, Estimate] = {}
-        self.sales_receipts: Dict[str, SalesReceipt] = {}
-
-        self.next_invoice_number = 1001
-        self.next_estimate_number = 1
-        self.next_credit_number = 1
-        self.next_receipt_number = 1
+        self.db_path = db_path
+        self._init_tables()
 
         # Default AR account
         self.default_ar_account_id = self._get_default_ar_account()
-
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection with row factory"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Create database tables if they don't exist"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Customers table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_customers (
+                    customer_id TEXT PRIMARY KEY,
+                    company_name TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    contact_name TEXT DEFAULT '',
+                    email TEXT DEFAULT '',
+                    phone TEXT DEFAULT '',
+                    mobile TEXT DEFAULT '',
+                    fax TEXT DEFAULT '',
+                    website TEXT DEFAULT '',
+                    billing_address_line1 TEXT DEFAULT '',
+                    billing_address_line2 TEXT DEFAULT '',
+                    billing_city TEXT DEFAULT '',
+                    billing_state TEXT DEFAULT '',
+                    billing_zip TEXT DEFAULT '',
+                    billing_country TEXT DEFAULT 'USA',
+                    shipping_address_line1 TEXT DEFAULT '',
+                    shipping_address_line2 TEXT DEFAULT '',
+                    shipping_city TEXT DEFAULT '',
+                    shipping_state TEXT DEFAULT '',
+                    shipping_zip TEXT DEFAULT '',
+                    shipping_country TEXT DEFAULT 'USA',
+                    tax_exempt INTEGER DEFAULT 0,
+                    tax_id TEXT DEFAULT '',
+                    default_income_account_id TEXT,
+                    payment_terms TEXT DEFAULT 'Net 30',
+                    credit_limit REAL DEFAULT 0.0,
+                    customer_type TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    status TEXT DEFAULT 'active',
+                    opening_balance REAL DEFAULT 0.0,
+                    opening_balance_date TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Invoices table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_invoices (
+                    invoice_id TEXT PRIMARY KEY,
+                    invoice_number TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    invoice_date TEXT NOT NULL,
+                    due_date TEXT NOT NULL,
+                    po_number TEXT DEFAULT '',
+                    terms TEXT DEFAULT 'Net 30',
+                    memo TEXT DEFAULT '',
+                    message_on_invoice TEXT DEFAULT '',
+                    message_on_statement TEXT DEFAULT '',
+                    billing_address TEXT DEFAULT '',
+                    shipping_address TEXT DEFAULT '',
+                    subtotal REAL DEFAULT 0.0,
+                    discount_total REAL DEFAULT 0.0,
+                    tax_total REAL DEFAULT 0.0,
+                    total REAL DEFAULT 0.0,
+                    amount_paid REAL DEFAULT 0.0,
+                    balance_due REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'draft',
+                    ar_account_id TEXT,
+                    journal_entry_id TEXT,
+                    email_sent INTEGER DEFAULT 0,
+                    email_sent_date TEXT,
+                    last_viewed_date TEXT,
+                    estimate_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Invoice lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_invoice_lines (
+                    line_id TEXT PRIMARY KEY,
+                    invoice_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    tax_code TEXT,
+                    tax_amount REAL DEFAULT 0.0,
+                    discount_percent REAL DEFAULT 0.0,
+                    discount_amount REAL DEFAULT 0.0,
+                    class_id TEXT,
+                    location_id TEXT,
+                    service_date TEXT,
+                    FOREIGN KEY (invoice_id) REFERENCES genfin_invoices(invoice_id)
+                )
+            """)
+
+            # Payments received table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_payments_received (
+                    payment_id TEXT PRIMARY KEY,
+                    payment_date TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    deposit_account_id TEXT NOT NULL,
+                    payment_method TEXT NOT NULL,
+                    reference_number TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    total_amount REAL DEFAULT 0.0,
+                    applied_invoices TEXT DEFAULT '[]',
+                    unapplied_amount REAL DEFAULT 0.0,
+                    journal_entry_id TEXT,
+                    is_voided INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            # Customer credits table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_customer_credits (
+                    credit_id TEXT PRIMARY KEY,
+                    credit_number TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    credit_date TEXT NOT NULL,
+                    reason TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    total REAL DEFAULT 0.0,
+                    amount_applied REAL DEFAULT 0.0,
+                    balance REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'open',
+                    journal_entry_id TEXT,
+                    related_invoice_id TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            # Credit lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_credit_lines (
+                    line_id TEXT PRIMARY KEY,
+                    credit_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    class_id TEXT,
+                    location_id TEXT,
+                    FOREIGN KEY (credit_id) REFERENCES genfin_customer_credits(credit_id)
+                )
+            """)
+
+            # Estimates table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_estimates (
+                    estimate_id TEXT PRIMARY KEY,
+                    estimate_number TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    estimate_date TEXT NOT NULL,
+                    expiration_date TEXT NOT NULL,
+                    po_number TEXT DEFAULT '',
+                    terms TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    message_to_customer TEXT DEFAULT '',
+                    subtotal REAL DEFAULT 0.0,
+                    tax_total REAL DEFAULT 0.0,
+                    total REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'draft',
+                    accepted_date TEXT,
+                    converted_invoice_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Estimate lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_estimate_lines (
+                    line_id TEXT PRIMARY KEY,
+                    estimate_id TEXT NOT NULL,
+                    account_id TEXT DEFAULT '',
+                    description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    tax_amount REAL DEFAULT 0.0,
+                    class_id TEXT,
+                    location_id TEXT,
+                    FOREIGN KEY (estimate_id) REFERENCES genfin_estimates(estimate_id)
+                )
+            """)
+
+            # Sales receipts table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_sales_receipts (
+                    receipt_id TEXT PRIMARY KEY,
+                    receipt_number TEXT NOT NULL,
+                    customer_id TEXT,
+                    receipt_date TEXT NOT NULL,
+                    payment_method TEXT NOT NULL,
+                    deposit_account_id TEXT NOT NULL,
+                    reference_number TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    subtotal REAL DEFAULT 0.0,
+                    tax_total REAL DEFAULT 0.0,
+                    total REAL DEFAULT 0.0,
+                    journal_entry_id TEXT,
+                    is_voided INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            # Sales receipt lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_sales_receipt_lines (
+                    line_id TEXT PRIMARY KEY,
+                    receipt_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    tax_amount REAL DEFAULT 0.0,
+                    class_id TEXT,
+                    location_id TEXT,
+                    FOREIGN KEY (receipt_id) REFERENCES genfin_sales_receipts(receipt_id)
+                )
+            """)
+
+            # Settings table for sequences
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_receivables_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
+            # Initialize sequence values
+            cursor.execute("INSERT OR IGNORE INTO genfin_receivables_settings (key, value) VALUES ('next_invoice_number', '1001')")
+            cursor.execute("INSERT OR IGNORE INTO genfin_receivables_settings (key, value) VALUES ('next_estimate_number', '1')")
+            cursor.execute("INSERT OR IGNORE INTO genfin_receivables_settings (key, value) VALUES ('next_credit_number', '1')")
+            cursor.execute("INSERT OR IGNORE INTO genfin_receivables_settings (key, value) VALUES ('next_receipt_number', '1')")
+
+            # Create indices
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_invoices_customer ON genfin_invoices(customer_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_invoices_status ON genfin_invoices(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_customer ON genfin_payments_received(customer_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_customers_status ON genfin_customers(status)")
+
+            conn.commit()
+
+    def _get_next_number(self, key: str) -> int:
+        """Get and increment a sequence number"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM genfin_receivables_settings WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            current = int(row['value']) if row else 1
+            cursor.execute("UPDATE genfin_receivables_settings SET value = ? WHERE key = ?", (str(current + 1), key))
+            conn.commit()
+            return current
 
     def _get_default_ar_account(self) -> Optional[str]:
         """Get the default Accounts Receivable account"""
@@ -340,69 +396,75 @@ class GenFinReceivablesService:
     ) -> Dict:
         """Create a new customer"""
         customer_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
 
-        ob_date = None
-        if opening_balance_date:
-            ob_date = datetime.strptime(opening_balance_date, "%Y-%m-%d").date()
-
-        customer = Customer(
-            customer_id=customer_id,
-            company_name=company_name,
-            display_name=display_name or company_name,
-            contact_name=contact_name,
-            email=email,
-            phone=phone,
-            billing_address_line1=billing_address_line1,
-            billing_city=billing_city,
-            billing_state=billing_state,
-            billing_zip=billing_zip,
-            tax_exempt=tax_exempt,
-            payment_terms=payment_terms,
-            customer_type=customer_type,
-            default_income_account_id=default_income_account_id,
-            credit_limit=credit_limit,
-            opening_balance=opening_balance,
-            opening_balance_date=ob_date
-        )
-
-        self.customers[customer_id] = customer
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_customers
+                (customer_id, company_name, display_name, contact_name, email, phone,
+                 billing_address_line1, billing_city, billing_state, billing_zip,
+                 tax_exempt, payment_terms, customer_type, default_income_account_id,
+                 credit_limit, opening_balance, opening_balance_date, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                customer_id, company_name, display_name or company_name, contact_name, email, phone,
+                billing_address_line1, billing_city, billing_state, billing_zip,
+                1 if tax_exempt else 0, payment_terms, customer_type, default_income_account_id,
+                credit_limit, opening_balance, opening_balance_date, now, now
+            ))
+            conn.commit()
 
         return {
             "success": True,
             "customer_id": customer_id,
-            "customer": self._customer_to_dict(customer)
+            "customer": self.get_customer(customer_id)
         }
 
     def update_customer(self, customer_id: str, **kwargs) -> Dict:
         """Update customer information"""
-        if customer_id not in self.customers:
+        customer = self.get_customer(customer_id)
+        if not customer:
             return {"success": False, "error": "Customer not found"}
 
-        customer = self.customers[customer_id]
-
+        updates = []
+        params = []
         for key, value in kwargs.items():
-            if hasattr(customer, key) and value is not None:
-                setattr(customer, key, value)
+            if value is not None:
+                if key == 'tax_exempt':
+                    value = 1 if value else 0
+                updates.append(f"{key} = ?")
+                params.append(value)
 
-        customer.updated_at = datetime.now()
+        if updates:
+            updates.append("updated_at = ?")
+            params.append(datetime.now().isoformat())
+            params.append(customer_id)
 
-        return {
-            "success": True,
-            "customer": self._customer_to_dict(customer)
-        }
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(f"UPDATE genfin_customers SET {', '.join(updates)} WHERE customer_id = ?", params)
+                conn.commit()
+
+        return {"success": True, "customer": self.get_customer(customer_id)}
 
     def delete_customer(self, customer_id: str) -> bool:
         """Delete a customer"""
-        if customer_id not in self.customers:
-            return False
-        del self.customers[customer_id]
-        return True
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM genfin_customers WHERE customer_id = ?", (customer_id,))
+            conn.commit()
+            return cursor.rowcount > 0
 
     def get_customer(self, customer_id: str) -> Optional[Dict]:
         """Get customer by ID"""
-        if customer_id not in self.customers:
-            return None
-        return self._customer_to_dict(self.customers[customer_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_customers WHERE customer_id = ?", (customer_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_customer_dict(row)
 
     def list_customers(
         self,
@@ -412,53 +474,77 @@ class GenFinReceivablesService:
         with_balance_only: bool = False
     ) -> List[Dict]:
         """List customers with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for customer in self.customers.values():
-            if status and customer.status.value != status:
-                continue
-            if customer_type and customer.customer_type != customer_type:
-                continue
+            query = "SELECT * FROM genfin_customers WHERE 1=1"
+            params = []
+
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+            if customer_type:
+                query += " AND customer_type = ?"
+                params.append(customer_type)
             if search:
-                search_lower = search.lower()
-                if (search_lower not in customer.company_name.lower() and
-                    search_lower not in customer.display_name.lower() and
-                    search_lower not in customer.contact_name.lower()):
+                query += " AND (company_name LIKE ? OR display_name LIKE ? OR contact_name LIKE ?)"
+                search_param = f"%{search}%"
+                params.extend([search_param, search_param, search_param])
+
+            query += " ORDER BY display_name"
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                customer_dict = self._row_to_customer_dict(row)
+                balance = self.get_customer_balance(row['customer_id'])
+                if with_balance_only and balance == 0:
                     continue
+                customer_dict["balance"] = balance
+                result.append(customer_dict)
 
-            balance = self.get_customer_balance(customer.customer_id)
-
-            if with_balance_only and balance == 0:
-                continue
-
-            customer_dict = self._customer_to_dict(customer)
-            customer_dict["balance"] = balance
-            result.append(customer_dict)
-
-        return sorted(result, key=lambda c: c["display_name"])
+            return result
 
     def get_customer_balance(self, customer_id: str) -> float:
         """Calculate customer balance (amount owed to us)"""
         balance = 0.0
 
-        # Add opening balance
-        if customer_id in self.customers:
-            balance = self.customers[customer_id].opening_balance
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Add unpaid invoices
-        for invoice in self.invoices.values():
-            if invoice.customer_id == customer_id and invoice.status in [InvoiceStatus.SENT, InvoiceStatus.VIEWED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]:
-                balance += invoice.balance_due
+            # Opening balance
+            cursor.execute("SELECT opening_balance FROM genfin_customers WHERE customer_id = ?", (customer_id,))
+            row = cursor.fetchone()
+            if row:
+                balance = row['opening_balance'] or 0.0
 
-        # Subtract unapplied credits
-        for credit in self.credits.values():
-            if credit.customer_id == customer_id and credit.status == "open":
-                balance -= credit.balance
+            # Unpaid invoices
+            cursor.execute("""
+                SELECT SUM(balance_due) as total FROM genfin_invoices
+                WHERE customer_id = ? AND status IN ('sent', 'viewed', 'partial', 'overdue')
+            """, (customer_id,))
+            row = cursor.fetchone()
+            if row and row['total']:
+                balance += row['total']
 
-        # Subtract unapplied payments
-        for payment in self.payments.values():
-            if payment.customer_id == customer_id and not payment.is_voided:
-                balance -= payment.unapplied_amount
+            # Unapplied credits
+            cursor.execute("""
+                SELECT SUM(balance) as total FROM genfin_customer_credits
+                WHERE customer_id = ? AND status = 'open'
+            """, (customer_id,))
+            row = cursor.fetchone()
+            if row and row['total']:
+                balance -= row['total']
+
+            # Unapplied payments
+            cursor.execute("""
+                SELECT SUM(unapplied_amount) as total FROM genfin_payments_received
+                WHERE customer_id = ? AND is_voided = 0
+            """, (customer_id,))
+            row = cursor.fetchone()
+            if row and row['total']:
+                balance -= row['total']
 
         return round(balance, 2)
 
@@ -477,141 +563,124 @@ class GenFinReceivablesService:
         estimate_id: Optional[str] = None
     ) -> Dict:
         """Create a new invoice"""
-        if customer_id not in self.customers:
+        if not self.get_customer(customer_id):
             return {"success": False, "error": "Customer not found"}
 
         invoice_id = str(uuid.uuid4())
-        invoice_number = f"INV-{self.next_invoice_number:05d}"
-        self.next_invoice_number += 1
+        invoice_number = f"INV-{self._get_next_number('next_invoice_number'):05d}"
 
-        # Parse date and calculate due date
         i_date = datetime.strptime(invoice_date, "%Y-%m-%d").date()
         days = PAYMENT_TERMS.get(terms, 30)
         d_date = i_date + timedelta(days=days)
 
-        # Process lines
-        invoice_lines = []
         subtotal = 0.0
         discount_total = 0.0
         tax_total = 0.0
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
-            discount = line.get("discount_amount", 0)
-            tax_amount = line.get("tax_amount", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            service_date = None
-            if line.get("service_date"):
-                service_date = datetime.strptime(line["service_date"], "%Y-%m-%d").date()
+            # Get customer for addresses
+            cursor.execute("SELECT * FROM genfin_customers WHERE customer_id = ?", (customer_id,))
+            customer = cursor.fetchone()
+            billing_addr = f"{customer['billing_address_line1']}\n{customer['billing_city']}, {customer['billing_state']} {customer['billing_zip']}"
+            shipping_addr = f"{customer['shipping_address_line1']}\n{customer['shipping_city']}, {customer['shipping_state']} {customer['shipping_zip']}"
 
-            invoice_lines.append(InvoiceLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line["account_id"],
-                description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                tax_code=line.get("tax_code"),
-                tax_amount=tax_amount,
-                discount_percent=line.get("discount_percent", 0),
-                discount_amount=discount,
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id"),
-                service_date=service_date
+            # Process lines
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+                discount = line.get("discount_amount", 0)
+                tax_amount = line.get("tax_amount", 0)
+
+                line_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_invoice_lines
+                    (line_id, invoice_id, account_id, description, quantity, unit_price, amount,
+                     tax_code, tax_amount, discount_percent, discount_amount, class_id, location_id, service_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    line_id, invoice_id, line["account_id"], line.get("description", ""),
+                    line.get("quantity", 1), line.get("unit_price", 0), line_amount,
+                    line.get("tax_code"), tax_amount, line.get("discount_percent", 0), discount,
+                    line.get("class_id"), line.get("location_id"), line.get("service_date")
+                ))
+
+                subtotal += line_amount
+                discount_total += discount
+                tax_total += tax_amount
+
+            total = subtotal - discount_total + tax_total
+            now = datetime.now().isoformat()
+
+            cursor.execute("""
+                INSERT INTO genfin_invoices
+                (invoice_id, invoice_number, customer_id, invoice_date, due_date,
+                 po_number, terms, memo, message_on_invoice, billing_address, shipping_address,
+                 subtotal, discount_total, tax_total, total, amount_paid, balance_due,
+                 status, ar_account_id, estimate_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'draft', ?, ?, ?, ?)
+            """, (
+                invoice_id, invoice_number, customer_id, invoice_date, d_date.isoformat(),
+                po_number, terms, memo, message_on_invoice, billing_addr, shipping_addr,
+                round(subtotal, 2), round(discount_total, 2), round(tax_total, 2),
+                round(total, 2), round(total, 2),
+                ar_account_id or self.default_ar_account_id, estimate_id, now, now
             ))
 
-            subtotal += line_amount
-            discount_total += discount
-            tax_total += tax_amount
-
-        total = subtotal - discount_total + tax_total
-
-        # Get customer addresses
-        customer = self.customers[customer_id]
-        billing_addr = f"{customer.billing_address_line1}\n{customer.billing_city}, {customer.billing_state} {customer.billing_zip}"
-        shipping_addr = f"{customer.shipping_address_line1}\n{customer.shipping_city}, {customer.shipping_state} {customer.shipping_zip}"
-
-        invoice = Invoice(
-            invoice_id=invoice_id,
-            invoice_number=invoice_number,
-            customer_id=customer_id,
-            invoice_date=i_date,
-            due_date=d_date,
-            lines=invoice_lines,
-            po_number=po_number,
-            terms=terms,
-            memo=memo,
-            message_on_invoice=message_on_invoice,
-            billing_address=billing_addr,
-            shipping_address=shipping_addr,
-            subtotal=round(subtotal, 2),
-            discount_total=round(discount_total, 2),
-            tax_total=round(tax_total, 2),
-            total=round(total, 2),
-            amount_paid=0.0,
-            balance_due=round(total, 2),
-            status=InvoiceStatus.DRAFT,
-            ar_account_id=ar_account_id or self.default_ar_account_id,
-            estimate_id=estimate_id
-        )
-
-        self.invoices[invoice_id] = invoice
+            conn.commit()
 
         return {
             "success": True,
             "invoice_id": invoice_id,
             "invoice_number": invoice_number,
-            "invoice": self._invoice_to_dict(invoice)
+            "invoice": self.get_invoice(invoice_id)
         }
 
     def send_invoice(self, invoice_id: str) -> Dict:
         """Send/post an invoice - create journal entry and change status"""
-        if invoice_id not in self.invoices:
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
             return {"success": False, "error": "Invoice not found"}
 
-        invoice = self.invoices[invoice_id]
-
-        if invoice.status not in [InvoiceStatus.DRAFT]:
+        if invoice["status"] != "draft":
             return {"success": False, "error": "Invoice has already been sent"}
 
+        customer = self.get_customer(invoice["customer_id"])
+
         # Create journal entry
-        # Debit AR, Credit income accounts
-        journal_lines = []
-
-        journal_lines.append({
-            "account_id": invoice.ar_account_id,
-            "description": f"Invoice {invoice.invoice_number} - {self.customers[invoice.customer_id].display_name}",
-            "debit": invoice.total,
+        journal_lines = [{
+            "account_id": invoice["ar_account_id"],
+            "description": f"Invoice {invoice['invoice_number']} - {customer['display_name']}",
+            "debit": invoice["total"],
             "credit": 0,
-            "customer_id": invoice.customer_id
-        })
+            "customer_id": invoice["customer_id"]
+        }]
 
-        for line in invoice.lines:
+        for line in invoice["lines"]:
             journal_lines.append({
-                "account_id": line.account_id,
-                "description": line.description,
+                "account_id": line["account_id"],
+                "description": line["description"],
                 "debit": 0,
-                "credit": line.amount - line.discount_amount,
-                "class_id": line.class_id,
-                "location_id": line.location_id,
-                "customer_id": invoice.customer_id
+                "credit": line["amount"] - line["discount_amount"],
+                "class_id": line["class_id"],
+                "location_id": line["location_id"],
+                "customer_id": invoice["customer_id"]
             })
 
-        # Tax liability if any
-        if invoice.tax_total > 0:
+        if invoice["tax_total"] > 0:
             tax_account = genfin_core_service.get_account_by_number("2500")
             if tax_account:
                 journal_lines.append({
                     "account_id": tax_account["account_id"],
-                    "description": f"Sales tax - Invoice {invoice.invoice_number}",
+                    "description": f"Sales tax - Invoice {invoice['invoice_number']}",
                     "debit": 0,
-                    "credit": invoice.tax_total
+                    "credit": invoice["tax_total"]
                 })
 
         je_result = genfin_core_service.create_journal_entry(
-            entry_date=invoice.invoice_date.isoformat(),
+            entry_date=invoice["invoice_date"],
             lines=journal_lines,
-            memo=f"Invoice {invoice.invoice_number}",
+            memo=f"Invoice {invoice['invoice_number']}",
             source_type="invoice",
             source_id=invoice_id,
             auto_post=True
@@ -620,57 +689,67 @@ class GenFinReceivablesService:
         if not je_result["success"]:
             return {"success": False, "error": f"Failed to create journal entry: {je_result.get('error')}"}
 
-        invoice.journal_entry_id = je_result["entry_id"]
-        invoice.status = InvoiceStatus.SENT
-        invoice.email_sent = True
-        invoice.email_sent_date = datetime.now()
-        invoice.updated_at = datetime.now()
+        now = datetime.now().isoformat()
+        status = "overdue" if datetime.strptime(invoice["due_date"], "%Y-%m-%d").date() < date.today() else "sent"
 
-        # Check if overdue
-        if invoice.due_date < date.today():
-            invoice.status = InvoiceStatus.OVERDUE
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_invoices
+                SET status = ?, journal_entry_id = ?, email_sent = 1, email_sent_date = ?, updated_at = ?
+                WHERE invoice_id = ?
+            """, (status, je_result["entry_id"], now, now, invoice_id))
+            conn.commit()
 
         return {
             "success": True,
-            "invoice": self._invoice_to_dict(invoice),
+            "invoice": self.get_invoice(invoice_id),
             "journal_entry_id": je_result["entry_id"]
         }
 
     def void_invoice(self, invoice_id: str, reason: str = "") -> Dict:
         """Void an invoice"""
-        if invoice_id not in self.invoices:
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
             return {"success": False, "error": "Invoice not found"}
 
-        invoice = self.invoices[invoice_id]
-
-        if invoice.amount_paid > 0:
+        if invoice["amount_paid"] > 0:
             return {"success": False, "error": "Cannot void invoice with payments applied"}
 
-        # Void journal entry if exists
-        if invoice.journal_entry_id:
-            genfin_core_service.void_journal_entry(invoice.journal_entry_id, reason)
+        if invoice["journal_entry_id"]:
+            genfin_core_service.void_journal_entry(invoice["journal_entry_id"], reason)
 
-        invoice.status = InvoiceStatus.VOIDED
-        invoice.memo = f"{invoice.memo} [VOIDED: {reason}]"
-        invoice.updated_at = datetime.now()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_invoices SET status = 'voided', memo = ?, updated_at = ? WHERE invoice_id = ?
+            """, (f"{invoice['memo']} [VOIDED: {reason}]", datetime.now().isoformat(), invoice_id))
+            conn.commit()
 
-        return {
-            "success": True,
-            "invoice": self._invoice_to_dict(invoice)
-        }
+        return {"success": True, "invoice": self.get_invoice(invoice_id)}
 
     def get_invoice(self, invoice_id: str) -> Optional[Dict]:
         """Get invoice by ID"""
-        if invoice_id not in self.invoices:
-            return None
-        return self._invoice_to_dict(self.invoices[invoice_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_invoices WHERE invoice_id = ?", (invoice_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            cursor.execute("SELECT * FROM genfin_invoice_lines WHERE invoice_id = ?", (invoice_id,))
+            lines = cursor.fetchall()
+
+            return self._row_to_invoice_dict(row, lines)
 
     def delete_invoice(self, invoice_id: str) -> bool:
         """Delete an invoice"""
-        if invoice_id not in self.invoices:
-            return False
-        del self.invoices[invoice_id]
-        return True
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM genfin_invoice_lines WHERE invoice_id = ?", (invoice_id,))
+            cursor.execute("DELETE FROM genfin_invoices WHERE invoice_id = ?", (invoice_id,))
+            conn.commit()
+            return cursor.rowcount > 0
 
     def list_invoices(
         self,
@@ -681,25 +760,38 @@ class GenFinReceivablesService:
         unpaid_only: bool = False
     ) -> List[Dict]:
         """List invoices with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for invoice in self.invoices.values():
-            if customer_id and invoice.customer_id != customer_id:
-                continue
-            if status and invoice.status.value != status:
-                continue
+            query = "SELECT * FROM genfin_invoices WHERE 1=1"
+            params = []
+
+            if customer_id:
+                query += " AND customer_id = ?"
+                params.append(customer_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
             if start_date:
-                if invoice.invoice_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND invoice_date >= ?"
+                params.append(start_date)
             if end_date:
-                if invoice.invoice_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
-            if unpaid_only and invoice.status not in [InvoiceStatus.SENT, InvoiceStatus.VIEWED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]:
-                continue
+                query += " AND invoice_date <= ?"
+                params.append(end_date)
+            if unpaid_only:
+                query += " AND status IN ('sent', 'viewed', 'partial', 'overdue')"
 
-            result.append(self._invoice_to_dict(invoice))
+            query += " ORDER BY invoice_date DESC"
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-        return sorted(result, key=lambda i: i["invoice_date"], reverse=True)
+            result = []
+            for row in rows:
+                cursor.execute("SELECT * FROM genfin_invoice_lines WHERE invoice_id = ?", (row['invoice_id'],))
+                lines = cursor.fetchall()
+                result.append(self._row_to_invoice_dict(row, lines))
+
+            return result
 
     # ==================== PAYMENTS RECEIVED ====================
 
@@ -710,54 +802,48 @@ class GenFinReceivablesService:
         deposit_account_id: str,
         payment_method: str,
         total_amount: float,
-        invoices_to_apply: List[Dict] = None,  # [{invoice_id, amount}]
+        invoices_to_apply: List[Dict] = None,
         reference_number: str = "",
         memo: str = ""
     ) -> Dict:
         """Receive payment from customer"""
-        if customer_id not in self.customers:
+        if not self.get_customer(customer_id):
             return {"success": False, "error": "Customer not found"}
 
         invoices_to_apply = invoices_to_apply or []
-
-        # Validate invoices and amounts
         total_applied = 0.0
+
+        # Validate invoices
         for inv_payment in invoices_to_apply:
-            invoice_id = inv_payment["invoice_id"]
-            amount = inv_payment["amount"]
-
-            if invoice_id not in self.invoices:
-                return {"success": False, "error": f"Invoice {invoice_id} not found"}
-
-            invoice = self.invoices[invoice_id]
-            if invoice.customer_id != customer_id:
-                return {"success": False, "error": f"Invoice {invoice.invoice_number} does not belong to this customer"}
-            if invoice.status not in [InvoiceStatus.SENT, InvoiceStatus.VIEWED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]:
-                return {"success": False, "error": f"Invoice {invoice.invoice_number} is not payable"}
-            if amount > invoice.balance_due:
-                return {"success": False, "error": f"Payment amount exceeds balance on {invoice.invoice_number}"}
-
-            total_applied += amount
+            invoice = self.get_invoice(inv_payment["invoice_id"])
+            if not invoice:
+                return {"success": False, "error": f"Invoice {inv_payment['invoice_id']} not found"}
+            if invoice["customer_id"] != customer_id:
+                return {"success": False, "error": f"Invoice {invoice['invoice_number']} does not belong to this customer"}
+            if invoice["status"] not in ["sent", "viewed", "partial", "overdue"]:
+                return {"success": False, "error": f"Invoice {invoice['invoice_number']} is not payable"}
+            if inv_payment["amount"] > invoice["balance_due"]:
+                return {"success": False, "error": f"Payment amount exceeds balance on {invoice['invoice_number']}"}
+            total_applied += inv_payment["amount"]
 
         if total_applied > total_amount:
             return {"success": False, "error": "Total applied exceeds payment amount"}
 
         payment_id = str(uuid.uuid4())
-        p_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
+        customer = self.get_customer(customer_id)
 
         # Create journal entry
-        # Debit Bank, Credit AR
         journal_lines = [
             {
                 "account_id": deposit_account_id,
-                "description": f"Payment from {self.customers[customer_id].display_name}",
+                "description": f"Payment from {customer['display_name']}",
                 "debit": total_amount,
                 "credit": 0,
                 "customer_id": customer_id
             },
             {
                 "account_id": self.default_ar_account_id,
-                "description": f"Payment from {self.customers[customer_id].display_name}",
+                "description": f"Payment from {customer['display_name']}",
                 "debit": 0,
                 "credit": total_amount,
                 "customer_id": customer_id
@@ -767,7 +853,7 @@ class GenFinReceivablesService:
         je_result = genfin_core_service.create_journal_entry(
             entry_date=payment_date,
             lines=journal_lines,
-            memo=f"Payment received: {reference_number}" if reference_number else f"Payment from {self.customers[customer_id].display_name}",
+            memo=f"Payment received: {reference_number}" if reference_number else f"Payment from {customer['display_name']}",
             source_type="payment_received",
             source_id=payment_id,
             auto_post=True
@@ -776,131 +862,149 @@ class GenFinReceivablesService:
         if not je_result["success"]:
             return {"success": False, "error": f"Failed to create journal entry: {je_result.get('error')}"}
 
-        # Apply payments to invoices
+        # Apply payments and update invoices
         applied_invoices = []
-        for inv_payment in invoices_to_apply:
-            invoice = self.invoices[inv_payment["invoice_id"]]
-            amount = inv_payment["amount"]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            invoice.amount_paid += amount
-            invoice.balance_due = round(invoice.total - invoice.amount_paid, 2)
+            for inv_payment in invoices_to_apply:
+                invoice = self.get_invoice(inv_payment["invoice_id"])
+                amount = inv_payment["amount"]
 
-            if invoice.balance_due == 0:
-                invoice.status = InvoiceStatus.PAID
-            else:
-                invoice.status = InvoiceStatus.PARTIAL
+                new_amount_paid = invoice["amount_paid"] + amount
+                new_balance = round(invoice["total"] - new_amount_paid, 2)
+                new_status = "paid" if new_balance == 0 else "partial"
 
-            invoice.updated_at = datetime.now()
+                cursor.execute("""
+                    UPDATE genfin_invoices
+                    SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
+                    WHERE invoice_id = ?
+                """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), inv_payment["invoice_id"]))
 
-            applied_invoices.append({
-                "invoice_id": invoice.invoice_id,
-                "invoice_number": invoice.invoice_number,
-                "amount": amount,
-                "balance_remaining": invoice.balance_due
-            })
+                applied_invoices.append({
+                    "invoice_id": invoice["invoice_id"],
+                    "invoice_number": invoice["invoice_number"],
+                    "amount": amount,
+                    "balance_remaining": new_balance
+                })
 
-        unapplied = round(total_amount - total_applied, 2)
+            unapplied = round(total_amount - total_applied, 2)
 
-        payment = PaymentReceived(
-            payment_id=payment_id,
-            payment_date=p_date,
-            customer_id=customer_id,
-            deposit_account_id=deposit_account_id,
-            payment_method=PaymentMethod(payment_method),
-            reference_number=reference_number,
-            memo=memo,
-            total_amount=total_amount,
-            applied_invoices=applied_invoices,
-            unapplied_amount=unapplied,
-            journal_entry_id=je_result["entry_id"]
-        )
-
-        self.payments[payment_id] = payment
+            cursor.execute("""
+                INSERT INTO genfin_payments_received
+                (payment_id, payment_date, customer_id, deposit_account_id, payment_method,
+                 reference_number, memo, total_amount, applied_invoices, unapplied_amount,
+                 journal_entry_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                payment_id, payment_date, customer_id, deposit_account_id, payment_method,
+                reference_number, memo, total_amount, json.dumps(applied_invoices), unapplied,
+                je_result["entry_id"], datetime.now().isoformat()
+            ))
+            conn.commit()
 
         return {
             "success": True,
             "payment_id": payment_id,
-            "payment": self._payment_to_dict(payment)
+            "payment": self._get_payment(payment_id)
         }
+
+    def _get_payment(self, payment_id: str) -> Optional[Dict]:
+        """Get payment by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_payments_received WHERE payment_id = ?", (payment_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_payment_dict(row)
 
     def apply_payment_to_invoice(self, payment_id: str, invoice_id: str, amount: float) -> Dict:
         """Apply unapplied payment to an invoice"""
-        if payment_id not in self.payments:
+        payment = self._get_payment(payment_id)
+        invoice = self.get_invoice(invoice_id)
+
+        if not payment:
             return {"success": False, "error": "Payment not found"}
-        if invoice_id not in self.invoices:
+        if not invoice:
             return {"success": False, "error": "Invoice not found"}
-
-        payment = self.payments[payment_id]
-        invoice = self.invoices[invoice_id]
-
-        if payment.customer_id != invoice.customer_id:
+        if payment["customer_id"] != invoice["customer_id"]:
             return {"success": False, "error": "Payment and invoice must be for the same customer"}
-        if amount > payment.unapplied_amount:
+        if amount > payment["unapplied_amount"]:
             return {"success": False, "error": "Amount exceeds unapplied balance"}
-        if amount > invoice.balance_due:
+        if amount > invoice["balance_due"]:
             return {"success": False, "error": "Amount exceeds invoice balance"}
 
-        # Apply to invoice
-        invoice.amount_paid += amount
-        invoice.balance_due = round(invoice.total - invoice.amount_paid, 2)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        if invoice.balance_due == 0:
-            invoice.status = InvoiceStatus.PAID
-        else:
-            invoice.status = InvoiceStatus.PARTIAL
+            # Update invoice
+            new_amount_paid = invoice["amount_paid"] + amount
+            new_balance = round(invoice["total"] - new_amount_paid, 2)
+            new_status = "paid" if new_balance == 0 else "partial"
 
-        # Update payment
-        payment.unapplied_amount = round(payment.unapplied_amount - amount, 2)
-        payment.applied_invoices.append({
-            "invoice_id": invoice.invoice_id,
-            "invoice_number": invoice.invoice_number,
-            "amount": amount,
-            "balance_remaining": invoice.balance_due
-        })
+            cursor.execute("""
+                UPDATE genfin_invoices SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
+                WHERE invoice_id = ?
+            """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), invoice_id))
+
+            # Update payment
+            applied_invoices = payment["applied_invoices"]
+            applied_invoices.append({
+                "invoice_id": invoice_id,
+                "invoice_number": invoice["invoice_number"],
+                "amount": amount,
+                "balance_remaining": new_balance
+            })
+            new_unapplied = round(payment["unapplied_amount"] - amount, 2)
+
+            cursor.execute("""
+                UPDATE genfin_payments_received SET applied_invoices = ?, unapplied_amount = ?
+                WHERE payment_id = ?
+            """, (json.dumps(applied_invoices), new_unapplied, payment_id))
+
+            conn.commit()
 
         return {
             "success": True,
-            "payment_unapplied": payment.unapplied_amount,
-            "invoice_balance": invoice.balance_due
+            "payment_unapplied": new_unapplied,
+            "invoice_balance": new_balance
         }
 
     def void_payment(self, payment_id: str, reason: str = "") -> Dict:
         """Void a payment received"""
-        if payment_id not in self.payments:
+        payment = self._get_payment(payment_id)
+        if not payment:
             return {"success": False, "error": "Payment not found"}
 
-        payment = self.payments[payment_id]
-
-        if payment.is_voided:
+        if payment["is_voided"]:
             return {"success": False, "error": "Payment is already voided"}
 
-        # Reverse journal entry
-        if payment.journal_entry_id:
-            genfin_core_service.reverse_journal_entry(
-                payment.journal_entry_id,
-                date.today().isoformat()
-            )
+        if payment["journal_entry_id"]:
+            genfin_core_service.reverse_journal_entry(payment["journal_entry_id"], date.today().isoformat())
 
-        # Reverse invoice applications
-        for applied in payment.applied_invoices:
-            if applied["invoice_id"] in self.invoices:
-                invoice = self.invoices[applied["invoice_id"]]
-                invoice.amount_paid -= applied["amount"]
-                invoice.balance_due = round(invoice.total - invoice.amount_paid, 2)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-                if invoice.balance_due == invoice.total:
-                    invoice.status = InvoiceStatus.SENT
-                    if invoice.due_date < date.today():
-                        invoice.status = InvoiceStatus.OVERDUE
-                else:
-                    invoice.status = InvoiceStatus.PARTIAL
+            # Reverse invoice applications
+            for applied in payment["applied_invoices"]:
+                invoice = self.get_invoice(applied["invoice_id"])
+                if invoice:
+                    new_amount_paid = invoice["amount_paid"] - applied["amount"]
+                    new_balance = round(invoice["total"] - new_amount_paid, 2)
+                    new_status = "sent" if new_balance == invoice["total"] else "partial"
+                    if new_status == "sent" and datetime.strptime(invoice["due_date"], "%Y-%m-%d").date() < date.today():
+                        new_status = "overdue"
 
-        payment.is_voided = True
+                    cursor.execute("""
+                        UPDATE genfin_invoices SET amount_paid = ?, balance_due = ?, status = ?
+                        WHERE invoice_id = ?
+                    """, (new_amount_paid, new_balance, new_status, applied["invoice_id"]))
 
-        return {
-            "success": True,
-            "message": "Payment voided successfully"
-        }
+            cursor.execute("UPDATE genfin_payments_received SET is_voided = 1 WHERE payment_id = ?", (payment_id,))
+            conn.commit()
+
+        return {"success": True, "message": "Payment voided successfully"}
 
     def list_payments(
         self,
@@ -910,23 +1014,29 @@ class GenFinReceivablesService:
         include_voided: bool = False
     ) -> List[Dict]:
         """List payments received"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for payment in self.payments.values():
-            if customer_id and payment.customer_id != customer_id:
-                continue
-            if not include_voided and payment.is_voided:
-                continue
+            query = "SELECT * FROM genfin_payments_received WHERE 1=1"
+            params = []
+
+            if customer_id:
+                query += " AND customer_id = ?"
+                params.append(customer_id)
+            if not include_voided:
+                query += " AND is_voided = 0"
             if start_date:
-                if payment.payment_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND payment_date >= ?"
+                params.append(start_date)
             if end_date:
-                if payment.payment_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND payment_date <= ?"
+                params.append(end_date)
 
-            result.append(self._payment_to_dict(payment))
+            query += " ORDER BY payment_date DESC"
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-        return sorted(result, key=lambda p: p["payment_date"], reverse=True)
+            return [self._row_to_payment_dict(row) for row in rows]
 
     # ==================== CUSTOMER CREDITS ====================
 
@@ -940,124 +1050,144 @@ class GenFinReceivablesService:
         related_invoice_id: Optional[str] = None
     ) -> Dict:
         """Create a credit memo for customer"""
-        if customer_id not in self.customers:
+        if not self.get_customer(customer_id):
             return {"success": False, "error": "Customer not found"}
 
         credit_id = str(uuid.uuid4())
-        credit_number = f"CRD-{self.next_credit_number:05d}"
-        self.next_credit_number += 1
-
-        c_date = datetime.strptime(credit_date, "%Y-%m-%d").date()
-
-        # Process lines
-        credit_lines = []
+        credit_number = f"CRD-{self._get_next_number('next_credit_number'):05d}"
         total = 0.0
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            credit_lines.append(InvoiceLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line["account_id"],
-                description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id")
+            # Process lines
+            credit_lines = []
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+                line_id = str(uuid.uuid4())
+
+                cursor.execute("""
+                    INSERT INTO genfin_credit_lines
+                    (line_id, credit_id, account_id, description, quantity, unit_price, amount, class_id, location_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    line_id, credit_id, line["account_id"], line.get("description", ""),
+                    line.get("quantity", 1), line.get("unit_price", 0), line_amount,
+                    line.get("class_id"), line.get("location_id")
+                ))
+
+                credit_lines.append({
+                    "account_id": line["account_id"],
+                    "description": line.get("description", ""),
+                    "amount": line_amount,
+                    "class_id": line.get("class_id"),
+                    "location_id": line.get("location_id")
+                })
+                total += line_amount
+
+            # Create journal entry
+            journal_lines = [{
+                "account_id": self.default_ar_account_id,
+                "description": f"Credit Memo {credit_number}",
+                "debit": 0,
+                "credit": total,
+                "customer_id": customer_id
+            }]
+            for cl in credit_lines:
+                journal_lines.append({
+                    "account_id": cl["account_id"],
+                    "description": cl["description"],
+                    "debit": cl["amount"],
+                    "credit": 0,
+                    "class_id": cl["class_id"],
+                    "location_id": cl["location_id"]
+                })
+
+            je_result = genfin_core_service.create_journal_entry(
+                entry_date=credit_date,
+                lines=journal_lines,
+                memo=f"Credit Memo {credit_number}",
+                source_type="customer_credit",
+                source_id=credit_id,
+                auto_post=True
+            )
+
+            cursor.execute("""
+                INSERT INTO genfin_customer_credits
+                (credit_id, credit_number, customer_id, credit_date, reason, memo, total,
+                 amount_applied, balance, journal_entry_id, related_invoice_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+            """, (
+                credit_id, credit_number, customer_id, credit_date, reason, memo,
+                round(total, 2), round(total, 2), je_result.get("entry_id"),
+                related_invoice_id, datetime.now().isoformat()
             ))
-
-            total += line_amount
-
-        # Create journal entry (reverse of invoice)
-        # Credit AR, Debit income accounts
-        journal_lines = []
-
-        journal_lines.append({
-            "account_id": self.default_ar_account_id,
-            "description": f"Credit Memo {credit_number}",
-            "debit": 0,
-            "credit": total,
-            "customer_id": customer_id
-        })
-
-        for line in credit_lines:
-            journal_lines.append({
-                "account_id": line.account_id,
-                "description": line.description,
-                "debit": line.amount,
-                "credit": 0,
-                "class_id": line.class_id,
-                "location_id": line.location_id
-            })
-
-        je_result = genfin_core_service.create_journal_entry(
-            entry_date=credit_date,
-            lines=journal_lines,
-            memo=f"Credit Memo {credit_number}",
-            source_type="customer_credit",
-            source_id=credit_id,
-            auto_post=True
-        )
-
-        credit = CustomerCredit(
-            credit_id=credit_id,
-            credit_number=credit_number,
-            customer_id=customer_id,
-            credit_date=c_date,
-            lines=credit_lines,
-            reason=reason,
-            memo=memo,
-            total=round(total, 2),
-            amount_applied=0.0,
-            balance=round(total, 2),
-            journal_entry_id=je_result.get("entry_id"),
-            related_invoice_id=related_invoice_id
-        )
-
-        self.credits[credit_id] = credit
+            conn.commit()
 
         return {
             "success": True,
             "credit_id": credit_id,
             "credit_number": credit_number,
-            "credit": self._credit_to_dict(credit)
+            "credit": self._get_credit(credit_id)
         }
+
+    def _get_credit(self, credit_id: str) -> Optional[Dict]:
+        """Get credit by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_customer_credits WHERE credit_id = ?", (credit_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            cursor.execute("SELECT * FROM genfin_credit_lines WHERE credit_id = ?", (credit_id,))
+            lines = cursor.fetchall()
+            return self._row_to_credit_dict(row, lines)
 
     def apply_credit_to_invoice(self, credit_id: str, invoice_id: str, amount: float) -> Dict:
         """Apply customer credit to an invoice"""
-        if credit_id not in self.credits:
+        credit = self._get_credit(credit_id)
+        invoice = self.get_invoice(invoice_id)
+
+        if not credit:
             return {"success": False, "error": "Credit not found"}
-        if invoice_id not in self.invoices:
+        if not invoice:
             return {"success": False, "error": "Invoice not found"}
-
-        credit = self.credits[credit_id]
-        invoice = self.invoices[invoice_id]
-
-        if credit.customer_id != invoice.customer_id:
+        if credit["customer_id"] != invoice["customer_id"]:
             return {"success": False, "error": "Credit and invoice must be for the same customer"}
-        if amount > credit.balance:
+        if amount > credit["balance"]:
             return {"success": False, "error": "Amount exceeds credit balance"}
-        if amount > invoice.balance_due:
+        if amount > invoice["balance_due"]:
             return {"success": False, "error": "Amount exceeds invoice balance"}
 
-        # Apply credit
-        credit.amount_applied += amount
-        credit.balance = round(credit.total - credit.amount_applied, 2)
-        if credit.balance == 0:
-            credit.status = "applied"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        invoice.amount_paid += amount
-        invoice.balance_due = round(invoice.total - invoice.amount_paid, 2)
-        if invoice.balance_due == 0:
-            invoice.status = InvoiceStatus.PAID
-        else:
-            invoice.status = InvoiceStatus.PARTIAL
+            # Update credit
+            new_credit_applied = credit["amount_applied"] + amount
+            new_credit_balance = round(credit["total"] - new_credit_applied, 2)
+            new_credit_status = "applied" if new_credit_balance == 0 else "open"
+
+            cursor.execute("""
+                UPDATE genfin_customer_credits SET amount_applied = ?, balance = ?, status = ?
+                WHERE credit_id = ?
+            """, (new_credit_applied, new_credit_balance, new_credit_status, credit_id))
+
+            # Update invoice
+            new_invoice_paid = invoice["amount_paid"] + amount
+            new_invoice_balance = round(invoice["total"] - new_invoice_paid, 2)
+            new_invoice_status = "paid" if new_invoice_balance == 0 else "partial"
+
+            cursor.execute("""
+                UPDATE genfin_invoices SET amount_paid = ?, balance_due = ?, status = ?
+                WHERE invoice_id = ?
+            """, (new_invoice_paid, new_invoice_balance, new_invoice_status, invoice_id))
+
+            conn.commit()
 
         return {
             "success": True,
-            "credit_balance": credit.balance,
-            "invoice_balance": invoice.balance_due
+            "credit_balance": new_credit_balance,
+            "invoice_balance": new_invoice_balance
         }
 
     # ==================== ESTIMATES ====================
@@ -1074,132 +1204,143 @@ class GenFinReceivablesService:
         message_to_customer: str = ""
     ) -> Dict:
         """Create an estimate/quote"""
-        if customer_id not in self.customers:
+        customer = self.get_customer(customer_id)
+        if not customer:
             return {"success": False, "error": "Customer not found"}
 
         estimate_id = str(uuid.uuid4())
-        estimate_number = f"EST-{self.next_estimate_number:05d}"
-        self.next_estimate_number += 1
+        estimate_number = f"EST-{self._get_next_number('next_estimate_number'):05d}"
 
         e_date = datetime.strptime(estimate_date, "%Y-%m-%d").date()
         exp_date = e_date + timedelta(days=expiration_days)
 
-        # Process lines
-        estimate_lines = []
         subtotal = 0.0
         tax_total = 0.0
+        now = datetime.now().isoformat()
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
-            tax_amount = line.get("tax_amount", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            estimate_lines.append(InvoiceLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line.get("account_id", ""),
-                description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                tax_amount=tax_amount,
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id")
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+                tax_amount = line.get("tax_amount", 0)
+                line_id = str(uuid.uuid4())
+
+                cursor.execute("""
+                    INSERT INTO genfin_estimate_lines
+                    (line_id, estimate_id, account_id, description, quantity, unit_price, amount, tax_amount, class_id, location_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    line_id, estimate_id, line.get("account_id", ""), line.get("description", ""),
+                    line.get("quantity", 1), line.get("unit_price", 0), line_amount, tax_amount,
+                    line.get("class_id"), line.get("location_id")
+                ))
+
+                subtotal += line_amount
+                tax_total += tax_amount
+
+            cursor.execute("""
+                INSERT INTO genfin_estimates
+                (estimate_id, estimate_number, customer_id, estimate_date, expiration_date,
+                 po_number, terms, memo, message_to_customer, subtotal, tax_total, total,
+                 status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+            """, (
+                estimate_id, estimate_number, customer_id, estimate_date, exp_date.isoformat(),
+                po_number, terms or customer['payment_terms'], memo, message_to_customer,
+                round(subtotal, 2), round(tax_total, 2), round(subtotal + tax_total, 2), now, now
             ))
-
-            subtotal += line_amount
-            tax_total += tax_amount
-
-        estimate = Estimate(
-            estimate_id=estimate_id,
-            estimate_number=estimate_number,
-            customer_id=customer_id,
-            estimate_date=e_date,
-            expiration_date=exp_date,
-            lines=estimate_lines,
-            po_number=po_number,
-            terms=terms or self.customers[customer_id].payment_terms,
-            memo=memo,
-            message_to_customer=message_to_customer,
-            subtotal=round(subtotal, 2),
-            tax_total=round(tax_total, 2),
-            total=round(subtotal + tax_total, 2),
-            status=EstimateStatus.DRAFT
-        )
-
-        self.estimates[estimate_id] = estimate
+            conn.commit()
 
         return {
             "success": True,
             "estimate_id": estimate_id,
             "estimate_number": estimate_number,
-            "estimate": self._estimate_to_dict(estimate)
+            "estimate": self._get_estimate(estimate_id)
         }
+
+    def _get_estimate(self, estimate_id: str) -> Optional[Dict]:
+        """Get estimate by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_estimates WHERE estimate_id = ?", (estimate_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            cursor.execute("SELECT * FROM genfin_estimate_lines WHERE estimate_id = ?", (estimate_id,))
+            lines = cursor.fetchall()
+            return self._row_to_estimate_dict(row, lines)
 
     def send_estimate(self, estimate_id: str) -> Dict:
         """Mark estimate as sent"""
-        if estimate_id not in self.estimates:
+        estimate = self._get_estimate(estimate_id)
+        if not estimate:
             return {"success": False, "error": "Estimate not found"}
 
-        estimate = self.estimates[estimate_id]
-        estimate.status = EstimateStatus.SENT
-        estimate.updated_at = datetime.now()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_estimates SET status = 'sent', updated_at = ? WHERE estimate_id = ?
+            """, (datetime.now().isoformat(), estimate_id))
+            conn.commit()
 
-        return {
-            "success": True,
-            "estimate": self._estimate_to_dict(estimate)
-        }
+        return {"success": True, "estimate": self._get_estimate(estimate_id)}
 
     def accept_estimate(self, estimate_id: str) -> Dict:
         """Mark estimate as accepted"""
-        if estimate_id not in self.estimates:
+        estimate = self._get_estimate(estimate_id)
+        if not estimate:
             return {"success": False, "error": "Estimate not found"}
 
-        estimate = self.estimates[estimate_id]
-        estimate.status = EstimateStatus.ACCEPTED
-        estimate.accepted_date = date.today()
-        estimate.updated_at = datetime.now()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_estimates SET status = 'accepted', accepted_date = ?, updated_at = ?
+                WHERE estimate_id = ?
+            """, (date.today().isoformat(), datetime.now().isoformat(), estimate_id))
+            conn.commit()
 
-        return {
-            "success": True,
-            "estimate": self._estimate_to_dict(estimate)
-        }
+        return {"success": True, "estimate": self._get_estimate(estimate_id)}
 
     def convert_estimate_to_invoice(self, estimate_id: str, invoice_date: str) -> Dict:
         """Convert accepted estimate to invoice"""
-        if estimate_id not in self.estimates:
+        estimate = self._get_estimate(estimate_id)
+        if not estimate:
             return {"success": False, "error": "Estimate not found"}
 
-        estimate = self.estimates[estimate_id]
-
-        if estimate.status not in [EstimateStatus.ACCEPTED, EstimateStatus.SENT]:
+        if estimate["status"] not in ["accepted", "sent"]:
             return {"success": False, "error": "Estimate must be sent or accepted"}
 
-        # Create invoice lines from estimate
         invoice_lines = []
-        for line in estimate.lines:
+        for line in estimate["lines"]:
             invoice_lines.append({
-                "account_id": line.account_id,
-                "description": line.description,
-                "quantity": line.quantity,
-                "unit_price": line.unit_price,
-                "tax_amount": line.tax_amount,
-                "class_id": line.class_id,
-                "location_id": line.location_id
+                "account_id": line["account_id"],
+                "description": line["description"],
+                "quantity": line["quantity"],
+                "unit_price": line["unit_price"],
+                "tax_amount": line["tax_amount"],
+                "class_id": line["class_id"],
+                "location_id": line["location_id"]
             })
 
         result = self.create_invoice(
-            customer_id=estimate.customer_id,
+            customer_id=estimate["customer_id"],
             invoice_date=invoice_date,
             lines=invoice_lines,
-            po_number=estimate.po_number,
-            terms=estimate.terms,
-            memo=f"From Estimate {estimate.estimate_number}",
+            po_number=estimate["po_number"],
+            terms=estimate["terms"],
+            memo=f"From Estimate {estimate['estimate_number']}",
             estimate_id=estimate_id
         )
 
         if result["success"]:
-            estimate.status = EstimateStatus.CONVERTED
-            estimate.converted_invoice_id = result["invoice_id"]
-            estimate.updated_at = datetime.now()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE genfin_estimates SET status = 'converted', converted_invoice_id = ?, updated_at = ?
+                    WHERE estimate_id = ?
+                """, (result["invoice_id"], datetime.now().isoformat(), estimate_id))
+                conn.commit()
 
         return result
 
@@ -1211,27 +1352,41 @@ class GenFinReceivablesService:
         end_date: Optional[str] = None
     ) -> List[Dict]:
         """List estimates"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for estimate in self.estimates.values():
-            if customer_id and estimate.customer_id != customer_id:
-                continue
-            if status and estimate.status.value != status:
-                continue
+            query = "SELECT * FROM genfin_estimates WHERE 1=1"
+            params = []
+
+            if customer_id:
+                query += " AND customer_id = ?"
+                params.append(customer_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
             if start_date:
-                if estimate.estimate_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND estimate_date >= ?"
+                params.append(start_date)
             if end_date:
-                if estimate.estimate_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND estimate_date <= ?"
+                params.append(end_date)
 
-            # Check for expiration
-            if estimate.status == EstimateStatus.SENT and estimate.expiration_date < date.today():
-                estimate.status = EstimateStatus.EXPIRED
+            query += " ORDER BY estimate_date DESC"
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-            result.append(self._estimate_to_dict(estimate))
+            result = []
+            for row in rows:
+                # Check for expiration
+                if row['status'] == 'sent' and datetime.strptime(row['expiration_date'], "%Y-%m-%d").date() < date.today():
+                    cursor.execute("UPDATE genfin_estimates SET status = 'expired' WHERE estimate_id = ?", (row['estimate_id'],))
+                    conn.commit()
 
-        return sorted(result, key=lambda e: e["estimate_date"], reverse=True)
+                cursor.execute("SELECT * FROM genfin_estimate_lines WHERE estimate_id = ?", (row['estimate_id'],))
+                lines = cursor.fetchall()
+                result.append(self._row_to_estimate_dict(row, lines))
+
+            return result
 
     # ==================== SALES RECEIPTS ====================
 
@@ -1247,102 +1402,110 @@ class GenFinReceivablesService:
     ) -> Dict:
         """Create a sales receipt (payment at time of sale)"""
         receipt_id = str(uuid.uuid4())
-        receipt_number = f"SR-{self.next_receipt_number:05d}"
-        self.next_receipt_number += 1
+        receipt_number = f"SR-{self._get_next_number('next_receipt_number'):05d}"
 
-        r_date = datetime.strptime(receipt_date, "%Y-%m-%d").date()
-
-        # Process lines
-        receipt_lines = []
         subtotal = 0.0
         tax_total = 0.0
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
-            tax_amount = line.get("tax_amount", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            receipt_lines.append(InvoiceLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line["account_id"],
-                description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                tax_amount=tax_amount,
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id")
-            ))
+            receipt_lines = []
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+                tax_amount = line.get("tax_amount", 0)
+                line_id = str(uuid.uuid4())
 
-            subtotal += line_amount
-            tax_total += tax_amount
+                cursor.execute("""
+                    INSERT INTO genfin_sales_receipt_lines
+                    (line_id, receipt_id, account_id, description, quantity, unit_price, amount, tax_amount, class_id, location_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    line_id, receipt_id, line["account_id"], line.get("description", ""),
+                    line.get("quantity", 1), line.get("unit_price", 0), line_amount, tax_amount,
+                    line.get("class_id"), line.get("location_id")
+                ))
 
-        total = subtotal + tax_total
+                receipt_lines.append({
+                    "account_id": line["account_id"],
+                    "description": line.get("description", ""),
+                    "amount": line_amount,
+                    "class_id": line.get("class_id"),
+                    "location_id": line.get("location_id")
+                })
+                subtotal += line_amount
+                tax_total += tax_amount
 
-        # Create journal entry
-        # Debit Bank, Credit Income
-        journal_lines = []
+            total = subtotal + tax_total
 
-        journal_lines.append({
-            "account_id": deposit_account_id,
-            "description": f"Sales Receipt {receipt_number}",
-            "debit": total,
-            "credit": 0,
-            "customer_id": customer_id
-        })
+            # Create journal entry
+            journal_lines = [{
+                "account_id": deposit_account_id,
+                "description": f"Sales Receipt {receipt_number}",
+                "debit": total,
+                "credit": 0,
+                "customer_id": customer_id
+            }]
 
-        for line in receipt_lines:
-            journal_lines.append({
-                "account_id": line.account_id,
-                "description": line.description,
-                "debit": 0,
-                "credit": line.amount,
-                "class_id": line.class_id,
-                "location_id": line.location_id
-            })
-
-        if tax_total > 0:
-            tax_account = genfin_core_service.get_account_by_number("2500")
-            if tax_account:
+            for rl in receipt_lines:
                 journal_lines.append({
-                    "account_id": tax_account["account_id"],
-                    "description": f"Sales tax - {receipt_number}",
+                    "account_id": rl["account_id"],
+                    "description": rl["description"],
                     "debit": 0,
-                    "credit": tax_total
+                    "credit": rl["amount"],
+                    "class_id": rl["class_id"],
+                    "location_id": rl["location_id"]
                 })
 
-        je_result = genfin_core_service.create_journal_entry(
-            entry_date=receipt_date,
-            lines=journal_lines,
-            memo=f"Sales Receipt {receipt_number}",
-            source_type="sales_receipt",
-            source_id=receipt_id,
-            auto_post=True
-        )
+            if tax_total > 0:
+                tax_account = genfin_core_service.get_account_by_number("2500")
+                if tax_account:
+                    journal_lines.append({
+                        "account_id": tax_account["account_id"],
+                        "description": f"Sales tax - {receipt_number}",
+                        "debit": 0,
+                        "credit": tax_total
+                    })
 
-        receipt = SalesReceipt(
-            receipt_id=receipt_id,
-            receipt_number=receipt_number,
-            customer_id=customer_id,
-            receipt_date=r_date,
-            lines=receipt_lines,
-            payment_method=PaymentMethod(payment_method),
-            deposit_account_id=deposit_account_id,
-            reference_number=reference_number,
-            memo=memo,
-            subtotal=round(subtotal, 2),
-            tax_total=round(tax_total, 2),
-            total=round(total, 2),
-            journal_entry_id=je_result.get("entry_id")
-        )
+            je_result = genfin_core_service.create_journal_entry(
+                entry_date=receipt_date,
+                lines=journal_lines,
+                memo=f"Sales Receipt {receipt_number}",
+                source_type="sales_receipt",
+                source_id=receipt_id,
+                auto_post=True
+            )
 
-        self.sales_receipts[receipt_id] = receipt
+            cursor.execute("""
+                INSERT INTO genfin_sales_receipts
+                (receipt_id, receipt_number, customer_id, receipt_date, payment_method, deposit_account_id,
+                 reference_number, memo, subtotal, tax_total, total, journal_entry_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                receipt_id, receipt_number, customer_id, receipt_date, payment_method, deposit_account_id,
+                reference_number, memo, round(subtotal, 2), round(tax_total, 2), round(total, 2),
+                je_result.get("entry_id"), datetime.now().isoformat()
+            ))
+            conn.commit()
 
         return {
             "success": True,
             "receipt_id": receipt_id,
             "receipt_number": receipt_number,
-            "receipt": self._receipt_to_dict(receipt)
+            "receipt": self._get_receipt(receipt_id)
         }
+
+    def _get_receipt(self, receipt_id: str) -> Optional[Dict]:
+        """Get sales receipt by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_sales_receipts WHERE receipt_id = ?", (receipt_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            cursor.execute("SELECT * FROM genfin_sales_receipt_lines WHERE receipt_id = ?", (receipt_id,))
+            lines = cursor.fetchall()
+            return self._row_to_receipt_dict(row, lines)
 
     # ==================== REPORTS ====================
 
@@ -1351,140 +1514,124 @@ class GenFinReceivablesService:
         ref_date = datetime.strptime(as_of_date, "%Y-%m-%d").date() if as_of_date else date.today()
 
         aging = {
-            "current": [],
-            "1_30": [],
-            "31_60": [],
-            "61_90": [],
-            "over_90": [],
-            "totals": {
-                "current": 0,
-                "1_30": 0,
-                "31_60": 0,
-                "61_90": 0,
-                "over_90": 0,
-                "total": 0
-            }
+            "current": [], "1_30": [], "31_60": [], "61_90": [], "over_90": [],
+            "totals": {"current": 0, "1_30": 0, "31_60": 0, "61_90": 0, "over_90": 0, "total": 0}
         }
 
-        for invoice in self.invoices.values():
-            if invoice.status not in [InvoiceStatus.SENT, InvoiceStatus.VIEWED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]:
-                continue
-            if invoice.invoice_date > ref_date:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT i.*, c.display_name as customer_name
+                FROM genfin_invoices i
+                LEFT JOIN genfin_customers c ON i.customer_id = c.customer_id
+                WHERE i.status IN ('sent', 'viewed', 'partial', 'overdue')
+                AND i.invoice_date <= ?
+            """, (ref_date.isoformat(),))
+            rows = cursor.fetchall()
 
-            days_old = (ref_date - invoice.due_date).days
-            customer_name = self.customers[invoice.customer_id].display_name if invoice.customer_id in self.customers else "Unknown"
+            for row in rows:
+                days_old = (ref_date - datetime.strptime(row['due_date'], "%Y-%m-%d").date()).days
+                entry = {
+                    "invoice_id": row['invoice_id'],
+                    "invoice_number": row['invoice_number'],
+                    "customer_id": row['customer_id'],
+                    "customer_name": row['customer_name'] or "Unknown",
+                    "invoice_date": row['invoice_date'],
+                    "due_date": row['due_date'],
+                    "days_overdue": max(0, days_old),
+                    "balance": row['balance_due']
+                }
 
-            entry = {
-                "invoice_id": invoice.invoice_id,
-                "invoice_number": invoice.invoice_number,
-                "customer_id": invoice.customer_id,
-                "customer_name": customer_name,
-                "invoice_date": invoice.invoice_date.isoformat(),
-                "due_date": invoice.due_date.isoformat(),
-                "days_overdue": max(0, days_old),
-                "balance": invoice.balance_due
-            }
+                if days_old <= 0:
+                    aging["current"].append(entry)
+                    aging["totals"]["current"] += row['balance_due']
+                elif days_old <= 30:
+                    aging["1_30"].append(entry)
+                    aging["totals"]["1_30"] += row['balance_due']
+                elif days_old <= 60:
+                    aging["31_60"].append(entry)
+                    aging["totals"]["31_60"] += row['balance_due']
+                elif days_old <= 90:
+                    aging["61_90"].append(entry)
+                    aging["totals"]["61_90"] += row['balance_due']
+                else:
+                    aging["over_90"].append(entry)
+                    aging["totals"]["over_90"] += row['balance_due']
 
-            if days_old <= 0:
-                aging["current"].append(entry)
-                aging["totals"]["current"] += invoice.balance_due
-            elif days_old <= 30:
-                aging["1_30"].append(entry)
-                aging["totals"]["1_30"] += invoice.balance_due
-            elif days_old <= 60:
-                aging["31_60"].append(entry)
-                aging["totals"]["31_60"] += invoice.balance_due
-            elif days_old <= 90:
-                aging["61_90"].append(entry)
-                aging["totals"]["61_90"] += invoice.balance_due
-            else:
-                aging["over_90"].append(entry)
-                aging["totals"]["over_90"] += invoice.balance_due
+                aging["totals"]["total"] += row['balance_due']
 
-            aging["totals"]["total"] += invoice.balance_due
-
-        # Round totals
         for key in aging["totals"]:
             aging["totals"][key] = round(aging["totals"][key], 2)
 
-        return {
-            "as_of_date": ref_date.isoformat(),
-            "aging": aging
-        }
+        return {"as_of_date": ref_date.isoformat(), "aging": aging}
 
     def get_customer_statement(self, customer_id: str, start_date: str, end_date: str) -> Dict:
         """Generate customer statement"""
-        if customer_id not in self.customers:
+        customer = self.get_customer(customer_id)
+        if not customer:
             return {"error": "Customer not found"}
 
-        customer = self.customers[customer_id]
         s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-        # Calculate opening balance
-        opening_balance = customer.opening_balance
+        opening_balance = customer.get("opening_balance", 0) or 0
 
-        for invoice in self.invoices.values():
-            if invoice.customer_id != customer_id:
-                continue
-            if invoice.status == InvoiceStatus.VOIDED:
-                continue
-            if invoice.invoice_date < s_date:
-                opening_balance += invoice.total
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for payment in self.payments.values():
-            if payment.customer_id != customer_id:
-                continue
-            if payment.is_voided:
-                continue
-            if payment.payment_date < s_date:
-                opening_balance -= payment.total_amount
+            # Invoices before period
+            cursor.execute("""
+                SELECT COALESCE(SUM(total), 0) as total FROM genfin_invoices
+                WHERE customer_id = ? AND status != 'voided' AND invoice_date < ?
+            """, (customer_id, start_date))
+            opening_balance += cursor.fetchone()['total']
 
-        # Get transactions in period
-        transactions = []
-        running_balance = opening_balance
+            # Payments before period
+            cursor.execute("""
+                SELECT COALESCE(SUM(total_amount), 0) as total FROM genfin_payments_received
+                WHERE customer_id = ? AND is_voided = 0 AND payment_date < ?
+            """, (customer_id, start_date))
+            opening_balance -= cursor.fetchone()['total']
 
-        # Collect all transactions
-        all_trans = []
+            # Collect transactions
+            all_trans = []
 
-        for invoice in self.invoices.values():
-            if invoice.customer_id != customer_id:
-                continue
-            if invoice.status == InvoiceStatus.VOIDED:
-                continue
-            if s_date <= invoice.invoice_date <= e_date:
+            cursor.execute("""
+                SELECT * FROM genfin_invoices WHERE customer_id = ? AND status != 'voided'
+                AND invoice_date >= ? AND invoice_date <= ?
+            """, (customer_id, start_date, end_date))
+            for row in cursor.fetchall():
                 all_trans.append({
-                    "date": invoice.invoice_date,
+                    "date": row['invoice_date'],
                     "type": "Invoice",
-                    "number": invoice.invoice_number,
-                    "description": invoice.memo or f"Invoice {invoice.invoice_number}",
-                    "amount": invoice.total,
+                    "number": row['invoice_number'],
+                    "description": row['memo'] or f"Invoice {row['invoice_number']}",
+                    "amount": row['total'],
                     "payment": 0
                 })
 
-        for payment in self.payments.values():
-            if payment.customer_id != customer_id:
-                continue
-            if payment.is_voided:
-                continue
-            if s_date <= payment.payment_date <= e_date:
+            cursor.execute("""
+                SELECT * FROM genfin_payments_received WHERE customer_id = ? AND is_voided = 0
+                AND payment_date >= ? AND payment_date <= ?
+            """, (customer_id, start_date, end_date))
+            for row in cursor.fetchall():
                 all_trans.append({
-                    "date": payment.payment_date,
+                    "date": row['payment_date'],
                     "type": "Payment",
-                    "number": payment.reference_number or payment.payment_id[:8],
-                    "description": payment.memo or "Payment received",
+                    "number": row['reference_number'] or row['payment_id'][:8],
+                    "description": row['memo'] or "Payment received",
                     "amount": 0,
-                    "payment": payment.total_amount
+                    "payment": row['total_amount']
                 })
 
-        # Sort by date
         all_trans.sort(key=lambda t: t["date"])
 
+        transactions = []
+        running_balance = opening_balance
         for trans in all_trans:
             running_balance += trans["amount"] - trans["payment"]
             transactions.append({
-                "date": trans["date"].isoformat(),
+                "date": trans["date"],
                 "type": trans["type"],
                 "number": trans["number"],
                 "description": trans["description"],
@@ -1494,7 +1641,7 @@ class GenFinReceivablesService:
             })
 
         return {
-            "customer": self._customer_to_dict(customer),
+            "customer": customer,
             "statement_date": date.today().isoformat(),
             "period_start": start_date,
             "period_end": end_date,
@@ -1507,287 +1654,281 @@ class GenFinReceivablesService:
 
     def get_sales_summary(self, start_date: str, end_date: str) -> Dict:
         """Get sales summary for period"""
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        invoice_total = 0.0
-        invoice_count = 0
-        receipt_total = 0.0
-        receipt_count = 0
-        payments_received = 0.0
-        payment_count = 0
+            cursor.execute("""
+                SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
+                FROM genfin_invoices WHERE status != 'voided'
+                AND invoice_date >= ? AND invoice_date <= ?
+            """, (start_date, end_date))
+            inv_row = cursor.fetchone()
 
-        by_customer = {}
+            cursor.execute("""
+                SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total
+                FROM genfin_sales_receipts WHERE is_voided = 0
+                AND receipt_date >= ? AND receipt_date <= ?
+            """, (start_date, end_date))
+            rec_row = cursor.fetchone()
 
-        for invoice in self.invoices.values():
-            if invoice.status == InvoiceStatus.VOIDED:
-                continue
-            if s_date <= invoice.invoice_date <= e_date:
-                invoice_total += invoice.total
-                invoice_count += 1
+            cursor.execute("""
+                SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+                FROM genfin_payments_received WHERE is_voided = 0
+                AND payment_date >= ? AND payment_date <= ?
+            """, (start_date, end_date))
+            pay_row = cursor.fetchone()
 
-                cust_name = self.customers[invoice.customer_id].display_name if invoice.customer_id in self.customers else "Unknown"
-                if cust_name not in by_customer:
-                    by_customer[cust_name] = 0
-                by_customer[cust_name] += invoice.total
-
-        for receipt in self.sales_receipts.values():
-            if receipt.is_voided:
-                continue
-            if s_date <= receipt.receipt_date <= e_date:
-                receipt_total += receipt.total
-                receipt_count += 1
-
-        for payment in self.payments.values():
-            if payment.is_voided:
-                continue
-            if s_date <= payment.payment_date <= e_date:
-                payments_received += payment.total_amount
-                payment_count += 1
-
-        top_customers = sorted(
-            [{"customer": k, "total": round(v, 2)} for k, v in by_customer.items()],
-            key=lambda x: x["total"],
-            reverse=True
-        )[:10]
+            # Top customers
+            cursor.execute("""
+                SELECT c.display_name, SUM(i.total) as total
+                FROM genfin_invoices i
+                JOIN genfin_customers c ON i.customer_id = c.customer_id
+                WHERE i.status != 'voided' AND i.invoice_date >= ? AND i.invoice_date <= ?
+                GROUP BY i.customer_id ORDER BY total DESC LIMIT 10
+            """, (start_date, end_date))
+            top_customers = [{"customer": row['display_name'], "total": round(row['total'], 2)} for row in cursor.fetchall()]
 
         return {
             "period_start": start_date,
             "period_end": end_date,
-            "total_invoiced": round(invoice_total, 2),
-            "invoice_count": invoice_count,
-            "total_receipts": round(receipt_total, 2),
-            "receipt_count": receipt_count,
-            "total_sales": round(invoice_total + receipt_total, 2),
-            "payments_received": round(payments_received, 2),
-            "payment_count": payment_count,
+            "total_invoiced": round(inv_row['total'], 2),
+            "invoice_count": inv_row['count'],
+            "total_receipts": round(rec_row['total'], 2),
+            "receipt_count": rec_row['count'],
+            "total_sales": round(inv_row['total'] + rec_row['total'], 2),
+            "payments_received": round(pay_row['total'], 2),
+            "payment_count": pay_row['count'],
             "top_customers": top_customers
         }
 
     # ==================== UTILITY METHODS ====================
 
-    def _customer_to_dict(self, customer: Customer) -> Dict:
-        """Convert Customer to dictionary"""
+    def _row_to_customer_dict(self, row: sqlite3.Row) -> Dict:
         return {
-            "customer_id": customer.customer_id,
-            "company_name": customer.company_name,
-            "display_name": customer.display_name,
-            "contact_name": customer.contact_name,
-            "email": customer.email,
-            "phone": customer.phone,
-            "mobile": customer.mobile,
-            "website": customer.website,
+            "customer_id": row['customer_id'],
+            "company_name": row['company_name'],
+            "display_name": row['display_name'],
+            "contact_name": row['contact_name'] or "",
+            "email": row['email'] or "",
+            "phone": row['phone'] or "",
+            "mobile": row['mobile'] or "",
+            "website": row['website'] or "",
             "billing_address": {
-                "line1": customer.billing_address_line1,
-                "line2": customer.billing_address_line2,
-                "city": customer.billing_city,
-                "state": customer.billing_state,
-                "zip": customer.billing_zip,
-                "country": customer.billing_country
+                "line1": row['billing_address_line1'] or "",
+                "line2": row['billing_address_line2'] or "",
+                "city": row['billing_city'] or "",
+                "state": row['billing_state'] or "",
+                "zip": row['billing_zip'] or "",
+                "country": row['billing_country'] or "USA"
             },
             "shipping_address": {
-                "line1": customer.shipping_address_line1,
-                "line2": customer.shipping_address_line2,
-                "city": customer.shipping_city,
-                "state": customer.shipping_state,
-                "zip": customer.shipping_zip,
-                "country": customer.shipping_country
+                "line1": row['shipping_address_line1'] or "",
+                "line2": row['shipping_address_line2'] or "",
+                "city": row['shipping_city'] or "",
+                "state": row['shipping_state'] or "",
+                "zip": row['shipping_zip'] or "",
+                "country": row['shipping_country'] or "USA"
             },
-            "tax_exempt": customer.tax_exempt,
-            "tax_id": customer.tax_id,
-            "default_income_account_id": customer.default_income_account_id,
-            "payment_terms": customer.payment_terms,
-            "credit_limit": customer.credit_limit,
-            "customer_type": customer.customer_type,
-            "notes": customer.notes,
-            "status": customer.status.value,
-            "created_at": customer.created_at.isoformat(),
-            "updated_at": customer.updated_at.isoformat()
+            "tax_exempt": bool(row['tax_exempt']),
+            "tax_id": row['tax_id'] or "",
+            "default_income_account_id": row['default_income_account_id'],
+            "payment_terms": row['payment_terms'] or "Net 30",
+            "credit_limit": row['credit_limit'] or 0.0,
+            "customer_type": row['customer_type'] or "",
+            "notes": row['notes'] or "",
+            "status": row['status'] or "active",
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
         }
 
-    def _invoice_to_dict(self, invoice: Invoice) -> Dict:
-        """Convert Invoice to dictionary"""
-        customer_name = self.customers[invoice.customer_id].display_name if invoice.customer_id in self.customers else "Unknown"
-
+    def _row_to_invoice_dict(self, row: sqlite3.Row, lines: List[sqlite3.Row]) -> Dict:
+        customer = self.get_customer(row['customer_id'])
         return {
-            "invoice_id": invoice.invoice_id,
-            "invoice_number": invoice.invoice_number,
-            "customer_id": invoice.customer_id,
-            "customer_name": customer_name,
-            "invoice_date": invoice.invoice_date.isoformat(),
-            "due_date": invoice.due_date.isoformat(),
-            "po_number": invoice.po_number,
-            "terms": invoice.terms,
-            "memo": invoice.memo,
-            "message_on_invoice": invoice.message_on_invoice,
-            "billing_address": invoice.billing_address,
-            "shipping_address": invoice.shipping_address,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "description": line.description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount,
-                    "tax_code": line.tax_code,
-                    "tax_amount": line.tax_amount,
-                    "discount_percent": line.discount_percent,
-                    "discount_amount": line.discount_amount,
-                    "class_id": line.class_id,
-                    "location_id": line.location_id,
-                    "service_date": line.service_date.isoformat() if line.service_date else None
-                }
-                for line in invoice.lines
-            ],
-            "subtotal": invoice.subtotal,
-            "discount_total": invoice.discount_total,
-            "tax_total": invoice.tax_total,
-            "total": invoice.total,
-            "amount_paid": invoice.amount_paid,
-            "balance_due": invoice.balance_due,
-            "status": invoice.status.value,
-            "email_sent": invoice.email_sent,
-            "email_sent_date": invoice.email_sent_date.isoformat() if invoice.email_sent_date else None,
-            "estimate_id": invoice.estimate_id,
-            "journal_entry_id": invoice.journal_entry_id,
-            "created_at": invoice.created_at.isoformat(),
-            "updated_at": invoice.updated_at.isoformat()
+            "invoice_id": row['invoice_id'],
+            "invoice_number": row['invoice_number'],
+            "customer_id": row['customer_id'],
+            "customer_name": customer['display_name'] if customer else "Unknown",
+            "invoice_date": row['invoice_date'],
+            "due_date": row['due_date'],
+            "po_number": row['po_number'] or "",
+            "terms": row['terms'] or "Net 30",
+            "memo": row['memo'] or "",
+            "message_on_invoice": row['message_on_invoice'] or "",
+            "billing_address": row['billing_address'] or "",
+            "shipping_address": row['shipping_address'] or "",
+            "lines": [{
+                "line_id": l['line_id'],
+                "account_id": l['account_id'],
+                "description": l['description'] or "",
+                "quantity": l['quantity'] or 1,
+                "unit_price": l['unit_price'] or 0,
+                "amount": l['amount'] or 0,
+                "tax_code": l['tax_code'],
+                "tax_amount": l['tax_amount'] or 0,
+                "discount_percent": l['discount_percent'] or 0,
+                "discount_amount": l['discount_amount'] or 0,
+                "class_id": l['class_id'],
+                "location_id": l['location_id'],
+                "service_date": l['service_date']
+            } for l in lines],
+            "subtotal": row['subtotal'] or 0,
+            "discount_total": row['discount_total'] or 0,
+            "tax_total": row['tax_total'] or 0,
+            "total": row['total'] or 0,
+            "amount_paid": row['amount_paid'] or 0,
+            "balance_due": row['balance_due'] or 0,
+            "status": row['status'] or "draft",
+            "ar_account_id": row['ar_account_id'],
+            "email_sent": bool(row['email_sent']),
+            "email_sent_date": row['email_sent_date'],
+            "estimate_id": row['estimate_id'],
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
         }
 
-    def _payment_to_dict(self, payment: PaymentReceived) -> Dict:
-        """Convert PaymentReceived to dictionary"""
-        customer_name = self.customers[payment.customer_id].display_name if payment.customer_id in self.customers else "Unknown"
-
+    def _row_to_payment_dict(self, row: sqlite3.Row) -> Dict:
+        customer = self.get_customer(row['customer_id'])
         return {
-            "payment_id": payment.payment_id,
-            "payment_date": payment.payment_date.isoformat(),
-            "customer_id": payment.customer_id,
-            "customer_name": customer_name,
-            "deposit_account_id": payment.deposit_account_id,
-            "payment_method": payment.payment_method.value,
-            "reference_number": payment.reference_number,
-            "memo": payment.memo,
-            "total_amount": payment.total_amount,
-            "applied_invoices": payment.applied_invoices,
-            "unapplied_amount": payment.unapplied_amount,
-            "is_voided": payment.is_voided,
-            "journal_entry_id": payment.journal_entry_id,
-            "created_at": payment.created_at.isoformat()
+            "payment_id": row['payment_id'],
+            "payment_date": row['payment_date'],
+            "customer_id": row['customer_id'],
+            "customer_name": customer['display_name'] if customer else "Unknown",
+            "deposit_account_id": row['deposit_account_id'],
+            "payment_method": row['payment_method'],
+            "reference_number": row['reference_number'] or "",
+            "memo": row['memo'] or "",
+            "total_amount": row['total_amount'] or 0,
+            "applied_invoices": json.loads(row['applied_invoices']) if row['applied_invoices'] else [],
+            "unapplied_amount": row['unapplied_amount'] or 0,
+            "is_voided": bool(row['is_voided']),
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at']
         }
 
-    def _credit_to_dict(self, credit: CustomerCredit) -> Dict:
-        """Convert CustomerCredit to dictionary"""
-        customer_name = self.customers[credit.customer_id].display_name if credit.customer_id in self.customers else "Unknown"
-
+    def _row_to_credit_dict(self, row: sqlite3.Row, lines: List[sqlite3.Row]) -> Dict:
+        customer = self.get_customer(row['customer_id'])
         return {
-            "credit_id": credit.credit_id,
-            "credit_number": credit.credit_number,
-            "customer_id": credit.customer_id,
-            "customer_name": customer_name,
-            "credit_date": credit.credit_date.isoformat(),
-            "reason": credit.reason,
-            "memo": credit.memo,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "description": line.description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount
-                }
-                for line in credit.lines
-            ],
-            "total": credit.total,
-            "amount_applied": credit.amount_applied,
-            "balance": credit.balance,
-            "status": credit.status,
-            "related_invoice_id": credit.related_invoice_id,
-            "journal_entry_id": credit.journal_entry_id,
-            "created_at": credit.created_at.isoformat()
+            "credit_id": row['credit_id'],
+            "credit_number": row['credit_number'],
+            "customer_id": row['customer_id'],
+            "customer_name": customer['display_name'] if customer else "Unknown",
+            "credit_date": row['credit_date'],
+            "reason": row['reason'] or "",
+            "memo": row['memo'] or "",
+            "lines": [{
+                "line_id": l['line_id'],
+                "account_id": l['account_id'],
+                "description": l['description'] or "",
+                "quantity": l['quantity'] or 1,
+                "unit_price": l['unit_price'] or 0,
+                "amount": l['amount'] or 0
+            } for l in lines],
+            "total": row['total'] or 0,
+            "amount_applied": row['amount_applied'] or 0,
+            "balance": row['balance'] or 0,
+            "status": row['status'] or "open",
+            "related_invoice_id": row['related_invoice_id'],
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at']
         }
 
-    def _estimate_to_dict(self, estimate: Estimate) -> Dict:
-        """Convert Estimate to dictionary"""
-        customer_name = self.customers[estimate.customer_id].display_name if estimate.customer_id in self.customers else "Unknown"
-
+    def _row_to_estimate_dict(self, row: sqlite3.Row, lines: List[sqlite3.Row]) -> Dict:
+        customer = self.get_customer(row['customer_id'])
         return {
-            "estimate_id": estimate.estimate_id,
-            "estimate_number": estimate.estimate_number,
-            "customer_id": estimate.customer_id,
-            "customer_name": customer_name,
-            "estimate_date": estimate.estimate_date.isoformat(),
-            "expiration_date": estimate.expiration_date.isoformat(),
-            "po_number": estimate.po_number,
-            "terms": estimate.terms,
-            "memo": estimate.memo,
-            "message_to_customer": estimate.message_to_customer,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "description": line.description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount,
-                    "tax_amount": line.tax_amount
-                }
-                for line in estimate.lines
-            ],
-            "subtotal": estimate.subtotal,
-            "tax_total": estimate.tax_total,
-            "total": estimate.total,
-            "status": estimate.status.value,
-            "accepted_date": estimate.accepted_date.isoformat() if estimate.accepted_date else None,
-            "converted_invoice_id": estimate.converted_invoice_id,
-            "created_at": estimate.created_at.isoformat(),
-            "updated_at": estimate.updated_at.isoformat()
+            "estimate_id": row['estimate_id'],
+            "estimate_number": row['estimate_number'],
+            "customer_id": row['customer_id'],
+            "customer_name": customer['display_name'] if customer else "Unknown",
+            "estimate_date": row['estimate_date'],
+            "expiration_date": row['expiration_date'],
+            "po_number": row['po_number'] or "",
+            "terms": row['terms'] or "",
+            "memo": row['memo'] or "",
+            "message_to_customer": row['message_to_customer'] or "",
+            "lines": [{
+                "line_id": l['line_id'],
+                "account_id": l['account_id'] or "",
+                "description": l['description'] or "",
+                "quantity": l['quantity'] or 1,
+                "unit_price": l['unit_price'] or 0,
+                "amount": l['amount'] or 0,
+                "tax_amount": l['tax_amount'] or 0
+            } for l in lines],
+            "subtotal": row['subtotal'] or 0,
+            "tax_total": row['tax_total'] or 0,
+            "total": row['total'] or 0,
+            "status": row['status'] or "draft",
+            "accepted_date": row['accepted_date'],
+            "converted_invoice_id": row['converted_invoice_id'],
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
         }
 
-    def _receipt_to_dict(self, receipt: SalesReceipt) -> Dict:
-        """Convert SalesReceipt to dictionary"""
+    def _row_to_receipt_dict(self, row: sqlite3.Row, lines: List[sqlite3.Row]) -> Dict:
         customer_name = None
-        if receipt.customer_id and receipt.customer_id in self.customers:
-            customer_name = self.customers[receipt.customer_id].display_name
+        if row['customer_id']:
+            customer = self.get_customer(row['customer_id'])
+            customer_name = customer['display_name'] if customer else None
 
         return {
-            "receipt_id": receipt.receipt_id,
-            "receipt_number": receipt.receipt_number,
-            "customer_id": receipt.customer_id,
+            "receipt_id": row['receipt_id'],
+            "receipt_number": row['receipt_number'],
+            "customer_id": row['customer_id'],
             "customer_name": customer_name,
-            "receipt_date": receipt.receipt_date.isoformat(),
-            "payment_method": receipt.payment_method.value,
-            "deposit_account_id": receipt.deposit_account_id,
-            "reference_number": receipt.reference_number,
-            "memo": receipt.memo,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "description": line.description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount,
-                    "tax_amount": line.tax_amount
-                }
-                for line in receipt.lines
-            ],
-            "subtotal": receipt.subtotal,
-            "tax_total": receipt.tax_total,
-            "total": receipt.total,
-            "is_voided": receipt.is_voided,
-            "journal_entry_id": receipt.journal_entry_id,
-            "created_at": receipt.created_at.isoformat()
+            "receipt_date": row['receipt_date'],
+            "payment_method": row['payment_method'],
+            "deposit_account_id": row['deposit_account_id'],
+            "reference_number": row['reference_number'] or "",
+            "memo": row['memo'] or "",
+            "lines": [{
+                "line_id": l['line_id'],
+                "account_id": l['account_id'],
+                "description": l['description'] or "",
+                "quantity": l['quantity'] or 1,
+                "unit_price": l['unit_price'] or 0,
+                "amount": l['amount'] or 0,
+                "tax_amount": l['tax_amount'] or 0
+            } for l in lines],
+            "subtotal": row['subtotal'] or 0,
+            "tax_total": row['tax_total'] or 0,
+            "total": row['total'] or 0,
+            "is_voided": bool(row['is_voided']),
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at']
         }
 
     def get_service_summary(self) -> Dict:
         """Get GenFin Receivables service summary"""
-        total_customers = len(self.customers)
-        active_customers = sum(1 for c in self.customers.values() if c.status == CustomerStatus.ACTIVE)
-        total_invoices = len(self.invoices)
-        open_invoices = sum(1 for i in self.invoices.values() if i.status in [InvoiceStatus.SENT, InvoiceStatus.VIEWED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE])
-        total_outstanding = sum(i.balance_due for i in self.invoices.values() if i.status in [InvoiceStatus.SENT, InvoiceStatus.VIEWED, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_customers")
+            total_customers = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_customers WHERE status = 'active'")
+            active_customers = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_invoices")
+            total_invoices = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_invoices WHERE status IN ('sent', 'viewed', 'partial', 'overdue')")
+            open_invoices = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COALESCE(SUM(balance_due), 0) as total FROM genfin_invoices WHERE status IN ('sent', 'viewed', 'partial', 'overdue')")
+            total_outstanding = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_payments_received")
+            total_payments = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_customer_credits")
+            total_credits = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_estimates")
+            total_estimates = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as total FROM genfin_sales_receipts")
+            total_receipts = cursor.fetchone()['total']
 
         return {
             "service": "GenFin Receivables",
@@ -1797,10 +1938,10 @@ class GenFinReceivablesService:
             "total_invoices": total_invoices,
             "open_invoices": open_invoices,
             "total_outstanding": round(total_outstanding, 2),
-            "total_payments": len(self.payments),
-            "total_credits": len(self.credits),
-            "total_estimates": len(self.estimates),
-            "total_sales_receipts": len(self.sales_receipts)
+            "total_payments": total_payments,
+            "total_credits": total_credits,
+            "total_estimates": total_estimates,
+            "total_sales_receipts": total_receipts
         }
 
 

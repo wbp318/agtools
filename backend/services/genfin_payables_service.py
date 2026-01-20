@@ -1,15 +1,17 @@
 """
 GenFin Payables Service - Vendors, Bills, Payments, Purchase Orders
 Complete accounts payable management for farm operations
+SQLite-backed persistence
 """
 
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional
 from enum import Enum
-from dataclasses import dataclass, field
 import uuid
+import sqlite3
+import json
 
-from .genfin_core_service import genfin_core_service, TransactionStatus
+from .genfin_core_service import genfin_core_service
 
 
 class VendorStatus(Enum):
@@ -50,170 +52,6 @@ class PurchaseOrderStatus(Enum):
     CANCELLED = "cancelled"
 
 
-@dataclass
-class Vendor:
-    """Vendor/Supplier record"""
-    vendor_id: str
-    company_name: str
-    display_name: str
-    contact_name: str = ""
-    email: str = ""
-    phone: str = ""
-    mobile: str = ""
-    fax: str = ""
-    website: str = ""
-
-    # Address
-    billing_address_line1: str = ""
-    billing_address_line2: str = ""
-    billing_city: str = ""
-    billing_state: str = ""
-    billing_zip: str = ""
-    billing_country: str = "USA"
-
-    # Tax info
-    tax_id: str = ""  # EIN or SSN
-    is_1099_vendor: bool = False
-    default_expense_account_id: Optional[str] = None
-
-    # Terms
-    payment_terms: str = "Net 30"
-    credit_limit: float = 0.0
-
-    # Tracking
-    vendor_type: str = ""  # Supplier, Contractor, Service Provider
-    notes: str = ""
-    status: VendorStatus = VendorStatus.ACTIVE
-    opening_balance: float = 0.0
-    opening_balance_date: Optional[date] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class BillLine:
-    """Line item on a bill"""
-    line_id: str
-    account_id: str
-    description: str
-    quantity: float = 1.0
-    unit_price: float = 0.0
-    amount: float = 0.0
-    tax_code: Optional[str] = None
-    tax_amount: float = 0.0
-    billable: bool = False
-    customer_id: Optional[str] = None
-    class_id: Optional[str] = None
-    location_id: Optional[str] = None
-
-
-@dataclass
-class Bill:
-    """Vendor bill/invoice"""
-    bill_id: str
-    bill_number: str
-    vendor_id: str
-    bill_date: date
-    due_date: date
-    lines: List[BillLine]
-
-    reference_number: str = ""  # Vendor's invoice number
-    terms: str = "Net 30"
-    memo: str = ""
-
-    subtotal: float = 0.0
-    tax_total: float = 0.0
-    total: float = 0.0
-    amount_paid: float = 0.0
-    balance_due: float = 0.0
-
-    status: BillStatus = BillStatus.DRAFT
-    ap_account_id: Optional[str] = None
-    journal_entry_id: Optional[str] = None
-
-    purchase_order_id: Optional[str] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class BillPayment:
-    """Payment applied to bills"""
-    payment_id: str
-    payment_date: date
-    vendor_id: str
-    bank_account_id: str
-    payment_method: PaymentMethod
-    reference_number: str = ""  # Check number, transaction ID
-    memo: str = ""
-    total_amount: float = 0.0
-    applied_bills: List[Dict] = field(default_factory=list)  # [{bill_id, amount}]
-    journal_entry_id: Optional[str] = None
-    is_voided: bool = False
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class VendorCredit:
-    """Credit memo from vendor"""
-    credit_id: str
-    credit_number: str
-    vendor_id: str
-    credit_date: date
-    lines: List[BillLine]
-
-    reference_number: str = ""
-    memo: str = ""
-    total: float = 0.0
-    amount_applied: float = 0.0
-    balance: float = 0.0
-
-    status: str = "open"  # open, applied, closed
-    journal_entry_id: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class PurchaseOrderLine:
-    """Line item on a purchase order"""
-    line_id: str
-    item_description: str
-    quantity: float = 1.0
-    unit_price: float = 0.0
-    amount: float = 0.0
-    quantity_received: float = 0.0
-    account_id: Optional[str] = None
-    class_id: Optional[str] = None
-
-
-@dataclass
-class PurchaseOrder:
-    """Purchase order"""
-    po_id: str
-    po_number: str
-    vendor_id: str
-    order_date: date
-    expected_date: Optional[date]
-    lines: List[PurchaseOrderLine]
-
-    ship_to_address: str = ""
-    memo: str = ""
-    terms: str = ""
-
-    subtotal: float = 0.0
-    tax_total: float = 0.0
-    total: float = 0.0
-
-    status: PurchaseOrderStatus = PurchaseOrderStatus.DRAFT
-    approved_by: Optional[str] = None
-    approved_date: Optional[date] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
 # Payment terms definitions
 PAYMENT_TERMS = {
     "Due on Receipt": 0,
@@ -229,7 +67,7 @@ PAYMENT_TERMS = {
 
 class GenFinPayablesService:
     """
-    GenFin Accounts Payable Service
+    GenFin Accounts Payable Service - SQLite backed
 
     Complete AP functionality:
     - Vendor management
@@ -243,30 +81,230 @@ class GenFinPayablesService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
-
-        self.vendors: Dict[str, Vendor] = {}
-        self.bills: Dict[str, Bill] = {}
-        self.payments: Dict[str, BillPayment] = {}
-        self.credits: Dict[str, VendorCredit] = {}
-        self.purchase_orders: Dict[str, PurchaseOrder] = {}
-
-        self.next_bill_number = 1
-        self.next_po_number = 1
-        self.next_credit_number = 1
-
-        # Default AP account
-        self.default_ap_account_id = self._get_default_ap_account()
-
+        self.db_path = db_path
+        self._init_tables()
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get database connection with row factory"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Vendors table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_vendors (
+                    vendor_id TEXT PRIMARY KEY,
+                    company_name TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    contact_name TEXT DEFAULT '',
+                    email TEXT DEFAULT '',
+                    phone TEXT DEFAULT '',
+                    mobile TEXT DEFAULT '',
+                    fax TEXT DEFAULT '',
+                    website TEXT DEFAULT '',
+                    billing_address_line1 TEXT DEFAULT '',
+                    billing_address_line2 TEXT DEFAULT '',
+                    billing_city TEXT DEFAULT '',
+                    billing_state TEXT DEFAULT '',
+                    billing_zip TEXT DEFAULT '',
+                    billing_country TEXT DEFAULT 'USA',
+                    tax_id TEXT DEFAULT '',
+                    is_1099_vendor INTEGER DEFAULT 0,
+                    default_expense_account_id TEXT,
+                    payment_terms TEXT DEFAULT 'Net 30',
+                    credit_limit REAL DEFAULT 0.0,
+                    vendor_type TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    status TEXT DEFAULT 'active',
+                    opening_balance REAL DEFAULT 0.0,
+                    opening_balance_date TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Bills table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_bills (
+                    bill_id TEXT PRIMARY KEY,
+                    bill_number TEXT NOT NULL,
+                    vendor_id TEXT NOT NULL,
+                    bill_date TEXT NOT NULL,
+                    due_date TEXT NOT NULL,
+                    reference_number TEXT DEFAULT '',
+                    terms TEXT DEFAULT 'Net 30',
+                    memo TEXT DEFAULT '',
+                    subtotal REAL DEFAULT 0.0,
+                    tax_total REAL DEFAULT 0.0,
+                    total REAL DEFAULT 0.0,
+                    amount_paid REAL DEFAULT 0.0,
+                    balance_due REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'draft',
+                    ap_account_id TEXT,
+                    journal_entry_id TEXT,
+                    purchase_order_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Bill lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_bill_lines (
+                    line_id TEXT PRIMARY KEY,
+                    bill_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    tax_code TEXT,
+                    tax_amount REAL DEFAULT 0.0,
+                    billable INTEGER DEFAULT 0,
+                    customer_id TEXT,
+                    class_id TEXT,
+                    location_id TEXT,
+                    FOREIGN KEY (bill_id) REFERENCES genfin_bills (bill_id)
+                )
+            """)
+
+            # Bill payments table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_bill_payments (
+                    payment_id TEXT PRIMARY KEY,
+                    payment_date TEXT NOT NULL,
+                    vendor_id TEXT NOT NULL,
+                    bank_account_id TEXT NOT NULL,
+                    payment_method TEXT NOT NULL,
+                    reference_number TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    total_amount REAL DEFAULT 0.0,
+                    applied_bills TEXT DEFAULT '[]',
+                    journal_entry_id TEXT,
+                    is_voided INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Vendor credits table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_vendor_credits (
+                    credit_id TEXT PRIMARY KEY,
+                    credit_number TEXT NOT NULL,
+                    vendor_id TEXT NOT NULL,
+                    credit_date TEXT NOT NULL,
+                    reference_number TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    total REAL DEFAULT 0.0,
+                    amount_applied REAL DEFAULT 0.0,
+                    balance REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'open',
+                    journal_entry_id TEXT,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Vendor credit lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_vendor_credit_lines (
+                    line_id TEXT PRIMARY KEY,
+                    credit_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    tax_code TEXT,
+                    tax_amount REAL DEFAULT 0.0,
+                    class_id TEXT,
+                    location_id TEXT,
+                    FOREIGN KEY (credit_id) REFERENCES genfin_vendor_credits (credit_id)
+                )
+            """)
+
+            # Purchase orders table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_purchase_orders (
+                    po_id TEXT PRIMARY KEY,
+                    po_number TEXT NOT NULL,
+                    vendor_id TEXT NOT NULL,
+                    order_date TEXT NOT NULL,
+                    expected_date TEXT,
+                    ship_to_address TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    terms TEXT DEFAULT '',
+                    subtotal REAL DEFAULT 0.0,
+                    tax_total REAL DEFAULT 0.0,
+                    total REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'draft',
+                    approved_by TEXT,
+                    approved_date TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Purchase order lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_purchase_order_lines (
+                    line_id TEXT PRIMARY KEY,
+                    po_id TEXT NOT NULL,
+                    item_description TEXT DEFAULT '',
+                    quantity REAL DEFAULT 1.0,
+                    unit_price REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    quantity_received REAL DEFAULT 0.0,
+                    account_id TEXT,
+                    class_id TEXT,
+                    FOREIGN KEY (po_id) REFERENCES genfin_purchase_orders (po_id)
+                )
+            """)
+
+            # Settings table for sequence numbers
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_payables_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
+            # Initialize sequence numbers if not exist
+            cursor.execute("INSERT OR IGNORE INTO genfin_payables_settings (key, value) VALUES ('next_bill_number', '1')")
+            cursor.execute("INSERT OR IGNORE INTO genfin_payables_settings (key, value) VALUES ('next_po_number', '1')")
+            cursor.execute("INSERT OR IGNORE INTO genfin_payables_settings (key, value) VALUES ('next_credit_number', '1')")
+
+            conn.commit()
+
+    def _get_next_number(self, key: str) -> int:
+        """Get and increment sequence number"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM genfin_payables_settings WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            current = int(row['value']) if row else 1
+            cursor.execute("UPDATE genfin_payables_settings SET value = ? WHERE key = ?", (str(current + 1), key))
+            conn.commit()
+            return current
 
     def _get_default_ap_account(self) -> Optional[str]:
         """Get the default Accounts Payable account"""
@@ -296,69 +334,119 @@ class GenFinPayablesService:
     ) -> Dict:
         """Create a new vendor"""
         vendor_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
 
-        ob_date = None
-        if opening_balance_date:
-            ob_date = datetime.strptime(opening_balance_date, "%Y-%m-%d").date()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_vendors (
+                    vendor_id, company_name, display_name, contact_name, email, phone,
+                    billing_address_line1, billing_city, billing_state, billing_zip,
+                    tax_id, is_1099_vendor, payment_terms, vendor_type,
+                    default_expense_account_id, opening_balance, opening_balance_date,
+                    status, created_at, updated_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                vendor_id, company_name, display_name or company_name, contact_name,
+                email, phone, billing_address_line1, billing_city, billing_state,
+                billing_zip, tax_id, 1 if is_1099_vendor else 0, payment_terms,
+                vendor_type, default_expense_account_id, opening_balance,
+                opening_balance_date, 'active', now, now, 1
+            ))
+            conn.commit()
 
-        vendor = Vendor(
-            vendor_id=vendor_id,
-            company_name=company_name,
-            display_name=display_name or company_name,
-            contact_name=contact_name,
-            email=email,
-            phone=phone,
-            billing_address_line1=billing_address_line1,
-            billing_city=billing_city,
-            billing_state=billing_state,
-            billing_zip=billing_zip,
-            tax_id=tax_id,
-            is_1099_vendor=is_1099_vendor,
-            payment_terms=payment_terms,
-            vendor_type=vendor_type,
-            default_expense_account_id=default_expense_account_id,
-            opening_balance=opening_balance,
-            opening_balance_date=ob_date
-        )
-
-        self.vendors[vendor_id] = vendor
-
+        vendor = self.get_vendor(vendor_id)
         return {
             "success": True,
             "vendor_id": vendor_id,
-            "vendor": self._vendor_to_dict(vendor)
+            "vendor": vendor
         }
 
     def update_vendor(self, vendor_id: str, **kwargs) -> Dict:
         """Update vendor information"""
-        if vendor_id not in self.vendors:
+        vendor = self.get_vendor(vendor_id)
+        if not vendor:
             return {"success": False, "error": "Vendor not found"}
 
-        vendor = self.vendors[vendor_id]
+        # Build update statement dynamically
+        updates = []
+        values = []
+
+        field_mapping = {
+            'company_name': 'company_name',
+            'display_name': 'display_name',
+            'contact_name': 'contact_name',
+            'email': 'email',
+            'phone': 'phone',
+            'mobile': 'mobile',
+            'fax': 'fax',
+            'website': 'website',
+            'billing_address_line1': 'billing_address_line1',
+            'billing_address_line2': 'billing_address_line2',
+            'billing_city': 'billing_city',
+            'billing_state': 'billing_state',
+            'billing_zip': 'billing_zip',
+            'billing_country': 'billing_country',
+            'tax_id': 'tax_id',
+            'is_1099_vendor': 'is_1099_vendor',
+            'default_expense_account_id': 'default_expense_account_id',
+            'payment_terms': 'payment_terms',
+            'credit_limit': 'credit_limit',
+            'vendor_type': 'vendor_type',
+            'notes': 'notes',
+            'status': 'status',
+        }
 
         for key, value in kwargs.items():
-            if hasattr(vendor, key) and value is not None:
-                setattr(vendor, key, value)
+            if key in field_mapping and value is not None:
+                if key == 'is_1099_vendor':
+                    value = 1 if value else 0
+                elif key == 'status' and hasattr(value, 'value'):
+                    value = value.value
+                updates.append(f"{field_mapping[key]} = ?")
+                values.append(value)
 
-        vendor.updated_at = datetime.now()
+        if updates:
+            updates.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(vendor_id)
+
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"UPDATE genfin_vendors SET {', '.join(updates)} WHERE vendor_id = ?",
+                    values
+                )
+                conn.commit()
 
         return {
             "success": True,
-            "vendor": self._vendor_to_dict(vendor)
+            "vendor": self.get_vendor(vendor_id)
         }
 
     def delete_vendor(self, vendor_id: str) -> bool:
-        """Delete a vendor"""
-        if vendor_id not in self.vendors:
-            return False
-        del self.vendors[vendor_id]
-        return True
+        """Delete a vendor (soft delete)"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE genfin_vendors SET is_active = 0, updated_at = ? WHERE vendor_id = ?",
+                (datetime.now().isoformat(), vendor_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
 
     def get_vendor(self, vendor_id: str) -> Optional[Dict]:
         """Get vendor by ID"""
-        if vendor_id not in self.vendors:
-            return None
-        return self._vendor_to_dict(self.vendors[vendor_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_vendors WHERE vendor_id = ? AND is_active = 1",
+                (vendor_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_vendor(row)
+        return None
 
     def list_vendors(
         self,
@@ -368,47 +456,100 @@ class GenFinPayablesService:
         search: Optional[str] = None
     ) -> List[Dict]:
         """List vendors with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for vendor in self.vendors.values():
-            if status and vendor.status.value != status:
-                continue
-            if vendor_type and vendor.vendor_type != vendor_type:
-                continue
-            if is_1099 is not None and vendor.is_1099_vendor != is_1099:
-                continue
+            query = "SELECT * FROM genfin_vendors WHERE is_active = 1"
+            params = []
+
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+            if vendor_type:
+                query += " AND vendor_type = ?"
+                params.append(vendor_type)
+            if is_1099 is not None:
+                query += " AND is_1099_vendor = ?"
+                params.append(1 if is_1099 else 0)
             if search:
-                search_lower = search.lower()
-                if (search_lower not in vendor.company_name.lower() and
-                    search_lower not in vendor.display_name.lower() and
-                    search_lower not in vendor.contact_name.lower()):
-                    continue
+                query += " AND (company_name LIKE ? OR display_name LIKE ? OR contact_name LIKE ?)"
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term, search_term])
 
-            vendor_dict = self._vendor_to_dict(vendor)
-            vendor_dict["balance"] = self.get_vendor_balance(vendor.vendor_id)
-            result.append(vendor_dict)
+            query += " ORDER BY display_name"
 
-        return sorted(result, key=lambda v: v["display_name"])
+            cursor.execute(query, params)
+            result = []
+            for row in cursor.fetchall():
+                vendor_dict = self._row_to_vendor(row)
+                vendor_dict["balance"] = self.get_vendor_balance(vendor_dict["vendor_id"])
+                result.append(vendor_dict)
+
+            return result
 
     def get_vendor_balance(self, vendor_id: str) -> float:
         """Calculate vendor balance (amount owed)"""
         balance = 0.0
 
-        # Add opening balance
-        if vendor_id in self.vendors:
-            balance = self.vendors[vendor_id].opening_balance
+        # Get opening balance
+        vendor = self.get_vendor(vendor_id)
+        if vendor:
+            balance = vendor.get("opening_balance", 0.0) or 0.0
 
-        # Add unpaid bills
-        for bill in self.bills.values():
-            if bill.vendor_id == vendor_id and bill.status in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE]:
-                balance += bill.balance_due
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Subtract unapplied credits
-        for credit in self.credits.values():
-            if credit.vendor_id == vendor_id and credit.status == "open":
-                balance -= credit.balance
+            # Add unpaid bills
+            cursor.execute("""
+                SELECT COALESCE(SUM(balance_due), 0) as total
+                FROM genfin_bills
+                WHERE vendor_id = ? AND is_active = 1 AND status IN ('open', 'partial', 'overdue')
+            """, (vendor_id,))
+            row = cursor.fetchone()
+            balance += row['total'] if row else 0.0
+
+            # Subtract unapplied credits
+            cursor.execute("""
+                SELECT COALESCE(SUM(balance), 0) as total
+                FROM genfin_vendor_credits
+                WHERE vendor_id = ? AND is_active = 1 AND status = 'open'
+            """, (vendor_id,))
+            row = cursor.fetchone()
+            balance -= row['total'] if row else 0.0
 
         return round(balance, 2)
+
+    def _row_to_vendor(self, row: sqlite3.Row) -> Dict:
+        """Convert vendor row to dictionary"""
+        return {
+            "vendor_id": row['vendor_id'],
+            "company_name": row['company_name'],
+            "display_name": row['display_name'],
+            "contact_name": row['contact_name'] or '',
+            "email": row['email'] or '',
+            "phone": row['phone'] or '',
+            "mobile": row['mobile'] or '',
+            "website": row['website'] or '',
+            "billing_address": {
+                "line1": row['billing_address_line1'] or '',
+                "line2": row['billing_address_line2'] or '',
+                "city": row['billing_city'] or '',
+                "state": row['billing_state'] or '',
+                "zip": row['billing_zip'] or '',
+                "country": row['billing_country'] or 'USA'
+            },
+            "tax_id": row['tax_id'] or '',
+            "is_1099_vendor": bool(row['is_1099_vendor']),
+            "default_expense_account_id": row['default_expense_account_id'],
+            "payment_terms": row['payment_terms'] or 'Net 30',
+            "credit_limit": row['credit_limit'] or 0.0,
+            "vendor_type": row['vendor_type'] or '',
+            "notes": row['notes'] or '',
+            "status": row['status'],
+            "opening_balance": row['opening_balance'] or 0.0,
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
+        }
 
     # ==================== BILLS ====================
 
@@ -424,113 +565,120 @@ class GenFinPayablesService:
         purchase_order_id: Optional[str] = None
     ) -> Dict:
         """Create a new bill"""
-        if vendor_id not in self.vendors:
+        vendor = self.get_vendor(vendor_id)
+        if not vendor:
             return {"success": False, "error": "Vendor not found"}
 
         bill_id = str(uuid.uuid4())
-        bill_number = f"BILL-{self.next_bill_number:05d}"
-        self.next_bill_number += 1
+        bill_number = f"BILL-{self._get_next_number('next_bill_number'):05d}"
 
         # Parse date and calculate due date
         b_date = datetime.strptime(bill_date, "%Y-%m-%d").date()
         days = PAYMENT_TERMS.get(terms, 30)
         d_date = b_date + timedelta(days=days)
 
-        # Process lines
-        bill_lines = []
+        now = datetime.now().isoformat()
+
+        # Calculate totals
         subtotal = 0.0
         tax_total = 0.0
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
-            tax_amount = line.get("tax_amount", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            bill_lines.append(BillLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line["account_id"],
-                description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                tax_code=line.get("tax_code"),
-                tax_amount=tax_amount,
-                billable=line.get("billable", False),
-                customer_id=line.get("customer_id"),
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id")
+            # Insert bill
+            cursor.execute("""
+                INSERT INTO genfin_bills (
+                    bill_id, bill_number, vendor_id, bill_date, due_date,
+                    reference_number, terms, memo, subtotal, tax_total, total,
+                    amount_paid, balance_due, status, ap_account_id, purchase_order_id,
+                    created_at, updated_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                bill_id, bill_number, vendor_id, b_date.isoformat(), d_date.isoformat(),
+                reference_number, terms, memo, 0.0, 0.0, 0.0, 0.0, 0.0, 'draft',
+                ap_account_id or self._get_default_ap_account(), purchase_order_id,
+                now, now, 1
             ))
 
-            subtotal += line_amount
-            tax_total += tax_amount
+            # Insert lines
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+                tax_amount = line.get("tax_amount", 0)
 
-        total = subtotal + tax_total
+                cursor.execute("""
+                    INSERT INTO genfin_bill_lines (
+                        line_id, bill_id, account_id, description, quantity,
+                        unit_price, amount, tax_code, tax_amount, billable,
+                        customer_id, class_id, location_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(uuid.uuid4()), bill_id, line["account_id"],
+                    line.get("description", ""), line.get("quantity", 1),
+                    line.get("unit_price", 0), line_amount,
+                    line.get("tax_code"), tax_amount,
+                    1 if line.get("billable", False) else 0,
+                    line.get("customer_id"), line.get("class_id"), line.get("location_id")
+                ))
 
-        bill = Bill(
-            bill_id=bill_id,
-            bill_number=bill_number,
-            vendor_id=vendor_id,
-            bill_date=b_date,
-            due_date=d_date,
-            lines=bill_lines,
-            reference_number=reference_number,
-            terms=terms,
-            memo=memo,
-            subtotal=round(subtotal, 2),
-            tax_total=round(tax_total, 2),
-            total=round(total, 2),
-            amount_paid=0.0,
-            balance_due=round(total, 2),
-            status=BillStatus.DRAFT,
-            ap_account_id=ap_account_id or self.default_ap_account_id,
-            purchase_order_id=purchase_order_id
-        )
+                subtotal += line_amount
+                tax_total += tax_amount
 
-        self.bills[bill_id] = bill
+            total = subtotal + tax_total
 
+            # Update bill totals
+            cursor.execute("""
+                UPDATE genfin_bills SET subtotal = ?, tax_total = ?, total = ?, balance_due = ?
+                WHERE bill_id = ?
+            """, (round(subtotal, 2), round(tax_total, 2), round(total, 2), round(total, 2), bill_id))
+
+            conn.commit()
+
+        bill = self.get_bill(bill_id)
         return {
             "success": True,
             "bill_id": bill_id,
             "bill_number": bill_number,
-            "bill": self._bill_to_dict(bill)
+            "bill": bill
         }
 
     def post_bill(self, bill_id: str) -> Dict:
         """Post a bill - create journal entry and change status to open"""
-        if bill_id not in self.bills:
+        bill = self.get_bill(bill_id)
+        if not bill:
             return {"success": False, "error": "Bill not found"}
 
-        bill = self.bills[bill_id]
-
-        if bill.status != BillStatus.DRAFT:
+        if bill["status"] != "draft":
             return {"success": False, "error": "Bill is not in draft status"}
 
+        vendor = self.get_vendor(bill["vendor_id"])
+
         # Create journal entry
-        # Credit AP, Debit expense accounts
         journal_lines = []
 
-        for line in bill.lines:
+        for line in bill["lines"]:
             journal_lines.append({
-                "account_id": line.account_id,
-                "description": line.description,
-                "debit": line.amount + line.tax_amount,
+                "account_id": line["account_id"],
+                "description": line["description"],
+                "debit": line["amount"] + line["tax_amount"],
                 "credit": 0,
-                "class_id": line.class_id,
-                "location_id": line.location_id,
-                "vendor_id": bill.vendor_id
+                "class_id": line.get("class_id"),
+                "location_id": line.get("location_id"),
+                "vendor_id": bill["vendor_id"]
             })
 
         journal_lines.append({
-            "account_id": bill.ap_account_id,
-            "description": f"Bill {bill.bill_number} - {self.vendors[bill.vendor_id].display_name}",
+            "account_id": bill["ap_account_id"] or self._get_default_ap_account(),
+            "description": f"Bill {bill['bill_number']} - {vendor['display_name']}",
             "debit": 0,
-            "credit": bill.total,
-            "vendor_id": bill.vendor_id
+            "credit": bill["total"],
+            "vendor_id": bill["vendor_id"]
         })
 
         je_result = genfin_core_service.create_journal_entry(
-            entry_date=bill.bill_date.isoformat(),
+            entry_date=bill["bill_date"],
             lines=journal_lines,
-            memo=f"Bill {bill.bill_number} - {bill.reference_number}",
+            memo=f"Bill {bill['bill_number']} - {bill['reference_number']}",
             source_type="bill",
             source_id=bill_id,
             auto_post=True
@@ -539,55 +687,75 @@ class GenFinPayablesService:
         if not je_result["success"]:
             return {"success": False, "error": f"Failed to create journal entry: {je_result.get('error')}"}
 
-        bill.journal_entry_id = je_result["entry_id"]
-        bill.status = BillStatus.OPEN
-        bill.updated_at = datetime.now()
+        # Update bill status
+        new_status = 'open'
+        if datetime.strptime(bill["due_date"], "%Y-%m-%d").date() < date.today():
+            new_status = 'overdue'
 
-        # Check if overdue
-        if bill.due_date < date.today():
-            bill.status = BillStatus.OVERDUE
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_bills SET status = ?, journal_entry_id = ?, updated_at = ?
+                WHERE bill_id = ?
+            """, (new_status, je_result["entry_id"], datetime.now().isoformat(), bill_id))
+            conn.commit()
 
         return {
             "success": True,
-            "bill": self._bill_to_dict(bill),
+            "bill": self.get_bill(bill_id),
             "journal_entry_id": je_result["entry_id"]
         }
 
     def void_bill(self, bill_id: str, reason: str = "") -> Dict:
         """Void a bill"""
-        if bill_id not in self.bills:
+        bill = self.get_bill(bill_id)
+        if not bill:
             return {"success": False, "error": "Bill not found"}
 
-        bill = self.bills[bill_id]
-
-        if bill.amount_paid > 0:
+        if bill["amount_paid"] > 0:
             return {"success": False, "error": "Cannot void bill with payments applied"}
 
         # Void journal entry if exists
-        if bill.journal_entry_id:
-            genfin_core_service.void_journal_entry(bill.journal_entry_id, reason)
+        if bill.get("journal_entry_id"):
+            genfin_core_service.void_journal_entry(bill["journal_entry_id"], reason)
 
-        bill.status = BillStatus.VOIDED
-        bill.memo = f"{bill.memo} [VOIDED: {reason}]"
-        bill.updated_at = datetime.now()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            new_memo = f"{bill['memo']} [VOIDED: {reason}]"
+            cursor.execute("""
+                UPDATE genfin_bills SET status = ?, memo = ?, updated_at = ?
+                WHERE bill_id = ?
+            """, ('voided', new_memo, datetime.now().isoformat(), bill_id))
+            conn.commit()
 
         return {
             "success": True,
-            "bill": self._bill_to_dict(bill)
+            "bill": self.get_bill(bill_id)
         }
 
     def get_bill(self, bill_id: str) -> Optional[Dict]:
         """Get bill by ID"""
-        if bill_id not in self.bills:
-            return None
-        return self._bill_to_dict(self.bills[bill_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bills WHERE bill_id = ? AND is_active = 1",
+                (bill_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_bill(row, cursor)
+        return None
 
     def delete_bill(self, bill_id: str) -> bool:
-        """Delete a bill"""
-        if bill_id not in self.bills:
-            return False
-        del self.bills[bill_id]
-        return True
+        """Delete a bill (soft delete)"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE genfin_bills SET is_active = 0, updated_at = ? WHERE bill_id = ?",
+                (datetime.now().isoformat(), bill_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
 
     def list_bills(
         self,
@@ -598,25 +766,81 @@ class GenFinPayablesService:
         unpaid_only: bool = False
     ) -> List[Dict]:
         """List bills with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for bill in self.bills.values():
-            if vendor_id and bill.vendor_id != vendor_id:
-                continue
-            if status and bill.status.value != status:
-                continue
+            query = "SELECT * FROM genfin_bills WHERE is_active = 1"
+            params = []
+
+            if vendor_id:
+                query += " AND vendor_id = ?"
+                params.append(vendor_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
             if start_date:
-                if bill.bill_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND bill_date >= ?"
+                params.append(start_date)
             if end_date:
-                if bill.bill_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
-            if unpaid_only and bill.status not in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE]:
-                continue
+                query += " AND bill_date <= ?"
+                params.append(end_date)
+            if unpaid_only:
+                query += " AND status IN ('open', 'partial', 'overdue')"
 
-            result.append(self._bill_to_dict(bill))
+            query += " ORDER BY bill_date DESC"
 
-        return sorted(result, key=lambda b: b["bill_date"], reverse=True)
+            cursor.execute(query, params)
+            return [self._row_to_bill(row, cursor) for row in cursor.fetchall()]
+
+    def _row_to_bill(self, row: sqlite3.Row, cursor: sqlite3.Cursor) -> Dict:
+        """Convert bill row to dictionary"""
+        vendor = self.get_vendor(row['vendor_id'])
+        vendor_name = vendor['display_name'] if vendor else 'Unknown'
+
+        # Get bill lines
+        cursor.execute(
+            "SELECT * FROM genfin_bill_lines WHERE bill_id = ?",
+            (row['bill_id'],)
+        )
+        lines = [
+            {
+                "line_id": line['line_id'],
+                "account_id": line['account_id'],
+                "description": line['description'] or '',
+                "quantity": line['quantity'],
+                "unit_price": line['unit_price'],
+                "amount": line['amount'],
+                "tax_code": line['tax_code'],
+                "tax_amount": line['tax_amount'],
+                "class_id": line['class_id'],
+                "location_id": line['location_id']
+            }
+            for line in cursor.fetchall()
+        ]
+
+        return {
+            "bill_id": row['bill_id'],
+            "bill_number": row['bill_number'],
+            "vendor_id": row['vendor_id'],
+            "vendor_name": vendor_name,
+            "bill_date": row['bill_date'],
+            "due_date": row['due_date'],
+            "reference_number": row['reference_number'] or '',
+            "terms": row['terms'] or 'Net 30',
+            "memo": row['memo'] or '',
+            "lines": lines,
+            "subtotal": row['subtotal'],
+            "tax_total": row['tax_total'],
+            "total": row['total'],
+            "amount_paid": row['amount_paid'],
+            "balance_due": row['balance_due'],
+            "status": row['status'],
+            "ap_account_id": row['ap_account_id'],
+            "purchase_order_id": row['purchase_order_id'],
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
+        }
 
     # ==================== BILL PAYMENTS ====================
 
@@ -631,7 +855,8 @@ class GenFinPayablesService:
         memo: str = ""
     ) -> Dict:
         """Create a payment for one or more bills"""
-        if vendor_id not in self.vendors:
+        vendor = self.get_vendor(vendor_id)
+        if not vendor:
             return {"success": False, "error": "Vendor not found"}
 
         # Validate bills and amounts
@@ -640,16 +865,15 @@ class GenFinPayablesService:
             bill_id = bill_payment["bill_id"]
             amount = bill_payment["amount"]
 
-            if bill_id not in self.bills:
+            bill = self.get_bill(bill_id)
+            if not bill:
                 return {"success": False, "error": f"Bill {bill_id} not found"}
-
-            bill = self.bills[bill_id]
-            if bill.vendor_id != vendor_id:
-                return {"success": False, "error": f"Bill {bill.bill_number} does not belong to this vendor"}
-            if bill.status not in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE]:
-                return {"success": False, "error": f"Bill {bill.bill_number} is not payable"}
-            if amount > bill.balance_due:
-                return {"success": False, "error": f"Payment amount exceeds balance on {bill.bill_number}"}
+            if bill["vendor_id"] != vendor_id:
+                return {"success": False, "error": f"Bill {bill['bill_number']} does not belong to this vendor"}
+            if bill["status"] not in ['open', 'partial', 'overdue']:
+                return {"success": False, "error": f"Bill {bill['bill_number']} is not payable"}
+            if amount > bill["balance_due"]:
+                return {"success": False, "error": f"Payment amount exceeds balance on {bill['bill_number']}"}
 
             total_payment += amount
 
@@ -657,18 +881,17 @@ class GenFinPayablesService:
         p_date = datetime.strptime(payment_date, "%Y-%m-%d").date()
 
         # Create journal entry
-        # Debit AP, Credit Bank
         journal_lines = [
             {
-                "account_id": self.default_ap_account_id,
-                "description": f"Payment to {self.vendors[vendor_id].display_name}",
+                "account_id": self._get_default_ap_account(),
+                "description": f"Payment to {vendor['display_name']}",
                 "debit": total_payment,
                 "credit": 0,
                 "vendor_id": vendor_id
             },
             {
                 "account_id": bank_account_id,
-                "description": f"Payment to {self.vendors[vendor_id].display_name}",
+                "description": f"Payment to {vendor['display_name']}",
                 "debit": 0,
                 "credit": total_payment,
                 "vendor_id": vendor_id
@@ -678,7 +901,7 @@ class GenFinPayablesService:
         je_result = genfin_core_service.create_journal_entry(
             entry_date=payment_date,
             lines=journal_lines,
-            memo=f"Payment: {reference_number}" if reference_number else f"Payment to {self.vendors[vendor_id].display_name}",
+            memo=f"Payment: {reference_number}" if reference_number else f"Payment to {vendor['display_name']}",
             source_type="bill_payment",
             source_id=payment_id,
             auto_post=True
@@ -689,80 +912,101 @@ class GenFinPayablesService:
 
         # Apply payments to bills
         applied_bills = []
-        for bill_payment in bills_to_pay:
-            bill = self.bills[bill_payment["bill_id"]]
-            amount = bill_payment["amount"]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            bill.amount_paid += amount
-            bill.balance_due = round(bill.total - bill.amount_paid, 2)
+            for bill_payment in bills_to_pay:
+                bill = self.get_bill(bill_payment["bill_id"])
+                amount = bill_payment["amount"]
 
-            if bill.balance_due == 0:
-                bill.status = BillStatus.PAID
-            else:
-                bill.status = BillStatus.PARTIAL
+                new_amount_paid = bill["amount_paid"] + amount
+                new_balance = round(bill["total"] - new_amount_paid, 2)
 
-            bill.updated_at = datetime.now()
+                if new_balance == 0:
+                    new_status = 'paid'
+                else:
+                    new_status = 'partial'
 
-            applied_bills.append({
-                "bill_id": bill.bill_id,
-                "bill_number": bill.bill_number,
-                "amount": amount,
-                "balance_remaining": bill.balance_due
-            })
+                cursor.execute("""
+                    UPDATE genfin_bills
+                    SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
+                    WHERE bill_id = ?
+                """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), bill["bill_id"]))
 
-        payment = BillPayment(
-            payment_id=payment_id,
-            payment_date=p_date,
-            vendor_id=vendor_id,
-            bank_account_id=bank_account_id,
-            payment_method=PaymentMethod(payment_method),
-            reference_number=reference_number,
-            memo=memo,
-            total_amount=total_payment,
-            applied_bills=applied_bills,
-            journal_entry_id=je_result["entry_id"]
-        )
+                applied_bills.append({
+                    "bill_id": bill["bill_id"],
+                    "bill_number": bill["bill_number"],
+                    "amount": amount,
+                    "balance_remaining": new_balance
+                })
 
-        self.payments[payment_id] = payment
+            # Insert payment record
+            cursor.execute("""
+                INSERT INTO genfin_bill_payments (
+                    payment_id, payment_date, vendor_id, bank_account_id, payment_method,
+                    reference_number, memo, total_amount, applied_bills, journal_entry_id,
+                    is_voided, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                payment_id, p_date.isoformat(), vendor_id, bank_account_id, payment_method,
+                reference_number, memo, total_payment, json.dumps(applied_bills),
+                je_result["entry_id"], 0, datetime.now().isoformat(), 1
+            ))
+
+            conn.commit()
 
         return {
             "success": True,
             "payment_id": payment_id,
-            "payment": self._payment_to_dict(payment)
+            "payment": self._get_payment(payment_id)
         }
 
     def void_payment(self, payment_id: str, reason: str = "") -> Dict:
         """Void a bill payment"""
-        if payment_id not in self.payments:
+        payment = self._get_payment(payment_id)
+        if not payment:
             return {"success": False, "error": "Payment not found"}
 
-        payment = self.payments[payment_id]
-
-        if payment.is_voided:
+        if payment["is_voided"]:
             return {"success": False, "error": "Payment is already voided"}
 
         # Reverse journal entry
-        if payment.journal_entry_id:
+        if payment.get("journal_entry_id"):
             genfin_core_service.reverse_journal_entry(
-                payment.journal_entry_id,
+                payment["journal_entry_id"],
                 date.today().isoformat()
             )
 
         # Reverse bill applications
-        for applied in payment.applied_bills:
-            if applied["bill_id"] in self.bills:
-                bill = self.bills[applied["bill_id"]]
-                bill.amount_paid -= applied["amount"]
-                bill.balance_due = round(bill.total - bill.amount_paid, 2)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-                if bill.balance_due == bill.total:
-                    bill.status = BillStatus.OPEN
-                    if bill.due_date < date.today():
-                        bill.status = BillStatus.OVERDUE
-                else:
-                    bill.status = BillStatus.PARTIAL
+            for applied in payment["applied_bills"]:
+                bill = self.get_bill(applied["bill_id"])
+                if bill:
+                    new_amount_paid = bill["amount_paid"] - applied["amount"]
+                    new_balance = round(bill["total"] - new_amount_paid, 2)
 
-        payment.is_voided = True
+                    if new_balance == bill["total"]:
+                        new_status = 'open'
+                        if datetime.strptime(bill["due_date"], "%Y-%m-%d").date() < date.today():
+                            new_status = 'overdue'
+                    else:
+                        new_status = 'partial'
+
+                    cursor.execute("""
+                        UPDATE genfin_bills
+                        SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
+                        WHERE bill_id = ?
+                    """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), bill["bill_id"]))
+
+            # Mark payment as voided
+            cursor.execute(
+                "UPDATE genfin_bill_payments SET is_voided = 1 WHERE payment_id = ?",
+                (payment_id,)
+            )
+
+            conn.commit()
 
         return {
             "success": True,
@@ -777,23 +1021,62 @@ class GenFinPayablesService:
         include_voided: bool = False
     ) -> List[Dict]:
         """List payments with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for payment in self.payments.values():
-            if vendor_id and payment.vendor_id != vendor_id:
-                continue
-            if not include_voided and payment.is_voided:
-                continue
+            query = "SELECT * FROM genfin_bill_payments WHERE is_active = 1"
+            params = []
+
+            if vendor_id:
+                query += " AND vendor_id = ?"
+                params.append(vendor_id)
+            if not include_voided:
+                query += " AND is_voided = 0"
             if start_date:
-                if payment.payment_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND payment_date >= ?"
+                params.append(start_date)
             if end_date:
-                if payment.payment_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND payment_date <= ?"
+                params.append(end_date)
 
-            result.append(self._payment_to_dict(payment))
+            query += " ORDER BY payment_date DESC"
 
-        return sorted(result, key=lambda p: p["payment_date"], reverse=True)
+            cursor.execute(query, params)
+            return [self._row_to_payment(row) for row in cursor.fetchall()]
+
+    def _get_payment(self, payment_id: str) -> Optional[Dict]:
+        """Get payment by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bill_payments WHERE payment_id = ? AND is_active = 1",
+                (payment_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_payment(row)
+        return None
+
+    def _row_to_payment(self, row: sqlite3.Row) -> Dict:
+        """Convert payment row to dictionary"""
+        vendor = self.get_vendor(row['vendor_id'])
+        vendor_name = vendor['display_name'] if vendor else 'Unknown'
+
+        return {
+            "payment_id": row['payment_id'],
+            "payment_date": row['payment_date'],
+            "vendor_id": row['vendor_id'],
+            "vendor_name": vendor_name,
+            "bank_account_id": row['bank_account_id'],
+            "payment_method": row['payment_method'],
+            "reference_number": row['reference_number'] or '',
+            "memo": row['memo'] or '',
+            "total_amount": row['total_amount'],
+            "applied_bills": json.loads(row['applied_bills']) if row['applied_bills'] else [],
+            "is_voided": bool(row['is_voided']),
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at']
+        }
 
     # ==================== VENDOR CREDITS ====================
 
@@ -806,51 +1089,76 @@ class GenFinPayablesService:
         memo: str = ""
     ) -> Dict:
         """Create a vendor credit memo"""
-        if vendor_id not in self.vendors:
+        vendor = self.get_vendor(vendor_id)
+        if not vendor:
             return {"success": False, "error": "Vendor not found"}
 
         credit_id = str(uuid.uuid4())
-        credit_number = f"VCRD-{self.next_credit_number:05d}"
-        self.next_credit_number += 1
+        credit_number = f"VCRD-{self._get_next_number('next_credit_number'):05d}"
 
         c_date = datetime.strptime(credit_date, "%Y-%m-%d").date()
+        now = datetime.now().isoformat()
 
-        # Process lines
-        credit_lines = []
+        # Calculate total
         total = 0.0
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            credit_lines.append(BillLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line["account_id"],
-                description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id")
+            # Insert credit
+            cursor.execute("""
+                INSERT INTO genfin_vendor_credits (
+                    credit_id, credit_number, vendor_id, credit_date,
+                    reference_number, memo, total, amount_applied, balance,
+                    status, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                credit_id, credit_number, vendor_id, c_date.isoformat(),
+                reference_number, memo, 0.0, 0.0, 0.0, 'open', now, 1
             ))
 
-            total += line_amount
+            # Insert lines
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+
+                cursor.execute("""
+                    INSERT INTO genfin_vendor_credit_lines (
+                        line_id, credit_id, account_id, description, quantity,
+                        unit_price, amount, class_id, location_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(uuid.uuid4()), credit_id, line["account_id"],
+                    line.get("description", ""), line.get("quantity", 1),
+                    line.get("unit_price", 0), line_amount,
+                    line.get("class_id"), line.get("location_id")
+                ))
+
+                total += line_amount
+
+            # Update credit totals
+            cursor.execute("""
+                UPDATE genfin_vendor_credits SET total = ?, balance = ?
+                WHERE credit_id = ?
+            """, (round(total, 2), round(total, 2), credit_id))
+
+            conn.commit()
 
         # Create journal entry (reverse of bill)
-        # Debit AP, Credit expense accounts
         journal_lines = []
+        credit = self._get_credit(credit_id)
 
-        for line in credit_lines:
+        for line in credit["lines"]:
             journal_lines.append({
-                "account_id": line.account_id,
-                "description": line.description,
+                "account_id": line["account_id"],
+                "description": line["description"],
                 "debit": 0,
-                "credit": line.amount,
-                "class_id": line.class_id,
-                "location_id": line.location_id
+                "credit": line["amount"],
+                "class_id": line.get("class_id"),
+                "location_id": line.get("location_id")
             })
 
         journal_lines.append({
-            "account_id": self.default_ap_account_id,
+            "account_id": self._get_default_ap_account(),
             "description": f"Vendor Credit {credit_number}",
             "debit": total,
             "credit": 0,
@@ -866,63 +1174,121 @@ class GenFinPayablesService:
             auto_post=True
         )
 
-        credit = VendorCredit(
-            credit_id=credit_id,
-            credit_number=credit_number,
-            vendor_id=vendor_id,
-            credit_date=c_date,
-            lines=credit_lines,
-            reference_number=reference_number,
-            memo=memo,
-            total=round(total, 2),
-            amount_applied=0.0,
-            balance=round(total, 2),
-            journal_entry_id=je_result.get("entry_id")
-        )
-
-        self.credits[credit_id] = credit
+        # Update journal entry ID
+        if je_result.get("entry_id"):
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE genfin_vendor_credits SET journal_entry_id = ? WHERE credit_id = ?",
+                    (je_result["entry_id"], credit_id)
+                )
+                conn.commit()
 
         return {
             "success": True,
             "credit_id": credit_id,
             "credit_number": credit_number,
-            "credit": self._credit_to_dict(credit)
+            "credit": self._get_credit(credit_id)
         }
 
     def apply_credit_to_bill(self, credit_id: str, bill_id: str, amount: float) -> Dict:
         """Apply vendor credit to a bill"""
-        if credit_id not in self.credits:
+        credit = self._get_credit(credit_id)
+        if not credit:
             return {"success": False, "error": "Credit not found"}
-        if bill_id not in self.bills:
+
+        bill = self.get_bill(bill_id)
+        if not bill:
             return {"success": False, "error": "Bill not found"}
 
-        credit = self.credits[credit_id]
-        bill = self.bills[bill_id]
-
-        if credit.vendor_id != bill.vendor_id:
+        if credit["vendor_id"] != bill["vendor_id"]:
             return {"success": False, "error": "Credit and bill must be for the same vendor"}
-        if amount > credit.balance:
+        if amount > credit["balance"]:
             return {"success": False, "error": "Amount exceeds credit balance"}
-        if amount > bill.balance_due:
+        if amount > bill["balance_due"]:
             return {"success": False, "error": "Amount exceeds bill balance"}
 
-        # Apply credit
-        credit.amount_applied += amount
-        credit.balance = round(credit.total - credit.amount_applied, 2)
-        if credit.balance == 0:
-            credit.status = "applied"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        bill.amount_paid += amount
-        bill.balance_due = round(bill.total - bill.amount_paid, 2)
-        if bill.balance_due == 0:
-            bill.status = BillStatus.PAID
-        else:
-            bill.status = BillStatus.PARTIAL
+            # Update credit
+            new_credit_applied = credit["amount_applied"] + amount
+            new_credit_balance = round(credit["total"] - new_credit_applied, 2)
+            new_credit_status = 'applied' if new_credit_balance == 0 else 'open'
+
+            cursor.execute("""
+                UPDATE genfin_vendor_credits SET amount_applied = ?, balance = ?, status = ?
+                WHERE credit_id = ?
+            """, (new_credit_applied, new_credit_balance, new_credit_status, credit_id))
+
+            # Update bill
+            new_bill_paid = bill["amount_paid"] + amount
+            new_bill_balance = round(bill["total"] - new_bill_paid, 2)
+            new_bill_status = 'paid' if new_bill_balance == 0 else 'partial'
+
+            cursor.execute("""
+                UPDATE genfin_bills SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
+                WHERE bill_id = ?
+            """, (new_bill_paid, new_bill_balance, new_bill_status, datetime.now().isoformat(), bill_id))
+
+            conn.commit()
 
         return {
             "success": True,
-            "credit_balance": credit.balance,
-            "bill_balance": bill.balance_due
+            "credit_balance": new_credit_balance,
+            "bill_balance": new_bill_balance
+        }
+
+    def _get_credit(self, credit_id: str) -> Optional[Dict]:
+        """Get credit by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_vendor_credits WHERE credit_id = ? AND is_active = 1",
+                (credit_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_credit(row, cursor)
+        return None
+
+    def _row_to_credit(self, row: sqlite3.Row, cursor: sqlite3.Cursor) -> Dict:
+        """Convert credit row to dictionary"""
+        vendor = self.get_vendor(row['vendor_id'])
+        vendor_name = vendor['display_name'] if vendor else 'Unknown'
+
+        # Get credit lines
+        cursor.execute(
+            "SELECT * FROM genfin_vendor_credit_lines WHERE credit_id = ?",
+            (row['credit_id'],)
+        )
+        lines = [
+            {
+                "line_id": line['line_id'],
+                "account_id": line['account_id'],
+                "description": line['description'] or '',
+                "quantity": line['quantity'],
+                "unit_price": line['unit_price'],
+                "amount": line['amount']
+            }
+            for line in cursor.fetchall()
+        ]
+
+        return {
+            "credit_id": row['credit_id'],
+            "credit_number": row['credit_number'],
+            "vendor_id": row['vendor_id'],
+            "vendor_name": vendor_name,
+            "credit_date": row['credit_date'],
+            "reference_number": row['reference_number'] or '',
+            "memo": row['memo'] or '',
+            "lines": lines,
+            "total": row['total'],
+            "amount_applied": row['amount_applied'],
+            "balance": row['balance'],
+            "status": row['status'],
+            "journal_entry_id": row['journal_entry_id'],
+            "created_at": row['created_at']
         }
 
     # ==================== PURCHASE ORDERS ====================
@@ -938,150 +1304,177 @@ class GenFinPayablesService:
         terms: str = ""
     ) -> Dict:
         """Create a purchase order"""
-        if vendor_id not in self.vendors:
+        vendor = self.get_vendor(vendor_id)
+        if not vendor:
             return {"success": False, "error": "Vendor not found"}
 
         po_id = str(uuid.uuid4())
-        po_number = f"PO-{self.next_po_number:05d}"
-        self.next_po_number += 1
+        po_number = f"PO-{self._get_next_number('next_po_number'):05d}"
 
         o_date = datetime.strptime(order_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(expected_date, "%Y-%m-%d").date() if expected_date else None
+        now = datetime.now().isoformat()
 
-        # Process lines
-        po_lines = []
         subtotal = 0.0
 
-        for line in lines:
-            line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            po_lines.append(PurchaseOrderLine(
-                line_id=str(uuid.uuid4()),
-                item_description=line.get("description", ""),
-                quantity=line.get("quantity", 1),
-                unit_price=line.get("unit_price", 0),
-                amount=line_amount,
-                account_id=line.get("account_id"),
-                class_id=line.get("class_id")
+            # Insert PO
+            cursor.execute("""
+                INSERT INTO genfin_purchase_orders (
+                    po_id, po_number, vendor_id, order_date, expected_date,
+                    ship_to_address, memo, terms, subtotal, tax_total, total,
+                    status, created_at, updated_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                po_id, po_number, vendor_id, o_date.isoformat(), expected_date,
+                ship_to_address, memo, terms or vendor['payment_terms'],
+                0.0, 0.0, 0.0, 'draft', now, now, 1
             ))
 
-            subtotal += line_amount
+            # Insert lines
+            for line in lines:
+                line_amount = line.get("quantity", 1) * line.get("unit_price", 0)
 
-        po = PurchaseOrder(
-            po_id=po_id,
-            po_number=po_number,
-            vendor_id=vendor_id,
-            order_date=o_date,
-            expected_date=e_date,
-            lines=po_lines,
-            ship_to_address=ship_to_address,
-            memo=memo,
-            terms=terms or self.vendors[vendor_id].payment_terms,
-            subtotal=round(subtotal, 2),
-            total=round(subtotal, 2),
-            status=PurchaseOrderStatus.DRAFT
-        )
+                cursor.execute("""
+                    INSERT INTO genfin_purchase_order_lines (
+                        line_id, po_id, item_description, quantity, unit_price,
+                        amount, quantity_received, account_id, class_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(uuid.uuid4()), po_id, line.get("description", ""),
+                    line.get("quantity", 1), line.get("unit_price", 0),
+                    line_amount, 0.0, line.get("account_id"), line.get("class_id")
+                ))
 
-        self.purchase_orders[po_id] = po
+                subtotal += line_amount
+
+            # Update PO totals
+            cursor.execute("""
+                UPDATE genfin_purchase_orders SET subtotal = ?, total = ?
+                WHERE po_id = ?
+            """, (round(subtotal, 2), round(subtotal, 2), po_id))
+
+            conn.commit()
 
         return {
             "success": True,
             "po_id": po_id,
             "po_number": po_number,
-            "purchase_order": self._po_to_dict(po)
+            "purchase_order": self._get_po(po_id)
         }
 
     def approve_purchase_order(self, po_id: str, approved_by: str) -> Dict:
         """Approve a purchase order"""
-        if po_id not in self.purchase_orders:
+        po = self._get_po(po_id)
+        if not po:
             return {"success": False, "error": "Purchase order not found"}
 
-        po = self.purchase_orders[po_id]
-
-        if po.status != PurchaseOrderStatus.DRAFT and po.status != PurchaseOrderStatus.PENDING:
+        if po["status"] not in ['draft', 'pending']:
             return {"success": False, "error": "Cannot approve PO in current status"}
 
-        po.status = PurchaseOrderStatus.APPROVED
-        po.approved_by = approved_by
-        po.approved_date = date.today()
-        po.updated_at = datetime.now()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_purchase_orders
+                SET status = ?, approved_by = ?, approved_date = ?, updated_at = ?
+                WHERE po_id = ?
+            """, ('approved', approved_by, date.today().isoformat(), datetime.now().isoformat(), po_id))
+            conn.commit()
 
         return {
             "success": True,
-            "purchase_order": self._po_to_dict(po)
+            "purchase_order": self._get_po(po_id)
         }
 
     def receive_purchase_order(self, po_id: str, lines_received: List[Dict]) -> Dict:
         """Record receipt of items on a purchase order"""
-        if po_id not in self.purchase_orders:
+        po = self._get_po(po_id)
+        if not po:
             return {"success": False, "error": "Purchase order not found"}
 
-        po = self.purchase_orders[po_id]
-
-        if po.status not in [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.PARTIAL]:
+        if po["status"] not in ['approved', 'partial']:
             return {"success": False, "error": "PO must be approved before receiving"}
 
-        # Update quantities received
-        all_received = True
-        for receipt in lines_received:
-            line_id = receipt["line_id"]
-            qty = receipt["quantity_received"]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            for line in po.lines:
-                if line.line_id == line_id:
-                    line.quantity_received += qty
-                    if line.quantity_received < line.quantity:
+            all_received = True
+            for receipt in lines_received:
+                line_id = receipt["line_id"]
+                qty = receipt["quantity_received"]
+
+                # Get current quantity received
+                cursor.execute(
+                    "SELECT quantity, quantity_received FROM genfin_purchase_order_lines WHERE line_id = ?",
+                    (line_id,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    new_qty_received = row['quantity_received'] + qty
+                    cursor.execute(
+                        "UPDATE genfin_purchase_order_lines SET quantity_received = ? WHERE line_id = ?",
+                        (new_qty_received, line_id)
+                    )
+                    if new_qty_received < row['quantity']:
                         all_received = False
-                    break
 
-        if all_received:
-            po.status = PurchaseOrderStatus.RECEIVED
-        else:
-            po.status = PurchaseOrderStatus.PARTIAL
+            # Update PO status
+            new_status = 'received' if all_received else 'partial'
+            cursor.execute("""
+                UPDATE genfin_purchase_orders SET status = ?, updated_at = ?
+                WHERE po_id = ?
+            """, (new_status, datetime.now().isoformat(), po_id))
 
-        po.updated_at = datetime.now()
+            conn.commit()
 
         return {
             "success": True,
-            "status": po.status.value,
-            "purchase_order": self._po_to_dict(po)
+            "status": new_status,
+            "purchase_order": self._get_po(po_id)
         }
 
     def convert_po_to_bill(self, po_id: str, bill_date: str, reference_number: str = "") -> Dict:
         """Convert a received purchase order to a bill"""
-        if po_id not in self.purchase_orders:
+        po = self._get_po(po_id)
+        if not po:
             return {"success": False, "error": "Purchase order not found"}
 
-        po = self.purchase_orders[po_id]
-
-        if po.status not in [PurchaseOrderStatus.RECEIVED, PurchaseOrderStatus.PARTIAL]:
+        if po["status"] not in ['received', 'partial']:
             return {"success": False, "error": "PO must be received before converting to bill"}
+
+        vendor = self.get_vendor(po["vendor_id"])
 
         # Create bill lines from PO lines
         bill_lines = []
-        for line in po.lines:
-            if line.quantity_received > 0:
+        for line in po["lines"]:
+            if line["quantity_received"] > 0:
                 bill_lines.append({
-                    "account_id": line.account_id or self.vendors[po.vendor_id].default_expense_account_id,
-                    "description": line.item_description,
-                    "quantity": line.quantity_received,
-                    "unit_price": line.unit_price,
-                    "class_id": line.class_id
+                    "account_id": line.get("account_id") or vendor.get("default_expense_account_id"),
+                    "description": line["item_description"],
+                    "quantity": line["quantity_received"],
+                    "unit_price": line["unit_price"],
+                    "class_id": line.get("class_id")
                 })
 
         result = self.create_bill(
-            vendor_id=po.vendor_id,
+            vendor_id=po["vendor_id"],
             bill_date=bill_date,
             lines=bill_lines,
             reference_number=reference_number,
-            terms=po.terms,
-            memo=f"From PO {po.po_number}",
+            terms=po["terms"],
+            memo=f"From PO {po['po_number']}",
             purchase_order_id=po_id
         )
 
         if result["success"]:
-            po.status = PurchaseOrderStatus.CLOSED
-            po.updated_at = datetime.now()
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE genfin_purchase_orders SET status = ?, updated_at = ?
+                    WHERE po_id = ?
+                """, ('closed', datetime.now().isoformat(), po_id))
+                conn.commit()
 
         return result
 
@@ -1093,23 +1486,87 @@ class GenFinPayablesService:
         end_date: Optional[str] = None
     ) -> List[Dict]:
         """List purchase orders"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for po in self.purchase_orders.values():
-            if vendor_id and po.vendor_id != vendor_id:
-                continue
-            if status and po.status.value != status:
-                continue
+            query = "SELECT * FROM genfin_purchase_orders WHERE is_active = 1"
+            params = []
+
+            if vendor_id:
+                query += " AND vendor_id = ?"
+                params.append(vendor_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
             if start_date:
-                if po.order_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND order_date >= ?"
+                params.append(start_date)
             if end_date:
-                if po.order_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND order_date <= ?"
+                params.append(end_date)
 
-            result.append(self._po_to_dict(po))
+            query += " ORDER BY order_date DESC"
 
-        return sorted(result, key=lambda p: p["order_date"], reverse=True)
+            cursor.execute(query, params)
+            return [self._row_to_po(row, cursor) for row in cursor.fetchall()]
+
+    def _get_po(self, po_id: str) -> Optional[Dict]:
+        """Get purchase order by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_purchase_orders WHERE po_id = ? AND is_active = 1",
+                (po_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_po(row, cursor)
+        return None
+
+    def _row_to_po(self, row: sqlite3.Row, cursor: sqlite3.Cursor) -> Dict:
+        """Convert PO row to dictionary"""
+        vendor = self.get_vendor(row['vendor_id'])
+        vendor_name = vendor['display_name'] if vendor else 'Unknown'
+
+        # Get PO lines
+        cursor.execute(
+            "SELECT * FROM genfin_purchase_order_lines WHERE po_id = ?",
+            (row['po_id'],)
+        )
+        lines = [
+            {
+                "line_id": line['line_id'],
+                "item_description": line['item_description'] or '',
+                "quantity": line['quantity'],
+                "unit_price": line['unit_price'],
+                "amount": line['amount'],
+                "quantity_received": line['quantity_received'],
+                "account_id": line['account_id'],
+                "class_id": line['class_id']
+            }
+            for line in cursor.fetchall()
+        ]
+
+        return {
+            "po_id": row['po_id'],
+            "po_number": row['po_number'],
+            "vendor_id": row['vendor_id'],
+            "vendor_name": vendor_name,
+            "order_date": row['order_date'],
+            "expected_date": row['expected_date'],
+            "ship_to_address": row['ship_to_address'] or '',
+            "memo": row['memo'] or '',
+            "terms": row['terms'] or '',
+            "lines": lines,
+            "subtotal": row['subtotal'],
+            "tax_total": row['tax_total'],
+            "total": row['total'],
+            "status": row['status'],
+            "approved_by": row['approved_by'],
+            "approved_date": row['approved_date'],
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
+        }
 
     # ==================== REPORTS ====================
 
@@ -1133,43 +1590,47 @@ class GenFinPayablesService:
             }
         }
 
-        for bill in self.bills.values():
-            if bill.status not in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE]:
-                continue
-            if bill.bill_date > ref_date:
+        bills = self.list_bills(unpaid_only=True)
+
+        for bill in bills:
+            bill_date = datetime.strptime(bill["bill_date"], "%Y-%m-%d").date()
+            if bill_date > ref_date:
                 continue
 
-            days_old = (ref_date - bill.due_date).days
-            vendor_name = self.vendors[bill.vendor_id].display_name if bill.vendor_id in self.vendors else "Unknown"
+            due_date = datetime.strptime(bill["due_date"], "%Y-%m-%d").date()
+            days_old = (ref_date - due_date).days
+
+            vendor = self.get_vendor(bill["vendor_id"])
+            vendor_name = vendor['display_name'] if vendor else 'Unknown'
 
             entry = {
-                "bill_id": bill.bill_id,
-                "bill_number": bill.bill_number,
-                "vendor_id": bill.vendor_id,
+                "bill_id": bill["bill_id"],
+                "bill_number": bill["bill_number"],
+                "vendor_id": bill["vendor_id"],
                 "vendor_name": vendor_name,
-                "bill_date": bill.bill_date.isoformat(),
-                "due_date": bill.due_date.isoformat(),
+                "bill_date": bill["bill_date"],
+                "due_date": bill["due_date"],
                 "days_overdue": max(0, days_old),
-                "balance": bill.balance_due
+                "balance": bill["balance_due"]
             }
 
             if days_old <= 0:
                 aging["current"].append(entry)
-                aging["totals"]["current"] += bill.balance_due
+                aging["totals"]["current"] += bill["balance_due"]
             elif days_old <= 30:
                 aging["1_30"].append(entry)
-                aging["totals"]["1_30"] += bill.balance_due
+                aging["totals"]["1_30"] += bill["balance_due"]
             elif days_old <= 60:
                 aging["31_60"].append(entry)
-                aging["totals"]["31_60"] += bill.balance_due
+                aging["totals"]["31_60"] += bill["balance_due"]
             elif days_old <= 90:
                 aging["61_90"].append(entry)
-                aging["totals"]["61_90"] += bill.balance_due
+                aging["totals"]["61_90"] += bill["balance_due"]
             else:
                 aging["over_90"].append(entry)
-                aging["totals"]["over_90"] += bill.balance_due
+                aging["totals"]["over_90"] += bill["balance_due"]
 
-            aging["totals"]["total"] += bill.balance_due
+            aging["totals"]["total"] += bill["balance_due"]
 
         # Round totals
         for key in aging["totals"]:
@@ -1184,28 +1645,26 @@ class GenFinPayablesService:
         """Get 1099 summary for vendors"""
         result = []
 
-        for vendor in self.vendors.values():
-            if not vendor.is_1099_vendor:
-                continue
+        vendors = self.list_vendors(is_1099=True)
 
+        for vendor in vendors:
             total_payments = 0.0
 
-            for payment in self.payments.values():
-                if payment.vendor_id != vendor.vendor_id:
+            payments = self.list_payments(vendor_id=vendor["vendor_id"])
+            for payment in payments:
+                if payment["is_voided"]:
                     continue
-                if payment.is_voided:
+                payment_date = datetime.strptime(payment["payment_date"], "%Y-%m-%d").date()
+                if payment_date.year != year:
                     continue
-                if payment.payment_date.year != year:
-                    continue
-
-                total_payments += payment.total_amount
+                total_payments += payment["total_amount"]
 
             if total_payments > 0:
                 result.append({
-                    "vendor_id": vendor.vendor_id,
-                    "vendor_name": vendor.display_name,
-                    "tax_id": vendor.tax_id,
-                    "address": f"{vendor.billing_address_line1}, {vendor.billing_city}, {vendor.billing_state} {vendor.billing_zip}",
+                    "vendor_id": vendor["vendor_id"],
+                    "vendor_name": vendor["display_name"],
+                    "tax_id": vendor["tax_id"],
+                    "address": f"{vendor['billing_address']['line1']}, {vendor['billing_address']['city']}, {vendor['billing_address']['state']} {vendor['billing_address']['zip']}",
                     "total_payments": round(total_payments, 2),
                     "requires_1099": total_payments >= 600  # IRS threshold
                 })
@@ -1220,25 +1679,27 @@ class GenFinPayablesService:
         bills_due = []
         total_due = 0.0
 
-        for bill in self.bills.values():
-            if bill.status not in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE]:
-                continue
-            if bill.due_date > end_date:
+        bills = self.list_bills(unpaid_only=True)
+
+        for bill in bills:
+            due_date = datetime.strptime(bill["due_date"], "%Y-%m-%d").date()
+            if due_date > end_date:
                 continue
 
-            vendor_name = self.vendors[bill.vendor_id].display_name if bill.vendor_id in self.vendors else "Unknown"
+            vendor = self.get_vendor(bill["vendor_id"])
+            vendor_name = vendor['display_name'] if vendor else 'Unknown'
 
             bills_due.append({
-                "bill_id": bill.bill_id,
-                "bill_number": bill.bill_number,
+                "bill_id": bill["bill_id"],
+                "bill_number": bill["bill_number"],
                 "vendor_name": vendor_name,
-                "due_date": bill.due_date.isoformat(),
-                "balance": bill.balance_due,
-                "days_until_due": (bill.due_date - today).days,
-                "is_overdue": bill.due_date < today
+                "due_date": bill["due_date"],
+                "balance": bill["balance_due"],
+                "days_until_due": (due_date - today).days,
+                "is_overdue": due_date < today
             })
 
-            total_due += bill.balance_due
+            total_due += bill["balance_due"]
 
         return {
             "period_start": today.isoformat(),
@@ -1248,187 +1709,49 @@ class GenFinPayablesService:
             "bills": sorted(bills_due, key=lambda b: b["due_date"])
         }
 
-    # ==================== UTILITY METHODS ====================
-
-    def _vendor_to_dict(self, vendor: Vendor) -> Dict:
-        """Convert Vendor to dictionary"""
-        return {
-            "vendor_id": vendor.vendor_id,
-            "company_name": vendor.company_name,
-            "display_name": vendor.display_name,
-            "contact_name": vendor.contact_name,
-            "email": vendor.email,
-            "phone": vendor.phone,
-            "mobile": vendor.mobile,
-            "website": vendor.website,
-            "billing_address": {
-                "line1": vendor.billing_address_line1,
-                "line2": vendor.billing_address_line2,
-                "city": vendor.billing_city,
-                "state": vendor.billing_state,
-                "zip": vendor.billing_zip,
-                "country": vendor.billing_country
-            },
-            "tax_id": vendor.tax_id,
-            "is_1099_vendor": vendor.is_1099_vendor,
-            "default_expense_account_id": vendor.default_expense_account_id,
-            "payment_terms": vendor.payment_terms,
-            "credit_limit": vendor.credit_limit,
-            "vendor_type": vendor.vendor_type,
-            "notes": vendor.notes,
-            "status": vendor.status.value,
-            "created_at": vendor.created_at.isoformat(),
-            "updated_at": vendor.updated_at.isoformat()
-        }
-
-    def _bill_to_dict(self, bill: Bill) -> Dict:
-        """Convert Bill to dictionary"""
-        vendor_name = self.vendors[bill.vendor_id].display_name if bill.vendor_id in self.vendors else "Unknown"
-
-        return {
-            "bill_id": bill.bill_id,
-            "bill_number": bill.bill_number,
-            "vendor_id": bill.vendor_id,
-            "vendor_name": vendor_name,
-            "bill_date": bill.bill_date.isoformat(),
-            "due_date": bill.due_date.isoformat(),
-            "reference_number": bill.reference_number,
-            "terms": bill.terms,
-            "memo": bill.memo,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "description": line.description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount,
-                    "tax_code": line.tax_code,
-                    "tax_amount": line.tax_amount,
-                    "class_id": line.class_id,
-                    "location_id": line.location_id
-                }
-                for line in bill.lines
-            ],
-            "subtotal": bill.subtotal,
-            "tax_total": bill.tax_total,
-            "total": bill.total,
-            "amount_paid": bill.amount_paid,
-            "balance_due": bill.balance_due,
-            "status": bill.status.value,
-            "purchase_order_id": bill.purchase_order_id,
-            "journal_entry_id": bill.journal_entry_id,
-            "created_at": bill.created_at.isoformat(),
-            "updated_at": bill.updated_at.isoformat()
-        }
-
-    def _payment_to_dict(self, payment: BillPayment) -> Dict:
-        """Convert BillPayment to dictionary"""
-        vendor_name = self.vendors[payment.vendor_id].display_name if payment.vendor_id in self.vendors else "Unknown"
-
-        return {
-            "payment_id": payment.payment_id,
-            "payment_date": payment.payment_date.isoformat(),
-            "vendor_id": payment.vendor_id,
-            "vendor_name": vendor_name,
-            "bank_account_id": payment.bank_account_id,
-            "payment_method": payment.payment_method.value,
-            "reference_number": payment.reference_number,
-            "memo": payment.memo,
-            "total_amount": payment.total_amount,
-            "applied_bills": payment.applied_bills,
-            "is_voided": payment.is_voided,
-            "journal_entry_id": payment.journal_entry_id,
-            "created_at": payment.created_at.isoformat()
-        }
-
-    def _credit_to_dict(self, credit: VendorCredit) -> Dict:
-        """Convert VendorCredit to dictionary"""
-        vendor_name = self.vendors[credit.vendor_id].display_name if credit.vendor_id in self.vendors else "Unknown"
-
-        return {
-            "credit_id": credit.credit_id,
-            "credit_number": credit.credit_number,
-            "vendor_id": credit.vendor_id,
-            "vendor_name": vendor_name,
-            "credit_date": credit.credit_date.isoformat(),
-            "reference_number": credit.reference_number,
-            "memo": credit.memo,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "description": line.description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount
-                }
-                for line in credit.lines
-            ],
-            "total": credit.total,
-            "amount_applied": credit.amount_applied,
-            "balance": credit.balance,
-            "status": credit.status,
-            "journal_entry_id": credit.journal_entry_id,
-            "created_at": credit.created_at.isoformat()
-        }
-
-    def _po_to_dict(self, po: PurchaseOrder) -> Dict:
-        """Convert PurchaseOrder to dictionary"""
-        vendor_name = self.vendors[po.vendor_id].display_name if po.vendor_id in self.vendors else "Unknown"
-
-        return {
-            "po_id": po.po_id,
-            "po_number": po.po_number,
-            "vendor_id": po.vendor_id,
-            "vendor_name": vendor_name,
-            "order_date": po.order_date.isoformat(),
-            "expected_date": po.expected_date.isoformat() if po.expected_date else None,
-            "ship_to_address": po.ship_to_address,
-            "memo": po.memo,
-            "terms": po.terms,
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "item_description": line.item_description,
-                    "quantity": line.quantity,
-                    "unit_price": line.unit_price,
-                    "amount": line.amount,
-                    "quantity_received": line.quantity_received,
-                    "account_id": line.account_id,
-                    "class_id": line.class_id
-                }
-                for line in po.lines
-            ],
-            "subtotal": po.subtotal,
-            "tax_total": po.tax_total,
-            "total": po.total,
-            "status": po.status.value,
-            "approved_by": po.approved_by,
-            "approved_date": po.approved_date.isoformat() if po.approved_date else None,
-            "created_at": po.created_at.isoformat(),
-            "updated_at": po.updated_at.isoformat()
-        }
+    # ==================== SERVICE SUMMARY ====================
 
     def get_service_summary(self) -> Dict:
         """Get GenFin Payables service summary"""
-        total_vendors = len(self.vendors)
-        active_vendors = sum(1 for v in self.vendors.values() if v.status == VendorStatus.ACTIVE)
-        total_bills = len(self.bills)
-        open_bills = sum(1 for b in self.bills.values() if b.status in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE])
-        total_outstanding = sum(b.balance_due for b in self.bills.values() if b.status in [BillStatus.OPEN, BillStatus.PARTIAL, BillStatus.OVERDUE])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_vendors WHERE is_active = 1")
+            total_vendors = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_vendors WHERE is_active = 1 AND status = 'active'")
+            active_vendors = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_bills WHERE is_active = 1")
+            total_bills = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_bills WHERE is_active = 1 AND status IN ('open', 'partial', 'overdue')")
+            open_bills = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COALESCE(SUM(balance_due), 0) as total FROM genfin_bills WHERE is_active = 1 AND status IN ('open', 'partial', 'overdue')")
+            total_outstanding = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_bill_payments WHERE is_active = 1")
+            total_payments = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_vendor_credits WHERE is_active = 1")
+            total_credits = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_purchase_orders WHERE is_active = 1")
+            total_pos = cursor.fetchone()['count']
 
         return {
             "service": "GenFin Payables",
-            "version": "1.0.0",
+            "version": "2.0.0",
+            "storage": "SQLite",
             "total_vendors": total_vendors,
             "active_vendors": active_vendors,
             "total_bills": total_bills,
             "open_bills": open_bills,
             "total_outstanding": round(total_outstanding, 2),
-            "total_payments": len(self.payments),
-            "total_credits": len(self.credits),
-            "total_purchase_orders": len(self.purchase_orders)
+            "total_payments": total_payments,
+            "total_credits": total_credits,
+            "total_purchase_orders": total_pos
         }
 
 

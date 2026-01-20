@@ -1,13 +1,15 @@
 """
 GenFin Banking Service - Bank Accounts, Transactions, Reconciliation, CHECK PRINTING, ACH/Direct Deposit
 Complete banking and check management for farm operations
+SQLite-backed persistence
 """
 
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from enum import Enum
-from dataclasses import dataclass, field
 import uuid
+import sqlite3
+import json
 import math
 
 from .genfin_core_service import genfin_core_service
@@ -43,7 +45,7 @@ class CheckStatus(Enum):
     CLEARED = "cleared"
     VOIDED = "voided"
     OUTSTANDING = "outstanding"
-    STALE = "stale"  # Over 180 days
+    STALE = "stale"
 
 
 class ReconciliationStatus(Enum):
@@ -55,247 +57,23 @@ class ReconciliationStatus(Enum):
 
 class CheckFormat(Enum):
     """Check printing formats"""
-    STANDARD_TOP = "standard_top"  # Check on top, stub below
-    STANDARD_MIDDLE = "standard_middle"  # Stub, check, stub
-    STANDARD_BOTTOM = "standard_bottom"  # Stub on top, check below
-    VOUCHER_3UP = "voucher_3up"  # 3 checks per page with vouchers
-    WALLET = "wallet"  # Personal wallet-size checks
-    PROFESSIONAL_STANDARD = "professional_standard"  # Professional accounting compatible format
-    PROFESSIONAL_VOUCHER = "professional_voucher"  # Professional voucher checks
+    STANDARD_TOP = "standard_top"
+    STANDARD_MIDDLE = "standard_middle"
+    STANDARD_BOTTOM = "standard_bottom"
+    VOUCHER_3UP = "voucher_3up"
+    WALLET = "wallet"
+    PROFESSIONAL_STANDARD = "professional_standard"
+    PROFESSIONAL_VOUCHER = "professional_voucher"
+    QUICKBOOKS_STANDARD = "quickbooks_standard"
+    QUICKBOOKS_VOUCHER = "quickbooks_voucher"
 
 
 class ACHTransactionCode(Enum):
     """ACH/NACHA transaction codes"""
-    CHECKING_CREDIT = "22"  # Deposit to checking
-    CHECKING_DEBIT = "27"  # Withdrawal from checking
-    SAVINGS_CREDIT = "32"  # Deposit to savings
-    SAVINGS_DEBIT = "37"  # Withdrawal from savings
-    CHECKING_CREDIT_PRENOTE = "23"  # Prenote for checking deposit
-    CHECKING_DEBIT_PRENOTE = "28"  # Prenote for checking withdrawal
-
-
-@dataclass
-class BankAccount:
-    """Bank account record"""
-    bank_account_id: str
-    account_name: str
-    account_type: BankAccountType
-
-    # Bank details
-    bank_name: str
-    routing_number: str
-    account_number: str
-
-    # Check printing
-    check_printing_enabled: bool = True
-    next_check_number: int = 1001
-    check_format: CheckFormat = CheckFormat.PROFESSIONAL_VOUCHER
-
-    # Direct deposit
-    ach_enabled: bool = False
-    ach_company_id: str = ""  # Your company's ACH ID
-    ach_company_name: str = ""
-
-    # Linked GL account
-    gl_account_id: Optional[str] = None
-
-    # Balance tracking
-    current_balance: float = 0.0
-    available_balance: float = 0.0
-    last_reconciled_date: Optional[date] = None
-    last_reconciled_balance: float = 0.0
-
-    # Status
-    is_active: bool = True
-    is_default: bool = False
-
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class BankTransaction:
-    """Bank transaction record"""
-    transaction_id: str
-    bank_account_id: str
-    transaction_date: date
-    transaction_type: TransactionType
-
-    amount: float
-    payee: str = ""
-    memo: str = ""
-    reference_number: str = ""  # Check number, confirmation, etc.
-
-    # Categorization
-    category_account_id: Optional[str] = None
-
-    # Reconciliation
-    is_reconciled: bool = False
-    reconciled_date: Optional[date] = None
-
-    # Linking
-    journal_entry_id: Optional[str] = None
-    check_id: Optional[str] = None
-    transfer_id: Optional[str] = None
-
-    # Import tracking
-    imported: bool = False
-    import_id: Optional[str] = None
-    fitid: Optional[str] = None  # Financial Institution Transaction ID
-
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Check:
-    """Check record for printing and tracking"""
-    check_id: str
-    bank_account_id: str
-    check_number: int
-    check_date: date
-
-    # Payee info
-    payee_name: str
-    payee_address_line1: str = ""
-    payee_address_line2: str = ""
-    payee_city: str = ""
-    payee_state: str = ""
-    payee_zip: str = ""
-
-    # Amount
-    amount: float = 0.0
-    amount_in_words: str = ""
-
-    # Details
-    memo: str = ""
-    voucher_description: str = ""  # Detailed description for voucher stub
-
-    # For bill payments
-    bills_paid: List[Dict] = field(default_factory=list)  # [{bill_id, bill_number, amount}]
-    vendor_id: Optional[str] = None
-
-    # Status
-    status: CheckStatus = CheckStatus.PRINTED
-    printed_at: Optional[datetime] = None
-    cleared_date: Optional[date] = None
-    voided_date: Optional[date] = None
-    void_reason: str = ""
-
-    # Signature
-    signature_line_1: str = ""  # For printed signature or blank line
-    signature_line_2: str = ""  # Second signature if required
-    requires_two_signatures: bool = False
-    two_signature_threshold: float = 10000.0
-
-    # Linking
-    journal_entry_id: Optional[str] = None
-    transaction_id: Optional[str] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class CheckPrintBatch:
-    """Batch of checks to print"""
-    batch_id: str
-    bank_account_id: str
-    checks: List[str]  # Check IDs
-    created_at: datetime = field(default_factory=datetime.now)
-    printed_at: Optional[datetime] = None
-    print_status: str = "pending"  # pending, printing, completed, failed
-
-
-@dataclass
-class Deposit:
-    """Bank deposit record"""
-    deposit_id: str
-    bank_account_id: str
-    deposit_date: date
-    amount: float = 0.0
-    memo: str = ""
-    lines: List[Dict] = field(default_factory=list)  # [{account_id, amount, description}]
-    journal_entry_id: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class ACHBatch:
-    """ACH/Direct Deposit batch"""
-    batch_id: str
-    bank_account_id: str
-    batch_date: date
-    effective_date: date
-
-    # Batch header info
-    company_name: str
-    company_id: str
-    batch_description: str = ""  # e.g., "PAYROLL", "VENDOR PMT"
-
-    # Entries
-    entries: List[Dict] = field(default_factory=list)
-    # Each entry: {recipient_name, routing_number, account_number, account_type, amount, transaction_code, individual_id}
-
-    # Totals
-    total_debit: float = 0.0
-    total_credit: float = 0.0
-    entry_count: int = 0
-
-    # Status
-    status: str = "created"  # created, generated, submitted, processed
-    nacha_file_content: str = ""
-
-    created_at: datetime = field(default_factory=datetime.now)
-    submitted_at: Optional[datetime] = None
-
-
-@dataclass
-class Reconciliation:
-    """Bank reconciliation session"""
-    reconciliation_id: str
-    bank_account_id: str
-    statement_date: date
-    statement_ending_balance: float
-
-    # Period
-    period_start: date
-    period_end: date
-
-    # Calculated values
-    beginning_balance: float = 0.0
-    cleared_deposits: float = 0.0
-    cleared_payments: float = 0.0
-    cleared_balance: float = 0.0
-
-    # Outstanding items
-    outstanding_deposits: List[str] = field(default_factory=list)
-    outstanding_checks: List[str] = field(default_factory=list)
-
-    # Difference
-    difference: float = 0.0
-
-    # Status
-    status: ReconciliationStatus = ReconciliationStatus.IN_PROGRESS
-    completed_at: Optional[datetime] = None
-    completed_by: str = ""
-
-    created_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Transfer:
-    """Bank transfer between accounts"""
-    transfer_id: str
-    from_account_id: str
-    to_account_id: str
-    transfer_date: date
-    amount: float
-    memo: str = ""
-
-    from_transaction_id: Optional[str] = None
-    to_transaction_id: Optional[str] = None
-    journal_entry_id: Optional[str] = None
-
-    created_at: datetime = field(default_factory=datetime.now)
+    CHECKING_CREDIT = "22"
+    CHECKING_DEBIT = "27"
+    SAVINGS_CREDIT = "32"
+    SAVINGS_DEBIT = "37"
 
 
 # Number to words conversion for check amounts
@@ -345,7 +123,7 @@ def number_to_words(amount: float) -> str:
 
 class GenFinBankingService:
     """
-    GenFin Banking Service
+    GenFin Banking Service - SQLite backed
 
     Complete banking functionality:
     - Bank account management
@@ -358,26 +136,251 @@ class GenFinBankingService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
-
-        self.bank_accounts: Dict[str, BankAccount] = {}
-        self.transactions: Dict[str, BankTransaction] = {}
-        self.checks: Dict[str, Check] = {}
-        self.check_batches: Dict[str, CheckPrintBatch] = {}
-        self.deposits: Dict[str, Deposit] = {}
-        self.ach_batches: Dict[str, ACHBatch] = {}
-        self.reconciliations: Dict[str, Reconciliation] = {}
-        self.transfers: Dict[str, Transfer] = {}
-
+        self.db_path = db_path
+        self._init_tables()
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get database connection with row factory"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Bank accounts table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_bank_accounts (
+                    bank_account_id TEXT PRIMARY KEY,
+                    account_name TEXT NOT NULL,
+                    account_type TEXT NOT NULL,
+                    bank_name TEXT NOT NULL,
+                    routing_number TEXT NOT NULL,
+                    account_number TEXT NOT NULL,
+                    check_printing_enabled INTEGER DEFAULT 1,
+                    next_check_number INTEGER DEFAULT 1001,
+                    check_format TEXT DEFAULT 'professional_voucher',
+                    ach_enabled INTEGER DEFAULT 0,
+                    ach_company_id TEXT DEFAULT '',
+                    ach_company_name TEXT DEFAULT '',
+                    gl_account_id TEXT,
+                    current_balance REAL DEFAULT 0.0,
+                    available_balance REAL DEFAULT 0.0,
+                    last_reconciled_date TEXT,
+                    last_reconciled_balance REAL DEFAULT 0.0,
+                    is_active INTEGER DEFAULT 1,
+                    is_default INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Bank transactions table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_bank_transactions (
+                    transaction_id TEXT PRIMARY KEY,
+                    bank_account_id TEXT NOT NULL,
+                    transaction_date TEXT NOT NULL,
+                    transaction_type TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    payee TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    reference_number TEXT DEFAULT '',
+                    category_account_id TEXT,
+                    is_reconciled INTEGER DEFAULT 0,
+                    reconciled_date TEXT,
+                    journal_entry_id TEXT,
+                    check_id TEXT,
+                    transfer_id TEXT,
+                    imported INTEGER DEFAULT 0,
+                    import_id TEXT,
+                    fitid TEXT,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (bank_account_id) REFERENCES genfin_bank_accounts (bank_account_id)
+                )
+            """)
+
+            # Checks table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_checks (
+                    check_id TEXT PRIMARY KEY,
+                    bank_account_id TEXT NOT NULL,
+                    check_number INTEGER NOT NULL,
+                    check_date TEXT NOT NULL,
+                    payee_name TEXT NOT NULL,
+                    payee_address_line1 TEXT DEFAULT '',
+                    payee_address_line2 TEXT DEFAULT '',
+                    payee_city TEXT DEFAULT '',
+                    payee_state TEXT DEFAULT '',
+                    payee_zip TEXT DEFAULT '',
+                    amount REAL NOT NULL,
+                    amount_in_words TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    voucher_description TEXT DEFAULT '',
+                    bills_paid TEXT DEFAULT '[]',
+                    vendor_id TEXT,
+                    status TEXT DEFAULT 'outstanding',
+                    printed_at TEXT,
+                    cleared_date TEXT,
+                    voided_date TEXT,
+                    void_reason TEXT DEFAULT '',
+                    signature_line_1 TEXT DEFAULT '',
+                    signature_line_2 TEXT DEFAULT '',
+                    requires_two_signatures INTEGER DEFAULT 0,
+                    two_signature_threshold REAL DEFAULT 10000.0,
+                    journal_entry_id TEXT,
+                    transaction_id TEXT,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (bank_account_id) REFERENCES genfin_bank_accounts (bank_account_id)
+                )
+            """)
+
+            # Check batches table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_check_batches (
+                    batch_id TEXT PRIMARY KEY,
+                    bank_account_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    printed_at TEXT,
+                    print_status TEXT DEFAULT 'pending',
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (bank_account_id) REFERENCES genfin_bank_accounts (bank_account_id)
+                )
+            """)
+
+            # Check batch items table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_check_batch_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id TEXT NOT NULL,
+                    check_id TEXT NOT NULL,
+                    FOREIGN KEY (batch_id) REFERENCES genfin_check_batches (batch_id)
+                )
+            """)
+
+            # Deposits table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_deposits (
+                    deposit_id TEXT PRIMARY KEY,
+                    bank_account_id TEXT NOT NULL,
+                    deposit_date TEXT NOT NULL,
+                    amount REAL DEFAULT 0.0,
+                    memo TEXT DEFAULT '',
+                    journal_entry_id TEXT,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (bank_account_id) REFERENCES genfin_bank_accounts (bank_account_id)
+                )
+            """)
+
+            # Deposit lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_deposit_lines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    deposit_id TEXT NOT NULL,
+                    account_id TEXT,
+                    amount REAL DEFAULT 0.0,
+                    description TEXT DEFAULT '',
+                    FOREIGN KEY (deposit_id) REFERENCES genfin_deposits (deposit_id)
+                )
+            """)
+
+            # ACH batches table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_ach_batches (
+                    batch_id TEXT PRIMARY KEY,
+                    bank_account_id TEXT NOT NULL,
+                    batch_date TEXT NOT NULL,
+                    effective_date TEXT NOT NULL,
+                    company_name TEXT DEFAULT '',
+                    company_id TEXT DEFAULT '',
+                    batch_description TEXT DEFAULT '',
+                    total_debit REAL DEFAULT 0.0,
+                    total_credit REAL DEFAULT 0.0,
+                    entry_count INTEGER DEFAULT 0,
+                    status TEXT DEFAULT 'created',
+                    nacha_file_content TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    submitted_at TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (bank_account_id) REFERENCES genfin_bank_accounts (bank_account_id)
+                )
+            """)
+
+            # ACH entries table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_ach_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id TEXT NOT NULL,
+                    recipient_name TEXT NOT NULL,
+                    routing_number TEXT NOT NULL,
+                    account_number TEXT NOT NULL,
+                    account_type TEXT DEFAULT 'checking',
+                    amount REAL NOT NULL,
+                    transaction_code TEXT NOT NULL,
+                    individual_id TEXT DEFAULT '',
+                    individual_name TEXT DEFAULT '',
+                    FOREIGN KEY (batch_id) REFERENCES genfin_ach_batches (batch_id)
+                )
+            """)
+
+            # Reconciliations table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_reconciliations (
+                    reconciliation_id TEXT PRIMARY KEY,
+                    bank_account_id TEXT NOT NULL,
+                    statement_date TEXT NOT NULL,
+                    statement_ending_balance REAL NOT NULL,
+                    period_start TEXT NOT NULL,
+                    period_end TEXT NOT NULL,
+                    beginning_balance REAL DEFAULT 0.0,
+                    cleared_deposits REAL DEFAULT 0.0,
+                    cleared_payments REAL DEFAULT 0.0,
+                    cleared_balance REAL DEFAULT 0.0,
+                    outstanding_deposits TEXT DEFAULT '[]',
+                    outstanding_checks TEXT DEFAULT '[]',
+                    difference REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'in_progress',
+                    completed_at TEXT,
+                    completed_by TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (bank_account_id) REFERENCES genfin_bank_accounts (bank_account_id)
+                )
+            """)
+
+            # Transfers table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_transfers (
+                    transfer_id TEXT PRIMARY KEY,
+                    from_account_id TEXT NOT NULL,
+                    to_account_id TEXT NOT NULL,
+                    transfer_date TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    memo TEXT DEFAULT '',
+                    from_transaction_id TEXT,
+                    to_transaction_id TEXT,
+                    journal_entry_id TEXT,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            conn.commit()
 
     # ==================== BANK ACCOUNTS ====================
 
@@ -398,82 +401,147 @@ class GenFinBankingService:
     ) -> Dict:
         """Create a new bank account"""
         bank_account_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
 
-        # Set as default if first account
-        is_default = len(self.bank_accounts) == 0
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        account = BankAccount(
-            bank_account_id=bank_account_id,
-            account_name=account_name,
-            account_type=BankAccountType(account_type),
-            bank_name=bank_name,
-            routing_number=routing_number,
-            account_number=account_number,
-            gl_account_id=gl_account_id,
-            current_balance=starting_balance,
-            available_balance=starting_balance,
-            next_check_number=starting_check_number,
-            check_format=CheckFormat(check_format),
-            ach_enabled=ach_enabled,
-            ach_company_id=ach_company_id,
-            ach_company_name=ach_company_name,
-            is_default=is_default
-        )
+            # Check if first account
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_bank_accounts WHERE is_active = 1")
+            is_default = cursor.fetchone()['count'] == 0
 
-        self.bank_accounts[bank_account_id] = account
+            cursor.execute("""
+                INSERT INTO genfin_bank_accounts (
+                    bank_account_id, account_name, account_type, bank_name,
+                    routing_number, account_number, gl_account_id, current_balance,
+                    available_balance, next_check_number, check_format,
+                    ach_enabled, ach_company_id, ach_company_name, is_default,
+                    is_active, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                bank_account_id, account_name, account_type, bank_name,
+                routing_number, account_number, gl_account_id, starting_balance,
+                starting_balance, starting_check_number, check_format,
+                1 if ach_enabled else 0, ach_company_id, ach_company_name,
+                1 if is_default else 0, 1, now, now
+            ))
+            conn.commit()
 
         return {
             "success": True,
             "bank_account_id": bank_account_id,
-            "account": self._account_to_dict(account)
+            "account": self.get_bank_account(bank_account_id)
         }
 
     def update_bank_account(self, bank_account_id: str, **kwargs) -> Dict:
         """Update bank account settings"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
 
-        account = self.bank_accounts[bank_account_id]
+        updates = []
+        values = []
+
+        field_mapping = {
+            'account_name': 'account_name', 'account_type': 'account_type',
+            'bank_name': 'bank_name', 'routing_number': 'routing_number',
+            'account_number': 'account_number', 'gl_account_id': 'gl_account_id',
+            'check_printing_enabled': 'check_printing_enabled',
+            'next_check_number': 'next_check_number', 'check_format': 'check_format',
+            'ach_enabled': 'ach_enabled', 'ach_company_id': 'ach_company_id',
+            'ach_company_name': 'ach_company_name', 'is_active': 'is_active'
+        }
 
         for key, value in kwargs.items():
-            if hasattr(account, key) and value is not None:
-                if key == "check_format":
-                    value = CheckFormat(value)
-                elif key == "account_type":
-                    value = BankAccountType(value)
-                setattr(account, key, value)
+            if key in field_mapping and value is not None:
+                if key in ['check_printing_enabled', 'ach_enabled', 'is_active']:
+                    value = 1 if value else 0
+                updates.append(f"{field_mapping[key]} = ?")
+                values.append(value)
 
-        account.updated_at = datetime.now()
+        if updates:
+            updates.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(bank_account_id)
+
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"UPDATE genfin_bank_accounts SET {', '.join(updates)} WHERE bank_account_id = ?",
+                    values
+                )
+                conn.commit()
 
         return {
             "success": True,
-            "account": self._account_to_dict(account)
+            "account": self.get_bank_account(bank_account_id)
         }
 
     def get_bank_account(self, bank_account_id: str) -> Optional[Dict]:
         """Get bank account by ID"""
-        if bank_account_id not in self.bank_accounts:
-            return None
-        return self._account_to_dict(self.bank_accounts[bank_account_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bank_accounts WHERE bank_account_id = ? AND is_active = 1",
+                (bank_account_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_account(row)
+        return None
 
     def list_bank_accounts(self, active_only: bool = True) -> List[Dict]:
         """List all bank accounts"""
-        result = []
-        for account in self.bank_accounts.values():
-            if active_only and not account.is_active:
-                continue
-            result.append(self._account_to_dict(account))
-        return sorted(result, key=lambda a: a["account_name"])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            query = "SELECT * FROM genfin_bank_accounts"
+            if active_only:
+                query += " WHERE is_active = 1"
+            query += " ORDER BY account_name"
+
+            cursor.execute(query)
+            return [self._row_to_account(row) for row in cursor.fetchall()]
 
     def set_default_account(self, bank_account_id: str) -> Dict:
         """Set default bank account"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
 
-        for account in self.bank_accounts.values():
-            account.is_default = (account.bank_account_id == bank_account_id)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE genfin_bank_accounts SET is_default = 0")
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET is_default = 1 WHERE bank_account_id = ?",
+                (bank_account_id,)
+            )
+            conn.commit()
 
         return {"success": True, "message": "Default account updated"}
+
+    def _row_to_account(self, row: sqlite3.Row) -> Dict:
+        """Convert account row to dictionary"""
+        return {
+            "bank_account_id": row['bank_account_id'],
+            "account_name": row['account_name'],
+            "account_type": row['account_type'],
+            "bank_name": row['bank_name'],
+            "routing_number": row['routing_number'],
+            "account_number_masked": f"****{row['account_number'][-4:]}",
+            "check_printing_enabled": bool(row['check_printing_enabled']),
+            "next_check_number": row['next_check_number'],
+            "check_format": row['check_format'],
+            "ach_enabled": bool(row['ach_enabled']),
+            "gl_account_id": row['gl_account_id'],
+            "current_balance": round(row['current_balance'], 2),
+            "available_balance": round(row['available_balance'], 2),
+            "last_reconciled_date": row['last_reconciled_date'],
+            "last_reconciled_balance": row['last_reconciled_balance'],
+            "is_active": bool(row['is_active']),
+            "is_default": bool(row['is_default']),
+            "created_at": row['created_at']
+        }
 
     # ==================== CHECK PRINTING ====================
 
@@ -495,167 +563,160 @@ class GenFinBankingService:
         check_number: Optional[int] = None
     ) -> Dict:
         """Create a check for printing"""
-        if bank_account_id not in self.bank_accounts:
-            return {"success": False, "error": "Bank account not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bank_accounts WHERE bank_account_id = ? AND is_active = 1",
+                (bank_account_id,)
+            )
+            account_row = cursor.fetchone()
+            if not account_row:
+                return {"success": False, "error": "Bank account not found"}
 
-        account = self.bank_accounts[bank_account_id]
+            if not account_row['check_printing_enabled']:
+                return {"success": False, "error": "Check printing not enabled for this account"}
 
-        if not account.check_printing_enabled:
-            return {"success": False, "error": "Check printing not enabled for this account"}
+            check_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
 
-        check_id = str(uuid.uuid4())
-        c_date = datetime.strptime(check_date, "%Y-%m-%d").date()
+            # Use provided check number or get next
+            if check_number is None:
+                check_number = account_row['next_check_number']
+                cursor.execute(
+                    "UPDATE genfin_bank_accounts SET next_check_number = ? WHERE bank_account_id = ?",
+                    (check_number + 1, bank_account_id)
+                )
 
-        # Use provided check number or get next
-        if check_number is None:
-            check_number = account.next_check_number
-            account.next_check_number += 1
+            # Convert amount to words
+            amount_words = number_to_words(amount)
 
-        # Convert amount to words
-        amount_words = number_to_words(amount)
+            # Build voucher description from bills if provided
+            if bills_paid and not voucher_description:
+                desc_lines = []
+                for bill in bills_paid:
+                    desc_lines.append(f"Bill #{bill.get('bill_number', 'N/A')}: ${bill.get('amount', 0):.2f}")
+                voucher_description = "\n".join(desc_lines)
 
-        # Build voucher description from bills if provided
-        if bills_paid and not voucher_description:
-            desc_lines = []
-            for bill in bills_paid:
-                desc_lines.append(f"Bill #{bill.get('bill_number', 'N/A')}: ${bill.get('amount', 0):.2f}")
-            voucher_description = "\n".join(desc_lines)
+            # Insert check
+            cursor.execute("""
+                INSERT INTO genfin_checks (
+                    check_id, bank_account_id, check_number, check_date, payee_name,
+                    payee_address_line1, payee_address_line2, payee_city, payee_state,
+                    payee_zip, amount, amount_in_words, memo, voucher_description,
+                    bills_paid, vendor_id, status, requires_two_signatures, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                check_id, bank_account_id, check_number, check_date, payee_name,
+                payee_address_line1, payee_address_line2, payee_city, payee_state,
+                payee_zip, amount, amount_words, memo, voucher_description,
+                json.dumps(bills_paid or []), vendor_id, 'outstanding',
+                1 if amount >= 10000.0 else 0, now, 1
+            ))
 
-        check = Check(
-            check_id=check_id,
-            bank_account_id=bank_account_id,
-            check_number=check_number,
-            check_date=c_date,
-            payee_name=payee_name,
-            payee_address_line1=payee_address_line1,
-            payee_address_line2=payee_address_line2,
-            payee_city=payee_city,
-            payee_state=payee_state,
-            payee_zip=payee_zip,
-            amount=amount,
-            amount_in_words=amount_words,
-            memo=memo,
-            voucher_description=voucher_description,
-            bills_paid=bills_paid or [],
-            vendor_id=vendor_id,
-            status=CheckStatus.OUTSTANDING,
-            requires_two_signatures=amount >= 10000.0
-        )
+            # Create bank transaction
+            trans_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO genfin_bank_transactions (
+                    transaction_id, bank_account_id, transaction_date, transaction_type,
+                    amount, payee, memo, reference_number, check_id, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                trans_id, bank_account_id, check_date, 'check',
+                -amount, payee_name, memo, str(check_number), check_id, now, 1
+            ))
 
-        self.checks[check_id] = check
+            # Update check with transaction ID
+            cursor.execute(
+                "UPDATE genfin_checks SET transaction_id = ? WHERE check_id = ?",
+                (trans_id, check_id)
+            )
 
-        # Create bank transaction
-        trans_id = str(uuid.uuid4())
-        transaction = BankTransaction(
-            transaction_id=trans_id,
-            bank_account_id=bank_account_id,
-            transaction_date=c_date,
-            transaction_type=TransactionType.CHECK,
-            amount=-amount,  # Negative for outgoing
-            payee=payee_name,
-            memo=memo,
-            reference_number=str(check_number),
-            check_id=check_id
-        )
-        self.transactions[trans_id] = transaction
-        check.transaction_id = trans_id
+            # Update account balance
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance - ? WHERE bank_account_id = ?",
+                (amount, bank_account_id)
+            )
 
-        # Update account balance
-        account.current_balance -= amount
+            conn.commit()
 
+        check = self._get_check(check_id)
         return {
             "success": True,
             "check_id": check_id,
             "check_number": check_number,
-            "check": self._check_to_dict(check)
+            "check": check
         }
 
     def get_check_print_data(self, check_id: str) -> Dict:
         """Get formatted data for printing a check"""
-        if check_id not in self.checks:
+        check = self._get_check(check_id)
+        if not check:
             return {"error": "Check not found"}
 
-        check = self.checks[check_id]
-        account = self.bank_accounts.get(check.bank_account_id)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bank_accounts WHERE bank_account_id = ?",
+                (check['bank_account_id'],)
+            )
+            account = cursor.fetchone()
 
         if not account:
             return {"error": "Bank account not found"}
 
-        # Format MICR line (standard format)
-        # ⑆ = Transit symbol, ⑈ = On-Us symbol, ⑇ = Amount symbol
-        micr_routing = f"⑆{account.routing_number}⑆"
-        micr_account = f"{account.account_number}⑈"
-        micr_check = f"{check.check_number:08d}"
+        # Format MICR line
+        micr_routing = f"⑆{account['routing_number']}⑆"
+        micr_account = f"{account['account_number']}⑈"
+        micr_check = f"{check['check_number']:08d}"
         micr_line = f"{micr_routing} {micr_account} {micr_check}"
-
-        # Alternate MICR using standard characters for compatibility
-        micr_line_alt = f"C{account.routing_number}C {account.account_number}D {check.check_number:08d}"
+        micr_line_alt = f"C{account['routing_number']}C {account['account_number']}D {check['check_number']:08d}"
 
         # Format payee address
-        payee_address = check.payee_address_line1
-        if check.payee_address_line2:
-            payee_address += f"\n{check.payee_address_line2}"
-        if check.payee_city or check.payee_state or check.payee_zip:
-            payee_address += f"\n{check.payee_city}, {check.payee_state} {check.payee_zip}"
+        payee_address = check['payee_address_line1']
+        if check.get('payee_address_line2'):
+            payee_address += f"\n{check['payee_address_line2']}"
+        if check.get('payee_city') or check.get('payee_state') or check.get('payee_zip'):
+            payee_address += f"\n{check['payee_city']}, {check['payee_state']} {check['payee_zip']}"
 
         # Format date
-        date_formatted = check.check_date.strftime("%m/%d/%Y")
-        date_long = check.check_date.strftime("%B %d, %Y")
+        check_date = datetime.strptime(check['check_date'], "%Y-%m-%d").date()
+        date_formatted = check_date.strftime("%m/%d/%Y")
+        date_long = check_date.strftime("%B %d, %Y")
 
         return {
-            "check_id": check.check_id,
-            "check_number": check.check_number,
-            "check_number_formatted": f"{check.check_number:08d}",
-
-            # Bank info
-            "bank_name": account.bank_name,
-            "routing_number": account.routing_number,
-            "account_number": account.account_number,
-            "account_number_masked": f"****{account.account_number[-4:]}",
-
-            # MICR line for magnetic ink
+            "check_id": check['check_id'],
+            "check_number": check['check_number'],
+            "check_number_formatted": f"{check['check_number']:08d}",
+            "bank_name": account['bank_name'],
+            "routing_number": account['routing_number'],
+            "account_number": account['account_number'],
+            "account_number_masked": f"****{account['account_number'][-4:]}",
             "micr_line": micr_line,
             "micr_line_alt": micr_line_alt,
-
-            # Date
-            "check_date": check.check_date.isoformat(),
+            "check_date": check['check_date'],
             "date_formatted": date_formatted,
             "date_long": date_long,
-
-            # Payee
-            "payee_name": check.payee_name,
+            "payee_name": check['payee_name'],
             "payee_address": payee_address,
-            "payee_address_line1": check.payee_address_line1,
-            "payee_address_line2": check.payee_address_line2,
-            "payee_city": check.payee_city,
-            "payee_state": check.payee_state,
-            "payee_zip": check.payee_zip,
-
-            # Amount
-            "amount": check.amount,
-            "amount_formatted": f"${check.amount:,.2f}",
-            "amount_numeric": f"**{check.amount:,.2f}**",  # With security asterisks
-            "amount_in_words": check.amount_in_words,
-            "amount_in_words_line": f"{check.amount_in_words}{'*' * (50 - len(check.amount_in_words))}",  # Pad with asterisks
-
-            # Memo
-            "memo": check.memo,
-
-            # Voucher stub info
-            "voucher_description": check.voucher_description,
-            "bills_paid": check.bills_paid,
-
-            # Signature
-            "requires_two_signatures": check.requires_two_signatures,
-            "signature_line_1": check.signature_line_1,
-            "signature_line_2": check.signature_line_2,
-
-            # Print format
-            "check_format": account.check_format.value,
-
-            # Status
-            "status": check.status.value,
-            "printed_at": check.printed_at.isoformat() if check.printed_at else None
+            "payee_address_line1": check['payee_address_line1'],
+            "payee_address_line2": check.get('payee_address_line2', ''),
+            "payee_city": check.get('payee_city', ''),
+            "payee_state": check.get('payee_state', ''),
+            "payee_zip": check.get('payee_zip', ''),
+            "amount": check['amount'],
+            "amount_formatted": f"${check['amount']:,.2f}",
+            "amount_numeric": f"**{check['amount']:,.2f}**",
+            "amount_in_words": check['amount_in_words'],
+            "amount_in_words_line": f"{check['amount_in_words']}{'*' * (50 - len(check['amount_in_words']))}",
+            "memo": check['memo'],
+            "voucher_description": check.get('voucher_description', ''),
+            "bills_paid": check.get('bills_paid', []),
+            "requires_two_signatures": check['requires_two_signatures'],
+            "signature_line_1": check.get('signature_line_1', ''),
+            "signature_line_2": check.get('signature_line_2', ''),
+            "check_format": account['check_format'],
+            "status": check['status'],
+            "printed_at": check.get('printed_at')
         }
 
     def get_check_print_layout(self, check_id: str, format_override: Optional[str] = None) -> Dict:
@@ -664,22 +725,13 @@ class GenFinBankingService:
         if "error" in print_data:
             return print_data
 
-        check = self.checks[check_id]
-        account = self.bank_accounts[check.bank_account_id]
-
-        check_format = CheckFormat(format_override) if format_override else account.check_format
+        check_format = CheckFormat(format_override) if format_override else CheckFormat(print_data['check_format'])
 
         # Define print positions (in inches from top-left)
-        # These match standard QuickBooks check layouts
-
         if check_format == CheckFormat.QUICKBOOKS_VOUCHER:
-            # QuickBooks Voucher Check (3.5" check with 2 voucher stubs)
             layout = {
                 "page_size": {"width": 8.5, "height": 11},
-                "check_area": {
-                    "top": 7.0,
-                    "height": 3.5
-                },
+                "check_area": {"top": 7.0, "height": 3.5},
                 "fields": {
                     "date": {"x": 6.5, "y": 7.3},
                     "payee_name": {"x": 1.0, "y": 7.8},
@@ -693,87 +745,22 @@ class GenFinBankingService:
                     "check_number": {"x": 7.0, "y": 7.0}
                 },
                 "voucher_1": {
-                    "top": 0.0,
-                    "height": 3.5,
-                    "fields": {
-                        "payee": {"x": 0.5, "y": 0.5},
-                        "date": {"x": 6.0, "y": 0.5},
-                        "check_number": {"x": 7.0, "y": 0.5},
-                        "description": {"x": 0.5, "y": 1.0},
-                        "amount": {"x": 6.5, "y": 2.5}
-                    }
+                    "top": 0.0, "height": 3.5,
+                    "fields": {"payee": {"x": 0.5, "y": 0.5}, "date": {"x": 6.0, "y": 0.5},
+                              "check_number": {"x": 7.0, "y": 0.5}, "description": {"x": 0.5, "y": 1.0},
+                              "amount": {"x": 6.5, "y": 2.5}}
                 },
                 "voucher_2": {
-                    "top": 3.5,
-                    "height": 3.5,
-                    "fields": {
-                        "payee": {"x": 0.5, "y": 4.0},
-                        "date": {"x": 6.0, "y": 4.0},
-                        "check_number": {"x": 7.0, "y": 4.0},
-                        "description": {"x": 0.5, "y": 4.5},
-                        "amount": {"x": 6.5, "y": 6.0}
-                    }
+                    "top": 3.5, "height": 3.5,
+                    "fields": {"payee": {"x": 0.5, "y": 4.0}, "date": {"x": 6.0, "y": 4.0},
+                              "check_number": {"x": 7.0, "y": 4.0}, "description": {"x": 0.5, "y": 4.5},
+                              "amount": {"x": 6.5, "y": 6.0}}
                 }
             }
-
-        elif check_format == CheckFormat.QUICKBOOKS_STANDARD:
-            # QuickBooks Standard Check (check on top, one stub below)
-            layout = {
-                "page_size": {"width": 8.5, "height": 11},
-                "check_area": {
-                    "top": 0.0,
-                    "height": 3.5
-                },
-                "fields": {
-                    "date": {"x": 6.5, "y": 0.3},
-                    "payee_name": {"x": 1.0, "y": 0.8},
-                    "amount_numeric": {"x": 6.8, "y": 0.8},
-                    "amount_words": {"x": 0.5, "y": 1.3, "width": 5.5},
-                    "payee_address": {"x": 1.0, "y": 1.6},
-                    "memo": {"x": 0.5, "y": 2.8},
-                    "signature_line_1": {"x": 4.5, "y": 2.8},
-                    "micr_line": {"x": 0.5, "y": 3.3},
-                    "check_number": {"x": 7.0, "y": 0.0}
-                },
-                "stub_area": {
-                    "top": 3.5,
-                    "height": 7.5,
-                    "fields": {
-                        "payee": {"x": 0.5, "y": 4.0},
-                        "date": {"x": 0.5, "y": 4.5},
-                        "check_number": {"x": 2.5, "y": 4.5},
-                        "description": {"x": 0.5, "y": 5.0},
-                        "amount": {"x": 6.5, "y": 4.5}
-                    }
-                }
-            }
-
-        elif check_format == CheckFormat.VOUCHER_3UP:
-            # 3-per-page voucher checks
-            layout = {
-                "page_size": {"width": 8.5, "height": 11},
-                "checks_per_page": 3,
-                "check_height": 3.667,
-                "fields": {
-                    "date": {"x": 6.5, "y_offset": 0.3},
-                    "payee_name": {"x": 1.0, "y_offset": 0.7},
-                    "amount_numeric": {"x": 6.8, "y_offset": 0.7},
-                    "amount_words": {"x": 0.5, "y_offset": 1.1, "width": 5.5},
-                    "memo": {"x": 0.5, "y_offset": 2.0},
-                    "signature_line_1": {"x": 4.5, "y_offset": 2.5},
-                    "micr_line": {"x": 0.5, "y_offset": 3.4},
-                    "check_number": {"x": 7.0, "y_offset": 0.0}
-                }
-            }
-
         else:
-            # Standard top check format
             layout = {
                 "page_size": {"width": 8.5, "height": 11},
-                "check_area": {
-                    "top": 0.0,
-                    "height": 3.5
-                },
+                "check_area": {"top": 0.0, "height": 3.5},
                 "fields": {
                     "date": {"x": 6.5, "y": 0.5},
                     "payee_name": {"x": 1.0, "y": 1.0},
@@ -795,64 +782,84 @@ class GenFinBankingService:
 
     def mark_check_printed(self, check_id: str) -> Dict:
         """Mark a check as printed"""
-        if check_id not in self.checks:
+        check = self._get_check(check_id)
+        if not check:
             return {"success": False, "error": "Check not found"}
 
-        check = self.checks[check_id]
-        check.status = CheckStatus.PRINTED
-        check.printed_at = datetime.now()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_checks SET status = ?, printed_at = ?
+                WHERE check_id = ?
+            """, ('printed', datetime.now().isoformat(), check_id))
+            conn.commit()
 
         return {
             "success": True,
-            "check": self._check_to_dict(check)
+            "check": self._get_check(check_id)
         }
 
     def void_check(self, check_id: str, reason: str = "") -> Dict:
         """Void a check"""
-        if check_id not in self.checks:
+        check = self._get_check(check_id)
+        if not check:
             return {"success": False, "error": "Check not found"}
 
-        check = self.checks[check_id]
-
-        if check.status == CheckStatus.CLEARED:
+        if check['status'] == 'cleared':
             return {"success": False, "error": "Cannot void a cleared check"}
 
-        check.status = CheckStatus.VOIDED
-        check.voided_date = date.today()
-        check.void_reason = reason
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Reverse the transaction
-        if check.transaction_id and check.transaction_id in self.transactions:
-            trans = self.transactions[check.transaction_id]
-            account = self.bank_accounts[check.bank_account_id]
-            account.current_balance -= trans.amount  # Add back (trans.amount is negative)
+            # Update check status
+            cursor.execute("""
+                UPDATE genfin_checks SET status = ?, voided_date = ?, void_reason = ?
+                WHERE check_id = ?
+            """, ('voided', date.today().isoformat(), reason, check_id))
+
+            # Reverse the balance change
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance + ? WHERE bank_account_id = ?",
+                (check['amount'], check['bank_account_id'])
+            )
+
+            conn.commit()
 
         return {
             "success": True,
-            "check": self._check_to_dict(check)
+            "check": self._get_check(check_id)
         }
 
     def create_check_batch(self, bank_account_id: str, check_ids: List[str]) -> Dict:
         """Create a batch of checks for printing"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
 
         # Validate all checks
         for check_id in check_ids:
-            if check_id not in self.checks:
+            check = self._get_check(check_id)
+            if not check:
                 return {"success": False, "error": f"Check {check_id} not found"}
-            if self.checks[check_id].bank_account_id != bank_account_id:
+            if check['bank_account_id'] != bank_account_id:
                 return {"success": False, "error": f"Check {check_id} is not from this bank account"}
 
         batch_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
 
-        batch = CheckPrintBatch(
-            batch_id=batch_id,
-            bank_account_id=bank_account_id,
-            checks=check_ids
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_check_batches (batch_id, bank_account_id, created_at, print_status, is_active)
+                VALUES (?, ?, ?, ?, ?)
+            """, (batch_id, bank_account_id, now, 'pending', 1))
 
-        self.check_batches[batch_id] = batch
+            for check_id in check_ids:
+                cursor.execute("""
+                    INSERT INTO genfin_check_batch_items (batch_id, check_id) VALUES (?, ?)
+                """, (batch_id, check_id))
+
+            conn.commit()
 
         return {
             "success": True,
@@ -862,20 +869,31 @@ class GenFinBankingService:
 
     def get_check_batch_print_data(self, batch_id: str) -> Dict:
         """Get print data for entire batch"""
-        if batch_id not in self.check_batches:
-            return {"error": "Batch not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_check_batches WHERE batch_id = ? AND is_active = 1",
+                (batch_id,)
+            )
+            batch = cursor.fetchone()
+            if not batch:
+                return {"error": "Batch not found"}
 
-        batch = self.check_batches[batch_id]
+            cursor.execute(
+                "SELECT check_id FROM genfin_check_batch_items WHERE batch_id = ?",
+                (batch_id,)
+            )
+            check_ids = [row['check_id'] for row in cursor.fetchall()]
+
         checks_data = []
-
-        for check_id in batch.checks:
+        for check_id in check_ids:
             check_data = self.get_check_print_layout(check_id)
             if "error" not in check_data:
                 checks_data.append(check_data)
 
         return {
             "batch_id": batch_id,
-            "bank_account_id": batch.bank_account_id,
+            "bank_account_id": batch['bank_account_id'],
             "checks": checks_data,
             "total_checks": len(checks_data),
             "total_amount": sum(c["print_data"]["amount"] for c in checks_data)
@@ -890,52 +908,109 @@ class GenFinBankingService:
         vendor_id: Optional[str] = None
     ) -> List[Dict]:
         """List checks with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for check in self.checks.values():
-            if bank_account_id and check.bank_account_id != bank_account_id:
-                continue
-            if status and check.status.value != status:
-                continue
-            if vendor_id and check.vendor_id != vendor_id:
-                continue
+            query = "SELECT * FROM genfin_checks WHERE is_active = 1"
+            params = []
+
+            if bank_account_id:
+                query += " AND bank_account_id = ?"
+                params.append(bank_account_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+            if vendor_id:
+                query += " AND vendor_id = ?"
+                params.append(vendor_id)
             if start_date:
-                if check.check_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND check_date >= ?"
+                params.append(start_date)
             if end_date:
-                if check.check_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND check_date <= ?"
+                params.append(end_date)
 
-            result.append(self._check_to_dict(check))
+            query += " ORDER BY check_number DESC"
 
-        return sorted(result, key=lambda c: c["check_number"], reverse=True)
+            cursor.execute(query, params)
+            return [self._row_to_check(row) for row in cursor.fetchall()]
 
     def get_outstanding_checks(self, bank_account_id: str) -> Dict:
         """Get list of outstanding (uncleared) checks"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"error": "Bank account not found"}
 
-        outstanding = []
-        total = 0.0
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_checks
+                WHERE bank_account_id = ? AND is_active = 1
+                AND status IN ('outstanding', 'printed')
+                ORDER BY check_number
+            """, (bank_account_id,))
 
-        for check in self.checks.values():
-            if check.bank_account_id != bank_account_id:
-                continue
-            if check.status in [CheckStatus.OUTSTANDING, CheckStatus.PRINTED]:
-                outstanding.append(self._check_to_dict(check))
-                total += check.amount
+            outstanding = []
+            total = 0.0
+            today = date.today()
 
-        # Check for stale checks (over 180 days)
-        today = date.today()
-        for check_dict in outstanding:
-            check_date = datetime.strptime(check_dict["check_date"], "%Y-%m-%d").date()
-            if (today - check_date).days > 180:
-                check_dict["is_stale"] = True
+            for row in cursor.fetchall():
+                check_dict = self._row_to_check(row)
+                check_date = datetime.strptime(row['check_date'], "%Y-%m-%d").date()
+                if (today - check_date).days > 180:
+                    check_dict["is_stale"] = True
+                outstanding.append(check_dict)
+                total += row['amount']
 
         return {
-            "outstanding_checks": sorted(outstanding, key=lambda c: c["check_number"]),
+            "outstanding_checks": outstanding,
             "count": len(outstanding),
             "total_amount": round(total, 2)
+        }
+
+    def _get_check(self, check_id: str) -> Optional[Dict]:
+        """Get check by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_checks WHERE check_id = ? AND is_active = 1",
+                (check_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_check(row)
+        return None
+
+    def _row_to_check(self, row: sqlite3.Row) -> Dict:
+        """Convert check row to dictionary"""
+        return {
+            "check_id": row['check_id'],
+            "bank_account_id": row['bank_account_id'],
+            "check_number": row['check_number'],
+            "check_date": row['check_date'],
+            "payee_name": row['payee_name'],
+            "payee_address_line1": row['payee_address_line1'] or '',
+            "payee_address_line2": row['payee_address_line2'] or '',
+            "payee_city": row['payee_city'] or '',
+            "payee_state": row['payee_state'] or '',
+            "payee_zip": row['payee_zip'] or '',
+            "payee_address": f"{row['payee_address_line1'] or ''}, {row['payee_city'] or ''}, {row['payee_state'] or ''} {row['payee_zip'] or ''}",
+            "amount": row['amount'],
+            "amount_formatted": f"${row['amount']:,.2f}",
+            "amount_in_words": row['amount_in_words'],
+            "memo": row['memo'] or '',
+            "voucher_description": row['voucher_description'] or '',
+            "status": row['status'],
+            "vendor_id": row['vendor_id'],
+            "bills_paid": json.loads(row['bills_paid']) if row['bills_paid'] else [],
+            "printed_at": row['printed_at'],
+            "cleared_date": row['cleared_date'],
+            "voided_date": row['voided_date'],
+            "void_reason": row['void_reason'] or '',
+            "requires_two_signatures": bool(row['requires_two_signatures']),
+            "signature_line_1": row['signature_line_1'] or '',
+            "signature_line_2": row['signature_line_2'] or '',
+            "created_at": row['created_at']
         }
 
     # ==================== DEPOSITS ====================
@@ -948,49 +1023,90 @@ class GenFinBankingService:
         memo: str = ""
     ) -> Dict:
         """Create a bank deposit"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
 
         deposit_id = str(uuid.uuid4())
         total_amount = sum(line.get("amount", 0) for line in lines)
+        now = datetime.now().isoformat()
 
-        deposit = Deposit(
-            deposit_id=deposit_id,
-            bank_account_id=bank_account_id,
-            deposit_date=datetime.strptime(deposit_date, "%Y-%m-%d").date(),
-            amount=total_amount,
-            memo=memo,
-            lines=lines
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        self.deposits[deposit_id] = deposit
+            cursor.execute("""
+                INSERT INTO genfin_deposits (
+                    deposit_id, bank_account_id, deposit_date, amount, memo, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (deposit_id, bank_account_id, deposit_date, total_amount, memo, now, 1))
 
-        # Update bank account balance
-        self.bank_accounts[bank_account_id].current_balance += total_amount
+            for line in lines:
+                cursor.execute("""
+                    INSERT INTO genfin_deposit_lines (deposit_id, account_id, amount, description)
+                    VALUES (?, ?, ?, ?)
+                """, (deposit_id, line.get('account_id'), line.get('amount', 0), line.get('description', '')))
+
+            # Update bank account balance
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance + ? WHERE bank_account_id = ?",
+                (total_amount, bank_account_id)
+            )
+
+            conn.commit()
 
         return {
             "success": True,
             "deposit_id": deposit_id,
-            "deposit": self._deposit_to_dict(deposit)
+            "deposit": self.get_deposit(deposit_id)
         }
 
     def get_deposit(self, deposit_id: str) -> Optional[Dict]:
         """Get deposit by ID"""
-        if deposit_id not in self.deposits:
-            return None
-        return self._deposit_to_dict(self.deposits[deposit_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_deposits WHERE deposit_id = ? AND is_active = 1",
+                (deposit_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    "SELECT * FROM genfin_deposit_lines WHERE deposit_id = ?",
+                    (deposit_id,)
+                )
+                lines = [
+                    {"account_id": l['account_id'], "amount": l['amount'], "description": l['description'] or ''}
+                    for l in cursor.fetchall()
+                ]
+                return {
+                    "deposit_id": row['deposit_id'],
+                    "bank_account_id": row['bank_account_id'],
+                    "deposit_date": row['deposit_date'],
+                    "amount": row['amount'],
+                    "memo": row['memo'] or '',
+                    "lines": lines,
+                    "journal_entry_id": row['journal_entry_id'],
+                    "created_at": row['created_at']
+                }
+        return None
 
     def delete_deposit(self, deposit_id: str) -> bool:
         """Delete a deposit"""
-        if deposit_id not in self.deposits:
+        deposit = self.get_deposit(deposit_id)
+        if not deposit:
             return False
 
-        deposit = self.deposits[deposit_id]
-        # Reverse the balance change
-        if deposit.bank_account_id in self.bank_accounts:
-            self.bank_accounts[deposit.bank_account_id].current_balance -= deposit.amount
-
-        del self.deposits[deposit_id]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE genfin_deposits SET is_active = 0 WHERE deposit_id = ?",
+                (deposit_id,)
+            )
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance - ? WHERE bank_account_id = ?",
+                (deposit['amount'], deposit['bank_account_id'])
+            )
+            conn.commit()
         return True
 
     def list_deposits(
@@ -1000,44 +1116,39 @@ class GenFinBankingService:
         end_date: Optional[str] = None
     ) -> List[Dict]:
         """List deposits with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for deposit in self.deposits.values():
-            if bank_account_id and deposit.bank_account_id != bank_account_id:
-                continue
+            query = "SELECT * FROM genfin_deposits WHERE is_active = 1"
+            params = []
+
+            if bank_account_id:
+                query += " AND bank_account_id = ?"
+                params.append(bank_account_id)
             if start_date:
-                if deposit.deposit_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND deposit_date >= ?"
+                params.append(start_date)
             if end_date:
-                if deposit.deposit_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND deposit_date <= ?"
+                params.append(end_date)
 
-            result.append(self._deposit_to_dict(deposit))
+            query += " ORDER BY deposit_date DESC"
 
-        return sorted(result, key=lambda d: d["deposit_date"], reverse=True)
-
-    def _deposit_to_dict(self, deposit: Deposit) -> Dict:
-        """Convert deposit to dictionary"""
-        return {
-            "deposit_id": deposit.deposit_id,
-            "bank_account_id": deposit.bank_account_id,
-            "deposit_date": deposit.deposit_date.isoformat(),
-            "amount": deposit.amount,
-            "memo": deposit.memo,
-            "lines": deposit.lines,
-            "journal_entry_id": deposit.journal_entry_id,
-            "created_at": deposit.created_at.isoformat()
-        }
+            cursor.execute(query, params)
+            result = []
+            for row in cursor.fetchall():
+                result.append({
+                    "deposit_id": row['deposit_id'],
+                    "bank_account_id": row['bank_account_id'],
+                    "deposit_date": row['deposit_date'],
+                    "amount": row['amount'],
+                    "memo": row['memo'] or '',
+                    "created_at": row['created_at']
+                })
+            return result
 
     def get_undeposited_funds(self) -> List[Dict]:
-        """Get payments in undeposited funds account.
-
-        Returns payments that have been received but not yet deposited to bank.
-        In a real implementation, this would query the receivables service for
-        payments to the 'Undeposited Funds' account.
-        """
-        # For demo purposes, return sample undeposited payments
-        # In production, this would integrate with genfin_receivables_service
+        """Get payments in undeposited funds account."""
         from datetime import date, timedelta
         today = date.today()
 
@@ -1083,193 +1194,224 @@ class GenFinBankingService:
         entries: List[Dict]
     ) -> Dict:
         """Create an ACH/Direct Deposit batch"""
-        if bank_account_id not in self.bank_accounts:
-            return {"success": False, "error": "Bank account not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bank_accounts WHERE bank_account_id = ? AND is_active = 1",
+                (bank_account_id,)
+            )
+            account = cursor.fetchone()
 
-        account = self.bank_accounts[bank_account_id]
+            if not account:
+                return {"success": False, "error": "Bank account not found"}
+            if not account['ach_enabled']:
+                return {"success": False, "error": "ACH not enabled for this account"}
 
-        if not account.ach_enabled:
-            return {"success": False, "error": "ACH not enabled for this account"}
+            batch_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
 
-        batch_id = str(uuid.uuid4())
-        eff_date = datetime.strptime(effective_date, "%Y-%m-%d").date()
+            total_credit = 0.0
+            total_debit = 0.0
 
-        # Validate and process entries
-        total_credit = 0.0
-        total_debit = 0.0
-        processed_entries = []
+            for entry in entries:
+                amount = entry.get("amount", 0)
+                trans_code = entry.get("transaction_code", "22")
+                if trans_code in ["22", "32"]:
+                    total_credit += amount
+                else:
+                    total_debit += amount
 
-        for entry in entries:
-            amount = entry.get("amount", 0)
-            trans_code = entry.get("transaction_code", ACHTransactionCode.CHECKING_CREDIT.value)
+            cursor.execute("""
+                INSERT INTO genfin_ach_batches (
+                    batch_id, bank_account_id, batch_date, effective_date, company_name,
+                    company_id, batch_description, total_debit, total_credit,
+                    entry_count, status, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                batch_id, bank_account_id, date.today().isoformat(), effective_date,
+                account['ach_company_name'][:16] if account['ach_company_name'] else '',
+                account['ach_company_id'], batch_description[:10],
+                round(total_debit, 2), round(total_credit, 2),
+                len(entries), 'created', now, 1
+            ))
 
-            processed_entries.append({
-                "recipient_name": entry.get("recipient_name", "")[:22],  # NACHA limit
-                "routing_number": entry.get("routing_number", ""),
-                "account_number": entry.get("account_number", ""),
-                "account_type": entry.get("account_type", "checking"),
-                "amount": amount,
-                "transaction_code": trans_code,
-                "individual_id": entry.get("individual_id", "")[:15],
-                "individual_name": entry.get("individual_name", entry.get("recipient_name", ""))[:22]
-            })
+            for entry in entries:
+                cursor.execute("""
+                    INSERT INTO genfin_ach_entries (
+                        batch_id, recipient_name, routing_number, account_number,
+                        account_type, amount, transaction_code, individual_id, individual_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    batch_id,
+                    entry.get("recipient_name", "")[:22],
+                    entry.get("routing_number", ""),
+                    entry.get("account_number", ""),
+                    entry.get("account_type", "checking"),
+                    entry.get("amount", 0),
+                    entry.get("transaction_code", "22"),
+                    entry.get("individual_id", "")[:15],
+                    entry.get("individual_name", entry.get("recipient_name", ""))[:22]
+                ))
 
-            if trans_code in ["22", "32"]:  # Credits
-                total_credit += amount
-            else:
-                total_debit += amount
-
-        batch = ACHBatch(
-            batch_id=batch_id,
-            bank_account_id=bank_account_id,
-            batch_date=date.today(),
-            effective_date=eff_date,
-            company_name=account.ach_company_name[:16],
-            company_id=account.ach_company_id,
-            batch_description=batch_description[:10],
-            entries=processed_entries,
-            total_credit=round(total_credit, 2),
-            total_debit=round(total_debit, 2),
-            entry_count=len(processed_entries)
-        )
-
-        self.ach_batches[batch_id] = batch
+            conn.commit()
 
         return {
             "success": True,
             "batch_id": batch_id,
-            "entry_count": len(processed_entries),
+            "entry_count": len(entries),
             "total_credit": round(total_credit, 2),
             "total_debit": round(total_debit, 2)
         }
 
     def generate_nacha_file(self, batch_id: str) -> Dict:
         """Generate NACHA format file for ACH batch"""
-        if batch_id not in self.ach_batches:
-            return {"error": "Batch not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        batch = self.ach_batches[batch_id]
-        account = self.bank_accounts.get(batch.bank_account_id)
-
-        if not account:
-            return {"error": "Bank account not found"}
-
-        lines = []
-
-        # File Header Record (1)
-        file_creation_date = datetime.now().strftime("%y%m%d")
-        file_creation_time = datetime.now().strftime("%H%M")
-
-        file_header = (
-            "1"                                  # Record Type Code
-            "01"                                 # Priority Code
-            f" {account.routing_number:>9}"     # Immediate Destination (with leading space)
-            f"{account.ach_company_id:>10}"     # Immediate Origin
-            f"{file_creation_date}"             # File Creation Date
-            f"{file_creation_time}"             # File Creation Time
-            "A"                                  # File ID Modifier
-            "094"                               # Record Size
-            "10"                                # Blocking Factor
-            "1"                                 # Format Code
-            f"{account.bank_name:<23}"          # Immediate Destination Name
-            f"{account.ach_company_name:<23}"   # Immediate Origin Name
-            "        "                          # Reference Code
-        )
-        lines.append(file_header)
-
-        # Batch Header Record (5)
-        effective_date = batch.effective_date.strftime("%y%m%d")
-
-        batch_header = (
-            "5"                                  # Record Type Code
-            "200"                               # Service Class Code (mixed debits/credits)
-            f"{batch.company_name:<16}"         # Company Name
-            f"{' ' * 20}"                       # Company Discretionary Data
-            f"{batch.company_id:<10}"           # Company Identification
-            "PPD"                               # Standard Entry Class (Prearranged Payment)
-            f"{batch.batch_description:<10}"    # Company Entry Description
-            f"{batch.batch_date.strftime('%y%m%d')}"  # Company Descriptive Date
-            f"{effective_date}"                 # Effective Entry Date
-            "   "                               # Settlement Date (leave blank)
-            "1"                                 # Originator Status Code
-            f"{account.routing_number[:8]:<8}" # Originating DFI Identification
-            f"{1:07d}"                          # Batch Number
-        )
-        lines.append(batch_header)
-
-        # Entry Detail Records (6)
-        entry_hash = 0
-        trace_number = 1
-
-        for entry in batch.entries:
-            routing_num = entry["routing_number"]
-            entry_hash += int(routing_num[:8])
-
-            entry_detail = (
-                "6"                                      # Record Type Code
-                f"{entry['transaction_code']}"           # Transaction Code
-                f"{routing_num[:8]}{routing_num[8] if len(routing_num) > 8 else ' '}"  # Receiving DFI + Check Digit
-                f"{entry['account_number']:<17}"         # DFI Account Number
-                f"{int(entry['amount'] * 100):010d}"     # Amount
-                f"{entry['individual_id']:<15}"          # Individual ID
-                f"{entry['individual_name']:<22}"        # Individual Name
-                "  "                                     # Discretionary Data
-                "0"                                      # Addenda Record Indicator
-                f"{account.routing_number[:8]}{trace_number:07d}"  # Trace Number
+            cursor.execute(
+                "SELECT * FROM genfin_ach_batches WHERE batch_id = ? AND is_active = 1",
+                (batch_id,)
             )
-            lines.append(entry_detail)
-            trace_number += 1
+            batch = cursor.fetchone()
+            if not batch:
+                return {"error": "Batch not found"}
 
-        # Batch Control Record (8)
-        entry_hash_mod = entry_hash % 10000000000  # Last 10 digits
+            cursor.execute(
+                "SELECT * FROM genfin_bank_accounts WHERE bank_account_id = ?",
+                (batch['bank_account_id'],)
+            )
+            account = cursor.fetchone()
+            if not account:
+                return {"error": "Bank account not found"}
 
-        batch_control = (
-            "8"                                          # Record Type Code
-            "200"                                       # Service Class Code
-            f"{batch.entry_count:06d}"                  # Entry/Addenda Count
-            f"{entry_hash_mod:010d}"                    # Entry Hash
-            f"{int(batch.total_debit * 100):012d}"      # Total Debit Entry Dollar Amount
-            f"{int(batch.total_credit * 100):012d}"    # Total Credit Entry Dollar Amount
-            f"{batch.company_id:<10}"                   # Company Identification
-            f"{' ' * 19}"                               # Message Auth Code (blank)
-            f"{' ' * 6}"                                # Reserved
-            f"{account.routing_number[:8]:<8}"          # Originating DFI Identification
-            f"{1:07d}"                                  # Batch Number
-        )
-        lines.append(batch_control)
+            cursor.execute(
+                "SELECT * FROM genfin_ach_entries WHERE batch_id = ?",
+                (batch_id,)
+            )
+            entries = cursor.fetchall()
 
-        # File Control Record (9)
-        block_count = math.ceil((len(lines) + 1) / 10)
+            lines = []
 
-        file_control = (
-            "9"                                          # Record Type Code
-            f"{1:06d}"                                   # Batch Count
-            f"{block_count:06d}"                        # Block Count
-            f"{batch.entry_count:08d}"                  # Entry/Addenda Count
-            f"{entry_hash_mod:010d}"                    # Entry Hash
-            f"{int(batch.total_debit * 100):012d}"      # Total Debit Entry Dollar Amount
-            f"{int(batch.total_credit * 100):012d}"    # Total Credit Entry Dollar Amount
-            f"{' ' * 39}"                               # Reserved
-        )
-        lines.append(file_control)
+            # File Header Record (1)
+            file_creation_date = datetime.now().strftime("%y%m%d")
+            file_creation_time = datetime.now().strftime("%H%M")
 
-        # Pad to block size (10 records per block)
-        while len(lines) % 10 != 0:
-            lines.append("9" * 94)
+            file_header = (
+                "1"
+                "01"
+                f" {account['routing_number']:>9}"
+                f"{account['ach_company_id']:>10}"
+                f"{file_creation_date}"
+                f"{file_creation_time}"
+                "A"
+                "094"
+                "10"
+                "1"
+                f"{account['bank_name']:<23}"
+                f"{account['ach_company_name']:<23}"
+                "        "
+            )
+            lines.append(file_header)
 
-        nacha_content = "\n".join(lines)
-        batch.nacha_file_content = nacha_content
-        batch.status = "generated"
+            # Batch Header Record (5)
+            effective_date = datetime.strptime(batch['effective_date'], "%Y-%m-%d").strftime("%y%m%d")
+            batch_date = datetime.strptime(batch['batch_date'], "%Y-%m-%d").strftime("%y%m%d")
+
+            batch_header = (
+                "5"
+                "200"
+                f"{batch['company_name']:<16}"
+                f"{' ' * 20}"
+                f"{batch['company_id']:<10}"
+                "PPD"
+                f"{batch['batch_description']:<10}"
+                f"{batch_date}"
+                f"{effective_date}"
+                "   "
+                "1"
+                f"{account['routing_number'][:8]:<8}"
+                f"{1:07d}"
+            )
+            lines.append(batch_header)
+
+            # Entry Detail Records (6)
+            entry_hash = 0
+            trace_number = 1
+
+            for entry in entries:
+                routing_num = entry['routing_number']
+                entry_hash += int(routing_num[:8])
+
+                entry_detail = (
+                    "6"
+                    f"{entry['transaction_code']}"
+                    f"{routing_num[:8]}{routing_num[8] if len(routing_num) > 8 else ' '}"
+                    f"{entry['account_number']:<17}"
+                    f"{int(entry['amount'] * 100):010d}"
+                    f"{entry['individual_id']:<15}"
+                    f"{entry['individual_name']:<22}"
+                    "  "
+                    "0"
+                    f"{account['routing_number'][:8]}{trace_number:07d}"
+                )
+                lines.append(entry_detail)
+                trace_number += 1
+
+            # Batch Control Record (8)
+            entry_hash_mod = entry_hash % 10000000000
+
+            batch_control = (
+                "8"
+                "200"
+                f"{batch['entry_count']:06d}"
+                f"{entry_hash_mod:010d}"
+                f"{int(batch['total_debit'] * 100):012d}"
+                f"{int(batch['total_credit'] * 100):012d}"
+                f"{batch['company_id']:<10}"
+                f"{' ' * 19}"
+                f"{' ' * 6}"
+                f"{account['routing_number'][:8]:<8}"
+                f"{1:07d}"
+            )
+            lines.append(batch_control)
+
+            # File Control Record (9)
+            block_count = math.ceil((len(lines) + 1) / 10)
+
+            file_control = (
+                "9"
+                f"{1:06d}"
+                f"{block_count:06d}"
+                f"{batch['entry_count']:08d}"
+                f"{entry_hash_mod:010d}"
+                f"{int(batch['total_debit'] * 100):012d}"
+                f"{int(batch['total_credit'] * 100):012d}"
+                f"{' ' * 39}"
+            )
+            lines.append(file_control)
+
+            # Pad to block size
+            while len(lines) % 10 != 0:
+                lines.append("9" * 94)
+
+            nacha_content = "\n".join(lines)
+
+            # Update batch
+            cursor.execute("""
+                UPDATE genfin_ach_batches SET nacha_file_content = ?, status = ?
+                WHERE batch_id = ?
+            """, (nacha_content, 'generated', batch_id))
+            conn.commit()
 
         return {
             "success": True,
             "batch_id": batch_id,
             "file_content": nacha_content,
             "record_count": len(lines),
-            "entry_count": batch.entry_count,
-            "total_credit": batch.total_credit,
-            "total_debit": batch.total_debit,
-            "filename": f"ACH_{batch.batch_date.strftime('%Y%m%d')}_{batch_id[:8]}.txt"
+            "entry_count": batch['entry_count'],
+            "total_credit": batch['total_credit'],
+            "total_debit": batch['total_debit'],
+            "filename": f"ACH_{batch['batch_date'].replace('-', '')}_{batch_id[:8]}.txt"
         }
 
     def list_ach_batches(
@@ -1280,34 +1422,43 @@ class GenFinBankingService:
         end_date: Optional[str] = None
     ) -> List[Dict]:
         """List ACH batches"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for batch in self.ach_batches.values():
-            if bank_account_id and batch.bank_account_id != bank_account_id:
-                continue
-            if status and batch.status != status:
-                continue
+            query = "SELECT * FROM genfin_ach_batches WHERE is_active = 1"
+            params = []
+
+            if bank_account_id:
+                query += " AND bank_account_id = ?"
+                params.append(bank_account_id)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
             if start_date:
-                if batch.batch_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND batch_date >= ?"
+                params.append(start_date)
             if end_date:
-                if batch.batch_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND batch_date <= ?"
+                params.append(end_date)
 
-            result.append({
-                "batch_id": batch.batch_id,
-                "bank_account_id": batch.bank_account_id,
-                "batch_date": batch.batch_date.isoformat(),
-                "effective_date": batch.effective_date.isoformat(),
-                "batch_description": batch.batch_description,
-                "entry_count": batch.entry_count,
-                "total_credit": batch.total_credit,
-                "total_debit": batch.total_debit,
-                "status": batch.status,
-                "created_at": batch.created_at.isoformat()
-            })
+            query += " ORDER BY batch_date DESC"
 
-        return sorted(result, key=lambda b: b["batch_date"], reverse=True)
+            cursor.execute(query, params)
+            return [
+                {
+                    "batch_id": row['batch_id'],
+                    "bank_account_id": row['bank_account_id'],
+                    "batch_date": row['batch_date'],
+                    "effective_date": row['effective_date'],
+                    "batch_description": row['batch_description'],
+                    "entry_count": row['entry_count'],
+                    "total_credit": row['total_credit'],
+                    "total_debit": row['total_debit'],
+                    "status": row['status'],
+                    "created_at": row['created_at']
+                }
+                for row in cursor.fetchall()
+            ]
 
     # ==================== TRANSACTIONS & RECONCILIATION ====================
 
@@ -1321,33 +1472,35 @@ class GenFinBankingService:
         category_account_id: Optional[str] = None
     ) -> Dict:
         """Record a deposit"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
 
         trans_id = str(uuid.uuid4())
-        d_date = datetime.strptime(deposit_date, "%Y-%m-%d").date()
+        now = datetime.now().isoformat()
 
-        transaction = BankTransaction(
-            transaction_id=trans_id,
-            bank_account_id=bank_account_id,
-            transaction_date=d_date,
-            transaction_type=TransactionType.DEPOSIT,
-            amount=amount,
-            memo=memo,
-            reference_number=reference_number,
-            category_account_id=category_account_id
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_bank_transactions (
+                    transaction_id, bank_account_id, transaction_date, transaction_type,
+                    amount, memo, reference_number, category_account_id, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                trans_id, bank_account_id, deposit_date, 'deposit',
+                amount, memo, reference_number, category_account_id, now, 1
+            ))
 
-        self.transactions[trans_id] = transaction
-
-        # Update balance
-        account = self.bank_accounts[bank_account_id]
-        account.current_balance += amount
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance + ? WHERE bank_account_id = ?",
+                (amount, bank_account_id)
+            )
+            conn.commit()
 
         return {
             "success": True,
             "transaction_id": trans_id,
-            "transaction": self._transaction_to_dict(transaction)
+            "transaction": self._get_transaction(trans_id)
         }
 
     def record_withdrawal(
@@ -1361,34 +1514,35 @@ class GenFinBankingService:
         category_account_id: Optional[str] = None
     ) -> Dict:
         """Record a withdrawal"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
 
         trans_id = str(uuid.uuid4())
-        w_date = datetime.strptime(withdrawal_date, "%Y-%m-%d").date()
+        now = datetime.now().isoformat()
 
-        transaction = BankTransaction(
-            transaction_id=trans_id,
-            bank_account_id=bank_account_id,
-            transaction_date=w_date,
-            transaction_type=TransactionType.WITHDRAWAL,
-            amount=-amount,
-            payee=payee,
-            memo=memo,
-            reference_number=reference_number,
-            category_account_id=category_account_id
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_bank_transactions (
+                    transaction_id, bank_account_id, transaction_date, transaction_type,
+                    amount, payee, memo, reference_number, category_account_id, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                trans_id, bank_account_id, withdrawal_date, 'withdrawal',
+                -amount, payee, memo, reference_number, category_account_id, now, 1
+            ))
 
-        self.transactions[trans_id] = transaction
-
-        # Update balance
-        account = self.bank_accounts[bank_account_id]
-        account.current_balance -= amount
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance - ? WHERE bank_account_id = ?",
+                (amount, bank_account_id)
+            )
+            conn.commit()
 
         return {
             "success": True,
             "transaction_id": trans_id,
-            "transaction": self._transaction_to_dict(transaction)
+            "transaction": self._get_transaction(trans_id)
         }
 
     def create_transfer(
@@ -1400,56 +1554,66 @@ class GenFinBankingService:
         memo: str = ""
     ) -> Dict:
         """Transfer between bank accounts"""
-        if from_account_id not in self.bank_accounts:
+        from_account = self.get_bank_account(from_account_id)
+        to_account = self.get_bank_account(to_account_id)
+
+        if not from_account:
             return {"success": False, "error": "Source account not found"}
-        if to_account_id not in self.bank_accounts:
+        if not to_account:
             return {"success": False, "error": "Destination account not found"}
 
         transfer_id = str(uuid.uuid4())
-        t_date = datetime.strptime(transfer_date, "%Y-%m-%d").date()
-
-        # Create outgoing transaction
         from_trans_id = str(uuid.uuid4())
-        from_trans = BankTransaction(
-            transaction_id=from_trans_id,
-            bank_account_id=from_account_id,
-            transaction_date=t_date,
-            transaction_type=TransactionType.TRANSFER,
-            amount=-amount,
-            memo=f"Transfer to {self.bank_accounts[to_account_id].account_name}",
-            transfer_id=transfer_id
-        )
-        self.transactions[from_trans_id] = from_trans
-
-        # Create incoming transaction
         to_trans_id = str(uuid.uuid4())
-        to_trans = BankTransaction(
-            transaction_id=to_trans_id,
-            bank_account_id=to_account_id,
-            transaction_date=t_date,
-            transaction_type=TransactionType.TRANSFER,
-            amount=amount,
-            memo=f"Transfer from {self.bank_accounts[from_account_id].account_name}",
-            transfer_id=transfer_id
-        )
-        self.transactions[to_trans_id] = to_trans
+        now = datetime.now().isoformat()
 
-        # Update balances
-        self.bank_accounts[from_account_id].current_balance -= amount
-        self.bank_accounts[to_account_id].current_balance += amount
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        transfer = Transfer(
-            transfer_id=transfer_id,
-            from_account_id=from_account_id,
-            to_account_id=to_account_id,
-            transfer_date=t_date,
-            amount=amount,
-            memo=memo,
-            from_transaction_id=from_trans_id,
-            to_transaction_id=to_trans_id
-        )
+            # Create outgoing transaction
+            cursor.execute("""
+                INSERT INTO genfin_bank_transactions (
+                    transaction_id, bank_account_id, transaction_date, transaction_type,
+                    amount, memo, transfer_id, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                from_trans_id, from_account_id, transfer_date, 'transfer',
+                -amount, f"Transfer to {to_account['account_name']}", transfer_id, now, 1
+            ))
 
-        self.transfers[transfer_id] = transfer
+            # Create incoming transaction
+            cursor.execute("""
+                INSERT INTO genfin_bank_transactions (
+                    transaction_id, bank_account_id, transaction_date, transaction_type,
+                    amount, memo, transfer_id, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                to_trans_id, to_account_id, transfer_date, 'transfer',
+                amount, f"Transfer from {from_account['account_name']}", transfer_id, now, 1
+            ))
+
+            # Update balances
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance - ? WHERE bank_account_id = ?",
+                (amount, from_account_id)
+            )
+            cursor.execute(
+                "UPDATE genfin_bank_accounts SET current_balance = current_balance + ? WHERE bank_account_id = ?",
+                (amount, to_account_id)
+            )
+
+            # Create transfer record
+            cursor.execute("""
+                INSERT INTO genfin_transfers (
+                    transfer_id, from_account_id, to_account_id, transfer_date, amount,
+                    memo, from_transaction_id, to_transaction_id, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                transfer_id, from_account_id, to_account_id, transfer_date, amount,
+                memo, from_trans_id, to_trans_id, now, 1
+            ))
+
+            conn.commit()
 
         return {
             "success": True,
@@ -1465,124 +1629,161 @@ class GenFinBankingService:
         statement_ending_balance: float
     ) -> Dict:
         """Start bank reconciliation"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"success": False, "error": "Bank account not found"}
-
-        account = self.bank_accounts[bank_account_id]
 
         recon_id = str(uuid.uuid4())
         s_date = datetime.strptime(statement_date, "%Y-%m-%d").date()
+        now = datetime.now().isoformat()
 
         # Determine period start
-        if account.last_reconciled_date:
-            period_start = account.last_reconciled_date + timedelta(days=1)
-            beginning_balance = account.last_reconciled_balance
+        if account['last_reconciled_date']:
+            period_start = datetime.strptime(account['last_reconciled_date'], "%Y-%m-%d").date() + timedelta(days=1)
+            beginning_balance = account['last_reconciled_balance']
         else:
             period_start = s_date - timedelta(days=30)
             beginning_balance = 0.0
 
-        reconciliation = Reconciliation(
-            reconciliation_id=recon_id,
-            bank_account_id=bank_account_id,
-            statement_date=s_date,
-            statement_ending_balance=statement_ending_balance,
-            period_start=period_start,
-            period_end=s_date,
-            beginning_balance=beginning_balance
-        )
-
-        self.reconciliations[recon_id] = reconciliation
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_reconciliations (
+                    reconciliation_id, bank_account_id, statement_date, statement_ending_balance,
+                    period_start, period_end, beginning_balance, status, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                recon_id, bank_account_id, statement_date, statement_ending_balance,
+                period_start.isoformat(), statement_date, beginning_balance, 'in_progress', now, 1
+            ))
+            conn.commit()
 
         return {
             "success": True,
             "reconciliation_id": recon_id,
             "period_start": period_start.isoformat(),
-            "period_end": s_date.isoformat(),
+            "period_end": statement_date,
             "beginning_balance": beginning_balance,
             "statement_ending_balance": statement_ending_balance
         }
 
     def mark_transaction_cleared(self, reconciliation_id: str, transaction_id: str) -> Dict:
         """Mark a transaction as cleared in reconciliation"""
-        if reconciliation_id not in self.reconciliations:
-            return {"success": False, "error": "Reconciliation not found"}
-        if transaction_id not in self.transactions:
-            return {"success": False, "error": "Transaction not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        recon = self.reconciliations[reconciliation_id]
-        trans = self.transactions[transaction_id]
+            cursor.execute(
+                "SELECT * FROM genfin_reconciliations WHERE reconciliation_id = ? AND is_active = 1",
+                (reconciliation_id,)
+            )
+            if not cursor.fetchone():
+                return {"success": False, "error": "Reconciliation not found"}
 
-        trans.is_reconciled = True
-        trans.reconciled_date = date.today()
+            cursor.execute(
+                "SELECT * FROM genfin_bank_transactions WHERE transaction_id = ? AND is_active = 1",
+                (transaction_id,)
+            )
+            trans = cursor.fetchone()
+            if not trans:
+                return {"success": False, "error": "Transaction not found"}
 
-        # If it's a check, update check status
-        if trans.check_id and trans.check_id in self.checks:
-            self.checks[trans.check_id].status = CheckStatus.CLEARED
-            self.checks[trans.check_id].cleared_date = date.today()
+            cursor.execute("""
+                UPDATE genfin_bank_transactions
+                SET is_reconciled = 1, reconciled_date = ?
+                WHERE transaction_id = ?
+            """, (date.today().isoformat(), transaction_id))
+
+            # If it's a check, update check status
+            if trans['check_id']:
+                cursor.execute("""
+                    UPDATE genfin_checks SET status = ?, cleared_date = ?
+                    WHERE check_id = ?
+                """, ('cleared', date.today().isoformat(), trans['check_id']))
+
+            conn.commit()
 
         return {"success": True, "message": "Transaction marked as cleared"}
 
     def complete_reconciliation(self, reconciliation_id: str, completed_by: str) -> Dict:
         """Complete bank reconciliation"""
-        if reconciliation_id not in self.reconciliations:
-            return {"success": False, "error": "Reconciliation not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        recon = self.reconciliations[reconciliation_id]
-        account = self.bank_accounts[recon.bank_account_id]
+            cursor.execute(
+                "SELECT * FROM genfin_reconciliations WHERE reconciliation_id = ? AND is_active = 1",
+                (reconciliation_id,)
+            )
+            recon = cursor.fetchone()
+            if not recon:
+                return {"success": False, "error": "Reconciliation not found"}
 
-        # Calculate cleared amounts
-        cleared_deposits = 0.0
-        cleared_payments = 0.0
-        outstanding_deposits = []
-        outstanding_checks = []
+            # Calculate cleared amounts
+            cursor.execute("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN amount > 0 AND is_reconciled = 1 THEN amount ELSE 0 END), 0) as cleared_deposits,
+                    COALESCE(SUM(CASE WHEN amount < 0 AND is_reconciled = 1 THEN ABS(amount) ELSE 0 END), 0) as cleared_payments
+                FROM genfin_bank_transactions
+                WHERE bank_account_id = ? AND is_active = 1
+                AND transaction_date <= ?
+            """, (recon['bank_account_id'], recon['statement_date']))
 
-        for trans in self.transactions.values():
-            if trans.bank_account_id != recon.bank_account_id:
-                continue
-            if trans.transaction_date > recon.statement_date:
-                continue
+            totals = cursor.fetchone()
+            cleared_deposits = totals['cleared_deposits']
+            cleared_payments = totals['cleared_payments']
 
-            if trans.is_reconciled:
-                if trans.amount > 0:
-                    cleared_deposits += trans.amount
+            # Get outstanding items
+            cursor.execute("""
+                SELECT transaction_id, amount FROM genfin_bank_transactions
+                WHERE bank_account_id = ? AND is_active = 1 AND is_reconciled = 0
+                AND transaction_date <= ?
+            """, (recon['bank_account_id'], recon['statement_date']))
+
+            outstanding_deposits = []
+            outstanding_checks = []
+            for row in cursor.fetchall():
+                if row['amount'] > 0:
+                    outstanding_deposits.append(row['transaction_id'])
                 else:
-                    cleared_payments += abs(trans.amount)
-            else:
-                if trans.amount > 0:
-                    outstanding_deposits.append(trans.transaction_id)
-                else:
-                    outstanding_checks.append(trans.transaction_id)
+                    outstanding_checks.append(row['transaction_id'])
 
-        # Calculate difference
-        cleared_balance = recon.beginning_balance + cleared_deposits - cleared_payments
-        difference = recon.statement_ending_balance - cleared_balance
+            # Calculate difference
+            cleared_balance = recon['beginning_balance'] + cleared_deposits - cleared_payments
+            difference = round(recon['statement_ending_balance'] - cleared_balance, 2)
 
-        recon.cleared_deposits = cleared_deposits
-        recon.cleared_payments = cleared_payments
-        recon.cleared_balance = cleared_balance
-        recon.outstanding_deposits = outstanding_deposits
-        recon.outstanding_checks = outstanding_checks
-        recon.difference = round(difference, 2)
+            status = 'completed' if abs(difference) < 0.01 else 'discrepancy'
 
-        if abs(difference) < 0.01:
-            recon.status = ReconciliationStatus.COMPLETED
-            account.last_reconciled_date = recon.statement_date
-            account.last_reconciled_balance = recon.statement_ending_balance
-        else:
-            recon.status = ReconciliationStatus.DISCREPANCY
+            # Update reconciliation
+            cursor.execute("""
+                UPDATE genfin_reconciliations SET
+                    cleared_deposits = ?, cleared_payments = ?, cleared_balance = ?,
+                    outstanding_deposits = ?, outstanding_checks = ?, difference = ?,
+                    status = ?, completed_at = ?, completed_by = ?
+                WHERE reconciliation_id = ?
+            """, (
+                cleared_deposits, cleared_payments, cleared_balance,
+                json.dumps(outstanding_deposits), json.dumps(outstanding_checks),
+                difference, status, datetime.now().isoformat(), completed_by, reconciliation_id
+            ))
 
-        recon.completed_at = datetime.now()
-        recon.completed_by = completed_by
+            # Update bank account if balanced
+            if abs(difference) < 0.01:
+                cursor.execute("""
+                    UPDATE genfin_bank_accounts
+                    SET last_reconciled_date = ?, last_reconciled_balance = ?
+                    WHERE bank_account_id = ?
+                """, (recon['statement_date'], recon['statement_ending_balance'], recon['bank_account_id']))
+
+            conn.commit()
 
         return {
             "success": True,
-            "status": recon.status.value,
+            "status": status,
             "cleared_deposits": cleared_deposits,
             "cleared_payments": cleared_payments,
             "cleared_balance": cleared_balance,
             "outstanding_deposits_count": len(outstanding_deposits),
             "outstanding_checks_count": len(outstanding_checks),
-            "difference": recon.difference,
+            "difference": difference,
             "is_balanced": abs(difference) < 0.01
         }
 
@@ -1595,79 +1796,88 @@ class GenFinBankingService:
         unreconciled_only: bool = False
     ) -> List[Dict]:
         """List bank transactions"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for trans in self.transactions.values():
-            if trans.bank_account_id != bank_account_id:
-                continue
+            query = "SELECT * FROM genfin_bank_transactions WHERE bank_account_id = ? AND is_active = 1"
+            params = [bank_account_id]
+
             if start_date:
-                if trans.transaction_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND transaction_date >= ?"
+                params.append(start_date)
             if end_date:
-                if trans.transaction_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
-            if transaction_type and trans.transaction_type.value != transaction_type:
-                continue
-            if unreconciled_only and trans.is_reconciled:
-                continue
+                query += " AND transaction_date <= ?"
+                params.append(end_date)
+            if transaction_type:
+                query += " AND transaction_type = ?"
+                params.append(transaction_type)
+            if unreconciled_only:
+                query += " AND is_reconciled = 0"
 
-            result.append(self._transaction_to_dict(trans))
+            query += " ORDER BY transaction_date DESC"
 
-        return sorted(result, key=lambda t: t["transaction_date"], reverse=True)
+            cursor.execute(query, params)
+            return [self._row_to_transaction(row) for row in cursor.fetchall()]
 
     def get_register(self, bank_account_id: str, start_date: str, end_date: str) -> Dict:
         """Get check register / bank register for account"""
-        if bank_account_id not in self.bank_accounts:
+        account = self.get_bank_account(bank_account_id)
+        if not account:
             return {"error": "Bank account not found"}
 
-        account = self.bank_accounts[bank_account_id]
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Get opening balance
-        opening_balance = 0.0
-        for trans in self.transactions.values():
-            if trans.bank_account_id != bank_account_id:
-                continue
-            if trans.transaction_date < s_date:
-                opening_balance += trans.amount
+            # Get opening balance
+            cursor.execute("""
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM genfin_bank_transactions
+                WHERE bank_account_id = ? AND is_active = 1 AND transaction_date < ?
+            """, (bank_account_id, start_date))
+            opening_balance = cursor.fetchone()['total']
 
-        # Get transactions in period
-        entries = []
-        running_balance = opening_balance
+            # Get transactions in period
+            cursor.execute("""
+                SELECT * FROM genfin_bank_transactions
+                WHERE bank_account_id = ? AND is_active = 1
+                AND transaction_date >= ? AND transaction_date <= ?
+                ORDER BY transaction_date, created_at
+            """, (bank_account_id, start_date, end_date))
 
-        transactions = sorted(
-            [t for t in self.transactions.values()
-             if t.bank_account_id == bank_account_id and s_date <= t.transaction_date <= e_date],
-            key=lambda t: (t.transaction_date, t.created_at)
-        )
+            entries = []
+            running_balance = opening_balance
 
-        for trans in transactions:
-            running_balance += trans.amount
+            for trans in cursor.fetchall():
+                running_balance += trans['amount']
 
-            entry = {
-                "date": trans.transaction_date.isoformat(),
-                "type": trans.transaction_type.value,
-                "reference": trans.reference_number,
-                "payee": trans.payee,
-                "memo": trans.memo,
-                "payment": abs(trans.amount) if trans.amount < 0 else 0,
-                "deposit": trans.amount if trans.amount > 0 else 0,
-                "balance": round(running_balance, 2),
-                "reconciled": trans.is_reconciled
-            }
+                entry = {
+                    "date": trans['transaction_date'],
+                    "type": trans['transaction_type'],
+                    "reference": trans['reference_number'] or '',
+                    "payee": trans['payee'] or '',
+                    "memo": trans['memo'] or '',
+                    "payment": abs(trans['amount']) if trans['amount'] < 0 else 0,
+                    "deposit": trans['amount'] if trans['amount'] > 0 else 0,
+                    "balance": round(running_balance, 2),
+                    "reconciled": bool(trans['is_reconciled'])
+                }
 
-            # Add check details if applicable
-            if trans.check_id and trans.check_id in self.checks:
-                check = self.checks[trans.check_id]
-                entry["check_number"] = check.check_number
-                entry["check_status"] = check.status.value
+                # Add check details if applicable
+                if trans['check_id']:
+                    cursor.execute(
+                        "SELECT check_number, status FROM genfin_checks WHERE check_id = ?",
+                        (trans['check_id'],)
+                    )
+                    check = cursor.fetchone()
+                    if check:
+                        entry["check_number"] = check['check_number']
+                        entry["check_status"] = check['status']
 
-            entries.append(entry)
+                entries.append(entry)
 
         return {
-            "account_name": account.account_name,
-            "bank_name": account.bank_name,
+            "account_name": account['account_name'],
+            "bank_name": account['bank_name'],
             "period_start": start_date,
             "period_end": end_date,
             "opening_balance": round(opening_balance, 2),
@@ -1677,84 +1887,68 @@ class GenFinBankingService:
             "total_payments": sum(e["payment"] for e in entries)
         }
 
-    # ==================== UTILITY METHODS ====================
+    def _get_transaction(self, transaction_id: str) -> Optional[Dict]:
+        """Get transaction by ID"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM genfin_bank_transactions WHERE transaction_id = ? AND is_active = 1",
+                (transaction_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_transaction(row)
+        return None
 
-    def _account_to_dict(self, account: BankAccount) -> Dict:
-        """Convert BankAccount to dictionary"""
+    def _row_to_transaction(self, row: sqlite3.Row) -> Dict:
+        """Convert transaction row to dictionary"""
         return {
-            "bank_account_id": account.bank_account_id,
-            "account_name": account.account_name,
-            "account_type": account.account_type.value,
-            "bank_name": account.bank_name,
-            "routing_number": account.routing_number,
-            "account_number_masked": f"****{account.account_number[-4:]}",
-            "check_printing_enabled": account.check_printing_enabled,
-            "next_check_number": account.next_check_number,
-            "check_format": account.check_format.value,
-            "ach_enabled": account.ach_enabled,
-            "gl_account_id": account.gl_account_id,
-            "current_balance": round(account.current_balance, 2),
-            "available_balance": round(account.available_balance, 2),
-            "last_reconciled_date": account.last_reconciled_date.isoformat() if account.last_reconciled_date else None,
-            "last_reconciled_balance": account.last_reconciled_balance,
-            "is_active": account.is_active,
-            "is_default": account.is_default,
-            "created_at": account.created_at.isoformat()
+            "transaction_id": row['transaction_id'],
+            "bank_account_id": row['bank_account_id'],
+            "transaction_date": row['transaction_date'],
+            "transaction_type": row['transaction_type'],
+            "amount": row['amount'],
+            "payee": row['payee'] or '',
+            "memo": row['memo'] or '',
+            "reference_number": row['reference_number'] or '',
+            "category_account_id": row['category_account_id'],
+            "is_reconciled": bool(row['is_reconciled']),
+            "reconciled_date": row['reconciled_date'],
+            "check_id": row['check_id'],
+            "created_at": row['created_at']
         }
 
-    def _check_to_dict(self, check: Check) -> Dict:
-        """Convert Check to dictionary"""
-        return {
-            "check_id": check.check_id,
-            "bank_account_id": check.bank_account_id,
-            "check_number": check.check_number,
-            "check_date": check.check_date.isoformat(),
-            "payee_name": check.payee_name,
-            "payee_address": f"{check.payee_address_line1}, {check.payee_city}, {check.payee_state} {check.payee_zip}",
-            "amount": check.amount,
-            "amount_formatted": f"${check.amount:,.2f}",
-            "amount_in_words": check.amount_in_words,
-            "memo": check.memo,
-            "status": check.status.value,
-            "vendor_id": check.vendor_id,
-            "bills_paid": check.bills_paid,
-            "printed_at": check.printed_at.isoformat() if check.printed_at else None,
-            "cleared_date": check.cleared_date.isoformat() if check.cleared_date else None,
-            "voided_date": check.voided_date.isoformat() if check.voided_date else None,
-            "void_reason": check.void_reason,
-            "requires_two_signatures": check.requires_two_signatures,
-            "created_at": check.created_at.isoformat()
-        }
-
-    def _transaction_to_dict(self, trans: BankTransaction) -> Dict:
-        """Convert BankTransaction to dictionary"""
-        return {
-            "transaction_id": trans.transaction_id,
-            "bank_account_id": trans.bank_account_id,
-            "transaction_date": trans.transaction_date.isoformat(),
-            "transaction_type": trans.transaction_type.value,
-            "amount": trans.amount,
-            "payee": trans.payee,
-            "memo": trans.memo,
-            "reference_number": trans.reference_number,
-            "category_account_id": trans.category_account_id,
-            "is_reconciled": trans.is_reconciled,
-            "reconciled_date": trans.reconciled_date.isoformat() if trans.reconciled_date else None,
-            "check_id": trans.check_id,
-            "created_at": trans.created_at.isoformat()
-        }
+    # ==================== SERVICE SUMMARY ====================
 
     def get_service_summary(self) -> Dict:
         """Get GenFin Banking service summary"""
-        total_balance = sum(a.current_balance for a in self.bank_accounts.values() if a.is_active)
-        outstanding_checks_total = sum(
-            c.amount for c in self.checks.values()
-            if c.status in [CheckStatus.OUTSTANDING, CheckStatus.PRINTED]
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_bank_accounts WHERE is_active = 1")
+            total_accounts = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COALESCE(SUM(current_balance), 0) as total FROM genfin_bank_accounts WHERE is_active = 1")
+            total_balance = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_checks WHERE is_active = 1")
+            total_checks = cursor.fetchone()['count']
+
+            cursor.execute("""
+                SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+                FROM genfin_checks WHERE is_active = 1 AND status IN ('outstanding', 'printed')
+            """)
+            outstanding = cursor.fetchone()
+            outstanding_count = outstanding['count']
+            outstanding_amount = outstanding['total']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_ach_batches WHERE is_active = 1")
+            ach_batches = cursor.fetchone()['count']
 
         return {
             "service": "GenFin Banking",
-            "version": "1.0.0",
+            "version": "2.0.0",
+            "storage": "SQLite",
             "features": [
                 "Bank Account Management",
                 "Check Printing (Multiple Formats)",
@@ -1763,13 +1957,13 @@ class GenFinBankingService:
                 "Transaction Tracking",
                 "Fund Transfers"
             ],
-            "total_bank_accounts": len(self.bank_accounts),
-            "active_accounts": sum(1 for a in self.bank_accounts.values() if a.is_active),
+            "total_bank_accounts": total_accounts,
+            "active_accounts": total_accounts,
             "total_balance": round(total_balance, 2),
-            "total_checks": len(self.checks),
-            "outstanding_checks": sum(1 for c in self.checks.values() if c.status in [CheckStatus.OUTSTANDING, CheckStatus.PRINTED]),
-            "outstanding_checks_amount": round(outstanding_checks_total, 2),
-            "ach_batches": len(self.ach_batches),
+            "total_checks": total_checks,
+            "outstanding_checks": outstanding_count,
+            "outstanding_checks_amount": round(outstanding_amount, 2),
+            "ach_batches": ach_batches,
             "check_formats_supported": [f.value for f in CheckFormat]
         }
 
