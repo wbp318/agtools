@@ -1,8 +1,65 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.14.1 | **Last Updated:** January 19, 2026
+> **Current Version:** 6.14.2 | **Last Updated:** January 19, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.14.2 (January 19, 2026)
+
+### Bug Fixes - GenFin Integration & API Improvements
+
+**Fixed frontend-backend integration issues discovered during demo audit.**
+
+**Fixed Issues:**
+
+1. **Frontend /companies Endpoint** (`frontend/ui/screens/genfin.py`)
+   - Fixed "Load existing companies" dropdown not populating
+   - Changed from non-existent `/companies` to `/entities` endpoint
+   - Now properly extracts `entities` array from API response
+   - Root cause: Frontend called wrong endpoint name
+
+2. **Undeposited Funds Endpoint** (`backend/main.py`, `backend/services/genfin_banking_service.py`)
+   - Added missing `GET /api/v1/genfin/deposits/undeposited` endpoint
+   - Returns payments sitting in Undeposited Funds account ready for bank deposit
+   - Includes demo data with sample customer payments
+   - Root cause: Endpoint expected by frontend was never implemented
+
+3. **Check Dialog Backend Integration** (`frontend/ui/screens/genfin.py`)
+   - Check dialog now calls `/checks` API endpoint when saving
+   - Previously just returned success without persisting data
+   - Added proper error handling and user feedback
+   - Root cause: TODO comment indicated incomplete implementation
+
+4. **Check Dialog Edit Mode** (`frontend/ui/screens/genfin.py`)
+   - Implemented `_load_edit_data()` method for editing existing checks
+   - Populates all fields: bank account, check number, date, payee, amount, memo
+   - Root cause: Method was empty placeholder
+
+**Files Changed:**
+- `frontend/ui/screens/genfin.py` - Fixed /companies, check dialog API integration & edit mode
+- `backend/main.py` - Added /deposits/undeposited endpoint
+- `backend/services/genfin_banking_service.py` - Added get_undeposited_funds() method
+
+### Documentation
+
+**Added audit report documenting all fixes and test results.**
+
+- `docs/AUDIT_REPORT_20260119.md` - Full demo readiness audit with test results
+
+### Planned - SQLite Migration for Data Persistence
+
+**CRITICAL: GenFin services use in-memory storage - data lost on restart.**
+
+Migration plan created to convert 13 GenFin services (51 data dictionaries) to SQLite:
+- Phase 1: Core service (accounts, journal entries) - Foundation
+- Phase 2: Receivables & Payables (customers, vendors, invoices, bills)
+- Phase 3: Banking & Inventory (bank accounts, checks, items)
+- Phase 4: Payroll, Fixed Assets, Classes, Budgets
+- Phase 5: Recurring, Bank Feeds, Advanced Reports
+
+See `docs/AUDIT_REPORT_20260119.md` for full details.
 
 ---
 

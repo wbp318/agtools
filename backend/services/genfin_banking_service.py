@@ -1029,6 +1029,50 @@ class GenFinBankingService:
             "created_at": deposit.created_at.isoformat()
         }
 
+    def get_undeposited_funds(self) -> List[Dict]:
+        """Get payments in undeposited funds account.
+
+        Returns payments that have been received but not yet deposited to bank.
+        In a real implementation, this would query the receivables service for
+        payments to the 'Undeposited Funds' account.
+        """
+        # For demo purposes, return sample undeposited payments
+        # In production, this would integrate with genfin_receivables_service
+        from datetime import date, timedelta
+        today = date.today()
+
+        # Sample demo data for undeposited funds
+        demo_payments = [
+            {
+                "id": "udf-001",
+                "date": (today - timedelta(days=2)).isoformat(),
+                "type": "Payment",
+                "customer": "Greenfield Farms",
+                "amount": 1250.00,
+                "method": "Check",
+                "reference": "1042"
+            },
+            {
+                "id": "udf-002",
+                "date": (today - timedelta(days=1)).isoformat(),
+                "type": "Payment",
+                "customer": "Harvest Valley Co-op",
+                "amount": 3500.00,
+                "method": "Check",
+                "reference": "8876"
+            },
+            {
+                "id": "udf-003",
+                "date": today.isoformat(),
+                "type": "Payment",
+                "customer": "AgriTech Solutions",
+                "amount": 875.50,
+                "method": "Credit Card",
+                "reference": "CC-4521"
+            }
+        ]
+        return demo_payments
+
     # ==================== ACH / DIRECT DEPOSIT ====================
 
     def create_ach_batch(

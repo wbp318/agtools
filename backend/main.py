@@ -13979,6 +13979,15 @@ async def delete_deposit(deposit_id: str, user: AuthenticatedUser = Depends(get_
         raise HTTPException(status_code=404, detail="Deposit not found")
     return {"success": True, "message": "Deposit deleted"}
 
+@app.get("/api/v1/genfin/deposits/undeposited", tags=["GenFin Banking"])
+async def get_undeposited_funds(user: AuthenticatedUser = Depends(get_current_active_user)):
+    """Get undeposited funds (payments not yet deposited to bank)
+
+    Returns payments that are sitting in the Undeposited Funds account,
+    ready to be included in a bank deposit.
+    """
+    return genfin_banking_service.get_undeposited_funds()
+
 @app.post("/api/v1/genfin/ach-batch", tags=["GenFin Banking"])
 async def create_ach_batch(data: GenFinACHBatchCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create an ACH batch for direct deposit"""
