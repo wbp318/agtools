@@ -1,6 +1,7 @@
 """
 GenFin Core Service - Chart of Accounts, General Ledger, Journal Entries
 Complete double-entry accounting system for farm financial management
+SQLite persistent storage implementation
 """
 
 from datetime import datetime, date
@@ -8,6 +9,8 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
+import sqlite3
+import json
 
 
 class AccountType(Enum):
@@ -268,45 +271,205 @@ class GenFinCoreService:
     - Fiscal Period management
     - Account balances and trial balance
     - Class and Location tracking
+
+    Uses SQLite for persistent storage.
     """
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.accounts: Dict[str, Account] = {}
-        self.journal_entries: Dict[str, JournalEntry] = {}
-        self.fiscal_periods: Dict[str, FiscalPeriod] = {}
-        self.classes: Dict[str, ClassTracking] = {}
-        self.locations: Dict[str, Location] = {}
-        self.next_entry_number = 1
+        self.db_path = db_path
         self.company_name = "GenFin"
         self.fiscal_year_start_month = 1  # January
 
-        # Initialize with farm chart of accounts
+        # Initialize database tables
+        self._init_tables()
+
+        # Initialize with farm chart of accounts if empty
         self._initialize_chart_of_accounts()
         self._initialized = True
 
-    def _initialize_chart_of_accounts(self):
-        """Set up default farm chart of accounts"""
-        for acct in FARM_CHART_OF_ACCOUNTS:
-            account_id = str(uuid.uuid4())
-            self.accounts[account_id] = Account(
-                account_id=account_id,
-                account_number=acct["number"],
-                name=acct["name"],
-                account_type=acct["type"],
-                sub_type=acct["sub_type"],
-                is_system=True
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection with row factory"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Create database tables if they don't exist"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Accounts table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_accounts (
+                    account_id TEXT PRIMARY KEY,
+                    account_number TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    account_type TEXT NOT NULL,
+                    sub_type TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    parent_account_id TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    is_system INTEGER DEFAULT 0,
+                    tax_line TEXT,
+                    opening_balance REAL DEFAULT 0.0,
+                    opening_balance_date TEXT,
+                    currency TEXT DEFAULT 'USD',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Journal entries table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_journal_entries (
+                    entry_id TEXT PRIMARY KEY,
+                    entry_number INTEGER NOT NULL,
+                    entry_date TEXT NOT NULL,
+                    memo TEXT DEFAULT '',
+                    status TEXT DEFAULT 'draft',
+                    source_type TEXT DEFAULT 'manual',
+                    source_id TEXT,
+                    adjusting_entry INTEGER DEFAULT 0,
+                    reversing_entry INTEGER DEFAULT 0,
+                    reversed_entry_id TEXT,
+                    created_by TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    posted_at TEXT
+                )
+            """)
+
+            # Journal entry lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_journal_entry_lines (
+                    line_id TEXT PRIMARY KEY,
+                    entry_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    debit REAL DEFAULT 0.0,
+                    credit REAL DEFAULT 0.0,
+                    tax_code TEXT,
+                    billable INTEGER DEFAULT 0,
+                    customer_id TEXT,
+                    vendor_id TEXT,
+                    class_id TEXT,
+                    location_id TEXT,
+                    FOREIGN KEY (entry_id) REFERENCES genfin_journal_entries(entry_id),
+                    FOREIGN KEY (account_id) REFERENCES genfin_accounts(account_id)
+                )
+            """)
+
+            # Fiscal periods table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_fiscal_periods (
+                    period_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    start_date TEXT NOT NULL,
+                    end_date TEXT NOT NULL,
+                    fiscal_year INTEGER NOT NULL,
+                    period_number INTEGER NOT NULL,
+                    is_closed INTEGER DEFAULT 0,
+                    is_adjustment_period INTEGER DEFAULT 0,
+                    closed_at TEXT,
+                    closed_by TEXT
+                )
+            """)
+
+            # Classes table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_classes (
+                    class_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    parent_class_id TEXT,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Locations table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_locations (
+                    location_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    address TEXT DEFAULT '',
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Settings table (for next_entry_number, etc.)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_core_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
+            # Initialize next_entry_number if not exists
+            cursor.execute("""
+                INSERT OR IGNORE INTO genfin_core_settings (key, value) VALUES ('next_entry_number', '1')
+            """)
+
+            # Create indices for performance
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_accounts_number ON genfin_accounts(account_number)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_accounts_type ON genfin_accounts(account_type)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_entries_date ON genfin_journal_entries(entry_date)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_entries_status ON genfin_journal_entries(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_entry_lines_entry ON genfin_journal_entry_lines(entry_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_entry_lines_account ON genfin_journal_entry_lines(account_id)")
+
+            conn.commit()
+
+    def _get_next_entry_number(self) -> int:
+        """Get and increment the next entry number"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM genfin_core_settings WHERE key = 'next_entry_number'")
+            row = cursor.fetchone()
+            current = int(row['value']) if row else 1
+            cursor.execute(
+                "UPDATE genfin_core_settings SET value = ? WHERE key = 'next_entry_number'",
+                (str(current + 1),)
             )
+            conn.commit()
+            return current
+
+    def _initialize_chart_of_accounts(self):
+        """Set up default farm chart of accounts if none exist"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_accounts")
+            count = cursor.fetchone()['count']
+
+            if count > 0:
+                return  # Already initialized
+
+            now = datetime.now().isoformat()
+            for acct in FARM_CHART_OF_ACCOUNTS:
+                account_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_accounts
+                    (account_id, account_number, name, account_type, sub_type, is_system, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                """, (
+                    account_id,
+                    acct["number"],
+                    acct["name"],
+                    acct["type"].value,
+                    acct["sub_type"].value,
+                    now,
+                    now
+                ))
+
+            conn.commit()
 
     # ==================== CHART OF ACCOUNTS ====================
 
@@ -323,129 +486,119 @@ class GenFinCoreService:
         opening_balance_date: Optional[str] = None
     ) -> Dict:
         """Create a new account in the chart of accounts"""
-        # Check for duplicate account number
-        for acct in self.accounts.values():
-            if acct.account_number == account_number:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Check for duplicate account number
+            cursor.execute("SELECT account_id FROM genfin_accounts WHERE account_number = ?", (account_number,))
+            if cursor.fetchone():
                 return {"success": False, "error": f"Account number {account_number} already exists"}
 
-        account_id = str(uuid.uuid4())
+            account_id = str(uuid.uuid4())
 
-        try:
-            # Normalize to lowercase for case-insensitive matching
-            acct_type = AccountType(account_type.lower())
-            # Auto-determine sub_type if not provided or empty
-            sub_type_normalized = sub_type.lower() if sub_type else ""
-            if not sub_type_normalized:
-                # Default sub-types based on account type
-                default_sub_types = {
-                    "asset": "other_asset",
-                    "liability": "other_liability",
-                    "equity": "owner_equity",
-                    "revenue": "other_income",
-                    "expense": "other_expense"
-                }
-                sub_type_normalized = default_sub_types.get(account_type.lower(), "other_expense")
-            acct_sub_type = AccountSubType(sub_type_normalized)
-        except ValueError as e:
-            return {"success": False, "error": f"Invalid account type: {str(e)}"}
+            try:
+                # Normalize to lowercase for case-insensitive matching
+                acct_type = AccountType(account_type.lower())
+                # Auto-determine sub_type if not provided or empty
+                sub_type_normalized = sub_type.lower() if sub_type else ""
+                if not sub_type_normalized:
+                    # Default sub-types based on account type
+                    default_sub_types = {
+                        "asset": "other_asset",
+                        "liability": "other_liability",
+                        "equity": "owner_equity",
+                        "revenue": "other_income",
+                        "expense": "other_expense"
+                    }
+                    sub_type_normalized = default_sub_types.get(account_type.lower(), "other_expense")
+                acct_sub_type = AccountSubType(sub_type_normalized)
+            except ValueError as e:
+                return {"success": False, "error": f"Invalid account type: {str(e)}"}
 
-        ob_date = None
-        if opening_balance_date:
-            ob_date = datetime.strptime(opening_balance_date, "%Y-%m-%d").date()
+            now = datetime.now().isoformat()
 
-        account = Account(
-            account_id=account_id,
-            account_number=account_number,
-            name=name,
-            account_type=acct_type,
-            sub_type=acct_sub_type,
-            description=description,
-            parent_account_id=parent_account_id,
-            tax_line=tax_line,
-            opening_balance=opening_balance,
-            opening_balance_date=ob_date
-        )
+            cursor.execute("""
+                INSERT INTO genfin_accounts
+                (account_id, account_number, name, account_type, sub_type, description,
+                 parent_account_id, tax_line, opening_balance, opening_balance_date,
+                 created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                account_id, account_number, name, acct_type.value, acct_sub_type.value,
+                description, parent_account_id, tax_line, opening_balance, opening_balance_date,
+                now, now
+            ))
 
-        self.accounts[account_id] = account
+            conn.commit()
 
-        # Create opening balance journal entry if needed
-        if opening_balance != 0 and ob_date:
-            self._create_opening_balance_entry(account, opening_balance, ob_date)
+            # Create opening balance journal entry if needed
+            if opening_balance != 0 and opening_balance_date:
+                self._create_opening_balance_entry_db(account_id, name, acct_type, opening_balance, opening_balance_date)
 
-        return {
-            "success": True,
-            "account_id": account_id,
-            "account": self._account_to_dict(account)
-        }
+            return {
+                "success": True,
+                "account_id": account_id,
+                "account": self.get_account(account_id)
+            }
 
-    def _create_opening_balance_entry(self, account: Account, balance: float, entry_date: date):
+    def _create_opening_balance_entry_db(self, account_id: str, account_name: str, account_type: AccountType, balance: float, entry_date: str):
         """Create journal entry for opening balance"""
-        # Find or create Opening Balance Equity account
-        obe_account = None
-        for acct in self.accounts.values():
-            if acct.name == "Opening Balance Equity":
-                obe_account = acct
-                break
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        if not obe_account:
-            obe_id = str(uuid.uuid4())
-            obe_account = Account(
-                account_id=obe_id,
-                account_number="3900",
-                name="Opening Balance Equity",
-                account_type=AccountType.EQUITY,
-                sub_type=AccountSubType.OWNER_EQUITY,
-                is_system=True
-            )
-            self.accounts[obe_id] = obe_account
+            # Find or create Opening Balance Equity account
+            cursor.execute("SELECT account_id FROM genfin_accounts WHERE name = 'Opening Balance Equity'")
+            obe_row = cursor.fetchone()
 
-        # Create journal entry
-        lines = []
-        if account.account_type in [AccountType.ASSET, AccountType.EXPENSE]:
-            # Debit the account, credit OBE
-            lines.append(JournalEntryLine(
-                line_id=str(uuid.uuid4()),
-                account_id=account.account_id,
-                description=f"Opening balance - {account.name}",
-                debit=abs(balance),
-                credit=0
-            ))
-            lines.append(JournalEntryLine(
-                line_id=str(uuid.uuid4()),
-                account_id=obe_account.account_id,
-                description=f"Opening balance - {account.name}",
-                debit=0,
-                credit=abs(balance)
-            ))
-        else:
-            # Credit the account, debit OBE
-            lines.append(JournalEntryLine(
-                line_id=str(uuid.uuid4()),
-                account_id=account.account_id,
-                description=f"Opening balance - {account.name}",
-                debit=0,
-                credit=abs(balance)
-            ))
-            lines.append(JournalEntryLine(
-                line_id=str(uuid.uuid4()),
-                account_id=obe_account.account_id,
-                description=f"Opening balance - {account.name}",
-                debit=abs(balance),
-                credit=0
-            ))
+            if not obe_row:
+                obe_id = str(uuid.uuid4())
+                now = datetime.now().isoformat()
+                cursor.execute("""
+                    INSERT INTO genfin_accounts
+                    (account_id, account_number, name, account_type, sub_type, is_system, created_at, updated_at)
+                    VALUES (?, '3900', 'Opening Balance Equity', 'equity', 'owner_equity', 1, ?, ?)
+                """, (obe_id, now, now))
+            else:
+                obe_id = obe_row['account_id']
 
-        entry = JournalEntry(
-            entry_id=str(uuid.uuid4()),
-            entry_number=self.next_entry_number,
-            entry_date=entry_date,
-            lines=lines,
-            memo=f"Opening balance for {account.name}",
-            status=TransactionStatus.POSTED,
-            source_type="opening_balance"
-        )
+            # Create journal entry
+            entry_id = str(uuid.uuid4())
+            entry_number = self._get_next_entry_number()
+            now = datetime.now().isoformat()
 
-        self.journal_entries[entry.entry_id] = entry
-        self.next_entry_number += 1
+            cursor.execute("""
+                INSERT INTO genfin_journal_entries
+                (entry_id, entry_number, entry_date, memo, status, source_type, created_at, posted_at)
+                VALUES (?, ?, ?, ?, 'posted', 'opening_balance', ?, ?)
+            """, (entry_id, entry_number, entry_date, f"Opening balance for {account_name}", now, now))
+
+            # Create lines
+            if account_type in [AccountType.ASSET, AccountType.EXPENSE]:
+                # Debit the account, credit OBE
+                cursor.execute("""
+                    INSERT INTO genfin_journal_entry_lines
+                    (line_id, entry_id, account_id, description, debit, credit)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                """, (str(uuid.uuid4()), entry_id, account_id, f"Opening balance - {account_name}", abs(balance)))
+                cursor.execute("""
+                    INSERT INTO genfin_journal_entry_lines
+                    (line_id, entry_id, account_id, description, debit, credit)
+                    VALUES (?, ?, ?, ?, 0, ?)
+                """, (str(uuid.uuid4()), entry_id, obe_id, f"Opening balance - {account_name}", abs(balance)))
+            else:
+                # Credit the account, debit OBE
+                cursor.execute("""
+                    INSERT INTO genfin_journal_entry_lines
+                    (line_id, entry_id, account_id, description, debit, credit)
+                    VALUES (?, ?, ?, ?, 0, ?)
+                """, (str(uuid.uuid4()), entry_id, account_id, f"Opening balance - {account_name}", abs(balance)))
+                cursor.execute("""
+                    INSERT INTO genfin_journal_entry_lines
+                    (line_id, entry_id, account_id, description, debit, credit)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                """, (str(uuid.uuid4()), entry_id, obe_id, f"Opening balance - {account_name}", abs(balance)))
+
+            conn.commit()
 
     def update_account(
         self,
@@ -456,58 +609,93 @@ class GenFinCoreService:
         tax_line: Optional[str] = None
     ) -> Dict:
         """Update an existing account"""
-        if account_id not in self.accounts:
-            return {"success": False, "error": "Account not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        account = self.accounts[account_id]
+            cursor.execute("SELECT * FROM genfin_accounts WHERE account_id = ?", (account_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Account not found"}
 
-        if name:
-            account.name = name
-        if description is not None:
-            account.description = description
-        if is_active is not None:
-            account.is_active = is_active
-        if tax_line is not None:
-            account.tax_line = tax_line
+            updates = []
+            params = []
 
-        account.updated_at = datetime.now()
+            if name:
+                updates.append("name = ?")
+                params.append(name)
+            if description is not None:
+                updates.append("description = ?")
+                params.append(description)
+            if is_active is not None:
+                updates.append("is_active = ?")
+                params.append(1 if is_active else 0)
+            if tax_line is not None:
+                updates.append("tax_line = ?")
+                params.append(tax_line)
 
-        return {
-            "success": True,
-            "account": self._account_to_dict(account)
-        }
+            updates.append("updated_at = ?")
+            params.append(datetime.now().isoformat())
+            params.append(account_id)
+
+            cursor.execute(f"""
+                UPDATE genfin_accounts SET {', '.join(updates)} WHERE account_id = ?
+            """, params)
+
+            conn.commit()
+
+            return {
+                "success": True,
+                "account": self.get_account(account_id)
+            }
 
     def delete_account(self, account_id: str) -> Dict:
         """Delete an account (only if no transactions)"""
-        if account_id not in self.accounts:
-            return {"success": False, "error": "Account not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        account = self.accounts[account_id]
+            cursor.execute("SELECT is_system FROM genfin_accounts WHERE account_id = ?", (account_id,))
+            row = cursor.fetchone()
 
-        if account.is_system:
-            return {"success": False, "error": "Cannot delete system account"}
+            if not row:
+                return {"success": False, "error": "Account not found"}
 
-        # Check for transactions
-        for entry in self.journal_entries.values():
-            for line in entry.lines:
-                if line.account_id == account_id:
-                    return {"success": False, "error": "Cannot delete account with transactions"}
+            if row['is_system']:
+                return {"success": False, "error": "Cannot delete system account"}
 
-        del self.accounts[account_id]
-        return {"success": True, "message": "Account deleted"}
+            # Check for transactions
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM genfin_journal_entry_lines WHERE account_id = ?
+            """, (account_id,))
+            if cursor.fetchone()['count'] > 0:
+                return {"success": False, "error": "Cannot delete account with transactions"}
+
+            cursor.execute("DELETE FROM genfin_accounts WHERE account_id = ?", (account_id,))
+            conn.commit()
+
+            return {"success": True, "message": "Account deleted"}
 
     def get_account(self, account_id: str) -> Optional[Dict]:
         """Get a single account"""
-        if account_id not in self.accounts:
-            return None
-        return self._account_to_dict(self.accounts[account_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_accounts WHERE account_id = ?", (account_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return self._row_to_account_dict(row)
 
     def get_account_by_number(self, account_number: str) -> Optional[Dict]:
         """Get account by account number"""
-        for account in self.accounts.values():
-            if account.account_number == account_number:
-                return self._account_to_dict(account)
-        return None
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_accounts WHERE account_number = ?", (account_number,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return self._row_to_account_dict(row)
 
     def list_accounts(
         self,
@@ -516,22 +704,31 @@ class GenFinCoreService:
         include_balances: bool = False
     ) -> List[Dict]:
         """List all accounts with optional filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for account in sorted(self.accounts.values(), key=lambda a: a.account_number):
-            if active_only and not account.is_active:
-                continue
-            if account_type and account.account_type.value != account_type:
-                continue
+            query = "SELECT * FROM genfin_accounts WHERE 1=1"
+            params = []
 
-            acct_dict = self._account_to_dict(account)
+            if active_only:
+                query += " AND is_active = 1"
+            if account_type:
+                query += " AND account_type = ?"
+                params.append(account_type)
 
-            if include_balances:
-                acct_dict["balance"] = self.get_account_balance(account.account_id)
+            query += " ORDER BY account_number"
 
-            result.append(acct_dict)
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
-        return result
+            result = []
+            for row in rows:
+                acct_dict = self._row_to_account_dict(row)
+                if include_balances:
+                    acct_dict["balance"] = self.get_account_balance(row['account_id'])
+                result.append(acct_dict)
+
+            return result
 
     def get_chart_of_accounts(self) -> Dict:
         """Get complete chart of accounts organized by type"""
@@ -543,23 +740,27 @@ class GenFinCoreService:
             "expenses": []
         }
 
-        for account in sorted(self.accounts.values(), key=lambda a: a.account_number):
-            if not account.is_active:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_accounts WHERE is_active = 1 ORDER BY account_number
+            """)
+            rows = cursor.fetchall()
 
-            acct_dict = self._account_to_dict(account)
-            acct_dict["balance"] = self.get_account_balance(account.account_id)
+            for row in rows:
+                acct_dict = self._row_to_account_dict(row)
+                acct_dict["balance"] = self.get_account_balance(row['account_id'])
 
-            if account.account_type == AccountType.ASSET:
-                coa["assets"].append(acct_dict)
-            elif account.account_type == AccountType.LIABILITY:
-                coa["liabilities"].append(acct_dict)
-            elif account.account_type == AccountType.EQUITY:
-                coa["equity"].append(acct_dict)
-            elif account.account_type == AccountType.REVENUE:
-                coa["revenue"].append(acct_dict)
-            elif account.account_type == AccountType.EXPENSE:
-                coa["expenses"].append(acct_dict)
+                if row['account_type'] == 'asset':
+                    coa["assets"].append(acct_dict)
+                elif row['account_type'] == 'liability':
+                    coa["liabilities"].append(acct_dict)
+                elif row['account_type'] == 'equity':
+                    coa["equity"].append(acct_dict)
+                elif row['account_type'] == 'revenue':
+                    coa["revenue"].append(acct_dict)
+                elif row['account_type'] == 'expense':
+                    coa["expenses"].append(acct_dict)
 
         return coa
 
@@ -589,133 +790,182 @@ class GenFinCoreService:
                 "error": f"Entry does not balance. Debits: {total_debits}, Credits: {total_credits}"
             }
 
-        # Validate accounts exist
-        for line in lines:
-            if line["account_id"] not in self.accounts:
-                return {"success": False, "error": f"Account {line['account_id']} not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        entry_id = str(uuid.uuid4())
-        je_lines = []
+            # Validate accounts exist
+            for line in lines:
+                cursor.execute("SELECT account_id FROM genfin_accounts WHERE account_id = ?", (line["account_id"],))
+                if not cursor.fetchone():
+                    return {"success": False, "error": f"Account {line['account_id']} not found"}
 
-        for line in lines:
-            je_lines.append(JournalEntryLine(
-                line_id=str(uuid.uuid4()),
-                account_id=line["account_id"],
-                description=line.get("description", ""),
-                debit=line.get("debit", 0),
-                credit=line.get("credit", 0),
-                tax_code=line.get("tax_code"),
-                billable=line.get("billable", False),
-                customer_id=line.get("customer_id"),
-                vendor_id=line.get("vendor_id"),
-                class_id=line.get("class_id"),
-                location_id=line.get("location_id")
-            ))
+            entry_id = str(uuid.uuid4())
+            entry_number = self._get_next_entry_number()
+            now = datetime.now().isoformat()
+            status = "posted" if auto_post else "draft"
+            posted_at = now if auto_post else None
 
-        entry = JournalEntry(
-            entry_id=entry_id,
-            entry_number=self.next_entry_number,
-            entry_date=datetime.strptime(entry_date, "%Y-%m-%d").date(),
-            lines=je_lines,
-            memo=memo,
-            status=TransactionStatus.POSTED if auto_post else TransactionStatus.DRAFT,
-            source_type=source_type,
-            source_id=source_id,
-            adjusting_entry=adjusting_entry,
-            posted_at=datetime.now() if auto_post else None
-        )
+            cursor.execute("""
+                INSERT INTO genfin_journal_entries
+                (entry_id, entry_number, entry_date, memo, status, source_type, source_id,
+                 adjusting_entry, created_at, posted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (entry_id, entry_number, entry_date, memo, status, source_type, source_id,
+                  1 if adjusting_entry else 0, now, posted_at))
 
-        self.journal_entries[entry_id] = entry
-        self.next_entry_number += 1
+            for line in lines:
+                cursor.execute("""
+                    INSERT INTO genfin_journal_entry_lines
+                    (line_id, entry_id, account_id, description, debit, credit, tax_code,
+                     billable, customer_id, vendor_id, class_id, location_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(uuid.uuid4()),
+                    entry_id,
+                    line["account_id"],
+                    line.get("description", ""),
+                    line.get("debit", 0),
+                    line.get("credit", 0),
+                    line.get("tax_code"),
+                    1 if line.get("billable", False) else 0,
+                    line.get("customer_id"),
+                    line.get("vendor_id"),
+                    line.get("class_id"),
+                    line.get("location_id")
+                ))
+
+            conn.commit()
 
         return {
             "success": True,
             "entry_id": entry_id,
-            "entry_number": entry.entry_number,
-            "entry": self._entry_to_dict(entry)
+            "entry_number": entry_number,
+            "entry": self.get_journal_entry(entry_id)
         }
 
     def post_journal_entry(self, entry_id: str) -> Dict:
         """Post a draft journal entry"""
-        if entry_id not in self.journal_entries:
-            return {"success": False, "error": "Journal entry not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        entry = self.journal_entries[entry_id]
+            cursor.execute("SELECT status FROM genfin_journal_entries WHERE entry_id = ?", (entry_id,))
+            row = cursor.fetchone()
 
-        if entry.status != TransactionStatus.DRAFT:
-            return {"success": False, "error": f"Entry is already {entry.status.value}"}
+            if not row:
+                return {"success": False, "error": "Journal entry not found"}
 
-        entry.status = TransactionStatus.POSTED
-        entry.posted_at = datetime.now()
+            if row['status'] != 'draft':
+                return {"success": False, "error": f"Entry is already {row['status']}"}
+
+            cursor.execute("""
+                UPDATE genfin_journal_entries
+                SET status = 'posted', posted_at = ?
+                WHERE entry_id = ?
+            """, (datetime.now().isoformat(), entry_id))
+
+            conn.commit()
 
         return {
             "success": True,
-            "entry": self._entry_to_dict(entry)
+            "entry": self.get_journal_entry(entry_id)
         }
 
     def void_journal_entry(self, entry_id: str, reason: str = "") -> Dict:
         """Void a posted journal entry"""
-        if entry_id not in self.journal_entries:
-            return {"success": False, "error": "Journal entry not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        entry = self.journal_entries[entry_id]
+            cursor.execute("SELECT status, memo FROM genfin_journal_entries WHERE entry_id = ?", (entry_id,))
+            row = cursor.fetchone()
 
-        if entry.status == TransactionStatus.VOIDED:
-            return {"success": False, "error": "Entry is already voided"}
+            if not row:
+                return {"success": False, "error": "Journal entry not found"}
 
-        if entry.status == TransactionStatus.RECONCILED:
-            return {"success": False, "error": "Cannot void reconciled entry"}
+            if row['status'] == 'voided':
+                return {"success": False, "error": "Entry is already voided"}
 
-        entry.status = TransactionStatus.VOIDED
-        entry.memo = f"{entry.memo} [VOIDED: {reason}]"
+            if row['status'] == 'reconciled':
+                return {"success": False, "error": "Cannot void reconciled entry"}
+
+            new_memo = f"{row['memo']} [VOIDED: {reason}]"
+            cursor.execute("""
+                UPDATE genfin_journal_entries
+                SET status = 'voided', memo = ?
+                WHERE entry_id = ?
+            """, (new_memo, entry_id))
+
+            conn.commit()
 
         return {
             "success": True,
-            "entry": self._entry_to_dict(entry)
+            "entry": self.get_journal_entry(entry_id)
         }
 
     def reverse_journal_entry(self, entry_id: str, reversal_date: str) -> Dict:
         """Create a reversing entry for a posted journal entry"""
-        if entry_id not in self.journal_entries:
-            return {"success": False, "error": "Journal entry not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        original = self.journal_entries[entry_id]
+            cursor.execute("SELECT * FROM genfin_journal_entries WHERE entry_id = ?", (entry_id,))
+            original = cursor.fetchone()
 
-        if original.status != TransactionStatus.POSTED:
-            return {"success": False, "error": "Can only reverse posted entries"}
+            if not original:
+                return {"success": False, "error": "Journal entry not found"}
+
+            if original['status'] != 'posted':
+                return {"success": False, "error": "Can only reverse posted entries"}
+
+            # Get original lines
+            cursor.execute("SELECT * FROM genfin_journal_entry_lines WHERE entry_id = ?", (entry_id,))
+            original_lines = cursor.fetchall()
 
         # Create reversed lines
         reversed_lines = []
-        for line in original.lines:
+        for line in original_lines:
             reversed_lines.append({
-                "account_id": line.account_id,
-                "description": f"Reversal: {line.description}",
-                "debit": line.credit,  # Swap debit and credit
-                "credit": line.debit,
-                "class_id": line.class_id,
-                "location_id": line.location_id
+                "account_id": line['account_id'],
+                "description": f"Reversal: {line['description']}",
+                "debit": line['credit'],  # Swap debit and credit
+                "credit": line['debit'],
+                "class_id": line['class_id'],
+                "location_id": line['location_id']
             })
 
         result = self.create_journal_entry(
             entry_date=reversal_date,
             lines=reversed_lines,
-            memo=f"Reversal of entry #{original.entry_number}",
+            memo=f"Reversal of entry #{original['entry_number']}",
             source_type="reversal",
             source_id=entry_id,
             auto_post=True
         )
 
         if result["success"]:
-            original.reversing_entry = True
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE genfin_journal_entries SET reversing_entry = 1 WHERE entry_id = ?
+                """, (entry_id,))
+                conn.commit()
             result["original_entry_id"] = entry_id
 
         return result
 
     def get_journal_entry(self, entry_id: str) -> Optional[Dict]:
         """Get a single journal entry"""
-        if entry_id not in self.journal_entries:
-            return None
-        return self._entry_to_dict(self.journal_entries[entry_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT * FROM genfin_journal_entries WHERE entry_id = ?", (entry_id,))
+            entry_row = cursor.fetchone()
+
+            if not entry_row:
+                return None
+
+            cursor.execute("SELECT * FROM genfin_journal_entry_lines WHERE entry_id = ?", (entry_id,))
+            line_rows = cursor.fetchall()
+
+            return self._rows_to_entry_dict(entry_row, line_rows)
 
     def list_journal_entries(
         self,
@@ -726,26 +976,44 @@ class GenFinCoreService:
         account_id: Optional[str] = None
     ) -> List[Dict]:
         """List journal entries with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for entry in sorted(self.journal_entries.values(), key=lambda e: (e.entry_date, e.entry_number)):
+            query = "SELECT * FROM genfin_journal_entries WHERE 1=1"
+            params = []
+
             if start_date:
-                if entry.entry_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND entry_date >= ?"
+                params.append(start_date)
             if end_date:
-                if entry.entry_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
-            if status and entry.status.value != status:
-                continue
-            if source_type and entry.source_type != source_type:
-                continue
-            if account_id:
-                if not any(line.account_id == account_id for line in entry.lines):
-                    continue
+                query += " AND entry_date <= ?"
+                params.append(end_date)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+            if source_type:
+                query += " AND source_type = ?"
+                params.append(source_type)
 
-            result.append(self._entry_to_dict(entry))
+            query += " ORDER BY entry_date, entry_number"
 
-        return result
+            cursor.execute(query, params)
+            entry_rows = cursor.fetchall()
+
+            result = []
+            for entry_row in entry_rows:
+                cursor.execute("SELECT * FROM genfin_journal_entry_lines WHERE entry_id = ?", (entry_row['entry_id'],))
+                line_rows = cursor.fetchall()
+
+                # Filter by account_id if specified
+                if account_id:
+                    has_account = any(line['account_id'] == account_id for line in line_rows)
+                    if not has_account:
+                        continue
+
+                result.append(self._rows_to_entry_dict(entry_row, line_rows))
+
+            return result
 
     # ==================== GENERAL LEDGER ====================
 
@@ -755,30 +1023,39 @@ class GenFinCoreService:
         as_of_date: Optional[str] = None
     ) -> float:
         """Calculate account balance as of a date"""
-        if account_id not in self.accounts:
-            return 0.0
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        account = self.accounts[account_id]
-        balance = account.opening_balance
+            cursor.execute("SELECT * FROM genfin_accounts WHERE account_id = ?", (account_id,))
+            account_row = cursor.fetchone()
 
-        cutoff_date = None
-        if as_of_date:
-            cutoff_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+            if not account_row:
+                return 0.0
 
-        for entry in self.journal_entries.values():
-            if entry.status not in [TransactionStatus.POSTED, TransactionStatus.RECONCILED]:
-                continue
-            if cutoff_date and entry.entry_date > cutoff_date:
-                continue
+            balance = account_row['opening_balance'] or 0.0
+            account_type = account_row['account_type']
 
-            for line in entry.lines:
-                if line.account_id == account_id:
-                    # Assets and Expenses increase with debits
-                    if account.account_type in [AccountType.ASSET, AccountType.EXPENSE]:
-                        balance += line.debit - line.credit
-                    # Liabilities, Equity, Revenue increase with credits
-                    else:
-                        balance += line.credit - line.debit
+            query = """
+                SELECT l.debit, l.credit FROM genfin_journal_entry_lines l
+                JOIN genfin_journal_entries e ON l.entry_id = e.entry_id
+                WHERE l.account_id = ? AND e.status IN ('posted', 'reconciled')
+            """
+            params = [account_id]
+
+            if as_of_date:
+                query += " AND e.entry_date <= ?"
+                params.append(as_of_date)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            for row in rows:
+                # Assets and Expenses increase with debits
+                if account_type in ['asset', 'expense']:
+                    balance += row['debit'] - row['credit']
+                # Liabilities, Equity, Revenue increase with credits
+                else:
+                    balance += row['credit'] - row['debit']
 
         return round(balance, 2)
 
@@ -789,61 +1066,77 @@ class GenFinCoreService:
         end_date: Optional[str] = None
     ) -> Dict:
         """Get detailed ledger for an account"""
-        if account_id not in self.accounts:
-            return {"error": "Account not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        account = self.accounts[account_id]
+            cursor.execute("SELECT * FROM genfin_accounts WHERE account_id = ?", (account_id,))
+            account_row = cursor.fetchone()
 
-        # Calculate opening balance
-        opening_balance = account.opening_balance
-        if start_date:
-            start = datetime.strptime(start_date, "%Y-%m-%d").date()
-            for entry in self.journal_entries.values():
-                if entry.status not in [TransactionStatus.POSTED, TransactionStatus.RECONCILED]:
-                    continue
-                if entry.entry_date >= start:
-                    continue
-                for line in entry.lines:
-                    if line.account_id == account_id:
-                        if account.account_type in [AccountType.ASSET, AccountType.EXPENSE]:
-                            opening_balance += line.debit - line.credit
-                        else:
-                            opening_balance += line.credit - line.debit
+            if not account_row:
+                return {"error": "Account not found"}
 
-        # Get transactions
-        transactions = []
-        running_balance = opening_balance
+            account_type = account_row['account_type']
 
-        for entry in sorted(self.journal_entries.values(), key=lambda e: (e.entry_date, e.entry_number)):
-            if entry.status not in [TransactionStatus.POSTED, TransactionStatus.RECONCILED]:
-                continue
+            # Calculate opening balance
+            opening_balance = account_row['opening_balance'] or 0.0
             if start_date:
-                if entry.entry_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
-            if end_date:
-                if entry.entry_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
-
-            for line in entry.lines:
-                if line.account_id == account_id:
-                    if account.account_type in [AccountType.ASSET, AccountType.EXPENSE]:
-                        running_balance += line.debit - line.credit
+                query = """
+                    SELECT l.debit, l.credit FROM genfin_journal_entry_lines l
+                    JOIN genfin_journal_entries e ON l.entry_id = e.entry_id
+                    WHERE l.account_id = ? AND e.status IN ('posted', 'reconciled')
+                    AND e.entry_date < ?
+                """
+                cursor.execute(query, (account_id, start_date))
+                for row in cursor.fetchall():
+                    if account_type in ['asset', 'expense']:
+                        opening_balance += row['debit'] - row['credit']
                     else:
-                        running_balance += line.credit - line.debit
+                        opening_balance += row['credit'] - row['debit']
 
-                    transactions.append({
-                        "date": entry.entry_date.isoformat(),
-                        "entry_number": entry.entry_number,
-                        "entry_id": entry.entry_id,
-                        "description": line.description or entry.memo,
-                        "debit": line.debit,
-                        "credit": line.credit,
-                        "balance": round(running_balance, 2),
-                        "source_type": entry.source_type
-                    })
+            # Get transactions
+            query = """
+                SELECT e.entry_id, e.entry_number, e.entry_date, e.source_type, e.memo,
+                       l.description, l.debit, l.credit
+                FROM genfin_journal_entry_lines l
+                JOIN genfin_journal_entries e ON l.entry_id = e.entry_id
+                WHERE l.account_id = ? AND e.status IN ('posted', 'reconciled')
+            """
+            params = [account_id]
+
+            if start_date:
+                query += " AND e.entry_date >= ?"
+                params.append(start_date)
+            if end_date:
+                query += " AND e.entry_date <= ?"
+                params.append(end_date)
+
+            query += " ORDER BY e.entry_date, e.entry_number"
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            transactions = []
+            running_balance = opening_balance
+
+            for row in rows:
+                if account_type in ['asset', 'expense']:
+                    running_balance += row['debit'] - row['credit']
+                else:
+                    running_balance += row['credit'] - row['debit']
+
+                transactions.append({
+                    "date": row['entry_date'],
+                    "entry_number": row['entry_number'],
+                    "entry_id": row['entry_id'],
+                    "description": row['description'] or row['memo'],
+                    "debit": row['debit'],
+                    "credit": row['credit'],
+                    "balance": round(running_balance, 2),
+                    "source_type": row['source_type']
+                })
 
         return {
-            "account": self._account_to_dict(account),
+            "account": self._row_to_account_dict(account_row),
             "opening_balance": round(opening_balance, 2),
             "transactions": transactions,
             "ending_balance": round(running_balance, 2),
@@ -857,48 +1150,47 @@ class GenFinCoreService:
         total_debits = 0
         total_credits = 0
 
-        for account in sorted(self.accounts.values(), key=lambda a: a.account_number):
-            if not account.is_active:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_accounts WHERE is_active = 1 ORDER BY account_number
+            """)
+            rows = cursor.fetchall()
 
-            balance = self.get_account_balance(account.account_id, as_of_date)
+            for account_row in rows:
+                balance = self.get_account_balance(account_row['account_id'], as_of_date)
 
-            if balance == 0:
-                continue
+                if balance == 0:
+                    continue
 
-            debit = balance if balance > 0 and account.account_type in [AccountType.ASSET, AccountType.EXPENSE] else 0
-            credit = abs(balance) if balance < 0 and account.account_type in [AccountType.ASSET, AccountType.EXPENSE] else 0
+                account_type = account_row['account_type']
 
-            if account.account_type in [AccountType.LIABILITY, AccountType.EQUITY, AccountType.REVENUE]:
-                debit = abs(balance) if balance < 0 else 0
-                credit = balance if balance > 0 else 0
-
-            # Normalize
-            if account.account_type in [AccountType.ASSET, AccountType.EXPENSE]:
-                if balance >= 0:
-                    debit = balance
-                    credit = 0
+                # Normalize debit/credit columns
+                if account_type in ['asset', 'expense']:
+                    if balance >= 0:
+                        debit = balance
+                        credit = 0
+                    else:
+                        debit = 0
+                        credit = abs(balance)
                 else:
-                    debit = 0
-                    credit = abs(balance)
-            else:
-                if balance >= 0:
-                    debit = 0
-                    credit = balance
-                else:
-                    debit = abs(balance)
-                    credit = 0
+                    if balance >= 0:
+                        debit = 0
+                        credit = balance
+                    else:
+                        debit = abs(balance)
+                        credit = 0
 
-            total_debits += debit
-            total_credits += credit
+                total_debits += debit
+                total_credits += credit
 
-            accounts.append({
-                "account_number": account.account_number,
-                "account_name": account.name,
-                "account_type": account.account_type.value,
-                "debit": round(debit, 2),
-                "credit": round(credit, 2)
-            })
+                accounts.append({
+                    "account_number": account_row['account_number'],
+                    "account_name": account_row['name'],
+                    "account_type": account_type,
+                    "debit": round(debit, 2),
+                    "credit": round(credit, 2)
+                })
 
         return {
             "as_of_date": as_of_date or date.today().isoformat(),
@@ -914,36 +1206,40 @@ class GenFinCoreService:
         """Create fiscal periods for a year"""
         periods = []
 
-        for month in range(1, 13):
-            period_num = ((month - self.fiscal_year_start_month) % 12) + 1
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            if month == 12:
-                end_day = 31
-            elif month in [4, 6, 9, 11]:
-                end_day = 30
-            elif month == 2:
-                end_day = 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28
-            else:
-                end_day = 31
+            for month in range(1, 13):
+                period_num = ((month - self.fiscal_year_start_month) % 12) + 1
 
-            period_id = str(uuid.uuid4())
-            period = FiscalPeriod(
-                period_id=period_id,
-                name=f"{year}-{month:02d}",
-                start_date=date(year, month, 1),
-                end_date=date(year, month, end_day),
-                fiscal_year=year,
-                period_number=period_num
-            )
+                if month == 12:
+                    end_day = 31
+                elif month in [4, 6, 9, 11]:
+                    end_day = 30
+                elif month == 2:
+                    end_day = 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28
+                else:
+                    end_day = 31
 
-            self.fiscal_periods[period_id] = period
-            periods.append({
-                "period_id": period_id,
-                "name": period.name,
-                "start_date": period.start_date.isoformat(),
-                "end_date": period.end_date.isoformat(),
-                "period_number": period.period_number
-            })
+                period_id = str(uuid.uuid4())
+                start_date = date(year, month, 1).isoformat()
+                end_date_val = date(year, month, end_day).isoformat()
+
+                cursor.execute("""
+                    INSERT INTO genfin_fiscal_periods
+                    (period_id, name, start_date, end_date, fiscal_year, period_number)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (period_id, f"{year}-{month:02d}", start_date, end_date_val, year, period_num))
+
+                periods.append({
+                    "period_id": period_id,
+                    "name": f"{year}-{month:02d}",
+                    "start_date": start_date,
+                    "end_date": end_date_val,
+                    "period_number": period_num
+                })
+
+            conn.commit()
 
         return {
             "success": True,
@@ -953,21 +1249,32 @@ class GenFinCoreService:
 
     def close_fiscal_period(self, period_id: str, closed_by: str) -> Dict:
         """Close a fiscal period"""
-        if period_id not in self.fiscal_periods:
-            return {"success": False, "error": "Period not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        period = self.fiscal_periods[period_id]
-        period.is_closed = True
-        period.closed_at = datetime.now()
-        period.closed_by = closed_by
+            cursor.execute("SELECT * FROM genfin_fiscal_periods WHERE period_id = ?", (period_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Period not found"}
+
+            now = datetime.now().isoformat()
+            cursor.execute("""
+                UPDATE genfin_fiscal_periods
+                SET is_closed = 1, closed_at = ?, closed_by = ?
+                WHERE period_id = ?
+            """, (now, closed_by, period_id))
+
+            conn.commit()
+
+            cursor.execute("SELECT * FROM genfin_fiscal_periods WHERE period_id = ?", (period_id,))
+            period = cursor.fetchone()
 
         return {
             "success": True,
             "period": {
-                "period_id": period.period_id,
-                "name": period.name,
-                "is_closed": period.is_closed,
-                "closed_at": period.closed_at.isoformat()
+                "period_id": period['period_id'],
+                "name": period['name'],
+                "is_closed": bool(period['is_closed']),
+                "closed_at": period['closed_at']
             }
         }
 
@@ -983,37 +1290,45 @@ class GenFinCoreService:
         else:
             year_end = date(year + 1, self.fiscal_year_start_month - 1, 28)
 
-        for account in self.accounts.values():
-            if account.account_type == AccountType.REVENUE:
-                total_revenue += self.get_account_balance(account.account_id, year_end.isoformat())
-            elif account.account_type == AccountType.EXPENSE:
-                total_expenses += self.get_account_balance(account.account_id, year_end.isoformat())
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT account_id, account_type FROM genfin_accounts WHERE is_active = 1")
+            accounts = cursor.fetchall()
+
+            for account in accounts:
+                if account['account_type'] == 'revenue':
+                    total_revenue += self.get_account_balance(account['account_id'], year_end.isoformat())
+                elif account['account_type'] == 'expense':
+                    total_expenses += self.get_account_balance(account['account_id'], year_end.isoformat())
 
         net_income = total_revenue - total_expenses
 
         # Create closing entry
         closing_lines = []
 
-        # Close revenue accounts
-        for account in self.accounts.values():
-            if account.account_type == AccountType.REVENUE:
-                balance = self.get_account_balance(account.account_id, year_end.isoformat())
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Close revenue accounts
+            cursor.execute("SELECT account_id, name FROM genfin_accounts WHERE account_type = 'revenue' AND is_active = 1")
+            for account in cursor.fetchall():
+                balance = self.get_account_balance(account['account_id'], year_end.isoformat())
                 if balance != 0:
                     closing_lines.append({
-                        "account_id": account.account_id,
-                        "description": f"Close {account.name}",
+                        "account_id": account['account_id'],
+                        "description": f"Close {account['name']}",
                         "debit": balance if balance > 0 else 0,
                         "credit": abs(balance) if balance < 0 else 0
                     })
 
-        # Close expense accounts
-        for account in self.accounts.values():
-            if account.account_type == AccountType.EXPENSE:
-                balance = self.get_account_balance(account.account_id, year_end.isoformat())
+            # Close expense accounts
+            cursor.execute("SELECT account_id, name FROM genfin_accounts WHERE account_type = 'expense' AND is_active = 1")
+            for account in cursor.fetchall():
+                balance = self.get_account_balance(account['account_id'], year_end.isoformat())
                 if balance != 0:
                     closing_lines.append({
-                        "account_id": account.account_id,
-                        "description": f"Close {account.name}",
+                        "account_id": account['account_id'],
+                        "description": f"Close {account['name']}",
                         "debit": 0 if balance > 0 else abs(balance),
                         "credit": balance if balance > 0 else 0
                     })
@@ -1050,13 +1365,13 @@ class GenFinCoreService:
         """Create a class for tracking"""
         class_id = str(uuid.uuid4())
 
-        tracking = ClassTracking(
-            class_id=class_id,
-            name=name,
-            parent_class_id=parent_class_id
-        )
-
-        self.classes[class_id] = tracking
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_classes (class_id, name, parent_class_id)
+                VALUES (?, ?, ?)
+            """, (class_id, name, parent_class_id))
+            conn.commit()
 
         return {
             "success": True,
@@ -1066,27 +1381,32 @@ class GenFinCoreService:
 
     def list_classes(self) -> List[Dict]:
         """List all classes"""
-        return [
-            {
-                "class_id": c.class_id,
-                "name": c.name,
-                "parent_class_id": c.parent_class_id,
-                "is_active": c.is_active
-            }
-            for c in self.classes.values()
-        ]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_classes")
+            rows = cursor.fetchall()
+
+            return [
+                {
+                    "class_id": row['class_id'],
+                    "name": row['name'],
+                    "parent_class_id": row['parent_class_id'],
+                    "is_active": bool(row['is_active'])
+                }
+                for row in rows
+            ]
 
     def create_location(self, name: str, address: str = "") -> Dict:
         """Create a location for tracking"""
         location_id = str(uuid.uuid4())
 
-        location = Location(
-            location_id=location_id,
-            name=name,
-            address=address
-        )
-
-        self.locations[location_id] = location
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_locations (location_id, name, address)
+                VALUES (?, ?, ?)
+            """, (location_id, name, address))
+            conn.commit()
 
         return {
             "success": True,
@@ -1096,82 +1416,109 @@ class GenFinCoreService:
 
     def list_locations(self) -> List[Dict]:
         """List all locations"""
-        return [
-            {
-                "location_id": loc.location_id,
-                "name": loc.name,
-                "address": loc.address,
-                "is_active": loc.is_active
-            }
-            for loc in self.locations.values()
-        ]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_locations")
+            rows = cursor.fetchall()
+
+            return [
+                {
+                    "location_id": row['location_id'],
+                    "name": row['name'],
+                    "address": row['address'],
+                    "is_active": bool(row['is_active'])
+                }
+                for row in rows
+            ]
 
     # ==================== UTILITY METHODS ====================
 
-    def _account_to_dict(self, account: Account) -> Dict:
-        """Convert Account to dictionary"""
+    def _row_to_account_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert SQLite row to account dictionary"""
         return {
-            "account_id": account.account_id,
-            "account_number": account.account_number,
-            "name": account.name,
-            "account_type": account.account_type.value,
-            "sub_type": account.sub_type.value,
-            "description": account.description,
-            "parent_account_id": account.parent_account_id,
-            "is_active": account.is_active,
-            "is_system": account.is_system,
-            "tax_line": account.tax_line,
-            "opening_balance": account.opening_balance,
-            "opening_balance_date": account.opening_balance_date.isoformat() if account.opening_balance_date else None,
-            "currency": account.currency,
-            "created_at": account.created_at.isoformat(),
-            "updated_at": account.updated_at.isoformat()
+            "account_id": row['account_id'],
+            "account_number": row['account_number'],
+            "name": row['name'],
+            "account_type": row['account_type'],
+            "sub_type": row['sub_type'],
+            "description": row['description'] or "",
+            "parent_account_id": row['parent_account_id'],
+            "is_active": bool(row['is_active']),
+            "is_system": bool(row['is_system']),
+            "tax_line": row['tax_line'],
+            "opening_balance": row['opening_balance'] or 0.0,
+            "opening_balance_date": row['opening_balance_date'],
+            "currency": row['currency'] or "USD",
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
         }
 
-    def _entry_to_dict(self, entry: JournalEntry) -> Dict:
-        """Convert JournalEntry to dictionary"""
+    def _rows_to_entry_dict(self, entry_row: sqlite3.Row, line_rows: List[sqlite3.Row]) -> Dict:
+        """Convert SQLite rows to journal entry dictionary"""
+        lines = []
+        for line in line_rows:
+            account = self.get_account(line['account_id'])
+            lines.append({
+                "line_id": line['line_id'],
+                "account_id": line['account_id'],
+                "account_name": account['name'] if account else "Unknown",
+                "account_number": account['account_number'] if account else "",
+                "description": line['description'] or "",
+                "debit": line['debit'] or 0,
+                "credit": line['credit'] or 0,
+                "tax_code": line['tax_code'],
+                "billable": bool(line['billable']),
+                "customer_id": line['customer_id'],
+                "vendor_id": line['vendor_id'],
+                "class_id": line['class_id'],
+                "location_id": line['location_id']
+            })
+
         return {
-            "entry_id": entry.entry_id,
-            "entry_number": entry.entry_number,
-            "entry_date": entry.entry_date.isoformat(),
-            "lines": [
-                {
-                    "line_id": line.line_id,
-                    "account_id": line.account_id,
-                    "account_name": self.accounts[line.account_id].name if line.account_id in self.accounts else "Unknown",
-                    "account_number": self.accounts[line.account_id].account_number if line.account_id in self.accounts else "",
-                    "description": line.description,
-                    "debit": line.debit,
-                    "credit": line.credit,
-                    "tax_code": line.tax_code,
-                    "billable": line.billable,
-                    "customer_id": line.customer_id,
-                    "vendor_id": line.vendor_id,
-                    "class_id": line.class_id,
-                    "location_id": line.location_id
-                }
-                for line in entry.lines
-            ],
-            "memo": entry.memo,
-            "status": entry.status.value,
-            "source_type": entry.source_type,
-            "source_id": entry.source_id,
-            "adjusting_entry": entry.adjusting_entry,
-            "reversing_entry": entry.reversing_entry,
-            "reversed_entry_id": entry.reversed_entry_id,
-            "created_by": entry.created_by,
-            "created_at": entry.created_at.isoformat(),
-            "posted_at": entry.posted_at.isoformat() if entry.posted_at else None,
-            "total_debits": sum(line.debit for line in entry.lines),
-            "total_credits": sum(line.credit for line in entry.lines)
+            "entry_id": entry_row['entry_id'],
+            "entry_number": entry_row['entry_number'],
+            "entry_date": entry_row['entry_date'],
+            "lines": lines,
+            "memo": entry_row['memo'] or "",
+            "status": entry_row['status'],
+            "source_type": entry_row['source_type'],
+            "source_id": entry_row['source_id'],
+            "adjusting_entry": bool(entry_row['adjusting_entry']),
+            "reversing_entry": bool(entry_row['reversing_entry']),
+            "reversed_entry_id": entry_row['reversed_entry_id'],
+            "created_by": entry_row['created_by'] or "",
+            "created_at": entry_row['created_at'],
+            "posted_at": entry_row['posted_at'],
+            "total_debits": sum(line['debit'] or 0 for line in line_rows),
+            "total_credits": sum(line['credit'] or 0 for line in line_rows)
         }
 
     def get_system_summary(self) -> Dict:
         """Get GenFin system summary"""
-        total_accounts = len(self.accounts)
-        active_accounts = sum(1 for a in self.accounts.values() if a.is_active)
-        total_entries = len(self.journal_entries)
-        posted_entries = sum(1 for e in self.journal_entries.values() if e.status == TransactionStatus.POSTED)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_accounts")
+            total_accounts = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_accounts WHERE is_active = 1")
+            active_accounts = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_journal_entries")
+            total_entries = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_journal_entries WHERE status = 'posted'")
+            posted_entries = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_classes")
+            classes_count = cursor.fetchone()['count']
+
+            cursor.execute("SELECT COUNT(*) as count FROM genfin_locations")
+            locations_count = cursor.fetchone()['count']
+
+            cursor.execute("SELECT value FROM genfin_core_settings WHERE key = 'next_entry_number'")
+            row = cursor.fetchone()
+            next_entry_number = int(row['value']) if row else 1
 
         return {
             "system": "GenFin Core Accounting",
@@ -1182,9 +1529,9 @@ class GenFinCoreService:
             "total_journal_entries": total_entries,
             "posted_entries": posted_entries,
             "fiscal_year_start_month": self.fiscal_year_start_month,
-            "next_entry_number": self.next_entry_number,
-            "classes_count": len(self.classes),
-            "locations_count": len(self.locations)
+            "next_entry_number": next_entry_number,
+            "classes_count": classes_count,
+            "locations_count": locations_count
         }
 
 
