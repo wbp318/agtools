@@ -1,8 +1,10 @@
 """
-GenFin Classes & Projects Service - QuickBooks-style Class Tracking and Job Costing
+GenFin Classes & Projects Service with SQLite persistence
 Track income/expenses by class, project, and job for detailed profitability analysis
 """
 
+import sqlite3
+import json
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
@@ -51,12 +53,11 @@ class Class:
     class_id: str
     name: str
     class_type: ClassType = ClassType.CUSTOM
-    parent_class_id: Optional[str] = None  # For subclasses
+    parent_class_id: Optional[str] = None
 
     description: str = ""
     is_active: bool = True
 
-    # Tracking
     total_income: float = 0.0
     total_expenses: float = 0.0
     transaction_count: int = 0
@@ -73,39 +74,31 @@ class Project:
     project_number: str = ""
     customer_id: Optional[str] = None
 
-    # Dates
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     due_date: Optional[date] = None
 
-    # Description
     description: str = ""
     notes: str = ""
 
-    # Status
     status: ProjectStatus = ProjectStatus.NOT_STARTED
 
-    # Budget
     estimated_revenue: float = 0.0
     estimated_cost: float = 0.0
     estimated_hours: float = 0.0
 
-    # Actuals
     actual_revenue: float = 0.0
     actual_cost: float = 0.0
     actual_hours: float = 0.0
 
-    # Billing
-    billing_method: str = "fixed"  # fixed, time_and_materials, percent_complete
+    billing_method: str = "fixed"
     contract_amount: float = 0.0
     amount_billed: float = 0.0
     amount_received: float = 0.0
 
-    # Classification
     class_id: Optional[str] = None
     project_type: str = ""
 
-    # Parent for sub-projects
     parent_project_id: Optional[str] = None
 
     is_active: bool = True
@@ -120,23 +113,19 @@ class BillableExpense:
     project_id: str
     expense_date: date
 
-    # Expense details
     description: str
     vendor_id: Optional[str] = None
     amount: float = 0.0
     markup_percent: float = 0.0
     billable_amount: float = 0.0
 
-    # Categorization
     expense_account_id: Optional[str] = None
     item_id: Optional[str] = None
 
-    # Status
     status: BillableStatus = BillableStatus.NOT_BILLED
     invoice_id: Optional[str] = None
     billed_date: Optional[date] = None
 
-    # Source
     bill_id: Optional[str] = None
     time_entry_id: Optional[str] = None
 
@@ -151,26 +140,21 @@ class BillableTime:
     project_id: str
     entry_date: date
 
-    # Employee/Contractor
     employee_id: Optional[str] = None
     employee_name: str = ""
 
-    # Time
     hours: float = 0.0
     hourly_rate: float = 0.0
     amount: float = 0.0
 
-    # Billing
     is_billable: bool = True
     billable_rate: float = 0.0
     billable_amount: float = 0.0
 
-    # Status
     status: BillableStatus = BillableStatus.NOT_BILLED
     invoice_id: Optional[str] = None
     billed_date: Optional[date] = None
 
-    # Details
     service_item_id: Optional[str] = None
     description: str = ""
     notes: str = ""
@@ -186,11 +170,9 @@ class ProjectMilestone:
     name: str
     description: str = ""
 
-    # Billing
     amount: float = 0.0
     percent_of_total: float = 0.0
 
-    # Status
     due_date: Optional[date] = None
     completed_date: Optional[date] = None
     is_completed: bool = False
@@ -212,7 +194,6 @@ class ProgressBilling:
     percent_complete: float = 0.0
     amount: float = 0.0
 
-    # For milestone billing
     milestone_ids: List[str] = field(default_factory=list)
 
     description: str = ""
@@ -223,9 +204,9 @@ class ProgressBilling:
 
 @dataclass
 class TransactionClass:
-    """Links transactions to classes (journal entries, bills, invoices, etc.)"""
+    """Links transactions to classes"""
     link_id: str
-    transaction_type: str  # journal_entry, bill, invoice, expense, etc.
+    transaction_type: str
     transaction_id: str
     class_id: str
     amount: float = 0.0
@@ -234,7 +215,7 @@ class TransactionClass:
 
 class GenFinClassesService:
     """
-    GenFin Classes & Projects Service
+    GenFin Classes & Projects Service with SQLite persistence
 
     QuickBooks-style class and job costing:
     - Class tracking (departments, locations, fields)
@@ -247,46 +228,218 @@ class GenFinClassesService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.classes: Dict[str, Class] = {}
-        self.projects: Dict[str, Project] = {}
-        self.billable_expenses: Dict[str, BillableExpense] = {}
-        self.billable_time: Dict[str, BillableTime] = {}
-        self.milestones: Dict[str, ProjectMilestone] = {}
-        self.progress_billings: Dict[str, ProgressBilling] = {}
-        self.transaction_classes: Dict[str, TransactionClass] = {}
-
+        self.db_path = db_path
+        self._init_tables()
         self._initialize_farm_classes()
         self._initialized = True
 
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Drop old tables if schema changed (migration)
+            cursor.execute("DROP TABLE IF EXISTS genfin_classes")
+            cursor.execute("DROP TABLE IF EXISTS genfin_projects")
+            cursor.execute("DROP TABLE IF EXISTS genfin_billable_expenses")
+            cursor.execute("DROP TABLE IF EXISTS genfin_billable_time")
+            cursor.execute("DROP TABLE IF EXISTS genfin_milestones")
+            cursor.execute("DROP TABLE IF EXISTS genfin_progress_billings")
+            cursor.execute("DROP TABLE IF EXISTS genfin_transaction_classes")
+
+            # Classes table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_classes (
+                    class_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    class_type TEXT DEFAULT 'custom',
+                    parent_class_id TEXT,
+                    description TEXT DEFAULT '',
+                    is_active INTEGER DEFAULT 1,
+                    total_income REAL DEFAULT 0.0,
+                    total_expenses REAL DEFAULT 0.0,
+                    transaction_count INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Projects table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_projects (
+                    project_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    project_number TEXT DEFAULT '',
+                    customer_id TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    due_date TEXT,
+                    description TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    status TEXT DEFAULT 'not_started',
+                    estimated_revenue REAL DEFAULT 0.0,
+                    estimated_cost REAL DEFAULT 0.0,
+                    estimated_hours REAL DEFAULT 0.0,
+                    actual_revenue REAL DEFAULT 0.0,
+                    actual_cost REAL DEFAULT 0.0,
+                    actual_hours REAL DEFAULT 0.0,
+                    billing_method TEXT DEFAULT 'fixed',
+                    contract_amount REAL DEFAULT 0.0,
+                    amount_billed REAL DEFAULT 0.0,
+                    amount_received REAL DEFAULT 0.0,
+                    class_id TEXT,
+                    project_type TEXT DEFAULT '',
+                    parent_project_id TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Billable expenses table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_billable_expenses (
+                    expense_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    expense_date TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    vendor_id TEXT,
+                    amount REAL DEFAULT 0.0,
+                    markup_percent REAL DEFAULT 0.0,
+                    billable_amount REAL DEFAULT 0.0,
+                    expense_account_id TEXT,
+                    item_id TEXT,
+                    status TEXT DEFAULT 'not_billed',
+                    invoice_id TEXT,
+                    billed_date TEXT,
+                    bill_id TEXT,
+                    time_entry_id TEXT,
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (project_id) REFERENCES genfin_projects(project_id)
+                )
+            """)
+
+            # Billable time table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_billable_time (
+                    time_entry_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    entry_date TEXT NOT NULL,
+                    employee_id TEXT,
+                    employee_name TEXT DEFAULT '',
+                    hours REAL DEFAULT 0.0,
+                    hourly_rate REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    is_billable INTEGER DEFAULT 1,
+                    billable_rate REAL DEFAULT 0.0,
+                    billable_amount REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'not_billed',
+                    invoice_id TEXT,
+                    billed_date TEXT,
+                    service_item_id TEXT,
+                    description TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (project_id) REFERENCES genfin_projects(project_id)
+                )
+            """)
+
+            # Milestones table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_milestones (
+                    milestone_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    amount REAL DEFAULT 0.0,
+                    percent_of_total REAL DEFAULT 0.0,
+                    due_date TEXT,
+                    completed_date TEXT,
+                    is_completed INTEGER DEFAULT 0,
+                    is_billed INTEGER DEFAULT 0,
+                    invoice_id TEXT,
+                    sort_order INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (project_id) REFERENCES genfin_projects(project_id)
+                )
+            """)
+
+            # Progress billings table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_progress_billings (
+                    billing_id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    billing_date TEXT NOT NULL,
+                    billing_type TEXT NOT NULL,
+                    percent_complete REAL DEFAULT 0.0,
+                    amount REAL DEFAULT 0.0,
+                    milestone_ids_json TEXT DEFAULT '[]',
+                    description TEXT DEFAULT '',
+                    invoice_id TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (project_id) REFERENCES genfin_projects(project_id)
+                )
+            """)
+
+            # Transaction classes table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_transaction_classes (
+                    link_id TEXT PRIMARY KEY,
+                    transaction_type TEXT NOT NULL,
+                    transaction_id TEXT NOT NULL,
+                    class_id TEXT NOT NULL,
+                    amount REAL DEFAULT 0.0,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (class_id) REFERENCES genfin_classes(class_id)
+                )
+            """)
+
+            conn.commit()
+
     def _initialize_farm_classes(self):
         """Initialize default farm-related classes"""
-        farm_classes = [
-            {"name": "Corn", "type": ClassType.CROP},
-            {"name": "Soybeans", "type": ClassType.CROP},
-            {"name": "Wheat", "type": ClassType.CROP},
-            {"name": "Equipment", "type": ClassType.DEPARTMENT},
-            {"name": "Overhead", "type": ClassType.DEPARTMENT},
-            {"name": "Custom Work", "type": ClassType.DEPARTMENT},
-        ]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM genfin_classes")
+            if cursor.fetchone()[0] > 0:
+                return
 
-        for fc in farm_classes:
-            class_id = str(uuid.uuid4())
-            cls = Class(
-                class_id=class_id,
-                name=fc["name"],
-                class_type=fc["type"]
-            )
-            self.classes[class_id] = cls
+            now = datetime.now().isoformat()
+            farm_classes = [
+                {"name": "Corn", "type": "crop"},
+                {"name": "Soybeans", "type": "crop"},
+                {"name": "Wheat", "type": "crop"},
+                {"name": "Equipment", "type": "department"},
+                {"name": "Overhead", "type": "department"},
+                {"name": "Custom Work", "type": "department"},
+            ]
+
+            for fc in farm_classes:
+                class_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_classes
+                    (class_id, name, class_type, is_active, created_at, updated_at)
+                    VALUES (?, ?, ?, 1, ?, ?)
+                """, (class_id, fc["name"], fc["type"], now, now))
+
+            conn.commit()
 
     # ==================== CLASS MANAGEMENT ====================
 
@@ -299,52 +452,73 @@ class GenFinClassesService:
     ) -> Dict:
         """Create a new class"""
         class_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
 
-        # Validate parent if provided
-        if parent_class_id and parent_class_id not in self.classes:
-            return {"success": False, "error": "Parent class not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        cls = Class(
-            class_id=class_id,
-            name=name,
-            class_type=ClassType(class_type),
-            parent_class_id=parent_class_id,
-            description=description
-        )
+            if parent_class_id:
+                cursor.execute("SELECT class_id FROM genfin_classes WHERE class_id = ? AND is_active = 1",
+                             (parent_class_id,))
+                if not cursor.fetchone():
+                    return {"success": False, "error": "Parent class not found"}
 
-        self.classes[class_id] = cls
+            cursor.execute("""
+                INSERT INTO genfin_classes
+                (class_id, name, class_type, parent_class_id, description, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+            """, (class_id, name, class_type, parent_class_id, description, now, now))
+            conn.commit()
 
         return {
             "success": True,
             "class_id": class_id,
-            "class": self._class_to_dict(cls)
+            "class": self.get_class(class_id)
         }
 
     def update_class(self, class_id: str, **kwargs) -> Dict:
         """Update a class"""
-        if class_id not in self.classes:
-            return {"success": False, "error": "Class not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT class_id FROM genfin_classes WHERE class_id = ? AND is_active = 1",
+                         (class_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Class not found"}
 
-        cls = self.classes[class_id]
+            updates = []
+            values = []
 
-        for key, value in kwargs.items():
-            if hasattr(cls, key) and value is not None:
-                if key == "class_type":
-                    value = ClassType(value)
-                setattr(cls, key, value)
+            for key, value in kwargs.items():
+                if value is not None:
+                    updates.append(f"{key} = ?")
+                    values.append(value)
 
-        cls.updated_at = datetime.now()
+            if updates:
+                updates.append("updated_at = ?")
+                values.append(datetime.now().isoformat())
+                values.append(class_id)
+
+                cursor.execute(f"""
+                    UPDATE genfin_classes
+                    SET {', '.join(updates)}
+                    WHERE class_id = ?
+                """, values)
+                conn.commit()
 
         return {
             "success": True,
-            "class": self._class_to_dict(cls)
+            "class": self.get_class(class_id)
         }
 
     def get_class(self, class_id: str) -> Optional[Dict]:
         """Get class by ID"""
-        if class_id not in self.classes:
-            return None
-        return self._class_to_dict(self.classes[class_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_classes WHERE class_id = ?", (class_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_class_dict(row)
 
     def list_classes(
         self,
@@ -354,44 +528,75 @@ class GenFinClassesService:
         include_hierarchy: bool = False
     ) -> List[Dict]:
         """List classes with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for cls in self.classes.values():
-            if active_only and not cls.is_active:
-                continue
-            if class_type and cls.class_type.value != class_type:
-                continue
-            if parent_class_id is not None and cls.parent_class_id != parent_class_id:
-                continue
+            query = "SELECT * FROM genfin_classes WHERE 1=1"
+            params = []
 
-            class_dict = self._class_to_dict(cls)
+            if active_only:
+                query += " AND is_active = 1"
 
-            if include_hierarchy:
-                # Add subclasses
-                class_dict["subclasses"] = [
-                    self._class_to_dict(c) for c in self.classes.values()
-                    if c.parent_class_id == cls.class_id and c.is_active
-                ]
+            if class_type:
+                query += " AND class_type = ?"
+                params.append(class_type)
 
-            result.append(class_dict)
+            if parent_class_id is not None:
+                if parent_class_id == "":
+                    query += " AND parent_class_id IS NULL"
+                else:
+                    query += " AND parent_class_id = ?"
+                    params.append(parent_class_id)
 
-        return sorted(result, key=lambda c: c["name"])
+            query += " ORDER BY name"
+
+            cursor.execute(query, params)
+            result = []
+
+            for row in cursor.fetchall():
+                class_dict = self._row_to_class_dict(row)
+
+                if include_hierarchy:
+                    cursor.execute("""
+                        SELECT * FROM genfin_classes
+                        WHERE parent_class_id = ? AND is_active = 1
+                        ORDER BY name
+                    """, (row['class_id'],))
+                    class_dict["subclasses"] = [
+                        self._row_to_class_dict(sub) for sub in cursor.fetchall()
+                    ]
+
+                result.append(class_dict)
+
+        return result
 
     def get_class_hierarchy(self) -> List[Dict]:
         """Get classes organized as hierarchy"""
-        # Get top-level classes
-        top_level = [c for c in self.classes.values() if c.parent_class_id is None and c.is_active]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        def build_tree(parent_id: Optional[str]) -> List[Dict]:
-            children = [c for c in self.classes.values() if c.parent_class_id == parent_id and c.is_active]
-            result = []
-            for child in sorted(children, key=lambda c: c.name):
-                node = self._class_to_dict(child)
-                node["children"] = build_tree(child.class_id)
-                result.append(node)
-            return result
+            def build_tree(parent_id: Optional[str]) -> List[Dict]:
+                if parent_id:
+                    cursor.execute("""
+                        SELECT * FROM genfin_classes
+                        WHERE parent_class_id = ? AND is_active = 1
+                        ORDER BY name
+                    """, (parent_id,))
+                else:
+                    cursor.execute("""
+                        SELECT * FROM genfin_classes
+                        WHERE parent_class_id IS NULL AND is_active = 1
+                        ORDER BY name
+                    """)
 
-        return build_tree(None)
+                result = []
+                for row in cursor.fetchall():
+                    node = self._row_to_class_dict(row)
+                    node["children"] = build_tree(row['class_id'])
+                    result.append(node)
+                return result
+
+            return build_tree(None)
 
     # ==================== PROJECT/JOB MANAGEMENT ====================
 
@@ -411,72 +616,87 @@ class GenFinClassesService:
     ) -> Dict:
         """Create a new project/job"""
         project_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
 
-        # Generate project number if not provided
-        if not project_number:
-            project_number = f"P-{len(self.projects) + 1:05d}"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        project = Project(
-            project_id=project_id,
-            name=name,
-            project_number=project_number,
-            customer_id=customer_id,
-            start_date=datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None,
-            end_date=datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None,
-            estimated_revenue=estimated_revenue,
-            estimated_cost=estimated_cost,
-            billing_method=billing_method,
-            contract_amount=contract_amount,
-            class_id=class_id,
-            description=description
-        )
+            # Generate project number if not provided
+            if not project_number:
+                cursor.execute("SELECT COUNT(*) FROM genfin_projects")
+                count = cursor.fetchone()[0]
+                project_number = f"P-{count + 1:05d}"
 
-        self.projects[project_id] = project
+            cursor.execute("""
+                INSERT INTO genfin_projects
+                (project_id, name, project_number, customer_id, start_date, end_date,
+                 description, estimated_revenue, estimated_cost, billing_method,
+                 contract_amount, class_id, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            """, (project_id, name, project_number, customer_id, start_date, end_date,
+                  description, estimated_revenue, estimated_cost, billing_method,
+                  contract_amount, class_id, now, now))
+            conn.commit()
 
         return {
             "success": True,
             "project_id": project_id,
             "project_number": project_number,
-            "project": self._project_to_dict(project)
+            "project": self.get_project(project_id)
         }
 
     def update_project(self, project_id: str, **kwargs) -> Dict:
         """Update a project"""
-        if project_id not in self.projects:
-            return {"success": False, "error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT project_id FROM genfin_projects WHERE project_id = ? AND is_active = 1",
+                         (project_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Project not found"}
 
-        project = self.projects[project_id]
+            updates = []
+            values = []
 
-        for key, value in kwargs.items():
-            if hasattr(project, key) and value is not None:
-                if key == "status":
-                    value = ProjectStatus(value)
-                elif key in ["start_date", "end_date", "due_date"] and isinstance(value, str):
-                    value = datetime.strptime(value, "%Y-%m-%d").date()
-                setattr(project, key, value)
+            for key, value in kwargs.items():
+                if value is not None:
+                    updates.append(f"{key} = ?")
+                    values.append(value)
 
-        project.updated_at = datetime.now()
+            if updates:
+                updates.append("updated_at = ?")
+                values.append(datetime.now().isoformat())
+                values.append(project_id)
+
+                cursor.execute(f"""
+                    UPDATE genfin_projects
+                    SET {', '.join(updates)}
+                    WHERE project_id = ?
+                """, values)
+                conn.commit()
 
         return {
             "success": True,
-            "project": self._project_to_dict(project)
+            "project": self.get_project(project_id)
         }
 
     def get_project(self, project_id: str) -> Optional[Dict]:
         """Get project by ID"""
-        if project_id not in self.projects:
-            return None
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_projects WHERE project_id = ?", (project_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
 
-        project = self.projects[project_id]
-        result = self._project_to_dict(project)
+            result = self._row_to_project_dict(row)
 
-        # Add detailed financials
-        result["billable_expenses"] = self.get_project_billable_expenses(project_id)
-        result["billable_time"] = self.get_project_billable_time(project_id)
-        result["milestones"] = [
-            self._milestone_to_dict(m) for m in self.milestones.values()
-            if m.project_id == project_id
-        ]
+            # Add detailed financials
+            result["billable_expenses"] = self.get_project_billable_expenses(project_id)
+            result["billable_time"] = self.get_project_billable_time(project_id)
+
+            cursor.execute("SELECT * FROM genfin_milestones WHERE project_id = ? ORDER BY sort_order",
+                         (project_id,))
+            result["milestones"] = [self._row_to_milestone_dict(m) for m in cursor.fetchall()]
 
         return result
 
@@ -488,38 +708,56 @@ class GenFinClassesService:
         active_only: bool = True
     ) -> List[Dict]:
         """List projects with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for project in self.projects.values():
-            if active_only and not project.is_active:
-                continue
-            if customer_id and project.customer_id != customer_id:
-                continue
-            if status and project.status.value != status:
-                continue
-            if class_id and project.class_id != class_id:
-                continue
+            query = "SELECT * FROM genfin_projects WHERE 1=1"
+            params = []
 
-            result.append(self._project_to_dict(project))
+            if active_only:
+                query += " AND is_active = 1"
 
-        return sorted(result, key=lambda p: p["name"])
+            if customer_id:
+                query += " AND customer_id = ?"
+                params.append(customer_id)
+
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+
+            if class_id:
+                query += " AND class_id = ?"
+                params.append(class_id)
+
+            query += " ORDER BY name"
+
+            cursor.execute(query, params)
+            return [self._row_to_project_dict(row) for row in cursor.fetchall()]
 
     def update_project_status(self, project_id: str, status: str) -> Dict:
         """Update project status"""
-        if project_id not in self.projects:
-            return {"success": False, "error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_projects WHERE project_id = ? AND is_active = 1",
+                         (project_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Project not found"}
 
-        project = self.projects[project_id]
-        project.status = ProjectStatus(status)
+            end_date = row['end_date']
+            if status == "completed" and not end_date:
+                end_date = date.today().isoformat()
 
-        if status == "completed" and project.end_date is None:
-            project.end_date = date.today()
-
-        project.updated_at = datetime.now()
+            cursor.execute("""
+                UPDATE genfin_projects
+                SET status = ?, end_date = ?, updated_at = ?
+                WHERE project_id = ?
+            """, (status, end_date, datetime.now().isoformat(), project_id))
+            conn.commit()
 
         return {
             "success": True,
-            "project": self._project_to_dict(project)
+            "project": self.get_project(project_id)
         }
 
     # ==================== BILLABLE EXPENSES ====================
@@ -538,43 +776,54 @@ class GenFinClassesService:
         notes: str = ""
     ) -> Dict:
         """Add a billable expense to a project"""
-        if project_id not in self.projects:
-            return {"success": False, "error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT project_id FROM genfin_projects WHERE project_id = ? AND is_active = 1",
+                         (project_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Project not found"}
 
-        expense_id = str(uuid.uuid4())
-        e_date = datetime.strptime(expense_date, "%Y-%m-%d").date()
+            expense_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
 
-        # Calculate billable amount with markup
-        markup = amount * (markup_percent / 100) if markup_percent else 0
-        billable_amount = amount + markup
+            markup = amount * (markup_percent / 100) if markup_percent else 0
+            billable_amount = amount + markup
 
-        expense = BillableExpense(
-            expense_id=expense_id,
-            project_id=project_id,
-            expense_date=e_date,
-            description=description,
-            vendor_id=vendor_id,
-            amount=amount,
-            markup_percent=markup_percent,
-            billable_amount=billable_amount,
-            expense_account_id=expense_account_id,
-            item_id=item_id,
-            bill_id=bill_id,
-            notes=notes
-        )
+            cursor.execute("""
+                INSERT INTO genfin_billable_expenses
+                (expense_id, project_id, expense_date, description, vendor_id, amount,
+                 markup_percent, billable_amount, expense_account_id, item_id,
+                 status, bill_id, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_billed', ?, ?, ?)
+            """, (expense_id, project_id, expense_date, description, vendor_id, amount,
+                  markup_percent, billable_amount, expense_account_id, item_id,
+                  bill_id, notes, now))
 
-        self.billable_expenses[expense_id] = expense
+            # Update project actuals
+            cursor.execute("""
+                UPDATE genfin_projects
+                SET actual_cost = actual_cost + ?, updated_at = ?
+                WHERE project_id = ?
+            """, (amount, now, project_id))
 
-        # Update project actuals
-        project = self.projects[project_id]
-        project.actual_cost += amount
-        project.updated_at = datetime.now()
+            conn.commit()
 
         return {
             "success": True,
             "expense_id": expense_id,
-            "expense": self._expense_to_dict(expense)
+            "expense": self._get_expense(expense_id)
         }
+
+    def _get_expense(self, expense_id: str) -> Optional[Dict]:
+        """Get single expense"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_billable_expenses WHERE expense_id = ?",
+                         (expense_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_expense_dict(row)
 
     def get_project_billable_expenses(
         self,
@@ -582,31 +831,35 @@ class GenFinClassesService:
         unbilled_only: bool = False
     ) -> List[Dict]:
         """Get billable expenses for a project"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for expense in self.billable_expenses.values():
-            if expense.project_id != project_id:
-                continue
-            if unbilled_only and expense.status == BillableStatus.BILLED:
-                continue
+            query = "SELECT * FROM genfin_billable_expenses WHERE project_id = ?"
+            params = [project_id]
 
-            result.append(self._expense_to_dict(expense))
+            if unbilled_only:
+                query += " AND status != 'billed'"
 
-        return sorted(result, key=lambda e: e["expense_date"])
+            query += " ORDER BY expense_date"
 
-    def mark_expense_billed(
-        self,
-        expense_id: str,
-        invoice_id: str
-    ) -> Dict:
+            cursor.execute(query, params)
+            return [self._row_to_expense_dict(row) for row in cursor.fetchall()]
+
+    def mark_expense_billed(self, expense_id: str, invoice_id: str) -> Dict:
         """Mark an expense as billed"""
-        if expense_id not in self.billable_expenses:
-            return {"success": False, "error": "Expense not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT expense_id FROM genfin_billable_expenses WHERE expense_id = ?",
+                         (expense_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Expense not found"}
 
-        expense = self.billable_expenses[expense_id]
-        expense.status = BillableStatus.BILLED
-        expense.invoice_id = invoice_id
-        expense.billed_date = date.today()
+            cursor.execute("""
+                UPDATE genfin_billable_expenses
+                SET status = 'billed', invoice_id = ?, billed_date = ?
+                WHERE expense_id = ?
+            """, (invoice_id, date.today().isoformat(), expense_id))
+            conn.commit()
 
         return {"success": True, "message": "Expense marked as billed"}
 
@@ -627,48 +880,57 @@ class GenFinClassesService:
         notes: str = ""
     ) -> Dict:
         """Add billable time to a project"""
-        if project_id not in self.projects:
-            return {"success": False, "error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT project_id FROM genfin_projects WHERE project_id = ? AND is_active = 1",
+                         (project_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Project not found"}
 
-        time_entry_id = str(uuid.uuid4())
-        e_date = datetime.strptime(entry_date, "%Y-%m-%d").date()
+            time_entry_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
 
-        amount = hours * hourly_rate
-        bill_rate = billable_rate if billable_rate is not None else hourly_rate
-        billable_amount = hours * bill_rate if is_billable else 0
+            amount = hours * hourly_rate
+            bill_rate = billable_rate if billable_rate is not None else hourly_rate
+            billable_amount = hours * bill_rate if is_billable else 0
 
-        time_entry = BillableTime(
-            time_entry_id=time_entry_id,
-            project_id=project_id,
-            entry_date=e_date,
-            employee_id=employee_id,
-            employee_name=employee_name,
-            hours=hours,
-            hourly_rate=hourly_rate,
-            amount=amount,
-            is_billable=is_billable,
-            billable_rate=bill_rate,
-            billable_amount=billable_amount,
-            service_item_id=service_item_id,
-            description=description,
-            notes=notes
-        )
+            cursor.execute("""
+                INSERT INTO genfin_billable_time
+                (time_entry_id, project_id, entry_date, employee_id, employee_name,
+                 hours, hourly_rate, amount, is_billable, billable_rate, billable_amount,
+                 status, service_item_id, description, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_billed', ?, ?, ?, ?)
+            """, (time_entry_id, project_id, entry_date, employee_id, employee_name,
+                  hours, hourly_rate, amount, 1 if is_billable else 0, bill_rate,
+                  billable_amount, service_item_id, description, notes, now))
 
-        self.billable_time[time_entry_id] = time_entry
+            # Update project actuals
+            revenue_add = billable_amount if is_billable else 0
+            cursor.execute("""
+                UPDATE genfin_projects
+                SET actual_cost = actual_cost + ?, actual_hours = actual_hours + ?,
+                    actual_revenue = actual_revenue + ?, updated_at = ?
+                WHERE project_id = ?
+            """, (amount, hours, revenue_add, now, project_id))
 
-        # Update project actuals
-        project = self.projects[project_id]
-        project.actual_cost += amount
-        project.actual_hours += hours
-        if is_billable:
-            project.actual_revenue += billable_amount
-        project.updated_at = datetime.now()
+            conn.commit()
 
         return {
             "success": True,
             "time_entry_id": time_entry_id,
-            "time_entry": self._time_entry_to_dict(time_entry)
+            "time_entry": self._get_time_entry(time_entry_id)
         }
+
+    def _get_time_entry(self, time_entry_id: str) -> Optional[Dict]:
+        """Get single time entry"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_billable_time WHERE time_entry_id = ?",
+                         (time_entry_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_time_entry_dict(row)
 
     def get_project_billable_time(
         self,
@@ -676,31 +938,35 @@ class GenFinClassesService:
         unbilled_only: bool = False
     ) -> List[Dict]:
         """Get billable time for a project"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for entry in self.billable_time.values():
-            if entry.project_id != project_id:
-                continue
-            if unbilled_only and entry.status == BillableStatus.BILLED:
-                continue
+            query = "SELECT * FROM genfin_billable_time WHERE project_id = ?"
+            params = [project_id]
 
-            result.append(self._time_entry_to_dict(entry))
+            if unbilled_only:
+                query += " AND status != 'billed'"
 
-        return sorted(result, key=lambda t: t["entry_date"])
+            query += " ORDER BY entry_date"
 
-    def mark_time_billed(
-        self,
-        time_entry_id: str,
-        invoice_id: str
-    ) -> Dict:
+            cursor.execute(query, params)
+            return [self._row_to_time_entry_dict(row) for row in cursor.fetchall()]
+
+    def mark_time_billed(self, time_entry_id: str, invoice_id: str) -> Dict:
         """Mark time as billed"""
-        if time_entry_id not in self.billable_time:
-            return {"success": False, "error": "Time entry not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT time_entry_id FROM genfin_billable_time WHERE time_entry_id = ?",
+                         (time_entry_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Time entry not found"}
 
-        entry = self.billable_time[time_entry_id]
-        entry.status = BillableStatus.BILLED
-        entry.invoice_id = invoice_id
-        entry.billed_date = date.today()
+            cursor.execute("""
+                UPDATE genfin_billable_time
+                SET status = 'billed', invoice_id = ?, billed_date = ?
+                WHERE time_entry_id = ?
+            """, (invoice_id, date.today().isoformat(), time_entry_id))
+            conn.commit()
 
         return {"success": True, "message": "Time entry marked as billed"}
 
@@ -717,38 +983,57 @@ class GenFinClassesService:
         order: int = 0
     ) -> Dict:
         """Add a milestone to a project"""
-        if project_id not in self.projects:
-            return {"success": False, "error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT project_id FROM genfin_projects WHERE project_id = ? AND is_active = 1",
+                         (project_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Project not found"}
 
-        milestone_id = str(uuid.uuid4())
+            milestone_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
 
-        milestone = ProjectMilestone(
-            milestone_id=milestone_id,
-            project_id=project_id,
-            name=name,
-            description=description,
-            amount=amount,
-            percent_of_total=percent_of_total,
-            due_date=datetime.strptime(due_date, "%Y-%m-%d").date() if due_date else None,
-            order=order
-        )
-
-        self.milestones[milestone_id] = milestone
+            cursor.execute("""
+                INSERT INTO genfin_milestones
+                (milestone_id, project_id, name, description, amount, percent_of_total,
+                 due_date, is_completed, is_billed, sort_order, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+            """, (milestone_id, project_id, name, description, amount, percent_of_total,
+                  due_date, order, now))
+            conn.commit()
 
         return {
             "success": True,
             "milestone_id": milestone_id,
-            "milestone": self._milestone_to_dict(milestone)
+            "milestone": self._get_milestone(milestone_id)
         }
+
+    def _get_milestone(self, milestone_id: str) -> Optional[Dict]:
+        """Get single milestone"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_milestones WHERE milestone_id = ?",
+                         (milestone_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_milestone_dict(row)
 
     def complete_milestone(self, milestone_id: str) -> Dict:
         """Mark a milestone as completed"""
-        if milestone_id not in self.milestones:
-            return {"success": False, "error": "Milestone not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT milestone_id FROM genfin_milestones WHERE milestone_id = ?",
+                         (milestone_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Milestone not found"}
 
-        milestone = self.milestones[milestone_id]
-        milestone.is_completed = True
-        milestone.completed_date = date.today()
+            cursor.execute("""
+                UPDATE genfin_milestones
+                SET is_completed = 1, completed_date = ?
+                WHERE milestone_id = ?
+            """, (date.today().isoformat(), milestone_id))
+            conn.commit()
 
         return {"success": True, "message": "Milestone completed"}
 
@@ -763,53 +1048,60 @@ class GenFinClassesService:
         description: str = ""
     ) -> Dict:
         """Create a progress billing for a project"""
-        if project_id not in self.projects:
-            return {"success": False, "error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_projects WHERE project_id = ? AND is_active = 1",
+                         (project_id,))
+            project_row = cursor.fetchone()
+            if not project_row:
+                return {"success": False, "error": "Project not found"}
 
-        project = self.projects[project_id]
-        billing_id = str(uuid.uuid4())
-        b_date = datetime.strptime(billing_date, "%Y-%m-%d").date()
+            billing_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
+            contract_amount = project_row['contract_amount'] or 0.0
+            amount_billed = project_row['amount_billed'] or 0.0
 
-        # Calculate amount based on billing type
-        if billing_type == "percent":
-            # Bill based on percentage complete
-            previous_billed_percent = (project.amount_billed / project.contract_amount * 100) if project.contract_amount > 0 else 0
-            billing_percent = percent_complete - previous_billed_percent
-            amount = (billing_percent / 100) * project.contract_amount
+            # Calculate amount based on billing type
+            if billing_type == "percent":
+                previous_billed_percent = (amount_billed / contract_amount * 100) if contract_amount > 0 else 0
+                billing_percent = percent_complete - previous_billed_percent
+                amount = (billing_percent / 100) * contract_amount
 
-        elif billing_type == "milestones":
-            # Bill for completed milestones
-            amount = 0
-            for mid in (milestone_ids or []):
-                if mid in self.milestones:
-                    ms = self.milestones[mid]
-                    if not ms.is_billed:
-                        amount += ms.amount
-                        ms.is_billed = True
+            elif billing_type == "milestones":
+                amount = 0
+                for mid in (milestone_ids or []):
+                    cursor.execute("SELECT amount, is_billed FROM genfin_milestones WHERE milestone_id = ?",
+                                 (mid,))
+                    ms_row = cursor.fetchone()
+                    if ms_row and not ms_row['is_billed']:
+                        amount += ms_row['amount']
+                        cursor.execute("UPDATE genfin_milestones SET is_billed = 1 WHERE milestone_id = ?",
+                                     (mid,))
 
-        billing = ProgressBilling(
-            billing_id=billing_id,
-            project_id=project_id,
-            billing_date=b_date,
-            billing_type=ProgressBillingType(billing_type),
-            percent_complete=percent_complete,
-            amount=amount,
-            milestone_ids=milestone_ids or [],
-            description=description
-        )
+            cursor.execute("""
+                INSERT INTO genfin_progress_billings
+                (billing_id, project_id, billing_date, billing_type, percent_complete,
+                 amount, milestone_ids_json, description, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (billing_id, project_id, billing_date, billing_type, percent_complete,
+                  amount, json.dumps(milestone_ids or []), description, now))
 
-        self.progress_billings[billing_id] = billing
+            # Update project
+            new_amount_billed = amount_billed + amount
+            cursor.execute("""
+                UPDATE genfin_projects
+                SET amount_billed = ?, updated_at = ?
+                WHERE project_id = ?
+            """, (new_amount_billed, now, project_id))
 
-        # Update project
-        project.amount_billed += amount
-        project.updated_at = datetime.now()
+            conn.commit()
 
         return {
             "success": True,
             "billing_id": billing_id,
             "amount": round(amount, 2),
-            "total_billed": round(project.amount_billed, 2),
-            "remaining": round(project.contract_amount - project.amount_billed, 2)
+            "total_billed": round(new_amount_billed, 2),
+            "remaining": round(contract_amount - new_amount_billed, 2)
         }
 
     # ==================== TRANSACTION CLASSIFICATION ====================
@@ -822,28 +1114,37 @@ class GenFinClassesService:
         amount: float = 0.0
     ) -> Dict:
         """Assign a class to a transaction"""
-        if class_id not in self.classes:
-            return {"success": False, "error": "Class not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT class_id FROM genfin_classes WHERE class_id = ? AND is_active = 1",
+                         (class_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Class not found"}
 
-        link_id = str(uuid.uuid4())
+            link_id = str(uuid.uuid4())
+            now = datetime.now().isoformat()
 
-        link = TransactionClass(
-            link_id=link_id,
-            transaction_type=transaction_type,
-            transaction_id=transaction_id,
-            class_id=class_id,
-            amount=amount
-        )
+            cursor.execute("""
+                INSERT INTO genfin_transaction_classes
+                (link_id, transaction_type, transaction_id, class_id, amount, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (link_id, transaction_type, transaction_id, class_id, amount, now))
 
-        self.transaction_classes[link_id] = link
+            # Update class totals
+            if amount > 0:
+                cursor.execute("""
+                    UPDATE genfin_classes
+                    SET total_income = total_income + ?, transaction_count = transaction_count + 1
+                    WHERE class_id = ?
+                """, (amount, class_id))
+            else:
+                cursor.execute("""
+                    UPDATE genfin_classes
+                    SET total_expenses = total_expenses + ?, transaction_count = transaction_count + 1
+                    WHERE class_id = ?
+                """, (abs(amount), class_id))
 
-        # Update class totals
-        cls = self.classes[class_id]
-        if amount > 0:
-            cls.total_income += amount
-        else:
-            cls.total_expenses += abs(amount)
-        cls.transaction_count += 1
+            conn.commit()
 
         return {"success": True, "link_id": link_id}
 
@@ -854,19 +1155,23 @@ class GenFinClassesService:
         end_date: Optional[str] = None
     ) -> List[Dict]:
         """Get transactions for a class"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_transaction_classes
+                WHERE class_id = ?
+                ORDER BY created_at DESC
+            """, (class_id,))
 
-        for link in self.transaction_classes.values():
-            if link.class_id != class_id:
-                continue
-
-            result.append({
-                "link_id": link.link_id,
-                "transaction_type": link.transaction_type,
-                "transaction_id": link.transaction_id,
-                "amount": link.amount,
-                "created_at": link.created_at.isoformat()
-            })
+            result = []
+            for row in cursor.fetchall():
+                result.append({
+                    "link_id": row['link_id'],
+                    "transaction_type": row['transaction_type'],
+                    "transaction_id": row['transaction_id'],
+                    "amount": row['amount'],
+                    "created_at": row['created_at']
+                })
 
         return result
 
@@ -874,54 +1179,41 @@ class GenFinClassesService:
 
     def get_profitability_by_class(self, start_date: str, end_date: str) -> Dict:
         """Get profitability report by class"""
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_classes WHERE is_active = 1")
 
-        class_totals = {}
+            class_totals = {}
+            for row in cursor.fetchall():
+                class_totals[row['class_id']] = {
+                    "class_id": row['class_id'],
+                    "class_name": row['name'],
+                    "class_type": row['class_type'],
+                    "income": row['total_income'] or 0.0,
+                    "expenses": row['total_expenses'] or 0.0,
+                    "profit": 0.0,
+                    "margin_percent": 0.0
+                }
 
-        for cls in self.classes.values():
-            if not cls.is_active:
-                continue
+            # Calculate profit and margin
+            result = []
+            total_income = 0
+            total_expenses = 0
 
-            class_totals[cls.class_id] = {
-                "class_id": cls.class_id,
-                "class_name": cls.name,
-                "class_type": cls.class_type.value,
-                "income": 0.0,
-                "expenses": 0.0,
-                "profit": 0.0,
-                "margin_percent": 0.0
-            }
+            for ct in class_totals.values():
+                ct["profit"] = ct["income"] - ct["expenses"]
+                if ct["income"] > 0:
+                    ct["margin_percent"] = round((ct["profit"] / ct["income"]) * 100, 2)
 
-        # Sum up transaction amounts by class
-        for link in self.transaction_classes.values():
-            if link.class_id not in class_totals:
-                continue
+                ct["income"] = round(ct["income"], 2)
+                ct["expenses"] = round(ct["expenses"], 2)
+                ct["profit"] = round(ct["profit"], 2)
 
-            if link.amount > 0:
-                class_totals[link.class_id]["income"] += link.amount
-            else:
-                class_totals[link.class_id]["expenses"] += abs(link.amount)
+                total_income += ct["income"]
+                total_expenses += ct["expenses"]
 
-        # Calculate profit and margin
-        result = []
-        total_income = 0
-        total_expenses = 0
-
-        for ct in class_totals.values():
-            ct["profit"] = ct["income"] - ct["expenses"]
-            if ct["income"] > 0:
-                ct["margin_percent"] = round((ct["profit"] / ct["income"]) * 100, 2)
-
-            ct["income"] = round(ct["income"], 2)
-            ct["expenses"] = round(ct["expenses"], 2)
-            ct["profit"] = round(ct["profit"], 2)
-
-            total_income += ct["income"]
-            total_expenses += ct["expenses"]
-
-            if ct["income"] > 0 or ct["expenses"] > 0:
-                result.append(ct)
+                if ct["income"] > 0 or ct["expenses"] > 0:
+                    result.append(ct)
 
         return {
             "report": "Profitability by Class",
@@ -936,64 +1228,67 @@ class GenFinClassesService:
 
     def get_project_profitability(self, project_id: str) -> Dict:
         """Get detailed profitability for a project"""
-        if project_id not in self.projects:
-            return {"error": "Project not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_projects WHERE project_id = ?", (project_id,))
+            project_row = cursor.fetchone()
+            if not project_row:
+                return {"error": "Project not found"}
 
-        project = self.projects[project_id]
+            # Get expenses by category
+            cursor.execute("""
+                SELECT expense_account_id, SUM(amount) as total
+                FROM genfin_billable_expenses
+                WHERE project_id = ?
+                GROUP BY expense_account_id
+            """, (project_id,))
+            expense_by_account = {(r['expense_account_id'] or "Uncategorized"): r['total']
+                                for r in cursor.fetchall()}
 
-        # Get expenses by category
-        expense_by_account = {}
-        for exp in self.billable_expenses.values():
-            if exp.project_id != project_id:
-                continue
-            acct = exp.expense_account_id or "Uncategorized"
-            if acct not in expense_by_account:
-                expense_by_account[acct] = 0
-            expense_by_account[acct] += exp.amount
+            # Get time by employee
+            cursor.execute("""
+                SELECT employee_name, SUM(hours) as hours, SUM(amount) as cost, SUM(billable_amount) as billable
+                FROM genfin_billable_time
+                WHERE project_id = ?
+                GROUP BY employee_name
+            """, (project_id,))
+            time_by_employee = {r['employee_name'] or "Unassigned": {
+                "hours": r['hours'], "cost": r['cost'], "billable": r['billable']
+            } for r in cursor.fetchall()}
 
-        # Get time by employee
-        time_by_employee = {}
-        for entry in self.billable_time.values():
-            if entry.project_id != project_id:
-                continue
-            emp = entry.employee_name or "Unassigned"
-            if emp not in time_by_employee:
-                time_by_employee[emp] = {"hours": 0, "cost": 0, "billable": 0}
-            time_by_employee[emp]["hours"] += entry.hours
-            time_by_employee[emp]["cost"] += entry.amount
-            time_by_employee[emp]["billable"] += entry.billable_amount
-
-        gross_profit = project.actual_revenue - project.actual_cost
-        margin = (gross_profit / project.actual_revenue * 100) if project.actual_revenue > 0 else 0
+            actual_revenue = project_row['actual_revenue'] or 0.0
+            actual_cost = project_row['actual_cost'] or 0.0
+            gross_profit = actual_revenue - actual_cost
+            margin = (gross_profit / actual_revenue * 100) if actual_revenue > 0 else 0
 
         return {
             "project_id": project_id,
-            "project_name": project.name,
-            "project_number": project.project_number,
-            "status": project.status.value,
+            "project_name": project_row['name'],
+            "project_number": project_row['project_number'],
+            "status": project_row['status'],
             "estimates": {
-                "revenue": project.estimated_revenue,
-                "cost": project.estimated_cost,
-                "hours": project.estimated_hours,
-                "profit": project.estimated_revenue - project.estimated_cost
+                "revenue": project_row['estimated_revenue'],
+                "cost": project_row['estimated_cost'],
+                "hours": project_row['estimated_hours'],
+                "profit": (project_row['estimated_revenue'] or 0) - (project_row['estimated_cost'] or 0)
             },
             "actuals": {
-                "revenue": round(project.actual_revenue, 2),
-                "cost": round(project.actual_cost, 2),
-                "hours": round(project.actual_hours, 2),
+                "revenue": round(actual_revenue, 2),
+                "cost": round(actual_cost, 2),
+                "hours": round(project_row['actual_hours'] or 0, 2),
                 "profit": round(gross_profit, 2)
             },
             "variance": {
-                "revenue": round(project.actual_revenue - project.estimated_revenue, 2),
-                "cost": round(project.actual_cost - project.estimated_cost, 2),
-                "hours": round(project.actual_hours - project.estimated_hours, 2)
+                "revenue": round(actual_revenue - (project_row['estimated_revenue'] or 0), 2),
+                "cost": round(actual_cost - (project_row['estimated_cost'] or 0), 2),
+                "hours": round((project_row['actual_hours'] or 0) - (project_row['estimated_hours'] or 0), 2)
             },
             "margin_percent": round(margin, 2),
             "billing": {
-                "contract_amount": project.contract_amount,
-                "amount_billed": project.amount_billed,
-                "amount_received": project.amount_received,
-                "unbilled": round(project.contract_amount - project.amount_billed, 2)
+                "contract_amount": project_row['contract_amount'],
+                "amount_billed": project_row['amount_billed'],
+                "amount_received": project_row['amount_received'],
+                "unbilled": round((project_row['contract_amount'] or 0) - (project_row['amount_billed'] or 0), 2)
             },
             "expenses_by_account": expense_by_account,
             "time_by_employee": time_by_employee
@@ -1001,34 +1296,40 @@ class GenFinClassesService:
 
     def get_unbilled_summary(self) -> Dict:
         """Get summary of all unbilled time and expenses"""
-        unbilled_expenses = []
-        unbilled_time = []
-        total_unbilled_expenses = 0
-        total_unbilled_time = 0
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for exp in self.billable_expenses.values():
-            if exp.status != BillableStatus.BILLED:
+            cursor.execute("""
+                SELECT * FROM genfin_billable_expenses WHERE status != 'billed'
+            """)
+            unbilled_expenses = []
+            total_unbilled_expenses = 0
+            for row in cursor.fetchall():
                 unbilled_expenses.append({
-                    "expense_id": exp.expense_id,
-                    "project_id": exp.project_id,
-                    "description": exp.description,
-                    "amount": exp.amount,
-                    "billable_amount": exp.billable_amount,
-                    "date": exp.expense_date.isoformat()
+                    "expense_id": row['expense_id'],
+                    "project_id": row['project_id'],
+                    "description": row['description'],
+                    "amount": row['amount'],
+                    "billable_amount": row['billable_amount'],
+                    "date": row['expense_date']
                 })
-                total_unbilled_expenses += exp.billable_amount
+                total_unbilled_expenses += row['billable_amount']
 
-        for entry in self.billable_time.values():
-            if entry.is_billable and entry.status != BillableStatus.BILLED:
+            cursor.execute("""
+                SELECT * FROM genfin_billable_time WHERE is_billable = 1 AND status != 'billed'
+            """)
+            unbilled_time = []
+            total_unbilled_time = 0
+            for row in cursor.fetchall():
                 unbilled_time.append({
-                    "time_entry_id": entry.time_entry_id,
-                    "project_id": entry.project_id,
-                    "employee": entry.employee_name,
-                    "hours": entry.hours,
-                    "billable_amount": entry.billable_amount,
-                    "date": entry.entry_date.isoformat()
+                    "time_entry_id": row['time_entry_id'],
+                    "project_id": row['project_id'],
+                    "employee": row['employee_name'],
+                    "hours": row['hours'],
+                    "billable_amount": row['billable_amount'],
+                    "date": row['entry_date']
                 })
-                total_unbilled_time += entry.billable_amount
+                total_unbilled_time += row['billable_amount']
 
         return {
             "unbilled_expenses": unbilled_expenses,
@@ -1040,110 +1341,131 @@ class GenFinClassesService:
 
     # ==================== UTILITY METHODS ====================
 
-    def _class_to_dict(self, cls: Class) -> Dict:
-        """Convert Class to dictionary"""
+    def _row_to_class_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert class row to dictionary"""
+        income = row['total_income'] or 0.0
+        expenses = row['total_expenses'] or 0.0
         return {
-            "class_id": cls.class_id,
-            "name": cls.name,
-            "class_type": cls.class_type.value,
-            "parent_class_id": cls.parent_class_id,
-            "description": cls.description,
-            "is_active": cls.is_active,
-            "total_income": round(cls.total_income, 2),
-            "total_expenses": round(cls.total_expenses, 2),
-            "net": round(cls.total_income - cls.total_expenses, 2),
-            "transaction_count": cls.transaction_count,
-            "created_at": cls.created_at.isoformat()
+            "class_id": row['class_id'],
+            "name": row['name'],
+            "class_type": row['class_type'],
+            "parent_class_id": row['parent_class_id'],
+            "description": row['description'] or "",
+            "is_active": bool(row['is_active']),
+            "total_income": round(income, 2),
+            "total_expenses": round(expenses, 2),
+            "net": round(income - expenses, 2),
+            "transaction_count": row['transaction_count'] or 0,
+            "created_at": row['created_at']
         }
 
-    def _project_to_dict(self, project: Project) -> Dict:
-        """Convert Project to dictionary"""
-        gross_profit = project.actual_revenue - project.actual_cost
-        budget_remaining = project.estimated_cost - project.actual_cost
+    def _row_to_project_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert project row to dictionary"""
+        actual_revenue = row['actual_revenue'] or 0.0
+        actual_cost = row['actual_cost'] or 0.0
+        estimated_cost = row['estimated_cost'] or 0.0
+        gross_profit = actual_revenue - actual_cost
+        budget_remaining = estimated_cost - actual_cost
 
         return {
-            "project_id": project.project_id,
-            "name": project.name,
-            "project_number": project.project_number,
-            "customer_id": project.customer_id,
-            "start_date": project.start_date.isoformat() if project.start_date else None,
-            "end_date": project.end_date.isoformat() if project.end_date else None,
-            "due_date": project.due_date.isoformat() if project.due_date else None,
-            "description": project.description,
-            "status": project.status.value,
-            "class_id": project.class_id,
-            "billing_method": project.billing_method,
-            "contract_amount": project.contract_amount,
-            "estimated_revenue": project.estimated_revenue,
-            "estimated_cost": project.estimated_cost,
-            "estimated_hours": project.estimated_hours,
-            "actual_revenue": round(project.actual_revenue, 2),
-            "actual_cost": round(project.actual_cost, 2),
-            "actual_hours": round(project.actual_hours, 2),
+            "project_id": row['project_id'],
+            "name": row['name'],
+            "project_number": row['project_number'],
+            "customer_id": row['customer_id'],
+            "start_date": row['start_date'],
+            "end_date": row['end_date'],
+            "due_date": row['due_date'],
+            "description": row['description'] or "",
+            "status": row['status'],
+            "class_id": row['class_id'],
+            "billing_method": row['billing_method'],
+            "contract_amount": row['contract_amount'] or 0.0,
+            "estimated_revenue": row['estimated_revenue'] or 0.0,
+            "estimated_cost": estimated_cost,
+            "estimated_hours": row['estimated_hours'] or 0.0,
+            "actual_revenue": round(actual_revenue, 2),
+            "actual_cost": round(actual_cost, 2),
+            "actual_hours": round(row['actual_hours'] or 0, 2),
             "gross_profit": round(gross_profit, 2),
             "budget_remaining": round(budget_remaining, 2),
-            "percent_complete": round((project.actual_cost / project.estimated_cost * 100) if project.estimated_cost > 0 else 0, 1),
-            "amount_billed": project.amount_billed,
-            "amount_received": project.amount_received,
-            "is_active": project.is_active,
-            "created_at": project.created_at.isoformat()
+            "percent_complete": round((actual_cost / estimated_cost * 100) if estimated_cost > 0 else 0, 1),
+            "amount_billed": row['amount_billed'] or 0.0,
+            "amount_received": row['amount_received'] or 0.0,
+            "is_active": bool(row['is_active']),
+            "created_at": row['created_at']
         }
 
-    def _expense_to_dict(self, expense: BillableExpense) -> Dict:
-        """Convert BillableExpense to dictionary"""
+    def _row_to_expense_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert expense row to dictionary"""
         return {
-            "expense_id": expense.expense_id,
-            "project_id": expense.project_id,
-            "expense_date": expense.expense_date.isoformat(),
-            "description": expense.description,
-            "vendor_id": expense.vendor_id,
-            "amount": expense.amount,
-            "markup_percent": expense.markup_percent,
-            "billable_amount": round(expense.billable_amount, 2),
-            "status": expense.status.value,
-            "invoice_id": expense.invoice_id,
-            "billed_date": expense.billed_date.isoformat() if expense.billed_date else None,
-            "notes": expense.notes
+            "expense_id": row['expense_id'],
+            "project_id": row['project_id'],
+            "expense_date": row['expense_date'],
+            "description": row['description'],
+            "vendor_id": row['vendor_id'],
+            "amount": row['amount'],
+            "markup_percent": row['markup_percent'],
+            "billable_amount": round(row['billable_amount'], 2),
+            "status": row['status'],
+            "invoice_id": row['invoice_id'],
+            "billed_date": row['billed_date'],
+            "notes": row['notes'] or ""
         }
 
-    def _time_entry_to_dict(self, entry: BillableTime) -> Dict:
-        """Convert BillableTime to dictionary"""
+    def _row_to_time_entry_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert time entry row to dictionary"""
         return {
-            "time_entry_id": entry.time_entry_id,
-            "project_id": entry.project_id,
-            "entry_date": entry.entry_date.isoformat(),
-            "employee_id": entry.employee_id,
-            "employee_name": entry.employee_name,
-            "hours": entry.hours,
-            "hourly_rate": entry.hourly_rate,
-            "amount": round(entry.amount, 2),
-            "is_billable": entry.is_billable,
-            "billable_rate": entry.billable_rate,
-            "billable_amount": round(entry.billable_amount, 2),
-            "status": entry.status.value,
-            "invoice_id": entry.invoice_id,
-            "description": entry.description
+            "time_entry_id": row['time_entry_id'],
+            "project_id": row['project_id'],
+            "entry_date": row['entry_date'],
+            "employee_id": row['employee_id'],
+            "employee_name": row['employee_name'] or "",
+            "hours": row['hours'],
+            "hourly_rate": row['hourly_rate'],
+            "amount": round(row['amount'], 2),
+            "is_billable": bool(row['is_billable']),
+            "billable_rate": row['billable_rate'],
+            "billable_amount": round(row['billable_amount'], 2),
+            "status": row['status'],
+            "invoice_id": row['invoice_id'],
+            "description": row['description'] or ""
         }
 
-    def _milestone_to_dict(self, milestone: ProjectMilestone) -> Dict:
-        """Convert ProjectMilestone to dictionary"""
+    def _row_to_milestone_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert milestone row to dictionary"""
         return {
-            "milestone_id": milestone.milestone_id,
-            "project_id": milestone.project_id,
-            "name": milestone.name,
-            "description": milestone.description,
-            "amount": milestone.amount,
-            "percent_of_total": milestone.percent_of_total,
-            "due_date": milestone.due_date.isoformat() if milestone.due_date else None,
-            "completed_date": milestone.completed_date.isoformat() if milestone.completed_date else None,
-            "is_completed": milestone.is_completed,
-            "is_billed": milestone.is_billed,
-            "order": milestone.order
+            "milestone_id": row['milestone_id'],
+            "project_id": row['project_id'],
+            "name": row['name'],
+            "description": row['description'] or "",
+            "amount": row['amount'],
+            "percent_of_total": row['percent_of_total'],
+            "due_date": row['due_date'],
+            "completed_date": row['completed_date'],
+            "is_completed": bool(row['is_completed']),
+            "is_billed": bool(row['is_billed']),
+            "order": row['sort_order']
         }
 
     def get_service_summary(self) -> Dict:
         """Get service summary"""
-        active_projects = sum(1 for p in self.projects.values() if p.is_active and p.status == ProjectStatus.IN_PROGRESS)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_classes WHERE is_active = 1")
+            total_classes = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_projects WHERE is_active = 1")
+            total_projects = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_projects WHERE is_active = 1 AND status = 'in_progress'")
+            active_projects = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_billable_expenses")
+            expenses_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_billable_time")
+            time_count = cursor.fetchone()[0]
 
         return {
             "service": "GenFin Classes & Projects",
@@ -1158,11 +1480,11 @@ class GenFinClassesService:
                 "Milestone Billing",
                 "Profitability Reports"
             ],
-            "total_classes": len(self.classes),
-            "total_projects": len(self.projects),
+            "total_classes": total_classes,
+            "total_projects": total_projects,
             "active_projects": active_projects,
-            "billable_expenses_count": len(self.billable_expenses),
-            "billable_time_entries": len(self.billable_time)
+            "billable_expenses_count": expenses_count,
+            "billable_time_entries": time_count
         }
 
 

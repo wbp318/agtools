@@ -1,6 +1,7 @@
 """
 GenFin Budget Service - Budgets, Forecasting, Variance Analysis
 Complete budgeting and planning for farm operations
+SQLite persistence for data durability
 """
 
 from datetime import datetime, date, timedelta
@@ -8,6 +9,8 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
+import sqlite3
+import json
 
 from .genfin_core_service import genfin_core_service, AccountType
 from .genfin_reports_service import genfin_reports_service
@@ -117,21 +120,229 @@ class GenFinBudgetService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.budgets: Dict[str, Budget] = {}
-        self.forecasts: Dict[str, Forecast] = {}
-        self.scenarios: Dict[str, BudgetScenario] = {}
-
+        self.db_path = db_path
+        self._init_tables()
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get database connection"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Drop old tables if schema changed (migration from in-memory)
+            cursor.execute("DROP TABLE IF EXISTS genfin_budget_lines")
+            cursor.execute("DROP TABLE IF EXISTS genfin_budgets")
+            cursor.execute("DROP TABLE IF EXISTS genfin_forecasts")
+            cursor.execute("DROP TABLE IF EXISTS genfin_scenarios")
+
+            # Budgets table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_budgets (
+                    budget_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    fiscal_year INTEGER NOT NULL,
+                    budget_type TEXT NOT NULL,
+                    start_date TEXT NOT NULL,
+                    end_date TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    status TEXT DEFAULT 'draft',
+                    created_by TEXT DEFAULT '',
+                    approved_by TEXT DEFAULT '',
+                    approved_at TEXT,
+                    total_revenue REAL DEFAULT 0.0,
+                    total_expenses REAL DEFAULT 0.0,
+                    net_budget REAL DEFAULT 0.0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Budget lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_budget_lines (
+                    line_id TEXT PRIMARY KEY,
+                    budget_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    period_amounts TEXT NOT NULL,
+                    notes TEXT DEFAULT '',
+                    is_active INTEGER DEFAULT 1,
+                    FOREIGN KEY (budget_id) REFERENCES genfin_budgets(budget_id)
+                )
+            """)
+
+            # Forecasts table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_forecasts (
+                    forecast_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    base_budget_id TEXT,
+                    start_date TEXT NOT NULL,
+                    end_date TEXT NOT NULL,
+                    method TEXT NOT NULL,
+                    forecasted_values TEXT NOT NULL,
+                    assumptions TEXT DEFAULT '',
+                    created_by TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Scenarios table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_scenarios (
+                    scenario_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    base_budget_id TEXT NOT NULL,
+                    adjustments TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_budget_lines_budget ON genfin_budget_lines(budget_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_budgets_fiscal_year ON genfin_budgets(fiscal_year)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_budgets_status ON genfin_budgets(status)")
+
+            conn.commit()
+
+    def _row_to_budget(self, row: sqlite3.Row, include_lines: bool = True) -> Budget:
+        """Convert database row to Budget object"""
+        budget = Budget(
+            budget_id=row["budget_id"],
+            name=row["name"],
+            fiscal_year=row["fiscal_year"],
+            budget_type=BudgetType(row["budget_type"]),
+            start_date=datetime.strptime(row["start_date"], "%Y-%m-%d").date(),
+            end_date=datetime.strptime(row["end_date"], "%Y-%m-%d").date(),
+            lines=[],
+            description=row["description"] or "",
+            status=BudgetStatus(row["status"]),
+            created_by=row["created_by"] or "",
+            approved_by=row["approved_by"] or "",
+            approved_at=datetime.fromisoformat(row["approved_at"]) if row["approved_at"] else None,
+            total_revenue=row["total_revenue"] or 0.0,
+            total_expenses=row["total_expenses"] or 0.0,
+            net_budget=row["net_budget"] or 0.0,
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"])
+        )
+
+        if include_lines:
+            budget.lines = self._get_budget_lines(budget.budget_id)
+
+        return budget
+
+    def _get_budget_lines(self, budget_id: str) -> List[BudgetLine]:
+        """Get budget lines for a budget"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_budget_lines
+                WHERE budget_id = ? AND is_active = 1
+            """, (budget_id,))
+            rows = cursor.fetchall()
+
+            return [
+                BudgetLine(
+                    line_id=row["line_id"],
+                    account_id=row["account_id"],
+                    period_amounts=json.loads(row["period_amounts"]),
+                    notes=row["notes"] or ""
+                )
+                for row in rows
+            ]
+
+    def _row_to_forecast(self, row: sqlite3.Row) -> Forecast:
+        """Convert database row to Forecast object"""
+        return Forecast(
+            forecast_id=row["forecast_id"],
+            name=row["name"],
+            base_budget_id=row["base_budget_id"],
+            start_date=datetime.strptime(row["start_date"], "%Y-%m-%d").date(),
+            end_date=datetime.strptime(row["end_date"], "%Y-%m-%d").date(),
+            method=ForecastMethod(row["method"]),
+            forecasted_values=json.loads(row["forecasted_values"]),
+            assumptions=row["assumptions"] or "",
+            created_by=row["created_by"] or "",
+            created_at=datetime.fromisoformat(row["created_at"])
+        )
+
+    def _row_to_scenario(self, row: sqlite3.Row) -> BudgetScenario:
+        """Convert database row to BudgetScenario object"""
+        return BudgetScenario(
+            scenario_id=row["scenario_id"],
+            name=row["name"],
+            base_budget_id=row["base_budget_id"],
+            adjustments=json.loads(row["adjustments"]),
+            description=row["description"] or "",
+            created_at=datetime.fromisoformat(row["created_at"])
+        )
+
+    def _get_budget_by_id(self, budget_id: str) -> Optional[Budget]:
+        """Get budget by ID from database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_budgets
+                WHERE budget_id = ? AND is_active = 1
+            """, (budget_id,))
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_budget(row)
+            return None
+
+    def _save_budget(self, budget: Budget):
+        """Save budget to database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO genfin_budgets (
+                    budget_id, name, fiscal_year, budget_type, start_date, end_date,
+                    description, status, created_by, approved_by, approved_at,
+                    total_revenue, total_expenses, net_budget, created_at, updated_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (
+                budget.budget_id, budget.name, budget.fiscal_year,
+                budget.budget_type.value, budget.start_date.isoformat(), budget.end_date.isoformat(),
+                budget.description, budget.status.value, budget.created_by, budget.approved_by,
+                budget.approved_at.isoformat() if budget.approved_at else None,
+                budget.total_revenue, budget.total_expenses, budget.net_budget,
+                budget.created_at.isoformat(), budget.updated_at.isoformat()
+            ))
+            conn.commit()
+
+    def _save_budget_line(self, budget_id: str, line: BudgetLine):
+        """Save budget line to database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO genfin_budget_lines (
+                    line_id, budget_id, account_id, period_amounts, notes, is_active
+                ) VALUES (?, ?, ?, ?, ?, 1)
+            """, (
+                line.line_id, budget_id, line.account_id,
+                json.dumps(line.period_amounts), line.notes
+            ))
+            conn.commit()
 
     # ==================== BUDGET MANAGEMENT ====================
 
@@ -154,22 +365,22 @@ class GenFinBudgetService:
 
         lines = []
 
-        if copy_from_budget_id and copy_from_budget_id in self.budgets:
-            # Copy from existing budget
-            source = self.budgets[copy_from_budget_id]
-            for source_line in source.lines:
-                new_periods = {}
-                for period, amount in source_line.period_amounts.items():
-                    # Adjust year in period key
-                    new_period = f"{fiscal_year}-{period.split('-')[1]}"
-                    new_periods[new_period] = amount
+        if copy_from_budget_id:
+            source = self._get_budget_by_id(copy_from_budget_id)
+            if source:
+                for source_line in source.lines:
+                    new_periods = {}
+                    for period, amount in source_line.period_amounts.items():
+                        # Adjust year in period key
+                        new_period = f"{fiscal_year}-{period.split('-')[1]}"
+                        new_periods[new_period] = amount
 
-                lines.append(BudgetLine(
-                    line_id=str(uuid.uuid4()),
-                    account_id=source_line.account_id,
-                    period_amounts=new_periods,
-                    notes=source_line.notes
-                ))
+                    lines.append(BudgetLine(
+                        line_id=str(uuid.uuid4()),
+                        account_id=source_line.account_id,
+                        period_amounts=new_periods,
+                        notes=source_line.notes
+                    ))
 
         elif copy_from_actuals:
             # Copy from prior year actuals
@@ -177,10 +388,14 @@ class GenFinBudgetService:
             prior_start = date(prior_year, 1, 1)
             prior_end = date(prior_year, 12, 31)
 
-            for account in genfin_core_service.accounts.values():
-                if account.account_type not in [AccountType.REVENUE, AccountType.EXPENSE]:
+            # Get accounts from core service
+            accounts = genfin_core_service.list_accounts()
+            for acc_data in accounts:
+                account = genfin_core_service.get_account(acc_data["account_id"])
+                if not account:
                     continue
-                if not account.is_active:
+                acc_type = account.get("account_type", "")
+                if acc_type not in ["revenue", "expense"]:
                     continue
 
                 period_amounts = {}
@@ -194,7 +409,7 @@ class GenFinBudgetService:
                         month_end = date(prior_year, month + 1, 1) - timedelta(days=1)
 
                     actual = genfin_reports_service._get_account_balance_for_period(
-                        account.account_id, month_start, month_end
+                        acc_data["account_id"], month_start, month_end
                     )
 
                     if actual != 0:
@@ -204,23 +419,26 @@ class GenFinBudgetService:
                 if period_amounts:
                     lines.append(BudgetLine(
                         line_id=str(uuid.uuid4()),
-                        account_id=account.account_id,
+                        account_id=acc_data["account_id"],
                         period_amounts=period_amounts
                     ))
 
         else:
             # Create empty budget with all revenue/expense accounts
-            for account in genfin_core_service.accounts.values():
-                if account.account_type not in [AccountType.REVENUE, AccountType.EXPENSE]:
+            accounts = genfin_core_service.list_accounts()
+            for acc_data in accounts:
+                account = genfin_core_service.get_account(acc_data["account_id"])
+                if not account:
                     continue
-                if not account.is_active:
+                acc_type = account.get("account_type", "")
+                if acc_type not in ["revenue", "expense"]:
                     continue
 
                 period_amounts = {f"{fiscal_year}-{m:02d}": 0.0 for m in range(1, 13)}
 
                 lines.append(BudgetLine(
                     line_id=str(uuid.uuid4()),
-                    account_id=account.account_id,
+                    account_id=acc_data["account_id"],
                     period_amounts=period_amounts
                 ))
 
@@ -239,7 +457,10 @@ class GenFinBudgetService:
         # Calculate totals
         self._calculate_budget_totals(budget)
 
-        self.budgets[budget_id] = budget
+        # Save to database
+        self._save_budget(budget)
+        for line in lines:
+            self._save_budget_line(budget_id, line)
 
         return {
             "success": True,
@@ -254,15 +475,16 @@ class GenFinBudgetService:
         total_expenses = 0.0
 
         for line in budget.lines:
-            account = genfin_core_service.accounts.get(line.account_id)
+            account = genfin_core_service.get_account(line.account_id)
             if not account:
                 continue
 
             line_total = sum(line.period_amounts.values())
+            acc_type = account.get("account_type", "")
 
-            if account.account_type == AccountType.REVENUE:
+            if acc_type == "revenue":
                 total_revenue += line_total
-            elif account.account_type == AccountType.EXPENSE:
+            elif acc_type == "expense":
                 total_expenses += line_total
 
         budget.total_revenue = round(total_revenue, 2)
@@ -277,10 +499,9 @@ class GenFinBudgetService:
         notes: str = ""
     ) -> Dict:
         """Update a budget line item"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return {"success": False, "error": "Budget not found"}
-
-        budget = self.budgets[budget_id]
 
         if budget.status not in [BudgetStatus.DRAFT]:
             return {"success": False, "error": "Cannot modify active/closed budget"}
@@ -296,16 +517,20 @@ class GenFinBudgetService:
             line.period_amounts.update(period_amounts)
             if notes:
                 line.notes = notes
+            self._save_budget_line(budget_id, line)
         else:
-            budget.lines.append(BudgetLine(
+            new_line = BudgetLine(
                 line_id=str(uuid.uuid4()),
                 account_id=account_id,
                 period_amounts=period_amounts,
                 notes=notes
-            ))
+            )
+            budget.lines.append(new_line)
+            self._save_budget_line(budget_id, new_line)
 
         self._calculate_budget_totals(budget)
         budget.updated_at = datetime.now()
+        self._save_budget(budget)
 
         return {"success": True, "message": "Budget line updated"}
 
@@ -317,10 +542,9 @@ class GenFinBudgetService:
         distribution: str = "even"
     ) -> Dict:
         """Update budget line with annual amount distributed across months"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return {"success": False, "error": "Budget not found"}
-
-        budget = self.budgets[budget_id]
 
         if distribution == "even":
             monthly_amount = annual_amount / 12
@@ -358,33 +582,36 @@ class GenFinBudgetService:
 
     def activate_budget(self, budget_id: str, approved_by: str) -> Dict:
         """Activate a budget"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return {"success": False, "error": "Budget not found"}
 
-        budget = self.budgets[budget_id]
         budget.status = BudgetStatus.ACTIVE
         budget.approved_by = approved_by
         budget.approved_at = datetime.now()
         budget.updated_at = datetime.now()
+        self._save_budget(budget)
 
         return {"success": True, "message": "Budget activated"}
 
     def close_budget(self, budget_id: str) -> Dict:
         """Close a budget"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return {"success": False, "error": "Budget not found"}
 
-        budget = self.budgets[budget_id]
         budget.status = BudgetStatus.CLOSED
         budget.updated_at = datetime.now()
+        self._save_budget(budget)
 
         return {"success": True, "message": "Budget closed"}
 
     def get_budget(self, budget_id: str) -> Optional[Dict]:
         """Get budget by ID"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return None
-        return self._budget_to_dict(self.budgets[budget_id])
+        return self._budget_to_dict(budget)
 
     def list_budgets(
         self,
@@ -392,27 +619,37 @@ class GenFinBudgetService:
         status: Optional[str] = None
     ) -> List[Dict]:
         """List budgets with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for budget in self.budgets.values():
-            if fiscal_year and budget.fiscal_year != fiscal_year:
-                continue
-            if status and budget.status.value != status:
-                continue
+            query = "SELECT * FROM genfin_budgets WHERE is_active = 1"
+            params = []
 
-            result.append({
-                "budget_id": budget.budget_id,
-                "name": budget.name,
-                "fiscal_year": budget.fiscal_year,
-                "budget_type": budget.budget_type.value,
-                "status": budget.status.value,
-                "total_revenue": budget.total_revenue,
-                "total_expenses": budget.total_expenses,
-                "net_budget": budget.net_budget,
-                "created_at": budget.created_at.isoformat()
-            })
+            if fiscal_year:
+                query += " AND fiscal_year = ?"
+                params.append(fiscal_year)
+            if status:
+                query += " AND status = ?"
+                params.append(status)
 
-        return sorted(result, key=lambda b: (b["fiscal_year"], b["name"]), reverse=True)
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                result.append({
+                    "budget_id": row["budget_id"],
+                    "name": row["name"],
+                    "fiscal_year": row["fiscal_year"],
+                    "budget_type": row["budget_type"],
+                    "status": row["status"],
+                    "total_revenue": row["total_revenue"],
+                    "total_expenses": row["total_expenses"],
+                    "net_budget": row["net_budget"],
+                    "created_at": row["created_at"]
+                })
+
+            return sorted(result, key=lambda b: (b["fiscal_year"], b["name"]), reverse=True)
 
     # ==================== BUDGET VS ACTUAL ====================
 
@@ -424,10 +661,9 @@ class GenFinBudgetService:
         summary_only: bool = False
     ) -> Dict:
         """Get budget vs actual comparison"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return {"error": "Budget not found"}
-
-        budget = self.budgets[budget_id]
 
         # Determine date range
         if start_date:
@@ -460,7 +696,7 @@ class GenFinBudgetService:
         total_actual_expense = 0.0
 
         for line in budget.lines:
-            account = genfin_core_service.accounts.get(line.account_id)
+            account = genfin_core_service.get_account(line.account_id)
             if not account:
                 continue
 
@@ -477,18 +713,19 @@ class GenFinBudgetService:
             variance = actual_amount - budget_amount
             variance_pct = (variance / budget_amount * 100) if budget_amount != 0 else 0
 
+            acc_type = account.get("account_type", "")
             item = {
                 "account_id": line.account_id,
-                "account_number": account.account_number,
-                "account_name": account.name,
+                "account_number": account.get("account_number", ""),
+                "account_name": account.get("name", "Unknown"),
                 "budget": round(budget_amount, 2),
                 "actual": round(actual_amount, 2),
                 "variance": round(variance, 2),
                 "variance_percent": round(variance_pct, 1),
-                "favorable": (variance > 0) if account.account_type == AccountType.REVENUE else (variance < 0)
+                "favorable": (variance > 0) if acc_type == "revenue" else (variance < 0)
             }
 
-            if account.account_type == AccountType.REVENUE:
+            if acc_type == "revenue":
                 revenue_items.append(item)
                 total_budget_revenue += budget_amount
                 total_actual_revenue += actual_amount
@@ -538,10 +775,10 @@ class GenFinBudgetService:
 
     def get_monthly_variance(self, budget_id: str) -> Dict:
         """Get month-by-month variance analysis"""
-        if budget_id not in self.budgets:
+        budget = self._get_budget_by_id(budget_id)
+        if not budget:
             return {"error": "Budget not found"}
 
-        budget = self.budgets[budget_id]
         months = []
 
         for month in range(1, 13):
@@ -563,7 +800,7 @@ class GenFinBudgetService:
             actual_expense = 0.0
 
             for line in budget.lines:
-                account = genfin_core_service.accounts.get(line.account_id)
+                account = genfin_core_service.get_account(line.account_id)
                 if not account:
                     continue
 
@@ -572,7 +809,8 @@ class GenFinBudgetService:
                     line.account_id, month_start, month_end
                 )
 
-                if account.account_type == AccountType.REVENUE:
+                acc_type = account.get("account_type", "")
+                if acc_type == "revenue":
                     budget_revenue += budget_amount
                     actual_revenue += actual_amount
                 else:
@@ -640,7 +878,21 @@ class GenFinBudgetService:
             created_by=created_by
         )
 
-        self.forecasts[forecast_id] = forecast
+        # Save to database
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_forecasts (
+                    forecast_id, name, base_budget_id, start_date, end_date,
+                    method, forecasted_values, assumptions, created_by, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (
+                forecast.forecast_id, forecast.name, forecast.base_budget_id,
+                forecast.start_date.isoformat(), forecast.end_date.isoformat(),
+                forecast.method.value, json.dumps(forecast.forecasted_values),
+                forecast.assumptions, forecast.created_by, forecast.created_at.isoformat()
+            ))
+            conn.commit()
 
         return {
             "success": True,
@@ -658,10 +910,13 @@ class GenFinBudgetService:
         hist_end = start_date - timedelta(days=1)
         hist_start = date(hist_end.year - 1, hist_end.month, 1)
 
-        for account in genfin_core_service.accounts.values():
-            if account.account_type not in [AccountType.REVENUE, AccountType.EXPENSE]:
+        accounts = genfin_core_service.list_accounts()
+        for acc_data in accounts:
+            account = genfin_core_service.get_account(acc_data["account_id"])
+            if not account:
                 continue
-            if not account.is_active:
+            acc_type = account.get("account_type", "")
+            if acc_type not in ["revenue", "expense"]:
                 continue
 
             # Get monthly historical data
@@ -674,7 +929,7 @@ class GenFinBudgetService:
                     month_end = date(current.year, current.month + 1, 1) - timedelta(days=1)
 
                 amount = genfin_reports_service._get_account_balance_for_period(
-                    account.account_id, current, month_end
+                    acc_data["account_id"], current, month_end
                 )
                 monthly_data.append(amount)
 
@@ -707,7 +962,7 @@ class GenFinBudgetService:
                     current = date(current.year, current.month + 1, 1)
                 month_idx += 1
 
-            forecasted[account.account_id] = account_forecast
+            forecasted[acc_data["account_id"]] = account_forecast
 
         return forecasted
 
@@ -718,15 +973,18 @@ class GenFinBudgetService:
         hist_end = start_date - timedelta(days=1)
         hist_start = date(hist_end.year - 1, hist_end.month, 1)
 
-        for account in genfin_core_service.accounts.values():
-            if account.account_type not in [AccountType.REVENUE, AccountType.EXPENSE]:
+        accounts = genfin_core_service.list_accounts()
+        for acc_data in accounts:
+            account = genfin_core_service.get_account(acc_data["account_id"])
+            if not account:
                 continue
-            if not account.is_active:
+            acc_type = account.get("account_type", "")
+            if acc_type not in ["revenue", "expense"]:
                 continue
 
             # Get total for past year
             total = genfin_reports_service._get_account_balance_for_period(
-                account.account_id, hist_start, hist_end
+                acc_data["account_id"], hist_start, hist_end
             )
 
             if total == 0:
@@ -747,7 +1005,7 @@ class GenFinBudgetService:
                 else:
                     current = date(current.year, current.month + 1, 1)
 
-            forecasted[account.account_id] = account_forecast
+            forecasted[acc_data["account_id"]] = account_forecast
 
         return forecasted
 
@@ -755,10 +1013,13 @@ class GenFinBudgetService:
         """Forecast using seasonal pattern from prior year"""
         forecasted = {}
 
-        for account in genfin_core_service.accounts.values():
-            if account.account_type not in [AccountType.REVENUE, AccountType.EXPENSE]:
+        accounts = genfin_core_service.list_accounts()
+        for acc_data in accounts:
+            account = genfin_core_service.get_account(acc_data["account_id"])
+            if not account:
                 continue
-            if not account.is_active:
+            acc_type = account.get("account_type", "")
+            if acc_type not in ["revenue", "expense"]:
                 continue
 
             account_forecast = {}
@@ -773,7 +1034,7 @@ class GenFinBudgetService:
                     prior_month_end = date(current.year - 1, current.month + 1, 1) - timedelta(days=1)
 
                 prior_amount = genfin_reports_service._get_account_balance_for_period(
-                    account.account_id, prior_month_start, prior_month_end
+                    acc_data["account_id"], prior_month_start, prior_month_end
                 )
 
                 # Apply growth rate
@@ -788,37 +1049,53 @@ class GenFinBudgetService:
                     current = date(current.year, current.month + 1, 1)
 
             if sum(account_forecast.values()) != 0:
-                forecasted[account.account_id] = account_forecast
+                forecasted[acc_data["account_id"]] = account_forecast
 
         return forecasted
 
     def get_forecast(self, forecast_id: str) -> Optional[Dict]:
         """Get forecast by ID"""
-        if forecast_id not in self.forecasts:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_forecasts
+                WHERE forecast_id = ? AND is_active = 1
+            """, (forecast_id,))
+            row = cursor.fetchone()
+            if row:
+                forecast = self._row_to_forecast(row)
+                return self._forecast_to_dict(forecast)
             return None
-        return self._forecast_to_dict(self.forecasts[forecast_id])
 
     def get_forecast_summary(self, forecast_id: str) -> Dict:
         """Get summary of forecasted amounts"""
-        if forecast_id not in self.forecasts:
-            return {"error": "Forecast not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_forecasts
+                WHERE forecast_id = ? AND is_active = 1
+            """, (forecast_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"error": "Forecast not found"}
 
-        forecast = self.forecasts[forecast_id]
+            forecast = self._row_to_forecast(row)
 
         total_revenue = 0.0
         total_expense = 0.0
         monthly_totals = {}
 
         for account_id, periods in forecast.forecasted_values.items():
-            account = genfin_core_service.accounts.get(account_id)
+            account = genfin_core_service.get_account(account_id)
             if not account:
                 continue
 
+            acc_type = account.get("account_type", "")
             for period, amount in periods.items():
                 if period not in monthly_totals:
                     monthly_totals[period] = {"revenue": 0, "expense": 0}
 
-                if account.account_type == AccountType.REVENUE:
+                if acc_type == "revenue":
                     total_revenue += amount
                     monthly_totals[period]["revenue"] += amount
                 else:
@@ -847,18 +1124,25 @@ class GenFinBudgetService:
 
     def list_forecasts(self) -> List[Dict]:
         """List all forecasts"""
-        return [
-            {
-                "forecast_id": f.forecast_id,
-                "name": f.name,
-                "method": f.method.value,
-                "start_date": f.start_date.isoformat(),
-                "end_date": f.end_date.isoformat(),
-                "created_by": f.created_by,
-                "created_at": f.created_at.isoformat()
-            }
-            for f in self.forecasts.values()
-        ]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_forecasts WHERE is_active = 1
+            """)
+            rows = cursor.fetchall()
+
+            return [
+                {
+                    "forecast_id": row["forecast_id"],
+                    "name": row["name"],
+                    "method": row["method"],
+                    "start_date": row["start_date"],
+                    "end_date": row["end_date"],
+                    "created_by": row["created_by"],
+                    "created_at": row["created_at"]
+                }
+                for row in rows
+            ]
 
     # ==================== SCENARIO PLANNING ====================
 
@@ -870,7 +1154,8 @@ class GenFinBudgetService:
         description: str = ""
     ) -> Dict:
         """Create a budget scenario (what-if analysis)"""
-        if base_budget_id not in self.budgets:
+        budget = self._get_budget_by_id(base_budget_id)
+        if not budget:
             return {"success": False, "error": "Base budget not found"}
 
         scenario_id = str(uuid.uuid4())
@@ -883,7 +1168,20 @@ class GenFinBudgetService:
             description=description
         )
 
-        self.scenarios[scenario_id] = scenario
+        # Save to database
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_scenarios (
+                    scenario_id, name, base_budget_id, adjustments,
+                    description, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (
+                scenario.scenario_id, scenario.name, scenario.base_budget_id,
+                json.dumps(scenario.adjustments), scenario.description,
+                scenario.created_at.isoformat()
+            ))
+            conn.commit()
 
         return {
             "success": True,
@@ -893,12 +1191,19 @@ class GenFinBudgetService:
 
     def run_scenario(self, scenario_id: str) -> Dict:
         """Run a budget scenario and get projected results"""
-        if scenario_id not in self.scenarios:
-            return {"error": "Scenario not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_scenarios
+                WHERE scenario_id = ? AND is_active = 1
+            """, (scenario_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"error": "Scenario not found"}
 
-        scenario = self.scenarios[scenario_id]
-        budget = self.budgets.get(scenario.base_budget_id)
+            scenario = self._row_to_scenario(row)
 
+        budget = self._get_budget_by_id(scenario.base_budget_id)
         if not budget:
             return {"error": "Base budget not found"}
 
@@ -909,7 +1214,7 @@ class GenFinBudgetService:
         total_expenses = 0.0
 
         for line in budget.lines:
-            account = genfin_core_service.accounts.get(line.account_id)
+            account = genfin_core_service.get_account(line.account_id)
             if not account:
                 continue
 
@@ -919,14 +1224,15 @@ class GenFinBudgetService:
 
             item = {
                 "account_id": line.account_id,
-                "account_name": account.name,
+                "account_name": account.get("name", "Unknown"),
                 "base_amount": round(base_amount, 2),
                 "adjustment_percent": adjustment_pct,
                 "adjusted_amount": round(adjusted_amount, 2),
                 "difference": round(adjusted_amount - base_amount, 2)
             }
 
-            if account.account_type == AccountType.REVENUE:
+            acc_type = account.get("account_type", "")
+            if acc_type == "revenue":
                 revenue_items.append(item)
                 total_revenue += adjusted_amount
             else:
@@ -962,17 +1268,26 @@ class GenFinBudgetService:
 
     def list_scenarios(self) -> List[Dict]:
         """List all scenarios"""
-        return [
-            {
-                "scenario_id": s.scenario_id,
-                "name": s.name,
-                "base_budget_id": s.base_budget_id,
-                "description": s.description,
-                "adjustments_count": len(s.adjustments),
-                "created_at": s.created_at.isoformat()
-            }
-            for s in self.scenarios.values()
-        ]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_scenarios WHERE is_active = 1
+            """)
+            rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                adjustments = json.loads(row["adjustments"])
+                result.append({
+                    "scenario_id": row["scenario_id"],
+                    "name": row["name"],
+                    "base_budget_id": row["base_budget_id"],
+                    "description": row["description"],
+                    "adjustments_count": len(adjustments),
+                    "created_at": row["created_at"]
+                })
+
+            return result
 
     # ==================== CASH FLOW PROJECTION ====================
 
@@ -987,10 +1302,12 @@ class GenFinBudgetService:
 
         # Get starting cash from balance sheet if not provided
         if starting_cash == 0:
-            for account in genfin_core_service.accounts.values():
-                if account.sub_type.value in ["cash", "bank"]:
+            accounts = genfin_core_service.list_accounts()
+            for acc_data in accounts:
+                account = genfin_core_service.get_account(acc_data["account_id"])
+                if account and account.get("sub_type") in ["cash", "bank"]:
                     starting_cash += genfin_core_service.get_account_balance(
-                        account.account_id, start_date
+                        acc_data["account_id"], start_date
                     )
 
         projections = []
@@ -1007,22 +1324,23 @@ class GenFinBudgetService:
             projected_outflows = 0.0
 
             # Check active budgets
-            for budget in self.budgets.values():
-                if budget.status != BudgetStatus.ACTIVE:
-                    continue
-                if budget.fiscal_year != current.year:
+            active_budgets = self.list_budgets(fiscal_year=current.year, status="active")
+            for budget_info in active_budgets:
+                budget = self._get_budget_by_id(budget_info["budget_id"])
+                if not budget:
                     continue
 
                 for line in budget.lines:
-                    account = genfin_core_service.accounts.get(line.account_id)
+                    account = genfin_core_service.get_account(line.account_id)
                     if not account:
                         continue
 
                     amount = line.period_amounts.get(period_key, 0)
+                    acc_type = account.get("account_type", "")
 
-                    if account.account_type == AccountType.REVENUE:
+                    if acc_type == "revenue":
                         projected_inflows += amount
-                    elif account.account_type == AccountType.EXPENSE:
+                    elif acc_type == "expense":
                         projected_outflows += amount
 
             # If no budget, use trend forecast
@@ -1033,17 +1351,20 @@ class GenFinBudgetService:
                 else:
                     hist_month_end = date(current.year - 1, current.month + 1, 1) - timedelta(days=1)
 
-                for account in genfin_core_service.accounts.values():
-                    if not account.is_active:
+                accounts = genfin_core_service.list_accounts()
+                for acc_data in accounts:
+                    account = genfin_core_service.get_account(acc_data["account_id"])
+                    if not account:
                         continue
 
                     hist_amount = genfin_reports_service._get_account_balance_for_period(
-                        account.account_id, hist_month_start, hist_month_end
+                        acc_data["account_id"], hist_month_start, hist_month_end
                     )
 
-                    if account.account_type == AccountType.REVENUE:
+                    acc_type = account.get("account_type", "")
+                    if acc_type == "revenue":
                         projected_inflows += hist_amount * 1.03  # 3% growth
-                    elif account.account_type == AccountType.EXPENSE:
+                    elif acc_type == "expense":
                         projected_outflows += hist_amount * 1.03
 
             net_change = projected_inflows - projected_outflows
@@ -1073,7 +1394,7 @@ class GenFinBudgetService:
             "months_projected": months_ahead,
             "starting_cash": round(starting_cash, 2),
             "projections": projections,
-            "lowest_cash": min(p["ending_cash"] for p in projections),
+            "lowest_cash": min(p["ending_cash"] for p in projections) if projections else 0,
             "has_cash_shortfall": any(p["cash_warning"] for p in projections)
         }
 
@@ -1083,12 +1404,12 @@ class GenFinBudgetService:
         """Convert Budget to dictionary"""
         lines_data = []
         for line in budget.lines:
-            account = genfin_core_service.accounts.get(line.account_id)
+            account = genfin_core_service.get_account(line.account_id)
             lines_data.append({
                 "line_id": line.line_id,
                 "account_id": line.account_id,
-                "account_number": account.account_number if account else "",
-                "account_name": account.name if account else "Unknown",
+                "account_number": account.get("account_number", "") if account else "",
+                "account_name": account.get("name", "Unknown") if account else "Unknown",
                 "period_amounts": line.period_amounts,
                 "total": sum(line.period_amounts.values()),
                 "notes": line.notes
@@ -1117,9 +1438,9 @@ class GenFinBudgetService:
         """Convert Forecast to dictionary"""
         values_with_names = {}
         for account_id, periods in forecast.forecasted_values.items():
-            account = genfin_core_service.accounts.get(account_id)
+            account = genfin_core_service.get_account(account_id)
             values_with_names[account_id] = {
-                "account_name": account.name if account else "Unknown",
+                "account_name": account.get("name", "Unknown") if account else "Unknown",
                 "periods": periods
             }
 
@@ -1138,7 +1459,20 @@ class GenFinBudgetService:
 
     def get_service_summary(self) -> Dict:
         """Get GenFin Budget service summary"""
-        active_budgets = sum(1 for b in self.budgets.values() if b.status == BudgetStatus.ACTIVE)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_budgets WHERE is_active = 1")
+            total_budgets = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_budgets WHERE is_active = 1 AND status = 'active'")
+            active_budgets = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_forecasts WHERE is_active = 1")
+            total_forecasts = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_scenarios WHERE is_active = 1")
+            total_scenarios = cursor.fetchone()[0]
 
         return {
             "service": "GenFin Budget",
@@ -1152,10 +1486,10 @@ class GenFinBudgetService:
                 "Cash Flow Projections",
                 "Seasonal Distribution"
             ],
-            "total_budgets": len(self.budgets),
+            "total_budgets": total_budgets,
             "active_budgets": active_budgets,
-            "total_forecasts": len(self.forecasts),
-            "total_scenarios": len(self.scenarios)
+            "total_forecasts": total_forecasts,
+            "total_scenarios": total_scenarios
         }
 
 

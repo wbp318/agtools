@@ -1,8 +1,10 @@
 """
 GenFin Payroll Service - Employees, Pay Runs, Taxes, Direct Deposit, Tax Forms
-Complete payroll management for farm operations
+Complete payroll management for farm operations with SQLite persistence
 """
 
+import sqlite3
+import json
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
@@ -407,7 +409,7 @@ STANDARD_DEDUCTION_2024 = {
 
 class GenFinPayrollService:
     """
-    GenFin Payroll Service
+    GenFin Payroll Service with SQLite persistence
 
     Complete payroll functionality:
     - Employee management
@@ -421,37 +423,319 @@ class GenFinPayrollService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.employees: Dict[str, Employee] = {}
-        self.pay_rates: Dict[str, PayRate] = {}
-        self.time_entries: Dict[str, TimeEntry] = {}
-        self.earning_types: Dict[str, EarningType] = {}
-        self.deduction_types: Dict[str, DeductionType] = {}
-        self.employee_deductions: Dict[str, EmployeeDeduction] = {}
-        self.pay_runs: Dict[str, PayRun] = {}
-        self.tax_payments: Dict[str, TaxPayment] = {}
-        self.pay_schedules: Dict[str, PaySchedule] = {}  # QuickBooks-style pay schedules
-
-        self.next_employee_number = 1001
-        self.next_pay_run_number = 1
-
-        # Initialize default earning types
-        self._initialize_earning_types()
-        # Initialize default deduction types
-        self._initialize_deduction_types()
-        # Initialize default pay schedules
-        self._initialize_pay_schedules()
-
+        self.db_path = db_path
+        self._init_tables()
+        self._initialize_defaults()
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Employees table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_employees (
+                    employee_id TEXT PRIMARY KEY,
+                    employee_number TEXT NOT NULL,
+                    first_name TEXT NOT NULL,
+                    last_name TEXT NOT NULL,
+                    middle_name TEXT DEFAULT '',
+                    email TEXT DEFAULT '',
+                    phone TEXT DEFAULT '',
+                    mobile TEXT DEFAULT '',
+                    address_line1 TEXT DEFAULT '',
+                    address_line2 TEXT DEFAULT '',
+                    city TEXT DEFAULT '',
+                    state TEXT DEFAULT '',
+                    zip_code TEXT DEFAULT '',
+                    employee_type TEXT DEFAULT 'full_time',
+                    department TEXT DEFAULT '',
+                    job_title TEXT DEFAULT '',
+                    hire_date TEXT,
+                    termination_date TEXT,
+                    status TEXT DEFAULT 'active',
+                    pay_type TEXT DEFAULT 'hourly',
+                    pay_rate REAL DEFAULT 0.0,
+                    pay_frequency TEXT DEFAULT 'biweekly',
+                    default_hours REAL DEFAULT 80.0,
+                    ssn TEXT DEFAULT '',
+                    date_of_birth TEXT,
+                    filing_status TEXT DEFAULT 'single',
+                    federal_allowances INTEGER DEFAULT 0,
+                    federal_additional_withholding REAL DEFAULT 0.0,
+                    state_allowances INTEGER DEFAULT 0,
+                    state_additional_withholding REAL DEFAULT 0.0,
+                    is_exempt INTEGER DEFAULT 0,
+                    payment_method TEXT DEFAULT 'check',
+                    bank_routing_number TEXT DEFAULT '',
+                    bank_account_number TEXT DEFAULT '',
+                    bank_account_type TEXT DEFAULT 'checking',
+                    workers_comp_code TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    is_owner INTEGER DEFAULT 0,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Pay rates table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_pay_rates (
+                    rate_id TEXT PRIMARY KEY,
+                    employee_id TEXT NOT NULL,
+                    effective_date TEXT NOT NULL,
+                    pay_type TEXT NOT NULL,
+                    rate REAL NOT NULL,
+                    reason TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (employee_id) REFERENCES genfin_employees(employee_id)
+                )
+            """)
+
+            # Time entries table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_time_entries (
+                    entry_id TEXT PRIMARY KEY,
+                    employee_id TEXT NOT NULL,
+                    work_date TEXT NOT NULL,
+                    regular_hours REAL DEFAULT 0.0,
+                    overtime_hours REAL DEFAULT 0.0,
+                    double_time_hours REAL DEFAULT 0.0,
+                    sick_hours REAL DEFAULT 0.0,
+                    vacation_hours REAL DEFAULT 0.0,
+                    holiday_hours REAL DEFAULT 0.0,
+                    other_hours REAL DEFAULT 0.0,
+                    other_hours_type TEXT DEFAULT '',
+                    piece_count REAL DEFAULT 0.0,
+                    notes TEXT DEFAULT '',
+                    approved INTEGER DEFAULT 0,
+                    approved_by TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (employee_id) REFERENCES genfin_employees(employee_id)
+                )
+            """)
+
+            # Earning types table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_earning_types (
+                    earning_type_id TEXT PRIMARY KEY,
+                    code TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    is_taxable INTEGER DEFAULT 1,
+                    is_overtime INTEGER DEFAULT 0,
+                    multiplier REAL DEFAULT 1.0,
+                    expense_account_id TEXT,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Deduction types table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_deduction_types (
+                    deduction_type_id TEXT PRIMARY KEY,
+                    code TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    is_pretax INTEGER DEFAULT 0,
+                    is_percentage INTEGER DEFAULT 0,
+                    default_amount REAL DEFAULT 0.0,
+                    default_percentage REAL DEFAULT 0.0,
+                    max_annual_amount REAL,
+                    liability_account_id TEXT,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Employee deductions table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_employee_deductions (
+                    deduction_id TEXT PRIMARY KEY,
+                    employee_id TEXT NOT NULL,
+                    deduction_type_id TEXT NOT NULL,
+                    amount REAL DEFAULT 0.0,
+                    percentage REAL DEFAULT 0.0,
+                    is_active INTEGER DEFAULT 1,
+                    start_date TEXT,
+                    end_date TEXT,
+                    FOREIGN KEY (employee_id) REFERENCES genfin_employees(employee_id),
+                    FOREIGN KEY (deduction_type_id) REFERENCES genfin_deduction_types(deduction_type_id)
+                )
+            """)
+
+            # Pay runs table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_pay_runs (
+                    pay_run_id TEXT PRIMARY KEY,
+                    pay_run_number INTEGER NOT NULL,
+                    pay_period_start TEXT NOT NULL,
+                    pay_period_end TEXT NOT NULL,
+                    pay_date TEXT NOT NULL,
+                    bank_account_id TEXT NOT NULL,
+                    pay_run_type TEXT DEFAULT 'scheduled',
+                    pay_schedule_id TEXT,
+                    total_gross REAL DEFAULT 0.0,
+                    total_taxes REAL DEFAULT 0.0,
+                    total_deductions REAL DEFAULT 0.0,
+                    total_net REAL DEFAULT 0.0,
+                    total_employer_taxes REAL DEFAULT 0.0,
+                    status TEXT DEFAULT 'draft',
+                    approved_by TEXT DEFAULT '',
+                    approved_at TEXT,
+                    paid_at TEXT,
+                    memo TEXT DEFAULT '',
+                    journal_entry_id TEXT,
+                    ach_batch_id TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Pay run lines table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_pay_run_lines (
+                    line_id TEXT PRIMARY KEY,
+                    pay_run_id TEXT NOT NULL,
+                    employee_id TEXT NOT NULL,
+                    regular_hours REAL DEFAULT 0.0,
+                    overtime_hours REAL DEFAULT 0.0,
+                    double_time_hours REAL DEFAULT 0.0,
+                    sick_hours REAL DEFAULT 0.0,
+                    vacation_hours REAL DEFAULT 0.0,
+                    holiday_hours REAL DEFAULT 0.0,
+                    regular_pay REAL DEFAULT 0.0,
+                    overtime_pay REAL DEFAULT 0.0,
+                    double_time_pay REAL DEFAULT 0.0,
+                    sick_pay REAL DEFAULT 0.0,
+                    vacation_pay REAL DEFAULT 0.0,
+                    holiday_pay REAL DEFAULT 0.0,
+                    bonus REAL DEFAULT 0.0,
+                    commission REAL DEFAULT 0.0,
+                    other_earnings REAL DEFAULT 0.0,
+                    gross_pay REAL DEFAULT 0.0,
+                    federal_income_tax REAL DEFAULT 0.0,
+                    state_income_tax REAL DEFAULT 0.0,
+                    local_income_tax REAL DEFAULT 0.0,
+                    social_security_employee REAL DEFAULT 0.0,
+                    medicare_employee REAL DEFAULT 0.0,
+                    additional_medicare REAL DEFAULT 0.0,
+                    social_security_employer REAL DEFAULT 0.0,
+                    medicare_employer REAL DEFAULT 0.0,
+                    futa REAL DEFAULT 0.0,
+                    suta REAL DEFAULT 0.0,
+                    deductions_json TEXT DEFAULT '[]',
+                    total_deductions REAL DEFAULT 0.0,
+                    net_pay REAL DEFAULT 0.0,
+                    payment_method TEXT DEFAULT 'check',
+                    check_id TEXT,
+                    direct_deposit_amount REAL DEFAULT 0.0,
+                    FOREIGN KEY (pay_run_id) REFERENCES genfin_pay_runs(pay_run_id),
+                    FOREIGN KEY (employee_id) REFERENCES genfin_employees(employee_id)
+                )
+            """)
+
+            # Tax payments table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_tax_payments (
+                    payment_id TEXT PRIMARY KEY,
+                    tax_type TEXT NOT NULL,
+                    period_start TEXT NOT NULL,
+                    period_end TEXT NOT NULL,
+                    payment_date TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    confirmation_number TEXT DEFAULT '',
+                    memo TEXT DEFAULT '',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            # Pay schedules table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_pay_schedules (
+                    schedule_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    frequency TEXT NOT NULL,
+                    pay_day_of_week INTEGER DEFAULT 4,
+                    pay_day_of_month INTEGER DEFAULT 15,
+                    second_pay_day INTEGER DEFAULT 0,
+                    next_pay_period_start TEXT,
+                    next_pay_period_end TEXT,
+                    next_pay_date TEXT,
+                    employee_ids_json TEXT DEFAULT '[]',
+                    is_active INTEGER DEFAULT 1,
+                    auto_calculate INTEGER DEFAULT 0,
+                    reminder_days_before INTEGER DEFAULT 3,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Payroll settings table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_payroll_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
+            conn.commit()
+
+    def _initialize_defaults(self):
+        """Initialize default earning types, deduction types, and pay schedules"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Check if defaults already exist
+            cursor.execute("SELECT COUNT(*) FROM genfin_earning_types")
+            if cursor.fetchone()[0] == 0:
+                self._initialize_earning_types()
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_deduction_types")
+            if cursor.fetchone()[0] == 0:
+                self._initialize_deduction_types()
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_pay_schedules")
+            if cursor.fetchone()[0] == 0:
+                self._initialize_pay_schedules()
+
+            # Initialize settings if not exists
+            cursor.execute("SELECT COUNT(*) FROM genfin_payroll_settings WHERE key = 'next_employee_number'")
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("INSERT INTO genfin_payroll_settings (key, value) VALUES (?, ?)",
+                             ("next_employee_number", "1001"))
+                cursor.execute("INSERT INTO genfin_payroll_settings (key, value) VALUES (?, ?)",
+                             ("next_pay_run_number", "1"))
+                conn.commit()
+
+    def _get_next_number(self, key: str) -> int:
+        """Get and increment a sequence number"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM genfin_payroll_settings WHERE key = ?", (key,))
+            row = cursor.fetchone()
+            current = int(row['value']) if row else 1
+            cursor.execute("UPDATE genfin_payroll_settings SET value = ? WHERE key = ?",
+                         (str(current + 1), key))
+            conn.commit()
+            return current
 
     def _initialize_earning_types(self):
         """Set up default earning types"""
@@ -468,16 +752,16 @@ class GenFinPayrollService:
             ("REIMB", "Reimbursement", False, False, 1.0),
         ]
 
-        for code, name, taxable, is_ot, mult in defaults:
-            et_id = str(uuid.uuid4())
-            self.earning_types[et_id] = EarningType(
-                earning_type_id=et_id,
-                code=code,
-                name=name,
-                is_taxable=taxable,
-                is_overtime=is_ot,
-                multiplier=mult
-            )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for code, name, taxable, is_ot, mult in defaults:
+                et_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_earning_types
+                    (earning_type_id, code, name, is_taxable, is_overtime, multiplier, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                """, (et_id, code, name, 1 if taxable else 0, 1 if is_ot else 0, mult))
+            conn.commit()
 
     def _initialize_deduction_types(self):
         """Set up default deduction types"""
@@ -494,91 +778,69 @@ class GenFinPayrollService:
             ("UNION", "Union Dues", False, False, 0, 0, None),
         ]
 
-        for code, name, pretax, is_pct, amt, pct, max_amt in defaults:
-            dt_id = str(uuid.uuid4())
-            self.deduction_types[dt_id] = DeductionType(
-                deduction_type_id=dt_id,
-                code=code,
-                name=name,
-                is_pretax=pretax,
-                is_percentage=is_pct,
-                default_amount=amt,
-                default_percentage=pct,
-                max_annual_amount=max_amt
-            )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for code, name, pretax, is_pct, amt, pct, max_amt in defaults:
+                dt_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_deduction_types
+                    (deduction_type_id, code, name, is_pretax, is_percentage,
+                     default_amount, default_percentage, max_annual_amount, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (dt_id, code, name, 1 if pretax else 0, 1 if is_pct else 0,
+                      amt, pct, max_amt))
+            conn.commit()
 
     def _initialize_pay_schedules(self):
         """Set up default pay schedules - QuickBooks style"""
-        # Weekly schedule (for hourly workers)
-        weekly_id = str(uuid.uuid4())
-        self.pay_schedules[weekly_id] = PaySchedule(
-            schedule_id=weekly_id,
-            name="Weekly",
-            frequency=PayFrequency.WEEKLY,
-            pay_day_of_week=4,  # Friday
-            next_pay_period_start=self._calculate_next_period_start(PayFrequency.WEEKLY),
-            next_pay_period_end=self._calculate_next_period_end(PayFrequency.WEEKLY),
-            next_pay_date=self._calculate_next_pay_date(PayFrequency.WEEKLY, 4)
-        )
+        now = datetime.now().isoformat()
 
-        # Biweekly schedule (most common)
-        biweekly_id = str(uuid.uuid4())
-        self.pay_schedules[biweekly_id] = PaySchedule(
-            schedule_id=biweekly_id,
-            name="Every Other Week",
-            frequency=PayFrequency.BIWEEKLY,
-            pay_day_of_week=4,  # Friday
-            next_pay_period_start=self._calculate_next_period_start(PayFrequency.BIWEEKLY),
-            next_pay_period_end=self._calculate_next_period_end(PayFrequency.BIWEEKLY),
-            next_pay_date=self._calculate_next_pay_date(PayFrequency.BIWEEKLY, 4)
-        )
+        schedules = [
+            ("Weekly", PayFrequency.WEEKLY, 4, 15, 0),
+            ("Every Other Week", PayFrequency.BIWEEKLY, 4, 15, 0),
+            ("Twice a Month", PayFrequency.SEMIMONTHLY, 4, 15, 0),
+            ("Monthly", PayFrequency.MONTHLY, 4, 1, 0),
+        ]
 
-        # Semi-monthly schedule (15th and last day)
-        semimonthly_id = str(uuid.uuid4())
-        self.pay_schedules[semimonthly_id] = PaySchedule(
-            schedule_id=semimonthly_id,
-            name="Twice a Month",
-            frequency=PayFrequency.SEMIMONTHLY,
-            pay_day_of_month=15,
-            second_pay_day=0,  # Last day of month
-            next_pay_period_start=self._calculate_next_period_start(PayFrequency.SEMIMONTHLY),
-            next_pay_period_end=self._calculate_next_period_end(PayFrequency.SEMIMONTHLY),
-            next_pay_date=self._calculate_next_pay_date(PayFrequency.SEMIMONTHLY, pay_day_of_month=15)
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for name, freq, dow, dom, second in schedules:
+                schedule_id = str(uuid.uuid4())
+                next_start = self._calculate_next_period_start(freq)
+                next_end = self._calculate_next_period_end(freq)
+                next_pay = self._calculate_next_pay_date(freq, dow, dom)
 
-        # Monthly schedule (for salaried employees)
-        monthly_id = str(uuid.uuid4())
-        self.pay_schedules[monthly_id] = PaySchedule(
-            schedule_id=monthly_id,
-            name="Monthly",
-            frequency=PayFrequency.MONTHLY,
-            pay_day_of_month=1,  # 1st of month
-            next_pay_period_start=self._calculate_next_period_start(PayFrequency.MONTHLY),
-            next_pay_period_end=self._calculate_next_period_end(PayFrequency.MONTHLY),
-            next_pay_date=self._calculate_next_pay_date(PayFrequency.MONTHLY, pay_day_of_month=1)
-        )
+                cursor.execute("""
+                    INSERT INTO genfin_pay_schedules
+                    (schedule_id, name, frequency, pay_day_of_week, pay_day_of_month,
+                     second_pay_day, next_pay_period_start, next_pay_period_end,
+                     next_pay_date, employee_ids_json, is_active, auto_calculate,
+                     reminder_days_before, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', 1, 0, 3, ?, ?)
+                """, (schedule_id, name, freq.value, dow, dom, second,
+                      next_start.isoformat() if next_start else None,
+                      next_end.isoformat() if next_end else None,
+                      next_pay.isoformat() if next_pay else None,
+                      now, now))
+            conn.commit()
 
     def _calculate_next_period_start(self, frequency: PayFrequency) -> date:
         """Calculate the next pay period start date"""
         today = date.today()
 
         if frequency == PayFrequency.WEEKLY:
-            # Start of current week (Monday)
             days_since_monday = today.weekday()
             return today - timedelta(days=days_since_monday)
 
         elif frequency == PayFrequency.BIWEEKLY:
-            # Start of current two-week period
             days_since_monday = today.weekday()
             week_start = today - timedelta(days=days_since_monday)
-            # Align to biweekly schedule (even weeks from year start)
             week_num = week_start.isocalendar()[1]
             if week_num % 2 == 1:
                 week_start -= timedelta(days=7)
             return week_start
 
         elif frequency == PayFrequency.SEMIMONTHLY:
-            # 1st-15th or 16th-end of month
             if today.day <= 15:
                 return date(today.year, today.month, 1)
             else:
@@ -603,7 +865,6 @@ class GenFinPayrollService:
             if start.day == 1:
                 return date(start.year, start.month, 15)
             else:
-                # Last day of month
                 if start.month == 12:
                     return date(start.year + 1, 1, 1) - timedelta(days=1)
                 else:
@@ -622,12 +883,10 @@ class GenFinPayrollService:
         today = date.today()
 
         if frequency in [PayFrequency.WEEKLY, PayFrequency.BIWEEKLY]:
-            # Find next occurrence of pay_day_of_week (0=Mon, 4=Fri)
             days_ahead = pay_day_of_week - today.weekday()
             if days_ahead <= 0:
                 days_ahead += 7
             if frequency == PayFrequency.BIWEEKLY:
-                # Adjust for biweekly
                 week_num = today.isocalendar()[1]
                 if week_num % 2 == 1:
                     days_ahead += 7
@@ -637,7 +896,6 @@ class GenFinPayrollService:
             if today.day <= 15:
                 return date(today.year, today.month, 15)
             else:
-                # Last day of month
                 if today.month == 12:
                     return date(today.year, 12, 31)
                 else:
@@ -667,72 +925,115 @@ class GenFinPayrollService:
         """Create a new pay schedule"""
         schedule_id = str(uuid.uuid4())
         freq = PayFrequency(frequency)
+        now = datetime.now().isoformat()
 
-        schedule = PaySchedule(
-            schedule_id=schedule_id,
-            name=name,
-            frequency=freq,
-            pay_day_of_week=pay_day_of_week,
-            pay_day_of_month=pay_day_of_month,
-            second_pay_day=second_pay_day,
-            next_pay_period_start=self._calculate_next_period_start(freq),
-            next_pay_period_end=self._calculate_next_period_end(freq),
-            next_pay_date=self._calculate_next_pay_date(freq, pay_day_of_week, pay_day_of_month)
-        )
+        next_start = self._calculate_next_period_start(freq)
+        next_end = self._calculate_next_period_end(freq)
+        next_pay = self._calculate_next_pay_date(freq, pay_day_of_week, pay_day_of_month)
 
-        self.pay_schedules[schedule_id] = schedule
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_pay_schedules
+                (schedule_id, name, frequency, pay_day_of_week, pay_day_of_month,
+                 second_pay_day, next_pay_period_start, next_pay_period_end,
+                 next_pay_date, employee_ids_json, is_active, auto_calculate,
+                 reminder_days_before, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', 1, 0, 3, ?, ?)
+            """, (schedule_id, name, frequency, pay_day_of_week, pay_day_of_month,
+                  second_pay_day,
+                  next_start.isoformat() if next_start else None,
+                  next_end.isoformat() if next_end else None,
+                  next_pay.isoformat() if next_pay else None,
+                  now, now))
+            conn.commit()
 
-        # Return in format expected by PayScheduleResponse model
+        # Get count for numeric ID
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM genfin_pay_schedules WHERE is_active = 1")
+            count = cursor.fetchone()[0]
+
         return {
-            "id": len(self.pay_schedules),
+            "id": count,
             "name": name,
             "frequency": frequency,
-            "next_pay_date": schedule.next_pay_date
+            "next_pay_date": next_pay
         }
 
     def assign_employee_to_schedule(self, employee_id: str, schedule_id: str) -> Dict:
         """Assign an employee to a pay schedule"""
-        if employee_id not in self.employees:
-            return {"success": False, "error": "Employee not found"}
-        if schedule_id not in self.pay_schedules:
-            return {"success": False, "error": "Pay schedule not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Remove from any existing schedule
-        for sched in self.pay_schedules.values():
-            if employee_id in sched.employee_ids:
-                sched.employee_ids.remove(employee_id)
+            # Check employee exists
+            cursor.execute("SELECT employee_id FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                         (employee_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Employee not found"}
 
-        # Add to new schedule
-        self.pay_schedules[schedule_id].employee_ids.append(employee_id)
+            # Check schedule exists
+            cursor.execute("SELECT schedule_id, employee_ids_json, frequency FROM genfin_pay_schedules WHERE schedule_id = ? AND is_active = 1",
+                         (schedule_id,))
+            schedule_row = cursor.fetchone()
+            if not schedule_row:
+                return {"success": False, "error": "Pay schedule not found"}
 
-        # Update employee's pay frequency to match schedule
-        emp = self.employees[employee_id]
-        emp.pay_frequency = self.pay_schedules[schedule_id].frequency
-        emp.updated_at = datetime.now()
+            # Remove from all other schedules
+            cursor.execute("SELECT schedule_id, employee_ids_json FROM genfin_pay_schedules WHERE is_active = 1")
+            for row in cursor.fetchall():
+                emp_ids = json.loads(row['employee_ids_json'] or '[]')
+                if employee_id in emp_ids:
+                    emp_ids.remove(employee_id)
+                    cursor.execute("UPDATE genfin_pay_schedules SET employee_ids_json = ?, updated_at = ? WHERE schedule_id = ?",
+                                 (json.dumps(emp_ids), datetime.now().isoformat(), row['schedule_id']))
+
+            # Add to new schedule
+            emp_ids = json.loads(schedule_row['employee_ids_json'] or '[]')
+            if employee_id not in emp_ids:
+                emp_ids.append(employee_id)
+            cursor.execute("UPDATE genfin_pay_schedules SET employee_ids_json = ?, updated_at = ? WHERE schedule_id = ?",
+                         (json.dumps(emp_ids), datetime.now().isoformat(), schedule_id))
+
+            # Update employee's pay frequency
+            cursor.execute("UPDATE genfin_employees SET pay_frequency = ?, updated_at = ? WHERE employee_id = ?",
+                         (schedule_row['frequency'], datetime.now().isoformat(), employee_id))
+
+            conn.commit()
 
         return {
             "success": True,
-            "message": f"Employee assigned to {self.pay_schedules[schedule_id].name} schedule"
+            "message": f"Employee assigned to schedule"
         }
 
     def get_pay_schedule(self, schedule_id: str) -> Optional[Dict]:
         """Get a pay schedule by ID"""
-        if schedule_id not in self.pay_schedules:
-            return None
-        return self._schedule_to_dict(self.pay_schedules[schedule_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_pay_schedules WHERE schedule_id = ? AND is_active = 1",
+                         (schedule_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_schedule(row)
 
     def list_pay_schedules(self, active_only: bool = True) -> Dict:
         """List all pay schedules"""
-        result = []
-        for schedule in self.pay_schedules.values():
-            if active_only and not schedule.is_active:
-                continue
-            sched_dict = self._schedule_to_dict(schedule)
-            # Add fields expected by PayScheduleResponse model
-            sched_dict["id"] = schedule.schedule_id
-            sched_dict["frequency"] = schedule.frequency.value
-            sched_dict["next_pay_date"] = schedule.next_pay_date
-            result.append(sched_dict)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            if active_only:
+                cursor.execute("SELECT * FROM genfin_pay_schedules WHERE is_active = 1")
+            else:
+                cursor.execute("SELECT * FROM genfin_pay_schedules")
+
+            result = []
+            for row in cursor.fetchall():
+                sched_dict = self._row_to_schedule(row)
+                sched_dict["id"] = row['schedule_id']
+                sched_dict["frequency"] = row['frequency']
+                sched_dict["next_pay_date"] = datetime.strptime(row['next_pay_date'], "%Y-%m-%d").date() if row['next_pay_date'] else None
+                result.append(sched_dict)
+
         return {"schedules": result, "total": len(result)}
 
     def get_scheduled_payrolls_due(self, days_ahead: int = 7) -> List[Dict]:
@@ -740,102 +1041,124 @@ class GenFinPayrollService:
         today = date.today()
         due_payrolls = []
 
-        for schedule in self.pay_schedules.values():
-            if not schedule.is_active or not schedule.employee_ids:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_pay_schedules WHERE is_active = 1")
 
-            days_until = (schedule.next_pay_date - today).days if schedule.next_pay_date else 999
+            for row in cursor.fetchall():
+                emp_ids = json.loads(row['employee_ids_json'] or '[]')
+                if not emp_ids:
+                    continue
 
-            if days_until <= days_ahead:
-                due_payrolls.append({
-                    "schedule_id": schedule.schedule_id,
-                    "schedule_name": schedule.name,
-                    "frequency": schedule.frequency.value,
-                    "pay_period_start": schedule.next_pay_period_start.isoformat() if schedule.next_pay_period_start else None,
-                    "pay_period_end": schedule.next_pay_period_end.isoformat() if schedule.next_pay_period_end else None,
-                    "pay_date": schedule.next_pay_date.isoformat() if schedule.next_pay_date else None,
-                    "days_until_pay_date": days_until,
-                    "employee_count": len(schedule.employee_ids),
-                    "status": "overdue" if days_until < 0 else "due" if days_until == 0 else "upcoming"
-                })
+                next_pay = datetime.strptime(row['next_pay_date'], "%Y-%m-%d").date() if row['next_pay_date'] else None
+                if not next_pay:
+                    continue
+
+                days_until = (next_pay - today).days
+
+                if days_until <= days_ahead:
+                    due_payrolls.append({
+                        "schedule_id": row['schedule_id'],
+                        "schedule_name": row['name'],
+                        "frequency": row['frequency'],
+                        "pay_period_start": row['next_pay_period_start'],
+                        "pay_period_end": row['next_pay_period_end'],
+                        "pay_date": row['next_pay_date'],
+                        "days_until_pay_date": days_until,
+                        "employee_count": len(emp_ids),
+                        "status": "overdue" if days_until < 0 else "due" if days_until == 0 else "upcoming"
+                    })
 
         return sorted(due_payrolls, key=lambda p: p["days_until_pay_date"])
 
-    def _schedule_to_dict(self, schedule: PaySchedule) -> Dict:
-        """Convert PaySchedule to dictionary"""
+    def _row_to_schedule(self, row: sqlite3.Row) -> Dict:
+        """Convert schedule row to dictionary"""
+        emp_ids = json.loads(row['employee_ids_json'] or '[]')
         return {
-            "schedule_id": schedule.schedule_id,
-            "name": schedule.name,
-            "frequency": schedule.frequency.value,
-            "pay_day_of_week": schedule.pay_day_of_week,
-            "pay_day_of_month": schedule.pay_day_of_month,
-            "second_pay_day": schedule.second_pay_day,
-            "next_pay_period_start": schedule.next_pay_period_start.isoformat() if schedule.next_pay_period_start else None,
-            "next_pay_period_end": schedule.next_pay_period_end.isoformat() if schedule.next_pay_period_end else None,
-            "next_pay_date": schedule.next_pay_date.isoformat() if schedule.next_pay_date else None,
-            "employee_count": len(schedule.employee_ids),
-            "employee_ids": schedule.employee_ids,
-            "is_active": schedule.is_active,
-            "auto_calculate": schedule.auto_calculate,
-            "reminder_days_before": schedule.reminder_days_before
+            "schedule_id": row['schedule_id'],
+            "name": row['name'],
+            "frequency": row['frequency'],
+            "pay_day_of_week": row['pay_day_of_week'],
+            "pay_day_of_month": row['pay_day_of_month'],
+            "second_pay_day": row['second_pay_day'],
+            "next_pay_period_start": row['next_pay_period_start'],
+            "next_pay_period_end": row['next_pay_period_end'],
+            "next_pay_date": row['next_pay_date'],
+            "employee_count": len(emp_ids),
+            "employee_ids": emp_ids,
+            "is_active": bool(row['is_active']),
+            "auto_calculate": bool(row['auto_calculate']),
+            "reminder_days_before": row['reminder_days_before']
         }
 
     def _advance_schedule(self, schedule_id: str):
         """Advance a pay schedule to the next period after payroll is run"""
-        if schedule_id not in self.pay_schedules:
-            return
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_pay_schedules WHERE schedule_id = ?", (schedule_id,))
+            row = cursor.fetchone()
+            if not row:
+                return
 
-        schedule = self.pay_schedules[schedule_id]
+            frequency = PayFrequency(row['frequency'])
+            next_start = datetime.strptime(row['next_pay_period_start'], "%Y-%m-%d").date() if row['next_pay_period_start'] else None
+            next_end = datetime.strptime(row['next_pay_period_end'], "%Y-%m-%d").date() if row['next_pay_period_end'] else None
+            next_pay = datetime.strptime(row['next_pay_date'], "%Y-%m-%d").date() if row['next_pay_date'] else None
 
-        # Calculate next period based on frequency
-        if schedule.frequency == PayFrequency.WEEKLY:
-            schedule.next_pay_period_start += timedelta(days=7)
-            schedule.next_pay_period_end += timedelta(days=7)
-            schedule.next_pay_date += timedelta(days=7)
+            if not next_start or not next_end or not next_pay:
+                return
 
-        elif schedule.frequency == PayFrequency.BIWEEKLY:
-            schedule.next_pay_period_start += timedelta(days=14)
-            schedule.next_pay_period_end += timedelta(days=14)
-            schedule.next_pay_date += timedelta(days=14)
+            # Calculate next period based on frequency
+            if frequency == PayFrequency.WEEKLY:
+                next_start += timedelta(days=7)
+                next_end += timedelta(days=7)
+                next_pay += timedelta(days=7)
 
-        elif schedule.frequency == PayFrequency.SEMIMONTHLY:
-            current_end = schedule.next_pay_period_end
-            if current_end.day <= 15:
-                # Was 1-15, next is 16-end of month
-                schedule.next_pay_period_start = date(current_end.year, current_end.month, 16)
-                if current_end.month == 12:
-                    next_month = date(current_end.year + 1, 1, 1)
+            elif frequency == PayFrequency.BIWEEKLY:
+                next_start += timedelta(days=14)
+                next_end += timedelta(days=14)
+                next_pay += timedelta(days=14)
+
+            elif frequency == PayFrequency.SEMIMONTHLY:
+                if next_end.day <= 15:
+                    next_start = date(next_end.year, next_end.month, 16)
+                    if next_end.month == 12:
+                        next_month = date(next_end.year + 1, 1, 1)
+                    else:
+                        next_month = date(next_end.year, next_end.month + 1, 1)
+                    next_end = next_month - timedelta(days=1)
+                    next_pay = next_end
                 else:
-                    next_month = date(current_end.year, current_end.month + 1, 1)
-                schedule.next_pay_period_end = next_month - timedelta(days=1)
-                schedule.next_pay_date = schedule.next_pay_period_end
-            else:
-                # Was 16-end, next is 1-15 of next month
-                if current_end.month == 12:
-                    next_month = 1
-                    next_year = current_end.year + 1
-                else:
-                    next_month = current_end.month + 1
-                    next_year = current_end.year
-                schedule.next_pay_period_start = date(next_year, next_month, 1)
-                schedule.next_pay_period_end = date(next_year, next_month, 15)
-                schedule.next_pay_date = schedule.next_pay_period_end
+                    if next_end.month == 12:
+                        next_month = 1
+                        next_year = next_end.year + 1
+                    else:
+                        next_month = next_end.month + 1
+                        next_year = next_end.year
+                    next_start = date(next_year, next_month, 1)
+                    next_end = date(next_year, next_month, 15)
+                    next_pay = next_end
 
-        elif schedule.frequency == PayFrequency.MONTHLY:
-            current_start = schedule.next_pay_period_start
-            if current_start.month == 12:
-                schedule.next_pay_period_start = date(current_start.year + 1, 1, 1)
-                schedule.next_pay_period_end = date(current_start.year + 1, 1, 31)
-                schedule.next_pay_date = date(current_start.year + 1, 1, schedule.pay_day_of_month)
-            else:
-                schedule.next_pay_period_start = date(current_start.year, current_start.month + 1, 1)
-                if current_start.month + 1 == 12:
-                    schedule.next_pay_period_end = date(current_start.year, 12, 31)
+            elif frequency == PayFrequency.MONTHLY:
+                if next_start.month == 12:
+                    next_start = date(next_start.year + 1, 1, 1)
+                    next_end = date(next_start.year + 1, 1, 31)
+                    next_pay = date(next_start.year + 1, 1, row['pay_day_of_month'])
                 else:
-                    schedule.next_pay_period_end = date(current_start.year, current_start.month + 2, 1) - timedelta(days=1)
-                schedule.next_pay_date = date(current_start.year, current_start.month + 1, min(schedule.pay_day_of_month, 28))
+                    next_start = date(next_start.year, next_start.month + 1, 1)
+                    if next_start.month + 1 == 12:
+                        next_end = date(next_start.year, 12, 31)
+                    else:
+                        next_end = date(next_start.year, next_start.month + 2, 1) - timedelta(days=1)
+                    next_pay = date(next_start.year, next_start.month + 1, min(row['pay_day_of_month'], 28))
 
-        schedule.updated_at = datetime.now()
+            cursor.execute("""
+                UPDATE genfin_pay_schedules
+                SET next_pay_period_start = ?, next_pay_period_end = ?, next_pay_date = ?, updated_at = ?
+                WHERE schedule_id = ?
+            """, (next_start.isoformat(), next_end.isoformat(), next_pay.isoformat(),
+                  datetime.now().isoformat(), schedule_id))
+            conn.commit()
 
     # ==================== EMPLOYEE MANAGEMENT ====================
 
@@ -873,148 +1196,156 @@ class GenFinPayrollService:
     ) -> Dict:
         """Create a new employee"""
         employee_id = str(uuid.uuid4())
-        employee_number = f"EMP-{self.next_employee_number}"
-        self.next_employee_number += 1
+        emp_number = self._get_next_number("next_employee_number")
+        employee_number = f"EMP-{emp_number}"
 
-        h_date = datetime.strptime(hire_date, "%Y-%m-%d").date() if hire_date else date.today()
-        dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date() if date_of_birth else None
+        h_date = hire_date if hire_date else date.today().isoformat()
+        now = datetime.now().isoformat()
 
-        employee = Employee(
-            employee_id=employee_id,
-            employee_number=employee_number,
-            first_name=first_name,
-            last_name=last_name,
-            middle_name=middle_name,
-            email=email,
-            phone=phone,
-            address_line1=address_line1,
-            city=city,
-            state=state,
-            zip_code=zip_code,
-            employee_type=EmployeeType(employee_type),
-            department=department,
-            job_title=job_title,
-            hire_date=h_date,
-            pay_type=PayType(pay_type),
-            pay_rate=pay_rate,
-            pay_frequency=PayFrequency(pay_frequency),
-            default_hours=default_hours,
-            ssn=ssn,
-            date_of_birth=dob,
-            filing_status=FilingStatus(filing_status),
-            federal_allowances=federal_allowances,
-            federal_additional_withholding=federal_additional_withholding,
-            state_allowances=state_allowances,
-            payment_method=PaymentMethod(payment_method),
-            bank_routing_number=bank_routing_number,
-            bank_account_number=bank_account_number,
-            bank_account_type=bank_account_type,
-            is_owner=is_owner
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_employees
+                (employee_id, employee_number, first_name, last_name, middle_name,
+                 email, phone, address_line1, city, state, zip_code,
+                 employee_type, department, job_title, hire_date,
+                 status, pay_type, pay_rate, pay_frequency, default_hours,
+                 ssn, date_of_birth, filing_status, federal_allowances,
+                 federal_additional_withholding, state_allowances,
+                 payment_method, bank_routing_number, bank_account_number,
+                 bank_account_type, is_owner, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active',
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            """, (employee_id, employee_number, first_name, last_name, middle_name,
+                  email, phone, address_line1, city, state, zip_code,
+                  employee_type, department, job_title, h_date,
+                  pay_type, pay_rate, pay_frequency, default_hours,
+                  ssn, date_of_birth, filing_status, federal_allowances,
+                  federal_additional_withholding, state_allowances,
+                  payment_method, bank_routing_number, bank_account_number,
+                  bank_account_type, 1 if is_owner else 0, now, now))
 
-        self.employees[employee_id] = employee
+            # Create initial pay rate record
+            rate_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO genfin_pay_rates
+                (rate_id, employee_id, effective_date, pay_type, rate, reason, created_at)
+                VALUES (?, ?, ?, ?, ?, 'Initial rate', ?)
+            """, (rate_id, employee_id, h_date, pay_type, pay_rate, now))
 
-        # Auto-assign employee to pay schedule if provided
-        if pay_schedule_id and pay_schedule_id in self.pay_schedules:
-            schedule = self.pay_schedules[pay_schedule_id]
-            if employee_id not in schedule.employee_ids:
-                schedule.employee_ids.append(employee_id)
+            conn.commit()
 
-        # Create initial pay rate record
-        rate_id = str(uuid.uuid4())
-        self.pay_rates[rate_id] = PayRate(
-            rate_id=rate_id,
-            employee_id=employee_id,
-            effective_date=h_date,
-            pay_type=employee.pay_type,
-            rate=pay_rate,
-            reason="Initial rate"
-        )
+        # Assign to pay schedule if provided
+        if pay_schedule_id:
+            self.assign_employee_to_schedule(employee_id, pay_schedule_id)
 
-        # Return employee in format expected by EmployeeResponse model
-        emp_dict = self._employee_to_dict(employee)
-        emp_dict["id"] = len(self.employees)  # Numeric ID for response model
-        return emp_dict
+        # Get employee for return
+        emp = self.get_employee(employee_id)
+        if emp:
+            # Get count for numeric ID
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM genfin_employees WHERE is_active = 1")
+                emp["id"] = cursor.fetchone()[0]
+        return emp
 
     def update_employee(self, employee_id: str, **kwargs) -> Dict:
         """Update employee information"""
-        if employee_id not in self.employees:
-            return {"success": False, "error": "Employee not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                         (employee_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Employee not found"}
 
-        employee = self.employees[employee_id]
+            # Handle pay rate change
+            if "pay_rate" in kwargs and kwargs["pay_rate"] != row['pay_rate']:
+                rate_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_pay_rates
+                    (rate_id, employee_id, effective_date, pay_type, rate, reason, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (rate_id, employee_id, date.today().isoformat(),
+                      kwargs.get("pay_type", row['pay_type']),
+                      kwargs["pay_rate"],
+                      kwargs.get("rate_change_reason", "Rate change"),
+                      datetime.now().isoformat()))
 
-        # Handle pay rate change
-        if "pay_rate" in kwargs and kwargs["pay_rate"] != employee.pay_rate:
-            rate_id = str(uuid.uuid4())
-            self.pay_rates[rate_id] = PayRate(
-                rate_id=rate_id,
-                employee_id=employee_id,
-                effective_date=date.today(),
-                pay_type=employee.pay_type,
-                rate=kwargs["pay_rate"],
-                reason=kwargs.get("rate_change_reason", "Rate change")
-            )
+            # Handle pay schedule change
+            if "pay_schedule_id" in kwargs:
+                new_schedule_id = kwargs.pop("pay_schedule_id")
+                if new_schedule_id:
+                    self.assign_employee_to_schedule(employee_id, new_schedule_id)
 
-        # Handle pay schedule change
-        if "pay_schedule_id" in kwargs:
-            new_schedule_id = kwargs.pop("pay_schedule_id")
+            # Build update query
+            updates = []
+            values = []
+            for key, value in kwargs.items():
+                if value is not None and key not in ['rate_change_reason']:
+                    if key in ['hire_date', 'termination_date', 'date_of_birth']:
+                        if isinstance(value, str):
+                            updates.append(f"{key} = ?")
+                            values.append(value)
+                    elif key == 'is_owner':
+                        updates.append(f"{key} = ?")
+                        values.append(1 if value else 0)
+                    else:
+                        updates.append(f"{key} = ?")
+                        values.append(value)
 
-            # Remove from all existing schedules
-            for schedule in self.pay_schedules.values():
-                if employee_id in schedule.employee_ids:
-                    schedule.employee_ids.remove(employee_id)
+            if updates:
+                updates.append("updated_at = ?")
+                values.append(datetime.now().isoformat())
+                values.append(employee_id)
 
-            # Add to new schedule
-            if new_schedule_id and new_schedule_id in self.pay_schedules:
-                schedule = self.pay_schedules[new_schedule_id]
-                if employee_id not in schedule.employee_ids:
-                    schedule.employee_ids.append(employee_id)
-
-        for key, value in kwargs.items():
-            if hasattr(employee, key) and value is not None:
-                if key == "employee_type":
-                    value = EmployeeType(value)
-                elif key == "pay_type":
-                    value = PayType(value)
-                elif key == "pay_frequency":
-                    value = PayFrequency(value)
-                elif key == "filing_status":
-                    value = FilingStatus(value)
-                elif key == "payment_method":
-                    value = PaymentMethod(value)
-                elif key in ["hire_date", "termination_date", "date_of_birth"]:
-                    if isinstance(value, str):
-                        value = datetime.strptime(value, "%Y-%m-%d").date()
-                setattr(employee, key, value)
-
-        employee.updated_at = datetime.now()
+                cursor.execute(f"""
+                    UPDATE genfin_employees
+                    SET {', '.join(updates)}
+                    WHERE employee_id = ?
+                """, values)
+                conn.commit()
 
         return {
             "success": True,
-            "employee": self._employee_to_dict(employee)
+            "employee": self.get_employee(employee_id)
         }
 
     def terminate_employee(self, employee_id: str, termination_date: str, reason: str = "") -> Dict:
         """Terminate an employee"""
-        if employee_id not in self.employees:
-            return {"success": False, "error": "Employee not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                         (employee_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Employee not found"}
 
-        employee = self.employees[employee_id]
-        employee.status = EmployeeStatus.TERMINATED
-        employee.termination_date = datetime.strptime(termination_date, "%Y-%m-%d").date()
-        employee.notes = f"{employee.notes}\nTerminated: {reason}" if reason else employee.notes
-        employee.updated_at = datetime.now()
+            notes = row['notes'] or ""
+            if reason:
+                notes = f"{notes}\nTerminated: {reason}"
+
+            cursor.execute("""
+                UPDATE genfin_employees
+                SET status = 'terminated', termination_date = ?, notes = ?, updated_at = ?
+                WHERE employee_id = ?
+            """, (termination_date, notes, datetime.now().isoformat(), employee_id))
+            conn.commit()
 
         return {
             "success": True,
-            "employee": self._employee_to_dict(employee)
+            "employee": self.get_employee(employee_id)
         }
 
     def get_employee(self, employee_id: str) -> Optional[Dict]:
         """Get employee by ID"""
-        if employee_id not in self.employees:
-            return None
-        return self._employee_to_dict(self.employees[employee_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ?", (employee_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_employee(row)
 
     def list_employees(
         self,
@@ -1024,22 +1355,87 @@ class GenFinPayrollService:
         active_only: bool = True
     ) -> Dict:
         """List employees with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for employee in self.employees.values():
-            if active_only and employee.status != EmployeeStatus.ACTIVE:
-                continue
-            if status and employee.status.value != status:
-                continue
-            if employee_type and employee.employee_type.value != employee_type:
-                continue
-            if department and employee.department != department:
-                continue
+            query = "SELECT * FROM genfin_employees WHERE is_active = 1"
+            params = []
 
-            result.append(self._employee_to_dict(employee))
+            if active_only:
+                query += " AND status = 'active'"
+            elif status:
+                query += " AND status = ?"
+                params.append(status)
 
-        sorted_result = sorted(result, key=lambda e: e["last_name"])
-        return {"employees": sorted_result, "total": len(sorted_result)}
+            if employee_type:
+                query += " AND employee_type = ?"
+                params.append(employee_type)
+
+            if department:
+                query += " AND department = ?"
+                params.append(department)
+
+            query += " ORDER BY last_name, first_name"
+
+            cursor.execute(query, params)
+            result = [self._row_to_employee(row) for row in cursor.fetchall()]
+
+        return {"employees": result, "total": len(result)}
+
+    def _row_to_employee(self, row: sqlite3.Row) -> Dict:
+        """Convert employee row to dictionary"""
+        # Find which pay schedule this employee is assigned to
+        pay_schedule_id = None
+        pay_schedule_name = None
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT schedule_id, name, employee_ids_json FROM genfin_pay_schedules WHERE is_active = 1")
+            for sched_row in cursor.fetchall():
+                emp_ids = json.loads(sched_row['employee_ids_json'] or '[]')
+                if row['employee_id'] in emp_ids:
+                    pay_schedule_id = sched_row['schedule_id']
+                    pay_schedule_name = sched_row['name']
+                    break
+
+        return {
+            "employee_id": row['employee_id'],
+            "employee_number": row['employee_number'],
+            "first_name": row['first_name'],
+            "last_name": row['last_name'],
+            "middle_name": row['middle_name'] or "",
+            "full_name": f"{row['first_name']} {row['last_name']}",
+            "email": row['email'] or "",
+            "phone": row['phone'] or "",
+            "address_line1": row['address_line1'] or "",
+            "city": row['city'] or "",
+            "state": row['state'] or "",
+            "zip_code": row['zip_code'] or "",
+            "address": f"{row['address_line1'] or ''}, {row['city'] or ''}, {row['state'] or ''} {row['zip_code'] or ''}",
+            "employee_type": row['employee_type'],
+            "department": row['department'] or "",
+            "job_title": row['job_title'] or "",
+            "hire_date": row['hire_date'],
+            "status": row['status'],
+            "pay_type": row['pay_type'],
+            "pay_rate": row['pay_rate'],
+            "pay_frequency": row['pay_frequency'],
+            "pay_schedule_id": pay_schedule_id,
+            "pay_schedule_name": pay_schedule_name,
+            "default_hours": row['default_hours'],
+            "filing_status": row['filing_status'],
+            "federal_allowances": row['federal_allowances'],
+            "federal_additional_withholding": row['federal_additional_withholding'],
+            "state_allowances": row['state_allowances'],
+            "payment_method": row['payment_method'],
+            "bank_routing_number": row['bank_routing_number'] or "",
+            "bank_account_number": row['bank_account_number'][-4:] if row['bank_account_number'] else "",
+            "bank_account_type": row['bank_account_type'] or "checking",
+            "has_direct_deposit": row['payment_method'] in ['direct_deposit', 'both'],
+            "is_owner": bool(row['is_owner']),
+            "created_at": row['created_at'],
+            "updated_at": row['updated_at']
+        }
 
     # ==================== DEDUCTIONS ====================
 
@@ -1053,27 +1449,28 @@ class GenFinPayrollService:
         end_date: Optional[str] = None
     ) -> Dict:
         """Add a deduction to an employee"""
-        if employee_id not in self.employees:
-            return {"success": False, "error": "Employee not found"}
-        if deduction_type_id not in self.deduction_types:
-            return {"success": False, "error": "Deduction type not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        deduction_id = str(uuid.uuid4())
+            cursor.execute("SELECT employee_id FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                         (employee_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Employee not found"}
 
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
+            cursor.execute("SELECT deduction_type_id FROM genfin_deduction_types WHERE deduction_type_id = ? AND is_active = 1",
+                         (deduction_type_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Deduction type not found"}
 
-        deduction = EmployeeDeduction(
-            deduction_id=deduction_id,
-            employee_id=employee_id,
-            deduction_type_id=deduction_type_id,
-            amount=amount,
-            percentage=percentage,
-            start_date=s_date,
-            end_date=e_date
-        )
-
-        self.employee_deductions[deduction_id] = deduction
+            deduction_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO genfin_employee_deductions
+                (deduction_id, employee_id, deduction_type_id, amount, percentage,
+                 is_active, start_date, end_date)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+            """, (deduction_id, employee_id, deduction_type_id, amount, percentage,
+                  start_date, end_date))
+            conn.commit()
 
         return {
             "success": True,
@@ -1084,26 +1481,26 @@ class GenFinPayrollService:
         """Get all deductions for an employee"""
         result = []
 
-        for ded in self.employee_deductions.values():
-            if ded.employee_id != employee_id:
-                continue
-            if not ded.is_active:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT ed.*, dt.code, dt.name, dt.is_pretax
+                FROM genfin_employee_deductions ed
+                JOIN genfin_deduction_types dt ON ed.deduction_type_id = dt.deduction_type_id
+                WHERE ed.employee_id = ? AND ed.is_active = 1
+            """, (employee_id,))
 
-            ded_type = self.deduction_types.get(ded.deduction_type_id)
-            if not ded_type:
-                continue
-
-            result.append({
-                "deduction_id": ded.deduction_id,
-                "code": ded_type.code,
-                "name": ded_type.name,
-                "is_pretax": ded_type.is_pretax,
-                "amount": ded.amount,
-                "percentage": ded.percentage,
-                "start_date": ded.start_date.isoformat() if ded.start_date else None,
-                "end_date": ded.end_date.isoformat() if ded.end_date else None
-            })
+            for row in cursor.fetchall():
+                result.append({
+                    "deduction_id": row['deduction_id'],
+                    "code": row['code'],
+                    "name": row['name'],
+                    "is_pretax": bool(row['is_pretax']),
+                    "amount": row['amount'],
+                    "percentage": row['percentage'],
+                    "start_date": row['start_date'],
+                    "end_date": row['end_date']
+                })
 
         return result
 
@@ -1122,26 +1519,24 @@ class GenFinPayrollService:
         notes: str = ""
     ) -> Dict:
         """Record time for an employee"""
-        if employee_id not in self.employees:
-            return {"success": False, "error": "Employee not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT employee_id FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                         (employee_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Employee not found"}
 
-        entry_id = str(uuid.uuid4())
-        w_date = datetime.strptime(work_date, "%Y-%m-%d").date()
-
-        entry = TimeEntry(
-            entry_id=entry_id,
-            employee_id=employee_id,
-            work_date=w_date,
-            regular_hours=regular_hours,
-            overtime_hours=overtime_hours,
-            double_time_hours=double_time_hours,
-            sick_hours=sick_hours,
-            vacation_hours=vacation_hours,
-            holiday_hours=holiday_hours,
-            notes=notes
-        )
-
-        self.time_entries[entry_id] = entry
+            entry_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO genfin_time_entries
+                (entry_id, employee_id, work_date, regular_hours, overtime_hours,
+                 double_time_hours, sick_hours, vacation_hours, holiday_hours,
+                 notes, approved, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+            """, (entry_id, employee_id, work_date, regular_hours, overtime_hours,
+                  double_time_hours, sick_hours, vacation_hours, holiday_hours,
+                  notes, datetime.now().isoformat()))
+            conn.commit()
 
         return {
             "success": True,
@@ -1157,34 +1552,54 @@ class GenFinPayrollService:
         """Get time entries with filtering"""
         result = []
 
-        for entry in self.time_entries.values():
-            if employee_id and entry.employee_id != employee_id:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            query = """
+                SELECT te.*, e.first_name, e.last_name
+                FROM genfin_time_entries te
+                JOIN genfin_employees e ON te.employee_id = e.employee_id
+                WHERE 1=1
+            """
+            params = []
+
+            if employee_id:
+                query += " AND te.employee_id = ?"
+                params.append(employee_id)
+
             if start_date:
-                if entry.work_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND te.work_date >= ?"
+                params.append(start_date)
+
             if end_date:
-                if entry.work_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND te.work_date <= ?"
+                params.append(end_date)
 
-            emp = self.employees.get(entry.employee_id)
-            result.append({
-                "entry_id": entry.entry_id,
-                "employee_id": entry.employee_id,
-                "employee_name": f"{emp.first_name} {emp.last_name}" if emp else "Unknown",
-                "work_date": entry.work_date.isoformat(),
-                "regular_hours": entry.regular_hours,
-                "overtime_hours": entry.overtime_hours,
-                "double_time_hours": entry.double_time_hours,
-                "sick_hours": entry.sick_hours,
-                "vacation_hours": entry.vacation_hours,
-                "holiday_hours": entry.holiday_hours,
-                "total_hours": entry.regular_hours + entry.overtime_hours + entry.double_time_hours + entry.sick_hours + entry.vacation_hours + entry.holiday_hours,
-                "approved": entry.approved,
-                "notes": entry.notes
-            })
+            query += " ORDER BY te.work_date DESC"
 
-        return sorted(result, key=lambda e: e["work_date"], reverse=True)
+            cursor.execute(query, params)
+
+            for row in cursor.fetchall():
+                total_hours = (row['regular_hours'] + row['overtime_hours'] +
+                              row['double_time_hours'] + row['sick_hours'] +
+                              row['vacation_hours'] + row['holiday_hours'])
+                result.append({
+                    "entry_id": row['entry_id'],
+                    "employee_id": row['employee_id'],
+                    "employee_name": f"{row['first_name']} {row['last_name']}",
+                    "work_date": row['work_date'],
+                    "regular_hours": row['regular_hours'],
+                    "overtime_hours": row['overtime_hours'],
+                    "double_time_hours": row['double_time_hours'],
+                    "sick_hours": row['sick_hours'],
+                    "vacation_hours": row['vacation_hours'],
+                    "holiday_hours": row['holiday_hours'],
+                    "total_hours": total_hours,
+                    "approved": bool(row['approved']),
+                    "notes": row['notes'] or ""
+                })
+
+        return result
 
     # ==================== TAX CALCULATIONS ====================
 
@@ -1195,17 +1610,14 @@ class GenFinPayrollService:
         allowances: int = 0
     ) -> float:
         """Calculate federal income tax withholding"""
-        # Apply standard deduction
         standard_ded = STANDARD_DEDUCTION_2024.get(filing_status, 14600)
         taxable_income = max(0, annual_gross - standard_ded)
 
-        # Get brackets for filing status
         brackets = FEDERAL_TAX_BRACKETS_2024.get(
             filing_status,
             FEDERAL_TAX_BRACKETS_2024[FilingStatus.SINGLE]
         )
 
-        # Calculate tax
         tax = 0.0
         prev_bracket = 0
 
@@ -1221,17 +1633,14 @@ class GenFinPayrollService:
 
     def _calculate_fica(self, gross_pay: float, ytd_gross: float) -> Tuple[float, float, float, float]:
         """Calculate FICA taxes (SS and Medicare)"""
-        # Social Security
         ss_wage_remaining = max(0, SOCIAL_SECURITY_WAGE_BASE - ytd_gross)
         ss_taxable = min(gross_pay, ss_wage_remaining)
         ss_employee = ss_taxable * SOCIAL_SECURITY_RATE
         ss_employer = ss_taxable * SOCIAL_SECURITY_RATE
 
-        # Medicare
         medicare_employee = gross_pay * MEDICARE_RATE
         medicare_employer = gross_pay * MEDICARE_RATE
 
-        # Additional Medicare Tax on wages over $200k
         additional_medicare = 0.0
         if ytd_gross + gross_pay > ADDITIONAL_MEDICARE_THRESHOLD:
             excess = max(0, ytd_gross + gross_pay - ADDITIONAL_MEDICARE_THRESHOLD)
@@ -1246,14 +1655,12 @@ class GenFinPayrollService:
 
     def _calculate_futa_suta(self, gross_pay: float, ytd_gross: float, state: str) -> Tuple[float, float]:
         """Calculate FUTA and SUTA (employer taxes)"""
-        # FUTA
         futa_remaining = max(0, FUTA_WAGE_BASE - ytd_gross)
         futa_taxable = min(gross_pay, futa_remaining)
         futa = futa_taxable * FUTA_RATE
 
-        # SUTA - varies by state, using average rate
         suta_rates = {
-            "default": 0.027,  # Average state rate
+            "default": 0.027,
             "CA": 0.034,
             "TX": 0.027,
             "NY": 0.033,
@@ -1261,7 +1668,7 @@ class GenFinPayrollService:
             "IL": 0.0325,
         }
         suta_rate = suta_rates.get(state.upper(), suta_rates["default"])
-        suta_wage_base = 15000  # Varies by state
+        suta_wage_base = 15000
 
         suta_remaining = max(0, suta_wage_base - ytd_gross)
         suta_taxable = min(gross_pay, suta_remaining)
@@ -1274,49 +1681,50 @@ class GenFinPayrollService:
         year_start = date(as_of_date.year, 1, 1)
         ytd_gross = 0.0
 
-        for pay_run in self.pay_runs.values():
-            if pay_run.status not in [PayRunStatus.APPROVED, PayRunStatus.PAID]:
-                continue
-            if pay_run.pay_date < year_start or pay_run.pay_date >= as_of_date:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT prl.gross_pay
+                FROM genfin_pay_run_lines prl
+                JOIN genfin_pay_runs pr ON prl.pay_run_id = pr.pay_run_id
+                WHERE prl.employee_id = ?
+                  AND pr.status IN ('approved', 'paid')
+                  AND pr.pay_date >= ?
+                  AND pr.pay_date < ?
+            """, (employee_id, year_start.isoformat(), as_of_date.isoformat()))
 
-            for line in pay_run.lines:
-                if line.employee_id == employee_id:
-                    ytd_gross += line.gross_pay
+            for row in cursor.fetchall():
+                ytd_gross += row['gross_pay']
 
         return ytd_gross
 
     # ==================== PAY RUNS ====================
 
     def start_scheduled_payroll(self, schedule_id: str, bank_account_id: str) -> Dict:
-        """
-        Start a scheduled payroll run - QuickBooks style
+        """Start a scheduled payroll run - QuickBooks style"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_pay_schedules WHERE schedule_id = ? AND is_active = 1",
+                         (schedule_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Pay schedule not found"}
 
-        Uses the pay schedule's dates and employees to create a pay run.
-        This is the main way to run regular payroll in QuickBooks.
-        """
-        if schedule_id not in self.pay_schedules:
-            return {"success": False, "error": "Pay schedule not found"}
+            emp_ids = json.loads(row['employee_ids_json'] or '[]')
+            if not emp_ids:
+                return {"success": False, "error": "No employees assigned to this schedule"}
 
-        schedule = self.pay_schedules[schedule_id]
+            result = self.create_pay_run(
+                pay_period_start=row['next_pay_period_start'],
+                pay_period_end=row['next_pay_period_end'],
+                pay_date=row['next_pay_date'],
+                bank_account_id=bank_account_id,
+                employee_ids=emp_ids,
+                pay_run_type="scheduled",
+                pay_schedule_id=schedule_id
+            )
 
-        if not schedule.employee_ids:
-            return {"success": False, "error": "No employees assigned to this schedule"}
-
-        # Create pay run using schedule's dates
-        result = self.create_pay_run(
-            pay_period_start=schedule.next_pay_period_start.isoformat(),
-            pay_period_end=schedule.next_pay_period_end.isoformat(),
-            pay_date=schedule.next_pay_date.isoformat(),
-            bank_account_id=bank_account_id,
-            employee_ids=schedule.employee_ids,
-            pay_run_type="scheduled",
-            pay_schedule_id=schedule_id
-        )
-
-        if result.get("success"):
-            # Auto-calculate if enabled
-            if schedule.auto_calculate:
+            if result.get("success") and row['auto_calculate']:
                 self.calculate_pay_run(result["pay_run_id"])
 
         return result
@@ -1330,16 +1738,7 @@ class GenFinPayrollService:
         employee_ids: List[str],
         reason: str = ""
     ) -> Dict:
-        """
-        Create an unscheduled payroll run - QuickBooks style
-
-        Use this for:
-        - Bonuses outside regular schedule
-        - Corrections to previous payroll
-        - Emergency advance payments
-        - Commission payments
-        - New hire's first paycheck before their schedule starts
-        """
+        """Create an unscheduled payroll run - QuickBooks style"""
         if not employee_ids:
             return {"success": False, "error": "Must specify at least one employee"}
 
@@ -1364,72 +1763,71 @@ class GenFinPayrollService:
         final_bonus: float = 0.0,
         reason: str = ""
     ) -> Dict:
-        """
-        Create a termination/final paycheck - QuickBooks style
+        """Create a termination/final paycheck - QuickBooks style"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                         (employee_id,))
+            emp_row = cursor.fetchone()
+            if not emp_row:
+                return {"success": False, "error": "Employee not found"}
 
-        Calculates final pay including:
-        - Regular hours through termination date
-        - Any overtime/other hours
-        - PTO payout (if applicable)
-        - Final bonus (if any)
-        """
-        if employee_id not in self.employees:
-            return {"success": False, "error": "Employee not found"}
+            term_date = datetime.strptime(termination_date, "%Y-%m-%d").date()
 
-        emp = self.employees[employee_id]
-        term_date = datetime.strptime(termination_date, "%Y-%m-%d").date()
+            # Find the last pay period end for this employee
+            cursor.execute("""
+                SELECT pr.pay_period_end
+                FROM genfin_pay_runs pr
+                JOIN genfin_pay_run_lines prl ON pr.pay_run_id = prl.pay_run_id
+                WHERE prl.employee_id = ? AND pr.status IN ('approved', 'paid')
+                ORDER BY pr.pay_date DESC LIMIT 1
+            """, (employee_id,))
+            last_row = cursor.fetchone()
 
-        # Find the last pay period end for this employee
-        last_pay_end = None
-        for pay_run in sorted(self.pay_runs.values(), key=lambda x: x.pay_date, reverse=True):
-            if pay_run.status in [PayRunStatus.APPROVED, PayRunStatus.PAID]:
-                for line in pay_run.lines:
-                    if line.employee_id == employee_id:
-                        last_pay_end = pay_run.pay_period_end
-                        break
-            if last_pay_end:
-                break
+            if last_row:
+                last_end = datetime.strptime(last_row['pay_period_end'], "%Y-%m-%d").date()
+                period_start = last_end + timedelta(days=1)
+            else:
+                period_start = datetime.strptime(emp_row['hire_date'], "%Y-%m-%d").date() if emp_row['hire_date'] else term_date
 
-        # Pay period is from last pay period end (or hire date) to termination date
-        if last_pay_end:
-            period_start = last_pay_end + timedelta(days=1)
-        else:
-            period_start = emp.hire_date or term_date
+            result = self.create_pay_run(
+                pay_period_start=period_start.isoformat(),
+                pay_period_end=termination_date,
+                pay_date=pay_date,
+                bank_account_id=bank_account_id,
+                employee_ids=[employee_id],
+                pay_run_type="termination",
+                memo=f"Final paycheck - Termination: {reason}" if reason else "Final paycheck"
+            )
 
-        # Create the pay run
-        result = self.create_pay_run(
-            pay_period_start=period_start.isoformat(),
-            pay_period_end=termination_date,
-            pay_date=pay_date,
-            bank_account_id=bank_account_id,
-            employee_ids=[employee_id],
-            pay_run_type="termination",
-            memo=f"Final paycheck - Termination: {reason}" if reason else "Final paycheck"
-        )
+            if result.get("success"):
+                # Add PTO payout and bonus
+                if include_pto_payout and pto_hours_to_pay > 0:
+                    pay_type = emp_row['pay_type']
+                    pay_rate = emp_row['pay_rate']
+                    if pay_type == 'hourly':
+                        vacation_pay = pto_hours_to_pay * pay_rate
+                    else:
+                        hourly_rate = pay_rate / 2080
+                        vacation_pay = pto_hours_to_pay * hourly_rate
 
-        if result.get("success"):
-            pay_run = self.pay_runs[result["pay_run_id"]]
+                    cursor.execute("""
+                        UPDATE genfin_pay_run_lines
+                        SET vacation_pay = ?, vacation_hours = ?
+                        WHERE pay_run_id = ? AND employee_id = ?
+                    """, (vacation_pay, pto_hours_to_pay, result["pay_run_id"], employee_id))
 
-            # Add PTO payout and bonus to the line
-            for line in pay_run.lines:
-                if line.employee_id == employee_id:
-                    if include_pto_payout and pto_hours_to_pay > 0:
-                        if emp.pay_type == PayType.HOURLY:
-                            line.vacation_pay = pto_hours_to_pay * emp.pay_rate
-                            line.vacation_hours = pto_hours_to_pay
-                        else:
-                            # For salaried, calculate hourly equivalent
-                            hourly_rate = emp.pay_rate / 2080  # Annual salary / hours per year
-                            line.vacation_pay = pto_hours_to_pay * hourly_rate
-                            line.vacation_hours = pto_hours_to_pay
+                if final_bonus > 0:
+                    cursor.execute("""
+                        UPDATE genfin_pay_run_lines
+                        SET bonus = ?
+                        WHERE pay_run_id = ? AND employee_id = ?
+                    """, (final_bonus, result["pay_run_id"], employee_id))
 
-                    if final_bonus > 0:
-                        line.bonus = final_bonus
+                conn.commit()
 
-                    break
-
-            # Terminate the employee
-            self.terminate_employee(employee_id, termination_date, reason)
+                # Terminate the employee
+                self.terminate_employee(employee_id, termination_date, reason)
 
         return result
 
@@ -1437,71 +1835,73 @@ class GenFinPayrollService:
         self,
         bank_account_id: str,
         pay_date: str,
-        bonus_list: List[Dict],  # [{"employee_id": "...", "amount": 500.00}, ...]
+        bonus_list: List[Dict],
         memo: str = "Bonus payment"
     ) -> Dict:
-        """
-        Create a bonus-only payroll run - QuickBooks style
-
-        Quick way to pay bonuses to multiple employees outside regular payroll.
-        Each employee can have a different bonus amount.
-        """
+        """Create a bonus-only payroll run - QuickBooks style"""
         if not bonus_list:
             return {"success": False, "error": "No bonus amounts specified"}
 
-        employee_ids = [b["employee_id"] for b in bonus_list if b.get("employee_id")]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Validate employees
-        for eid in employee_ids:
-            if eid not in self.employees:
-                return {"success": False, "error": f"Employee {eid} not found"}
+            # Validate employees
+            for bonus_item in bonus_list:
+                emp_id = bonus_item.get("employee_id")
+                if emp_id:
+                    cursor.execute("SELECT employee_id FROM genfin_employees WHERE employee_id = ? AND is_active = 1",
+                                 (emp_id,))
+                    if not cursor.fetchone():
+                        return {"success": False, "error": f"Employee {emp_id} not found"}
 
-        # Create pay run with just the pay date (no regular period)
-        p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
+            p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
+            pay_run_id = str(uuid.uuid4())
+            pay_run_number = self._get_next_number("next_pay_run_number")
+            now = datetime.now().isoformat()
 
-        pay_run_id = str(uuid.uuid4())
-        pay_run_number = self.next_pay_run_number
-        self.next_pay_run_number += 1
+            cursor.execute("""
+                INSERT INTO genfin_pay_runs
+                (pay_run_id, pay_run_number, pay_period_start, pay_period_end,
+                 pay_date, bank_account_id, pay_run_type, status, memo,
+                 is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'bonus', 'draft', ?, 1, ?, ?)
+            """, (pay_run_id, pay_run_number, pay_date, pay_date, pay_date,
+                  bank_account_id, memo, now, now))
 
-        lines = []
-        for bonus_item in bonus_list:
-            emp_id = bonus_item.get("employee_id")
-            amount = bonus_item.get("amount", 0.0)
+            line_count = 0
+            total_bonus = 0.0
+            for bonus_item in bonus_list:
+                emp_id = bonus_item.get("employee_id")
+                amount = bonus_item.get("amount", 0.0)
 
-            if not emp_id or emp_id not in self.employees or amount <= 0:
-                continue
+                if not emp_id or amount <= 0:
+                    continue
 
-            emp = self.employees[emp_id]
+                cursor.execute("SELECT payment_method FROM genfin_employees WHERE employee_id = ?",
+                             (emp_id,))
+                emp_row = cursor.fetchone()
+                if not emp_row:
+                    continue
 
-            line = PayRunLine(
-                line_id=str(uuid.uuid4()),
-                employee_id=emp_id,
-                bonus=amount,
-                payment_method=emp.payment_method
-            )
-            lines.append(line)
+                line_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_pay_run_lines
+                    (line_id, pay_run_id, employee_id, bonus, payment_method)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (line_id, pay_run_id, emp_id, amount, emp_row['payment_method']))
 
-        pay_run = PayRun(
-            pay_run_id=pay_run_id,
-            pay_run_number=pay_run_number,
-            pay_period_start=p_date,
-            pay_period_end=p_date,
-            pay_date=p_date,
-            bank_account_id=bank_account_id,
-            pay_run_type=PayRunType.BONUS,
-            lines=lines,
-            memo=memo
-        )
+                line_count += 1
+                total_bonus += amount
 
-        self.pay_runs[pay_run_id] = pay_run
+            conn.commit()
 
         return {
             "success": True,
             "pay_run_id": pay_run_id,
             "pay_run_number": pay_run_number,
             "pay_run_type": "bonus",
-            "employee_count": len(lines),
-            "total_bonus": sum(b.get("amount", 0) for b in bonus_list)
+            "employee_count": line_count,
+            "total_bonus": total_bonus
         }
 
     def create_pay_run(
@@ -1510,289 +1910,313 @@ class GenFinPayrollService:
         pay_period_end: str,
         pay_date: str,
         bank_account_id: str,
-        employee_ids: List[str] = None,  # None = all active employees
+        employee_ids: List[str] = None,
         pay_run_type: str = "scheduled",
         pay_schedule_id: Optional[str] = None,
         memo: str = ""
     ) -> Dict:
         """Create a new pay run"""
         pay_run_id = str(uuid.uuid4())
-        pay_run_number = self.next_pay_run_number
-        self.next_pay_run_number += 1
+        pay_run_number = self._get_next_number("next_pay_run_number")
+        now = datetime.now().isoformat()
 
         p_start = datetime.strptime(pay_period_start, "%Y-%m-%d").date()
         p_end = datetime.strptime(pay_period_end, "%Y-%m-%d").date()
-        p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
 
-        # Get employees
-        if employee_ids is None:
-            emp_list = [e for e in self.employees.values() if e.status == EmployeeStatus.ACTIVE]
-        else:
-            emp_list = [self.employees[eid] for eid in employee_ids if eid in self.employees]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        lines = []
-        for emp in emp_list:
-            # Get time entries for period
-            total_regular = 0.0
-            total_ot = 0.0
-            total_dt = 0.0
-            total_sick = 0.0
-            total_vacation = 0.0
-            total_holiday = 0.0
+            # Get employees
+            if employee_ids is None:
+                cursor.execute("SELECT * FROM genfin_employees WHERE is_active = 1 AND status = 'active'")
+                emp_rows = cursor.fetchall()
+            else:
+                placeholders = ','.join(['?' for _ in employee_ids])
+                cursor.execute(f"SELECT * FROM genfin_employees WHERE employee_id IN ({placeholders}) AND is_active = 1",
+                             employee_ids)
+                emp_rows = cursor.fetchall()
 
-            for entry in self.time_entries.values():
-                if entry.employee_id != emp.employee_id:
-                    continue
-                if not (p_start <= entry.work_date <= p_end):
-                    continue
+            # Create pay run
+            cursor.execute("""
+                INSERT INTO genfin_pay_runs
+                (pay_run_id, pay_run_number, pay_period_start, pay_period_end,
+                 pay_date, bank_account_id, pay_run_type, pay_schedule_id,
+                 status, memo, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, 1, ?, ?)
+            """, (pay_run_id, pay_run_number, pay_period_start, pay_period_end,
+                  pay_date, bank_account_id, pay_run_type, pay_schedule_id,
+                  memo, now, now))
 
-                total_regular += entry.regular_hours
-                total_ot += entry.overtime_hours
-                total_dt += entry.double_time_hours
-                total_sick += entry.sick_hours
-                total_vacation += entry.vacation_hours
-                total_holiday += entry.holiday_hours
+            # Create lines for each employee
+            for emp_row in emp_rows:
+                # Get time entries for period
+                cursor.execute("""
+                    SELECT SUM(regular_hours) as reg, SUM(overtime_hours) as ot,
+                           SUM(double_time_hours) as dt, SUM(sick_hours) as sick,
+                           SUM(vacation_hours) as vac, SUM(holiday_hours) as hol
+                    FROM genfin_time_entries
+                    WHERE employee_id = ? AND work_date >= ? AND work_date <= ?
+                """, (emp_row['employee_id'], pay_period_start, pay_period_end))
 
-            # If no time entries, use default hours for salaried
-            if total_regular == 0 and emp.pay_type == PayType.SALARY:
-                total_regular = emp.default_hours
+                time_row = cursor.fetchone()
 
-            line = PayRunLine(
-                line_id=str(uuid.uuid4()),
-                employee_id=emp.employee_id,
-                regular_hours=total_regular,
-                overtime_hours=total_ot,
-                double_time_hours=total_dt,
-                sick_hours=total_sick,
-                vacation_hours=total_vacation,
-                holiday_hours=total_holiday,
-                payment_method=emp.payment_method
-            )
+                total_regular = time_row['reg'] or 0.0
+                total_ot = time_row['ot'] or 0.0
+                total_dt = time_row['dt'] or 0.0
+                total_sick = time_row['sick'] or 0.0
+                total_vacation = time_row['vac'] or 0.0
+                total_holiday = time_row['hol'] or 0.0
 
-            lines.append(line)
+                # If no time entries, use default hours for salaried
+                if total_regular == 0 and emp_row['pay_type'] == 'salary':
+                    total_regular = emp_row['default_hours']
 
-        # Convert pay_run_type string to enum
-        run_type = PayRunType.SCHEDULED
-        if pay_run_type:
-            try:
-                run_type = PayRunType(pay_run_type.lower())
-            except ValueError:
-                run_type = PayRunType.SCHEDULED
+                line_id = str(uuid.uuid4())
+                cursor.execute("""
+                    INSERT INTO genfin_pay_run_lines
+                    (line_id, pay_run_id, employee_id, regular_hours, overtime_hours,
+                     double_time_hours, sick_hours, vacation_hours, holiday_hours,
+                     payment_method)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (line_id, pay_run_id, emp_row['employee_id'], total_regular,
+                      total_ot, total_dt, total_sick, total_vacation, total_holiday,
+                      emp_row['payment_method']))
 
-        pay_run = PayRun(
-            pay_run_id=pay_run_id,
-            pay_run_number=pay_run_number,
-            pay_period_start=p_start,
-            pay_period_end=p_end,
-            pay_date=p_date,
-            bank_account_id=bank_account_id,
-            pay_run_type=run_type,
-            pay_schedule_id=pay_schedule_id,
-            lines=lines,
-            memo=memo
-        )
-
-        self.pay_runs[pay_run_id] = pay_run
+            conn.commit()
 
         return {
             "success": True,
             "pay_run_id": pay_run_id,
             "pay_run_number": pay_run_number,
-            "employee_count": len(lines)
+            "employee_count": len(emp_rows)
         }
 
     def calculate_pay_run(self, pay_run_id: str) -> Dict:
         """Calculate all pay for a pay run"""
-        if pay_run_id not in self.pay_runs:
-            return {"success": False, "error": "Pay run not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        pay_run = self.pay_runs[pay_run_id]
+            cursor.execute("SELECT * FROM genfin_pay_runs WHERE pay_run_id = ? AND is_active = 1",
+                         (pay_run_id,))
+            pay_run_row = cursor.fetchone()
+            if not pay_run_row:
+                return {"success": False, "error": "Pay run not found"}
 
-        if pay_run.status not in [PayRunStatus.DRAFT, PayRunStatus.CALCULATED]:
-            return {"success": False, "error": "Pay run cannot be recalculated"}
+            if pay_run_row['status'] not in ['draft', 'calculated']:
+                return {"success": False, "error": "Pay run cannot be recalculated"}
 
-        total_gross = 0.0
-        total_taxes = 0.0
-        total_deductions = 0.0
-        total_net = 0.0
-        total_employer_taxes = 0.0
+            pay_date = datetime.strptime(pay_run_row['pay_date'], "%Y-%m-%d").date()
 
-        for line in pay_run.lines:
-            emp = self.employees.get(line.employee_id)
-            if not emp:
-                continue
+            total_gross = 0.0
+            total_taxes = 0.0
+            total_deductions = 0.0
+            total_net = 0.0
+            total_employer_taxes = 0.0
 
-            # Calculate gross pay
-            if emp.pay_type == PayType.HOURLY:
-                hourly_rate = emp.pay_rate
-                line.regular_pay = line.regular_hours * hourly_rate
-                line.overtime_pay = line.overtime_hours * hourly_rate * 1.5
-                line.double_time_pay = line.double_time_hours * hourly_rate * 2.0
-                line.sick_pay = line.sick_hours * hourly_rate
-                line.vacation_pay = line.vacation_hours * hourly_rate
-                line.holiday_pay = line.holiday_hours * hourly_rate
-            else:
-                # Salary - convert to per-period
+            cursor.execute("SELECT * FROM genfin_pay_run_lines WHERE pay_run_id = ?", (pay_run_id,))
+            lines = cursor.fetchall()
+
+            for line in lines:
+                cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ?",
+                             (line['employee_id'],))
+                emp_row = cursor.fetchone()
+                if not emp_row:
+                    continue
+
+                # Calculate gross pay
+                pay_type = emp_row['pay_type']
+                pay_rate = emp_row['pay_rate']
+                pay_frequency = PayFrequency(emp_row['pay_frequency'])
+
+                if pay_type == 'hourly':
+                    regular_pay = line['regular_hours'] * pay_rate
+                    overtime_pay = line['overtime_hours'] * pay_rate * 1.5
+                    double_time_pay = line['double_time_hours'] * pay_rate * 2.0
+                    sick_pay = line['sick_hours'] * pay_rate
+                    vacation_pay = line['vacation_hours'] * pay_rate
+                    holiday_pay = line['holiday_hours'] * pay_rate
+                else:
+                    periods_per_year = {
+                        PayFrequency.WEEKLY: 52,
+                        PayFrequency.BIWEEKLY: 26,
+                        PayFrequency.SEMIMONTHLY: 24,
+                        PayFrequency.MONTHLY: 12
+                    }
+                    period_pay = pay_rate / periods_per_year.get(pay_frequency, 26)
+                    regular_pay = period_pay
+                    overtime_pay = 0.0
+                    double_time_pay = 0.0
+                    sick_pay = 0.0
+                    vacation_pay = 0.0
+                    holiday_pay = 0.0
+
+                # Add existing bonus/vacation from line
+                bonus = line['bonus'] or 0.0
+                vacation_pay = max(vacation_pay, line['vacation_pay'] or 0.0)
+
+                gross_pay = round(
+                    regular_pay + overtime_pay + double_time_pay +
+                    sick_pay + vacation_pay + holiday_pay +
+                    bonus + (line['commission'] or 0.0) + (line['other_earnings'] or 0.0), 2
+                )
+
+                # Get YTD for tax calculations
+                ytd_gross = self._get_ytd_earnings(emp_row['employee_id'], pay_date)
+
+                # Calculate pre-tax deductions
+                pretax_deductions = 0.0
+                deductions_list = []
+
+                cursor.execute("""
+                    SELECT ed.*, dt.code, dt.name, dt.is_pretax
+                    FROM genfin_employee_deductions ed
+                    JOIN genfin_deduction_types dt ON ed.deduction_type_id = dt.deduction_type_id
+                    WHERE ed.employee_id = ? AND ed.is_active = 1
+                """, (emp_row['employee_id'],))
+
+                for ded_row in cursor.fetchall():
+                    # Check date range
+                    if ded_row['start_date'] and pay_date < datetime.strptime(ded_row['start_date'], "%Y-%m-%d").date():
+                        continue
+                    if ded_row['end_date'] and pay_date > datetime.strptime(ded_row['end_date'], "%Y-%m-%d").date():
+                        continue
+
+                    if ded_row['percentage'] > 0:
+                        ded_amount = gross_pay * (ded_row['percentage'] / 100)
+                    else:
+                        ded_amount = ded_row['amount']
+
+                    if ded_row['is_pretax']:
+                        pretax_deductions += ded_amount
+
+                    deductions_list.append({
+                        "code": ded_row['code'],
+                        "name": ded_row['name'],
+                        "amount": round(ded_amount, 2),
+                        "is_pretax": bool(ded_row['is_pretax'])
+                    })
+
+                # Taxable gross after pre-tax deductions
+                taxable_gross = gross_pay - pretax_deductions
+
+                # Calculate annualized income for tax brackets
                 periods_per_year = {
                     PayFrequency.WEEKLY: 52,
                     PayFrequency.BIWEEKLY: 26,
                     PayFrequency.SEMIMONTHLY: 24,
                     PayFrequency.MONTHLY: 12
                 }
-                period_pay = emp.pay_rate / periods_per_year.get(emp.pay_frequency, 26)
-                line.regular_pay = period_pay
+                periods = periods_per_year.get(pay_frequency, 26)
+                annual_taxable = taxable_gross * periods
 
-            line.gross_pay = round(
-                line.regular_pay + line.overtime_pay + line.double_time_pay +
-                line.sick_pay + line.vacation_pay + line.holiday_pay +
-                line.bonus + line.commission + line.other_earnings, 2
-            )
+                # Federal income tax
+                filing_status = FilingStatus(emp_row['filing_status'])
+                annual_fed_tax = self._calculate_federal_tax(
+                    annual_taxable,
+                    filing_status,
+                    emp_row['federal_allowances']
+                )
+                federal_income_tax = round(annual_fed_tax / periods, 2)
+                federal_income_tax += emp_row['federal_additional_withholding']
 
-            # Get YTD for tax calculations
-            ytd_gross = self._get_ytd_earnings(emp.employee_id, pay_run.pay_date)
+                # State income tax
+                state_rates = {
+                    "CA": 0.093, "NY": 0.0685, "TX": 0.0, "FL": 0.0,
+                    "WA": 0.0, "NV": 0.0, "default": 0.05
+                }
+                state = emp_row['state'] or ""
+                state_rate = state_rates.get(state.upper(), state_rates["default"])
+                state_income_tax = round(taxable_gross * state_rate, 2)
+                state_income_tax += emp_row['state_additional_withholding']
 
-            # Calculate pre-tax deductions
-            pretax_deductions = 0.0
-            deductions_list = []
+                # FICA
+                ss_emp, med_emp, ss_er, med_er = self._calculate_fica(taxable_gross, ytd_gross)
 
-            for ded in self.employee_deductions.values():
-                if ded.employee_id != emp.employee_id or not ded.is_active:
-                    continue
+                # FUTA / SUTA
+                futa, suta = self._calculate_futa_suta(taxable_gross, ytd_gross, state)
 
-                ded_type = self.deduction_types.get(ded.deduction_type_id)
-                if not ded_type:
-                    continue
+                # Total taxes
+                employee_taxes = (
+                    federal_income_tax + state_income_tax + ss_emp + med_emp
+                )
 
-                # Check date range
-                if ded.start_date and pay_run.pay_date < ded.start_date:
-                    continue
-                if ded.end_date and pay_run.pay_date > ded.end_date:
-                    continue
+                # Post-tax deductions
+                posttax_deductions = sum(d["amount"] for d in deductions_list if not d["is_pretax"])
+                total_line_deductions = round(pretax_deductions + posttax_deductions, 2)
 
-                if ded.percentage > 0:
-                    ded_amount = line.gross_pay * (ded.percentage / 100)
-                else:
-                    ded_amount = ded.amount
+                # Net pay
+                net_pay = round(gross_pay - employee_taxes - total_line_deductions, 2)
 
-                if ded_type.is_pretax:
-                    pretax_deductions += ded_amount
+                # Direct deposit amount
+                dd_amount = net_pay if emp_row['payment_method'] == 'direct_deposit' else 0.0
 
-                deductions_list.append({
-                    "code": ded_type.code,
-                    "name": ded_type.name,
-                    "amount": round(ded_amount, 2),
-                    "is_pretax": ded_type.is_pretax
-                })
+                # Employer taxes
+                employer_taxes = ss_er + med_er + futa + suta
 
-            # Taxable gross after pre-tax deductions
-            taxable_gross = line.gross_pay - pretax_deductions
+                # Update line
+                cursor.execute("""
+                    UPDATE genfin_pay_run_lines
+                    SET regular_pay = ?, overtime_pay = ?, double_time_pay = ?,
+                        sick_pay = ?, vacation_pay = ?, holiday_pay = ?,
+                        gross_pay = ?, federal_income_tax = ?, state_income_tax = ?,
+                        social_security_employee = ?, medicare_employee = ?,
+                        social_security_employer = ?, medicare_employer = ?,
+                        futa = ?, suta = ?, deductions_json = ?,
+                        total_deductions = ?, net_pay = ?, direct_deposit_amount = ?
+                    WHERE line_id = ?
+                """, (regular_pay, overtime_pay, double_time_pay,
+                      sick_pay, vacation_pay, holiday_pay,
+                      gross_pay, federal_income_tax, state_income_tax,
+                      ss_emp, med_emp, ss_er, med_er, futa, suta,
+                      json.dumps(deductions_list), total_line_deductions,
+                      net_pay, dd_amount, line['line_id']))
 
-            # Calculate annualized income for tax brackets
-            periods_per_year = {
-                PayFrequency.WEEKLY: 52,
-                PayFrequency.BIWEEKLY: 26,
-                PayFrequency.SEMIMONTHLY: 24,
-                PayFrequency.MONTHLY: 12
-            }
-            periods = periods_per_year.get(emp.pay_frequency, 26)
-            annual_taxable = taxable_gross * periods
+                # Add to totals
+                total_gross += gross_pay
+                total_taxes += employee_taxes
+                total_deductions += total_line_deductions
+                total_net += net_pay
+                total_employer_taxes += employer_taxes
 
-            # Federal income tax
-            annual_fed_tax = self._calculate_federal_tax(
-                annual_taxable,
-                emp.filing_status,
-                emp.federal_allowances
-            )
-            line.federal_income_tax = round(annual_fed_tax / periods, 2)
-            line.federal_income_tax += emp.federal_additional_withholding
+            # Update pay run totals
+            cursor.execute("""
+                UPDATE genfin_pay_runs
+                SET total_gross = ?, total_taxes = ?, total_deductions = ?,
+                    total_net = ?, total_employer_taxes = ?, status = 'calculated',
+                    updated_at = ?
+                WHERE pay_run_id = ?
+            """, (round(total_gross, 2), round(total_taxes, 2),
+                  round(total_deductions, 2), round(total_net, 2),
+                  round(total_employer_taxes, 2), datetime.now().isoformat(),
+                  pay_run_id))
 
-            # State income tax (simplified - using flat rate)
-            state_rates = {
-                "CA": 0.093,
-                "NY": 0.0685,
-                "TX": 0.0,  # No state income tax
-                "FL": 0.0,
-                "WA": 0.0,
-                "NV": 0.0,
-                "default": 0.05
-            }
-            state_rate = state_rates.get(emp.state.upper(), state_rates["default"])
-            line.state_income_tax = round(taxable_gross * state_rate, 2)
-            line.state_income_tax += emp.state_additional_withholding
-
-            # FICA
-            ss_emp, med_emp, ss_er, med_er = self._calculate_fica(taxable_gross, ytd_gross)
-            line.social_security_employee = ss_emp
-            line.medicare_employee = med_emp
-            line.social_security_employer = ss_er
-            line.medicare_employer = med_er
-
-            # FUTA / SUTA
-            line.futa, line.suta = self._calculate_futa_suta(taxable_gross, ytd_gross, emp.state)
-
-            # Total taxes
-            employee_taxes = (
-                line.federal_income_tax +
-                line.state_income_tax +
-                line.social_security_employee +
-                line.medicare_employee
-            )
-
-            # Post-tax deductions
-            posttax_deductions = sum(d["amount"] for d in deductions_list if not d["is_pretax"])
-            line.total_deductions = round(pretax_deductions + posttax_deductions, 2)
-            line.deductions = deductions_list
-
-            # Net pay
-            line.net_pay = round(line.gross_pay - employee_taxes - line.total_deductions, 2)
-
-            # Direct deposit amount
-            if emp.payment_method == PaymentMethod.DIRECT_DEPOSIT:
-                line.direct_deposit_amount = line.net_pay
-
-            # Employer taxes
-            employer_taxes = (
-                line.social_security_employer +
-                line.medicare_employer +
-                line.futa +
-                line.suta
-            )
-
-            # Add to totals
-            total_gross += line.gross_pay
-            total_taxes += employee_taxes
-            total_deductions += line.total_deductions
-            total_net += line.net_pay
-            total_employer_taxes += employer_taxes
-
-        # Update pay run totals
-        pay_run.total_gross = round(total_gross, 2)
-        pay_run.total_taxes = round(total_taxes, 2)
-        pay_run.total_deductions = round(total_deductions, 2)
-        pay_run.total_net = round(total_net, 2)
-        pay_run.total_employer_taxes = round(total_employer_taxes, 2)
-        pay_run.status = PayRunStatus.CALCULATED
-        pay_run.updated_at = datetime.now()
+            conn.commit()
 
         return {
             "success": True,
-            "pay_run": self._pay_run_to_dict(pay_run)
+            "pay_run": self.get_pay_run(pay_run_id)
         }
 
     def approve_pay_run(self, pay_run_id: str, approved_by: str) -> Dict:
         """Approve a calculated pay run"""
-        if pay_run_id not in self.pay_runs:
-            return {"success": False, "error": "Pay run not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT status FROM genfin_pay_runs WHERE pay_run_id = ? AND is_active = 1",
+                         (pay_run_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Pay run not found"}
 
-        pay_run = self.pay_runs[pay_run_id]
+            if row['status'] != 'calculated':
+                return {"success": False, "error": "Pay run must be calculated before approval"}
 
-        if pay_run.status != PayRunStatus.CALCULATED:
-            return {"success": False, "error": "Pay run must be calculated before approval"}
-
-        pay_run.status = PayRunStatus.APPROVED
-        pay_run.approved_by = approved_by
-        pay_run.approved_at = datetime.now()
-        pay_run.updated_at = datetime.now()
+            now = datetime.now().isoformat()
+            cursor.execute("""
+                UPDATE genfin_pay_runs
+                SET status = 'approved', approved_by = ?, approved_at = ?, updated_at = ?
+                WHERE pay_run_id = ?
+            """, (approved_by, now, now, pay_run_id))
+            conn.commit()
 
         return {
             "success": True,
@@ -1801,124 +2225,142 @@ class GenFinPayrollService:
 
     def process_pay_run(self, pay_run_id: str) -> Dict:
         """Process an approved pay run - create checks and ACH"""
-        if pay_run_id not in self.pay_runs:
-            return {"success": False, "error": "Pay run not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_pay_runs WHERE pay_run_id = ? AND is_active = 1",
+                         (pay_run_id,))
+            pay_run_row = cursor.fetchone()
+            if not pay_run_row:
+                return {"success": False, "error": "Pay run not found"}
 
-        pay_run = self.pay_runs[pay_run_id]
+            if pay_run_row['status'] != 'approved':
+                return {"success": False, "error": "Pay run must be approved before processing"}
 
-        if pay_run.status != PayRunStatus.APPROVED:
-            return {"success": False, "error": "Pay run must be approved before processing"}
+            checks_created = []
+            ach_entries = []
 
-        checks_created = []
-        ach_entries = []
+            cursor.execute("SELECT * FROM genfin_pay_run_lines WHERE pay_run_id = ?", (pay_run_id,))
+            lines = cursor.fetchall()
 
-        for line in pay_run.lines:
-            emp = self.employees.get(line.employee_id)
-            if not emp:
-                continue
+            for line in lines:
+                cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ?",
+                             (line['employee_id'],))
+                emp_row = cursor.fetchone()
+                if not emp_row:
+                    continue
 
-            if line.payment_method == PaymentMethod.CHECK:
-                # Create payroll check
-                check_result = genfin_banking_service.create_check(
-                    bank_account_id=pay_run.bank_account_id,
-                    payee_name=f"{emp.first_name} {emp.last_name}",
-                    amount=line.net_pay,
-                    check_date=pay_run.pay_date.isoformat(),
-                    memo=f"Payroll {pay_run.pay_period_start.isoformat()} - {pay_run.pay_period_end.isoformat()}",
-                    payee_address_line1=emp.address_line1,
-                    payee_city=emp.city,
-                    payee_state=emp.state,
-                    payee_zip=emp.zip_code,
-                    voucher_description=self._generate_pay_stub(line, emp)
+                if line['payment_method'] == 'check':
+                    # Create payroll check
+                    check_result = genfin_banking_service.create_check(
+                        bank_account_id=pay_run_row['bank_account_id'],
+                        payee_name=f"{emp_row['first_name']} {emp_row['last_name']}",
+                        amount=line['net_pay'],
+                        check_date=pay_run_row['pay_date'],
+                        memo=f"Payroll {pay_run_row['pay_period_start']} - {pay_run_row['pay_period_end']}",
+                        payee_address_line1=emp_row['address_line1'] or "",
+                        payee_city=emp_row['city'] or "",
+                        payee_state=emp_row['state'] or "",
+                        payee_zip=emp_row['zip_code'] or "",
+                        voucher_description=self._generate_pay_stub(line, emp_row)
+                    )
+
+                    if check_result.get("success"):
+                        cursor.execute("UPDATE genfin_pay_run_lines SET check_id = ? WHERE line_id = ?",
+                                     (check_result["check_id"], line['line_id']))
+                        checks_created.append(check_result["check_number"])
+
+                elif line['payment_method'] == 'direct_deposit':
+                    ach_entries.append({
+                        "recipient_name": f"{emp_row['last_name']} {emp_row['first_name']}"[:22],
+                        "routing_number": emp_row['bank_routing_number'],
+                        "account_number": emp_row['bank_account_number'],
+                        "account_type": emp_row['bank_account_type'],
+                        "amount": line['net_pay'],
+                        "transaction_code": ACHTransactionCode.CHECKING_CREDIT.value if emp_row['bank_account_type'] == "checking" else ACHTransactionCode.SAVINGS_CREDIT.value,
+                        "individual_id": emp_row['employee_number'],
+                        "individual_name": f"{emp_row['last_name']} {emp_row['first_name']}"[:22]
+                    })
+
+            # Create ACH batch if there are direct deposit entries
+            ach_batch_id = None
+            if ach_entries:
+                ach_result = genfin_banking_service.create_ach_batch(
+                    bank_account_id=pay_run_row['bank_account_id'],
+                    effective_date=pay_run_row['pay_date'],
+                    batch_description="PAYROLL",
+                    entries=ach_entries
                 )
+                if ach_result.get("success"):
+                    ach_batch_id = ach_result["batch_id"]
 
-                if check_result.get("success"):
-                    line.check_id = check_result["check_id"]
-                    checks_created.append(check_result["check_number"])
+            now = datetime.now().isoformat()
+            cursor.execute("""
+                UPDATE genfin_pay_runs
+                SET status = 'paid', paid_at = ?, ach_batch_id = ?, updated_at = ?
+                WHERE pay_run_id = ?
+            """, (now, ach_batch_id, now, pay_run_id))
 
-            elif line.payment_method == PaymentMethod.DIRECT_DEPOSIT:
-                # Add to ACH batch
-                ach_entries.append({
-                    "recipient_name": f"{emp.last_name} {emp.first_name}"[:22],
-                    "routing_number": emp.bank_routing_number,
-                    "account_number": emp.bank_account_number,
-                    "account_type": emp.bank_account_type,
-                    "amount": line.net_pay,
-                    "transaction_code": ACHTransactionCode.CHECKING_CREDIT.value if emp.bank_account_type == "checking" else ACHTransactionCode.SAVINGS_CREDIT.value,
-                    "individual_id": emp.employee_number,
-                    "individual_name": f"{emp.last_name} {emp.first_name}"[:22]
-                })
+            conn.commit()
 
-        # Create ACH batch if there are direct deposit entries
-        if ach_entries:
-            ach_result = genfin_banking_service.create_ach_batch(
-                bank_account_id=pay_run.bank_account_id,
-                effective_date=pay_run.pay_date.isoformat(),
-                batch_description="PAYROLL",
-                entries=ach_entries
-            )
-
-            if ach_result.get("success"):
-                pay_run.ach_batch_id = ach_result["batch_id"]
-
-        pay_run.status = PayRunStatus.PAID
-        pay_run.paid_at = datetime.now()
-        pay_run.updated_at = datetime.now()
-
-        # Advance the pay schedule if this was a scheduled payroll
-        if pay_run.pay_schedule_id and pay_run.pay_run_type == PayRunType.SCHEDULED:
-            self._advance_schedule(pay_run.pay_schedule_id)
+            # Advance the pay schedule if this was a scheduled payroll
+            if pay_run_row['pay_schedule_id'] and pay_run_row['pay_run_type'] == 'scheduled':
+                self._advance_schedule(pay_run_row['pay_schedule_id'])
 
         return {
             "success": True,
             "checks_created": checks_created,
             "direct_deposits": len(ach_entries),
-            "ach_batch_id": pay_run.ach_batch_id,
-            "pay_run_type": pay_run.pay_run_type.value
+            "ach_batch_id": ach_batch_id,
+            "pay_run_type": pay_run_row['pay_run_type']
         }
 
-    def _generate_pay_stub(self, line: PayRunLine, emp: Employee) -> str:
+    def _generate_pay_stub(self, line: sqlite3.Row, emp_row: sqlite3.Row) -> str:
         """Generate pay stub text for check voucher"""
-        stub = f"""Employee: {emp.first_name} {emp.last_name} ({emp.employee_number})
+        stub = f"""Employee: {emp_row['first_name']} {emp_row['last_name']} ({emp_row['employee_number']})
 
 EARNINGS:
-  Regular ({line.regular_hours} hrs): ${line.regular_pay:,.2f}"""
+  Regular ({line['regular_hours']} hrs): ${line['regular_pay']:,.2f}"""
 
-        if line.overtime_hours > 0:
-            stub += f"\n  Overtime ({line.overtime_hours} hrs): ${line.overtime_pay:,.2f}"
-        if line.sick_hours > 0:
-            stub += f"\n  Sick ({line.sick_hours} hrs): ${line.sick_pay:,.2f}"
-        if line.vacation_hours > 0:
-            stub += f"\n  Vacation ({line.vacation_hours} hrs): ${line.vacation_pay:,.2f}"
-        if line.holiday_hours > 0:
-            stub += f"\n  Holiday ({line.holiday_hours} hrs): ${line.holiday_pay:,.2f}"
+        if line['overtime_hours'] > 0:
+            stub += f"\n  Overtime ({line['overtime_hours']} hrs): ${line['overtime_pay']:,.2f}"
+        if line['sick_hours'] > 0:
+            stub += f"\n  Sick ({line['sick_hours']} hrs): ${line['sick_pay']:,.2f}"
+        if line['vacation_hours'] > 0:
+            stub += f"\n  Vacation ({line['vacation_hours']} hrs): ${line['vacation_pay']:,.2f}"
+        if line['holiday_hours'] > 0:
+            stub += f"\n  Holiday ({line['holiday_hours']} hrs): ${line['holiday_pay']:,.2f}"
 
-        stub += f"\n  GROSS PAY: ${line.gross_pay:,.2f}"
+        stub += f"\n  GROSS PAY: ${line['gross_pay']:,.2f}"
 
         stub += f"""
 
 TAXES:
-  Federal Income Tax: ${line.federal_income_tax:,.2f}
-  State Income Tax: ${line.state_income_tax:,.2f}
-  Social Security: ${line.social_security_employee:,.2f}
-  Medicare: ${line.medicare_employee:,.2f}"""
+  Federal Income Tax: ${line['federal_income_tax']:,.2f}
+  State Income Tax: ${line['state_income_tax']:,.2f}
+  Social Security: ${line['social_security_employee']:,.2f}
+  Medicare: ${line['medicare_employee']:,.2f}"""
 
-        if line.deductions:
+        deductions = json.loads(line['deductions_json'] or '[]')
+        if deductions:
             stub += "\n\nDEDUCTIONS:"
-            for ded in line.deductions:
+            for ded in deductions:
                 stub += f"\n  {ded['name']}: ${ded['amount']:,.2f}"
 
         stub += f"""
 
-NET PAY: ${line.net_pay:,.2f}"""
+NET PAY: ${line['net_pay']:,.2f}"""
 
         return stub
 
     def get_pay_run(self, pay_run_id: str) -> Optional[Dict]:
         """Get pay run by ID"""
-        if pay_run_id not in self.pay_runs:
-            return None
-        return self._pay_run_to_dict(self.pay_runs[pay_run_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_pay_runs WHERE pay_run_id = ?", (pay_run_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_pay_run(row)
 
     def list_pay_runs(
         self,
@@ -1927,92 +2369,159 @@ NET PAY: ${line.net_pay:,.2f}"""
         end_date: Optional[str] = None
     ) -> Dict:
         """List pay runs with filtering"""
-        result = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for pay_run in self.pay_runs.values():
-            if status and pay_run.status.value != status:
-                continue
+            query = "SELECT * FROM genfin_pay_runs WHERE is_active = 1"
+            params = []
+
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+
             if start_date:
-                if pay_run.pay_date < datetime.strptime(start_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND pay_date >= ?"
+                params.append(start_date)
+
             if end_date:
-                if pay_run.pay_date > datetime.strptime(end_date, "%Y-%m-%d").date():
-                    continue
+                query += " AND pay_date <= ?"
+                params.append(end_date)
 
-            result.append({
-                "id": pay_run.pay_run_id,
-                "schedule_id": pay_run.pay_schedule_id or "",
-                "pay_date": pay_run.pay_date,
-                "status": pay_run.status.value,
-                "total_gross": pay_run.total_gross,
-                "total_net": pay_run.total_net,
-                "pay_run_id": pay_run.pay_run_id,
-                "pay_run_number": pay_run.pay_run_number,
-                "pay_period": f"{pay_run.pay_period_start.isoformat()} - {pay_run.pay_period_end.isoformat()}",
-                "employee_count": len(pay_run.lines),
-                "created_at": pay_run.created_at.isoformat()
-            })
+            query += " ORDER BY pay_date DESC"
 
-        sorted_result = sorted(result, key=lambda p: str(p["pay_date"]), reverse=True)
-        return {"pay_runs": sorted_result, "total": len(sorted_result)}
+            cursor.execute(query, params)
+
+            result = []
+            for row in cursor.fetchall():
+                cursor.execute("SELECT COUNT(*) FROM genfin_pay_run_lines WHERE pay_run_id = ?",
+                             (row['pay_run_id'],))
+                emp_count = cursor.fetchone()[0]
+
+                result.append({
+                    "id": row['pay_run_id'],
+                    "schedule_id": row['pay_schedule_id'] or "",
+                    "pay_date": datetime.strptime(row['pay_date'], "%Y-%m-%d").date(),
+                    "status": row['status'],
+                    "total_gross": row['total_gross'],
+                    "total_net": row['total_net'],
+                    "pay_run_id": row['pay_run_id'],
+                    "pay_run_number": row['pay_run_number'],
+                    "pay_period": f"{row['pay_period_start']} - {row['pay_period_end']}",
+                    "employee_count": emp_count,
+                    "created_at": row['created_at']
+                })
+
+        return {"pay_runs": result, "total": len(result)}
+
+    def _row_to_pay_run(self, row: sqlite3.Row) -> Dict:
+        """Convert pay run row to dictionary"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT prl.*, e.first_name, e.last_name
+                FROM genfin_pay_run_lines prl
+                JOIN genfin_employees e ON prl.employee_id = e.employee_id
+                WHERE prl.pay_run_id = ?
+            """, (row['pay_run_id'],))
+
+            lines_data = []
+            for line_row in cursor.fetchall():
+                lines_data.append({
+                    "line_id": line_row['line_id'],
+                    "employee_id": line_row['employee_id'],
+                    "employee_name": f"{line_row['first_name']} {line_row['last_name']}",
+                    "regular_hours": line_row['regular_hours'],
+                    "overtime_hours": line_row['overtime_hours'],
+                    "gross_pay": line_row['gross_pay'],
+                    "federal_tax": line_row['federal_income_tax'],
+                    "state_tax": line_row['state_income_tax'],
+                    "social_security": line_row['social_security_employee'],
+                    "medicare": line_row['medicare_employee'],
+                    "total_deductions": line_row['total_deductions'],
+                    "net_pay": line_row['net_pay'],
+                    "payment_method": line_row['payment_method'],
+                    "check_id": line_row['check_id']
+                })
+
+        return {
+            "pay_run_id": row['pay_run_id'],
+            "pay_run_number": row['pay_run_number'],
+            "pay_period_start": row['pay_period_start'],
+            "pay_period_end": row['pay_period_end'],
+            "pay_date": row['pay_date'],
+            "bank_account_id": row['bank_account_id'],
+            "lines": lines_data,
+            "total_gross": row['total_gross'],
+            "total_taxes": row['total_taxes'],
+            "total_deductions": row['total_deductions'],
+            "total_net": row['total_net'],
+            "total_employer_taxes": row['total_employer_taxes'],
+            "status": row['status'],
+            "approved_by": row['approved_by'] or "",
+            "approved_at": row['approved_at'],
+            "paid_at": row['paid_at'],
+            "ach_batch_id": row['ach_batch_id'],
+            "created_at": row['created_at']
+        }
 
     # ==================== REPORTS ====================
 
     def get_employee_ytd(self, employee_id: str, year: int) -> Dict:
         """Get year-to-date earnings and taxes for an employee"""
-        if employee_id not in self.employees:
-            return {"error": "Employee not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_employees WHERE employee_id = ?", (employee_id,))
+            emp_row = cursor.fetchone()
+            if not emp_row:
+                return {"error": "Employee not found"}
 
-        emp = self.employees[employee_id]
+            ytd = {
+                "regular_pay": 0.0,
+                "overtime_pay": 0.0,
+                "gross_pay": 0.0,
+                "federal_tax": 0.0,
+                "state_tax": 0.0,
+                "social_security": 0.0,
+                "medicare": 0.0,
+                "total_deductions": 0.0,
+                "net_pay": 0.0
+            }
 
-        ytd = {
-            "regular_pay": 0.0,
-            "overtime_pay": 0.0,
-            "gross_pay": 0.0,
-            "federal_tax": 0.0,
-            "state_tax": 0.0,
-            "social_security": 0.0,
-            "medicare": 0.0,
-            "total_deductions": 0.0,
-            "net_pay": 0.0
-        }
+            year_start = f"{year}-01-01"
+            year_end = f"{year}-12-31"
 
-        for pay_run in self.pay_runs.values():
-            if pay_run.status not in [PayRunStatus.APPROVED, PayRunStatus.PAID]:
-                continue
-            if pay_run.pay_date.year != year:
-                continue
+            cursor.execute("""
+                SELECT prl.*
+                FROM genfin_pay_run_lines prl
+                JOIN genfin_pay_runs pr ON prl.pay_run_id = pr.pay_run_id
+                WHERE prl.employee_id = ?
+                  AND pr.status IN ('approved', 'paid')
+                  AND pr.pay_date >= ? AND pr.pay_date <= ?
+            """, (employee_id, year_start, year_end))
 
-            for line in pay_run.lines:
-                if line.employee_id != employee_id:
-                    continue
+            for line_row in cursor.fetchall():
+                ytd["regular_pay"] += line_row['regular_pay']
+                ytd["overtime_pay"] += line_row['overtime_pay']
+                ytd["gross_pay"] += line_row['gross_pay']
+                ytd["federal_tax"] += line_row['federal_income_tax']
+                ytd["state_tax"] += line_row['state_income_tax']
+                ytd["social_security"] += line_row['social_security_employee']
+                ytd["medicare"] += line_row['medicare_employee']
+                ytd["total_deductions"] += line_row['total_deductions']
+                ytd["net_pay"] += line_row['net_pay']
 
-                ytd["regular_pay"] += line.regular_pay
-                ytd["overtime_pay"] += line.overtime_pay
-                ytd["gross_pay"] += line.gross_pay
-                ytd["federal_tax"] += line.federal_income_tax
-                ytd["state_tax"] += line.state_income_tax
-                ytd["social_security"] += line.social_security_employee
-                ytd["medicare"] += line.medicare_employee
-                ytd["total_deductions"] += line.total_deductions
-                ytd["net_pay"] += line.net_pay
-
-        # Round all values
-        for key in ytd:
-            ytd[key] = round(ytd[key], 2)
+            for key in ytd:
+                ytd[key] = round(ytd[key], 2)
 
         return {
             "employee_id": employee_id,
-            "employee_name": f"{emp.first_name} {emp.last_name}",
+            "employee_name": f"{emp_row['first_name']} {emp_row['last_name']}",
             "year": year,
             "ytd": ytd
         }
 
     def get_payroll_summary(self, start_date: str, end_date: str) -> Dict:
         """Get payroll summary for date range"""
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
         summary = {
             "total_gross": 0.0,
             "total_federal_tax": 0.0,
@@ -2029,31 +2538,35 @@ NET PAY: ${line.net_pay:,.2f}"""
             "employee_count": set()
         }
 
-        for pay_run in self.pay_runs.values():
-            if pay_run.status not in [PayRunStatus.APPROVED, PayRunStatus.PAID]:
-                continue
-            if not (s_date <= pay_run.pay_date <= e_date):
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT pr.pay_run_id, prl.*
+                FROM genfin_pay_runs pr
+                JOIN genfin_pay_run_lines prl ON pr.pay_run_id = prl.pay_run_id
+                WHERE pr.status IN ('approved', 'paid')
+                  AND pr.pay_date >= ? AND pr.pay_date <= ?
+            """, (start_date, end_date))
 
-            summary["pay_run_count"] += 1
+            pay_run_ids = set()
+            for row in cursor.fetchall():
+                pay_run_ids.add(row['pay_run_id'])
+                summary["total_gross"] += row['gross_pay']
+                summary["total_federal_tax"] += row['federal_income_tax']
+                summary["total_state_tax"] += row['state_income_tax']
+                summary["total_social_security_employee"] += row['social_security_employee']
+                summary["total_medicare_employee"] += row['medicare_employee']
+                summary["total_social_security_employer"] += row['social_security_employer']
+                summary["total_medicare_employer"] += row['medicare_employer']
+                summary["total_futa"] += row['futa']
+                summary["total_suta"] += row['suta']
+                summary["total_deductions"] += row['total_deductions']
+                summary["total_net"] += row['net_pay']
+                summary["employee_count"].add(row['employee_id'])
 
-            for line in pay_run.lines:
-                summary["total_gross"] += line.gross_pay
-                summary["total_federal_tax"] += line.federal_income_tax
-                summary["total_state_tax"] += line.state_income_tax
-                summary["total_social_security_employee"] += line.social_security_employee
-                summary["total_medicare_employee"] += line.medicare_employee
-                summary["total_social_security_employer"] += line.social_security_employer
-                summary["total_medicare_employer"] += line.medicare_employer
-                summary["total_futa"] += line.futa
-                summary["total_suta"] += line.suta
-                summary["total_deductions"] += line.total_deductions
-                summary["total_net"] += line.net_pay
-                summary["employee_count"].add(line.employee_id)
+            summary["pay_run_count"] = len(pay_run_ids)
+            summary["employee_count"] = len(summary["employee_count"])
 
-        summary["employee_count"] = len(summary["employee_count"])
-
-        # Round all numeric values
         for key in summary:
             if isinstance(summary[key], float):
                 summary[key] = round(summary[key], 2)
@@ -2081,7 +2594,6 @@ NET PAY: ${line.net_pay:,.2f}"""
 
     def get_tax_liability(self, period: str, year: int) -> Dict:
         """Get tax liability for a period (monthly, quarterly)"""
-        # Determine date range - handle both upper and lowercase (Q1 or q1)
         period_upper = period.upper()
         if period_upper.startswith("Q"):
             quarter = int(period_upper[1])
@@ -2130,106 +2642,33 @@ NET PAY: ${line.net_pay:,.2f}"""
 
     # ==================== UTILITY METHODS ====================
 
-    def _employee_to_dict(self, emp: Employee) -> Dict:
-        """Convert Employee to dictionary"""
-        # Find which pay schedule this employee is assigned to
-        pay_schedule_id = None
-        pay_schedule_name = None
-        for schedule in self.pay_schedules.values():
-            if emp.employee_id in schedule.employee_ids:
-                pay_schedule_id = schedule.schedule_id
-                pay_schedule_name = schedule.name
-                break
-
-        return {
-            "employee_id": emp.employee_id,
-            "employee_number": emp.employee_number,
-            "first_name": emp.first_name,
-            "last_name": emp.last_name,
-            "middle_name": emp.middle_name,
-            "full_name": f"{emp.first_name} {emp.last_name}",
-            "email": emp.email,
-            "phone": emp.phone,
-            "address_line1": emp.address_line1,
-            "city": emp.city,
-            "state": emp.state,
-            "zip_code": emp.zip_code,
-            "address": f"{emp.address_line1}, {emp.city}, {emp.state} {emp.zip_code}",
-            "employee_type": emp.employee_type.value,
-            "department": emp.department,
-            "job_title": emp.job_title,
-            "hire_date": emp.hire_date.isoformat() if emp.hire_date else None,
-            "status": emp.status.value,
-            "pay_type": emp.pay_type.value,
-            "pay_rate": emp.pay_rate,
-            "pay_frequency": emp.pay_frequency.value,
-            "pay_schedule_id": pay_schedule_id,
-            "pay_schedule_name": pay_schedule_name,
-            "default_hours": emp.default_hours,
-            "filing_status": emp.filing_status.value,
-            "federal_allowances": emp.federal_allowances,
-            "federal_additional_withholding": emp.federal_additional_withholding,
-            "state_allowances": emp.state_allowances,
-            "payment_method": emp.payment_method.value,
-            "bank_routing_number": emp.bank_routing_number,
-            "bank_account_number": emp.bank_account_number[-4:] if emp.bank_account_number else "",  # Last 4 only
-            "bank_account_type": emp.bank_account_type,
-            "has_direct_deposit": emp.payment_method in [PaymentMethod.DIRECT_DEPOSIT, PaymentMethod.BOTH],
-            "is_owner": emp.is_owner,
-            "created_at": emp.created_at.isoformat(),
-            "updated_at": emp.updated_at.isoformat()
-        }
-
-    def _pay_run_to_dict(self, pay_run: PayRun) -> Dict:
-        """Convert PayRun to dictionary"""
-        lines_data = []
-        for line in pay_run.lines:
-            emp = self.employees.get(line.employee_id)
-            lines_data.append({
-                "line_id": line.line_id,
-                "employee_id": line.employee_id,
-                "employee_name": f"{emp.first_name} {emp.last_name}" if emp else "Unknown",
-                "regular_hours": line.regular_hours,
-                "overtime_hours": line.overtime_hours,
-                "gross_pay": line.gross_pay,
-                "federal_tax": line.federal_income_tax,
-                "state_tax": line.state_income_tax,
-                "social_security": line.social_security_employee,
-                "medicare": line.medicare_employee,
-                "total_deductions": line.total_deductions,
-                "net_pay": line.net_pay,
-                "payment_method": line.payment_method.value,
-                "check_id": line.check_id
-            })
-
-        return {
-            "pay_run_id": pay_run.pay_run_id,
-            "pay_run_number": pay_run.pay_run_number,
-            "pay_period_start": pay_run.pay_period_start.isoformat(),
-            "pay_period_end": pay_run.pay_period_end.isoformat(),
-            "pay_date": pay_run.pay_date.isoformat(),
-            "bank_account_id": pay_run.bank_account_id,
-            "lines": lines_data,
-            "total_gross": pay_run.total_gross,
-            "total_taxes": pay_run.total_taxes,
-            "total_deductions": pay_run.total_deductions,
-            "total_net": pay_run.total_net,
-            "total_employer_taxes": pay_run.total_employer_taxes,
-            "status": pay_run.status.value,
-            "approved_by": pay_run.approved_by,
-            "approved_at": pay_run.approved_at.isoformat() if pay_run.approved_at else None,
-            "paid_at": pay_run.paid_at.isoformat() if pay_run.paid_at else None,
-            "ach_batch_id": pay_run.ach_batch_id,
-            "created_at": pay_run.created_at.isoformat()
-        }
-
     def get_service_summary(self) -> Dict:
         """Get GenFin Payroll service summary"""
-        active_employees = sum(1 for e in self.employees.values() if e.status == EmployeeStatus.ACTIVE)
-        total_paid_ytd = sum(
-            pr.total_net for pr in self.pay_runs.values()
-            if pr.status == PayRunStatus.PAID and pr.pay_date.year == date.today().year
-        )
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_employees WHERE is_active = 1 AND status = 'active'")
+            active_employees = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_employees WHERE is_active = 1")
+            total_employees = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_pay_runs WHERE is_active = 1")
+            total_pay_runs = cursor.fetchone()[0]
+
+            year_start = f"{date.today().year}-01-01"
+            cursor.execute("""
+                SELECT COALESCE(SUM(total_net), 0)
+                FROM genfin_pay_runs
+                WHERE status = 'paid' AND pay_date >= ?
+            """, (year_start,))
+            total_paid_ytd = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_earning_types WHERE is_active = 1")
+            earning_types = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_deduction_types WHERE is_active = 1")
+            deduction_types = cursor.fetchone()[0]
 
         return {
             "service": "GenFin Payroll",
@@ -2243,12 +2682,12 @@ NET PAY: ${line.net_pay:,.2f}"""
                 "Tax Liability Reports",
                 "YTD Reporting"
             ],
-            "total_employees": len(self.employees),
+            "total_employees": total_employees,
             "active_employees": active_employees,
-            "total_pay_runs": len(self.pay_runs),
+            "total_pay_runs": total_pay_runs,
             "ytd_paid": round(total_paid_ytd, 2),
-            "earning_types": len(self.earning_types),
-            "deduction_types": len(self.deduction_types)
+            "earning_types": earning_types,
+            "deduction_types": deduction_types
         }
 
 

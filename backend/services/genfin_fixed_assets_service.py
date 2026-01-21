@@ -1,7 +1,9 @@
 """
-GenFin Fixed Asset Manager Service
+GenFin Fixed Asset Manager Service with SQLite persistence
 Handles fixed asset tracking, depreciation calculations, and disposal.
 """
+import sqlite3
+import json
 from datetime import datetime, date
 from typing import Dict, List, Optional
 from enum import Enum
@@ -127,7 +129,7 @@ MACRS_RATES = {
 
 class GenFinFixedAssetsService:
     """
-    Manages fixed assets for GenFin.
+    Manages fixed assets for GenFin with SQLite persistence.
 
     Features:
     - Asset register with full tracking
@@ -139,20 +141,85 @@ class GenFinFixedAssetsService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.assets: Dict[str, FixedAsset] = {}
-        self.depreciation_entries: Dict[str, DepreciationEntry] = {}
-
+        self.db_path = db_path
+        self._init_tables()
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Fixed assets table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_fixed_assets (
+                    asset_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    category TEXT DEFAULT 'other',
+                    purchase_date TEXT,
+                    purchase_price REAL DEFAULT 0.0,
+                    vendor_id TEXT,
+                    po_number TEXT DEFAULT '',
+                    serial_number TEXT DEFAULT '',
+                    depreciation_method TEXT DEFAULT 'straight_line',
+                    useful_life_years INTEGER DEFAULT 7,
+                    salvage_value REAL DEFAULT 0.0,
+                    in_service_date TEXT,
+                    cost_basis REAL DEFAULT 0.0,
+                    accumulated_depreciation REAL DEFAULT 0.0,
+                    book_value REAL DEFAULT 0.0,
+                    section_179_amount REAL DEFAULT 0.0,
+                    bonus_depreciation_amount REAL DEFAULT 0.0,
+                    disposal_date TEXT,
+                    disposal_amount REAL DEFAULT 0.0,
+                    disposal_method TEXT DEFAULT '',
+                    location TEXT DEFAULT '',
+                    assigned_to TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    asset_account_id TEXT DEFAULT '',
+                    depreciation_expense_account_id TEXT DEFAULT '',
+                    accumulated_depreciation_account_id TEXT DEFAULT '',
+                    status TEXT DEFAULT 'active',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
+            # Depreciation entries table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_depreciation_entries (
+                    entry_id TEXT PRIMARY KEY,
+                    asset_id TEXT NOT NULL,
+                    period_date TEXT NOT NULL,
+                    depreciation_amount REAL NOT NULL,
+                    accumulated_total REAL NOT NULL,
+                    book_value_after REAL NOT NULL,
+                    method_used TEXT NOT NULL,
+                    journal_entry_id TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (asset_id) REFERENCES genfin_fixed_assets(asset_id)
+                )
+            """)
+
+            conn.commit()
 
     # ==================== ASSET MANAGEMENT ====================
 
@@ -178,39 +245,33 @@ class GenFinFixedAssetsService:
     ) -> Dict:
         """Create a new fixed asset"""
         asset_id = str(uuid.uuid4())
-
-        purch_date = datetime.strptime(purchase_date, "%Y-%m-%d").date()
-        service_date = datetime.strptime(in_service_date, "%Y-%m-%d").date() if in_service_date else purch_date
+        service_date = in_service_date if in_service_date else purchase_date
+        now = datetime.now().isoformat()
 
         # Calculate cost basis after Section 179 and bonus
         bonus_amount = purchase_price * (bonus_depreciation_percent / 100) if bonus_depreciation_percent else 0.0
         cost_basis = purchase_price - section_179_amount - bonus_amount
+        book_value = cost_basis
+        accumulated_depreciation = section_179_amount + bonus_amount
 
-        asset = FixedAsset(
-            asset_id=asset_id,
-            name=name,
-            description=description,
-            category=AssetCategory(category),
-            purchase_date=purch_date,
-            purchase_price=purchase_price,
-            vendor_id=vendor_id,
-            serial_number=serial_number,
-            depreciation_method=DepreciationMethod(depreciation_method),
-            useful_life_years=useful_life_years,
-            salvage_value=salvage_value,
-            in_service_date=service_date,
-            cost_basis=cost_basis,
-            accumulated_depreciation=section_179_amount + bonus_amount,
-            book_value=cost_basis,
-            section_179_amount=section_179_amount,
-            bonus_depreciation_amount=bonus_amount,
-            location=location,
-            asset_account_id=asset_account_id,
-            depreciation_expense_account_id=depreciation_expense_account_id,
-            accumulated_depreciation_account_id=accumulated_depreciation_account_id
-        )
-
-        self.assets[asset_id] = asset
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO genfin_fixed_assets
+                (asset_id, name, description, category, purchase_date, purchase_price,
+                 vendor_id, serial_number, depreciation_method, useful_life_years,
+                 salvage_value, in_service_date, cost_basis, accumulated_depreciation,
+                 book_value, section_179_amount, bonus_depreciation_amount,
+                 location, asset_account_id, depreciation_expense_account_id,
+                 accumulated_depreciation_account_id, status, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)
+            """, (asset_id, name, description, category, purchase_date, purchase_price,
+                  vendor_id, serial_number, depreciation_method, useful_life_years,
+                  salvage_value, service_date, cost_basis, accumulated_depreciation,
+                  book_value, section_179_amount, bonus_amount,
+                  location, asset_account_id, depreciation_expense_account_id,
+                  accumulated_depreciation_account_id, now, now))
+            conn.commit()
 
         return {
             "success": True,
@@ -225,32 +286,44 @@ class GenFinFixedAssetsService:
 
     def update_asset(self, asset_id: str, **kwargs) -> Dict:
         """Update an asset"""
-        if asset_id not in self.assets:
-            return {"success": False, "error": "Asset not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT asset_id FROM genfin_fixed_assets WHERE asset_id = ? AND is_active = 1",
+                         (asset_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Asset not found"}
 
-        asset = self.assets[asset_id]
+            updates = []
+            values = []
 
-        for key, value in kwargs.items():
-            if hasattr(asset, key):
-                if key in ["purchase_date", "in_service_date", "disposal_date"] and isinstance(value, str):
-                    value = datetime.strptime(value, "%Y-%m-%d").date()
-                elif key == "category":
-                    value = AssetCategory(value)
-                elif key == "depreciation_method":
-                    value = DepreciationMethod(value)
-                elif key == "status":
-                    value = AssetStatus(value)
-                setattr(asset, key, value)
+            for key, value in kwargs.items():
+                if value is not None:
+                    updates.append(f"{key} = ?")
+                    values.append(value)
 
-        asset.updated_at = datetime.now()
+            if updates:
+                updates.append("updated_at = ?")
+                values.append(datetime.now().isoformat())
+                values.append(asset_id)
+
+                cursor.execute(f"""
+                    UPDATE genfin_fixed_assets
+                    SET {', '.join(updates)}
+                    WHERE asset_id = ?
+                """, values)
+                conn.commit()
 
         return {"success": True, "asset_id": asset_id, "message": "Asset updated"}
 
     def get_asset(self, asset_id: str) -> Optional[Dict]:
         """Get a single asset"""
-        if asset_id not in self.assets:
-            return None
-        return self._asset_to_dict(self.assets[asset_id])
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_fixed_assets WHERE asset_id = ?", (asset_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_asset_dict(row)
 
     def list_assets(
         self,
@@ -258,17 +331,24 @@ class GenFinFixedAssetsService:
         status: str = None
     ) -> Dict:
         """List all assets"""
-        assets_list = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for asset in self.assets.values():
-            if category and asset.category.value != category:
-                continue
-            if status and asset.status.value != status:
-                continue
-            assets_list.append(self._asset_to_dict(asset))
+            query = "SELECT * FROM genfin_fixed_assets WHERE is_active = 1"
+            params = []
 
-        # Sort by name
-        assets_list.sort(key=lambda x: x["name"])
+            if category:
+                query += " AND category = ?"
+                params.append(category)
+
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+
+            query += " ORDER BY name"
+
+            cursor.execute(query, params)
+            assets_list = [self._row_to_asset_dict(row) for row in cursor.fetchall()]
 
         total_cost = sum(a["purchase_price"] for a in assets_list)
         total_book_value = sum(a["book_value"] for a in assets_list)
@@ -284,78 +364,84 @@ class GenFinFixedAssetsService:
 
     def delete_asset(self, asset_id: str) -> Dict:
         """Delete an asset (only if no depreciation taken)"""
-        if asset_id not in self.assets:
-            return {"success": False, "error": "Asset not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        # Check for depreciation entries
-        has_entries = any(e.asset_id == asset_id for e in self.depreciation_entries.values())
-        if has_entries:
-            return {"success": False, "error": "Cannot delete asset with depreciation history. Dispose instead."}
+            cursor.execute("SELECT asset_id FROM genfin_fixed_assets WHERE asset_id = ? AND is_active = 1",
+                         (asset_id,))
+            if not cursor.fetchone():
+                return {"success": False, "error": "Asset not found"}
 
-        del self.assets[asset_id]
+            # Check for depreciation entries
+            cursor.execute("SELECT COUNT(*) FROM genfin_depreciation_entries WHERE asset_id = ?",
+                         (asset_id,))
+            if cursor.fetchone()[0] > 0:
+                return {"success": False, "error": "Cannot delete asset with depreciation history. Dispose instead."}
+
+            cursor.execute("UPDATE genfin_fixed_assets SET is_active = 0, updated_at = ? WHERE asset_id = ?",
+                         (datetime.now().isoformat(), asset_id))
+            conn.commit()
+
         return {"success": True, "message": "Asset deleted"}
 
     # ==================== DEPRECIATION ====================
 
     def calculate_annual_depreciation(self, asset_id: str, year: int) -> Dict:
         """Calculate depreciation for a specific year"""
-        if asset_id not in self.assets:
-            return {"success": False, "error": "Asset not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_fixed_assets WHERE asset_id = ?", (asset_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Asset not found"}
 
-        asset = self.assets[asset_id]
+            if row['status'] in ['disposed', 'fully_depreciated']:
+                return {"success": False, "error": "Asset is disposed or fully depreciated"}
 
-        if asset.status in [AssetStatus.DISPOSED, AssetStatus.FULLY_DEPRECIATED]:
-            return {"success": False, "error": "Asset is disposed or fully depreciated"}
+            # Handle missing in_service_date
+            if not row['in_service_date']:
+                return {"depreciation": 0, "year": year, "message": "Asset has no in-service date"}
 
-        # Handle missing in_service_date
-        if not asset.in_service_date:
-            return {"depreciation": 0, "year": year, "message": "Asset has no in-service date"}
+            in_service_date = datetime.strptime(row['in_service_date'], "%Y-%m-%d").date()
+            years_in_service = year - in_service_date.year + 1
 
-        # Get asset year (years since in-service)
-        years_in_service = year - asset.in_service_date.year + 1
+            if years_in_service < 1:
+                return {"depreciation": 0, "year": year, "message": "Asset not yet in service"}
 
-        if years_in_service < 1:
-            return {"depreciation": 0, "year": year, "message": "Asset not yet in service"}
+            depreciation = 0.0
+            cost_basis = row['cost_basis'] or 0.0
+            salvage_value = row['salvage_value'] or 0.0
+            useful_life = row['useful_life_years'] or 1
+            book_value = row['book_value'] or 0.0
+            depreciation_method = row['depreciation_method']
 
-        depreciation = 0.0
+            if depreciation_method == 'straight_line':
+                annual_depr = (cost_basis - salvage_value) / useful_life
+                if years_in_service <= useful_life:
+                    depreciation = annual_depr
 
-        # Ensure we have valid values for calculation (default to 0 if None)
-        cost_basis = asset.cost_basis or 0.0
-        salvage_value = asset.salvage_value or 0.0
-        useful_life = asset.useful_life_years or 1  # Prevent division by zero
+            elif depreciation_method == 'section_179':
+                if years_in_service == 1:
+                    depreciation = cost_basis
 
-        if asset.depreciation_method == DepreciationMethod.STRAIGHT_LINE:
-            # Straight-line: (Cost - Salvage) / Life
-            annual_depr = (cost_basis - salvage_value) / useful_life
-            if years_in_service <= asset.useful_life_years:
-                depreciation = annual_depr
+            elif depreciation_method == 'bonus_100':
+                if years_in_service == 1:
+                    depreciation = cost_basis
 
-        elif asset.depreciation_method == DepreciationMethod.SECTION_179:
-            # Section 179: All in first year
-            if years_in_service == 1:
-                depreciation = cost_basis
+            elif depreciation_method.startswith("macrs"):
+                rates = MACRS_RATES.get(depreciation_method, [])
+                if years_in_service <= len(rates):
+                    rate = rates[years_in_service - 1]
+                    depreciation = cost_basis * (rate / 100)
 
-        elif asset.depreciation_method == DepreciationMethod.BONUS_100:
-            # 100% bonus: All in first year
-            if years_in_service == 1:
-                depreciation = cost_basis
-
-        elif asset.depreciation_method.value.startswith("macrs"):
-            # MACRS depreciation
-            rates = MACRS_RATES.get(asset.depreciation_method.value, [])
-            if years_in_service <= len(rates):
-                rate = rates[years_in_service - 1]
-                depreciation = cost_basis * (rate / 100)
-
-        # Don't exceed remaining book value
-        remaining = asset.book_value or 0.0
-        depreciation = min(depreciation, remaining)
+            # Don't exceed remaining book value
+            depreciation = min(depreciation, book_value)
 
         return {
             "asset_id": asset_id,
             "year": year,
             "depreciation": round(depreciation, 2),
-            "method": asset.depreciation_method.value,
+            "method": depreciation_method,
             "years_in_service": years_in_service
         }
 
@@ -363,77 +449,76 @@ class GenFinFixedAssetsService:
         """Run depreciation for period (usually monthly)"""
         per_date = datetime.strptime(period_date, "%Y-%m-%d").date()
         year = per_date.year
+        now = datetime.now().isoformat()
 
         results = []
         total_depreciation = 0.0
 
-        # Handle specific asset or all assets
-        if asset_id:
-            if asset_id not in self.assets:
-                return {"success": False, "error": f"Asset {asset_id} not found"}
-            assets_to_process = [self.assets[asset_id]]
-        else:
-            assets_to_process = list(self.assets.values())
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for asset in assets_to_process:
-            if asset.status != AssetStatus.ACTIVE:
-                continue
+            if asset_id:
+                cursor.execute("SELECT * FROM genfin_fixed_assets WHERE asset_id = ? AND is_active = 1",
+                             (asset_id,))
+            else:
+                cursor.execute("SELECT * FROM genfin_fixed_assets WHERE is_active = 1 AND status = 'active'")
 
-            # Ensure we have valid values (default to 0 if None)
-            book_value = asset.book_value or 0.0
-            accumulated_depr = asset.accumulated_depreciation or 0.0
-            purchase_price = asset.purchase_price or 0.0
+            assets = cursor.fetchall()
 
-            if book_value <= 0:
-                asset.status = AssetStatus.FULLY_DEPRECIATED
-                continue
+            for row in assets:
+                if row['status'] != 'active':
+                    continue
 
-            # Calculate annual depreciation
-            annual_calc = self.calculate_annual_depreciation(asset.asset_id, year)
-            annual_depr = annual_calc.get("depreciation", 0)
+                book_value = row['book_value'] or 0.0
+                if book_value <= 0:
+                    cursor.execute("UPDATE genfin_fixed_assets SET status = 'fully_depreciated', updated_at = ? WHERE asset_id = ?",
+                                 (now, row['asset_id']))
+                    continue
 
-            # Monthly portion (for monthly runs)
-            monthly_depr = annual_depr / 12
+                # Calculate annual depreciation
+                annual_calc = self.calculate_annual_depreciation(row['asset_id'], year)
+                annual_depr = annual_calc.get("depreciation", 0)
 
-            # Don't exceed book value
-            monthly_depr = min(monthly_depr, book_value)
+                # Monthly portion
+                monthly_depr = annual_depr / 12
+                monthly_depr = min(monthly_depr, book_value)
 
-            if monthly_depr > 0:
-                # Create entry
-                entry_id = str(uuid.uuid4())
+                if monthly_depr > 0:
+                    entry_id = str(uuid.uuid4())
+                    accumulated_depr = row['accumulated_depreciation'] or 0.0
+                    purchase_price = row['purchase_price'] or 0.0
 
-                new_accumulated = accumulated_depr + monthly_depr
-                new_book_value = purchase_price - new_accumulated
+                    new_accumulated = accumulated_depr + monthly_depr
+                    new_book_value = purchase_price - new_accumulated
 
-                entry = DepreciationEntry(
-                    entry_id=entry_id,
-                    asset_id=asset.asset_id,
-                    period_date=per_date,
-                    depreciation_amount=monthly_depr,
-                    accumulated_total=new_accumulated,
-                    book_value_after=new_book_value,
-                    method_used=asset.depreciation_method
-                )
+                    cursor.execute("""
+                        INSERT INTO genfin_depreciation_entries
+                        (entry_id, asset_id, period_date, depreciation_amount,
+                         accumulated_total, book_value_after, method_used, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (entry_id, row['asset_id'], period_date, monthly_depr,
+                          new_accumulated, new_book_value, row['depreciation_method'], now))
 
-                self.depreciation_entries[entry_id] = entry
+                    # Update asset
+                    salvage_val = row['salvage_value'] or 0.0
+                    new_status = 'fully_depreciated' if new_book_value <= salvage_val else 'active'
 
-                # Update asset
-                asset.accumulated_depreciation = new_accumulated
-                asset.book_value = new_book_value
-                asset.updated_at = datetime.now()
+                    cursor.execute("""
+                        UPDATE genfin_fixed_assets
+                        SET accumulated_depreciation = ?, book_value = ?, status = ?, updated_at = ?
+                        WHERE asset_id = ?
+                    """, (new_accumulated, new_book_value, new_status, now, row['asset_id']))
 
-                salvage_val = asset.salvage_value or 0.0
-                if asset.book_value <= salvage_val:
-                    asset.status = AssetStatus.FULLY_DEPRECIATED
+                    results.append({
+                        "asset_id": row['asset_id'],
+                        "asset_name": row['name'],
+                        "depreciation": round(monthly_depr, 2),
+                        "new_book_value": round(new_book_value, 2)
+                    })
 
-                results.append({
-                    "asset_id": asset.asset_id,
-                    "asset_name": asset.name,
-                    "depreciation": round(monthly_depr, 2),
-                    "new_book_value": round(new_book_value, 2)
-                })
+                    total_depreciation += monthly_depr
 
-                total_depreciation += monthly_depr
+            conn.commit()
 
         return {
             "success": True,
@@ -445,96 +530,106 @@ class GenFinFixedAssetsService:
 
     def get_depreciation_schedule(self, asset_id: str) -> Dict:
         """Get full depreciation schedule for an asset"""
-        if asset_id not in self.assets:
-            return {"success": False, "error": "Asset not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_fixed_assets WHERE asset_id = ?", (asset_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Asset not found"}
 
-        asset = self.assets[asset_id]
+            if not row['in_service_date']:
+                return {"success": False, "error": "Asset has no in-service date"}
 
-        # Handle missing in_service_date
-        if not asset.in_service_date:
-            return {"success": False, "error": "Asset has no in-service date"}
+            in_service_date = datetime.strptime(row['in_service_date'], "%Y-%m-%d").date()
+            section_179 = row['section_179_amount'] or 0.0
+            bonus_depr = row['bonus_depreciation_amount'] or 0.0
+            purchase_price = row['purchase_price'] or 0.0
+            salvage_value = row['salvage_value'] or 0.0
 
-        # Ensure valid values (default to 0 if None)
-        section_179 = asset.section_179_amount or 0.0
-        bonus_depr = asset.bonus_depreciation_amount or 0.0
-        purchase_price = asset.purchase_price or 0.0
-        salvage_value = asset.salvage_value or 0.0
+            schedule = []
+            running_depr = section_179 + bonus_depr
+            running_book = purchase_price - running_depr
 
-        schedule = []
-        running_depr = section_179 + bonus_depr
-        running_book = purchase_price - running_depr
-
-        # Add Section 179/Bonus if applicable
-        if section_179 > 0:
-            schedule.append({
-                "year": asset.in_service_date.year,
-                "period": "Section 179",
-                "depreciation": section_179,
-                "accumulated": running_depr,
-                "book_value": running_book
-            })
-
-        if bonus_depr > 0:
-            schedule.append({
-                "year": asset.in_service_date.year,
-                "period": "Bonus Depreciation",
-                "depreciation": bonus_depr,
-                "accumulated": running_depr,
-                "book_value": running_book
-            })
-
-        # Project future depreciation
-        useful_life = asset.useful_life_years or 1
-        for year_offset in range(useful_life + 1):
-            year = asset.in_service_date.year + year_offset
-            calc = self.calculate_annual_depreciation(asset_id, year)
-            depr = calc.get("depreciation", 0)
-
-            if depr > 0:
-                running_depr += depr
-                running_book -= depr
-
+            if section_179 > 0:
                 schedule.append({
-                    "year": year,
-                    "period": f"Year {year_offset + 1}",
-                    "depreciation": round(depr, 2),
-                    "accumulated": round(running_depr, 2),
-                    "book_value": round(max(running_book, salvage_value), 2)
+                    "year": in_service_date.year,
+                    "period": "Section 179",
+                    "depreciation": section_179,
+                    "accumulated": running_depr,
+                    "book_value": running_book
                 })
+
+            if bonus_depr > 0:
+                schedule.append({
+                    "year": in_service_date.year,
+                    "period": "Bonus Depreciation",
+                    "depreciation": bonus_depr,
+                    "accumulated": running_depr,
+                    "book_value": running_book
+                })
+
+            useful_life = row['useful_life_years'] or 1
+            for year_offset in range(useful_life + 1):
+                year = in_service_date.year + year_offset
+                calc = self.calculate_annual_depreciation(asset_id, year)
+                depr = calc.get("depreciation", 0)
+
+                if depr > 0:
+                    running_depr += depr
+                    running_book -= depr
+
+                    schedule.append({
+                        "year": year,
+                        "period": f"Year {year_offset + 1}",
+                        "depreciation": round(depr, 2),
+                        "accumulated": round(running_depr, 2),
+                        "book_value": round(max(running_book, salvage_value), 2)
+                    })
 
         return {
             "asset_id": asset_id,
-            "asset_name": asset.name,
-            "purchase_price": asset.purchase_price,
-            "cost_basis": asset.cost_basis,
-            "salvage_value": asset.salvage_value,
-            "method": asset.depreciation_method.value,
-            "useful_life": asset.useful_life_years,
+            "asset_name": row['name'],
+            "purchase_price": row['purchase_price'],
+            "cost_basis": row['cost_basis'],
+            "salvage_value": row['salvage_value'],
+            "method": row['depreciation_method'],
+            "useful_life": row['useful_life_years'],
             "schedule": schedule
         }
 
     def get_depreciation_history(self, asset_id: str = None) -> Dict:
         """Get actual depreciation entries"""
-        entries = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        for entry in self.depreciation_entries.values():
-            if asset_id and entry.asset_id != asset_id:
-                continue
+            if asset_id:
+                cursor.execute("""
+                    SELECT de.*, fa.name as asset_name
+                    FROM genfin_depreciation_entries de
+                    JOIN genfin_fixed_assets fa ON de.asset_id = fa.asset_id
+                    WHERE de.asset_id = ?
+                    ORDER BY de.period_date DESC
+                """, (asset_id,))
+            else:
+                cursor.execute("""
+                    SELECT de.*, fa.name as asset_name
+                    FROM genfin_depreciation_entries de
+                    JOIN genfin_fixed_assets fa ON de.asset_id = fa.asset_id
+                    ORDER BY de.period_date DESC
+                """)
 
-            asset = self.assets.get(entry.asset_id)
-
-            entries.append({
-                "entry_id": entry.entry_id,
-                "asset_id": entry.asset_id,
-                "asset_name": asset.name if asset else "Unknown",
-                "period_date": entry.period_date.isoformat(),
-                "depreciation_amount": entry.depreciation_amount,
-                "accumulated_total": entry.accumulated_total,
-                "book_value_after": entry.book_value_after,
-                "method": entry.method_used.value
-            })
-
-        entries.sort(key=lambda x: x["period_date"], reverse=True)
+            entries = []
+            for row in cursor.fetchall():
+                entries.append({
+                    "entry_id": row['entry_id'],
+                    "asset_id": row['asset_id'],
+                    "asset_name": row['asset_name'],
+                    "period_date": row['period_date'],
+                    "depreciation_amount": row['depreciation_amount'],
+                    "accumulated_total": row['accumulated_total'],
+                    "book_value_after": row['book_value_after'],
+                    "method": row['method_used']
+                })
 
         return {"entries": entries, "total": len(entries)}
 
@@ -548,32 +643,36 @@ class GenFinFixedAssetsService:
         disposal_method: str = "sold"
     ) -> Dict:
         """Dispose of an asset (sell, scrap, trade, donate)"""
-        if asset_id not in self.assets:
-            return {"success": False, "error": "Asset not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM genfin_fixed_assets WHERE asset_id = ? AND is_active = 1",
+                         (asset_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Asset not found"}
 
-        asset = self.assets[asset_id]
+            if row['status'] == 'disposed':
+                return {"success": False, "error": "Asset already disposed"}
 
-        if asset.status == AssetStatus.DISPOSED:
-            return {"success": False, "error": "Asset already disposed"}
+            book_value = row['book_value'] or 0.0
+            gain_loss = disposal_amount - book_value
 
-        disp_date = datetime.strptime(disposal_date, "%Y-%m-%d").date()
-
-        # Calculate gain/loss
-        gain_loss = disposal_amount - asset.book_value
-
-        asset.disposal_date = disp_date
-        asset.disposal_amount = disposal_amount
-        asset.disposal_method = disposal_method
-        asset.status = AssetStatus.DISPOSED
-        asset.updated_at = datetime.now()
+            cursor.execute("""
+                UPDATE genfin_fixed_assets
+                SET disposal_date = ?, disposal_amount = ?, disposal_method = ?,
+                    status = 'disposed', updated_at = ?
+                WHERE asset_id = ?
+            """, (disposal_date, disposal_amount, disposal_method,
+                  datetime.now().isoformat(), asset_id))
+            conn.commit()
 
         return {
             "success": True,
             "asset_id": asset_id,
-            "asset_name": asset.name,
+            "asset_name": row['name'],
             "disposal_date": disposal_date,
             "disposal_amount": disposal_amount,
-            "book_value_at_disposal": round(asset.book_value, 2),
+            "book_value_at_disposal": round(book_value, 2),
             "gain_loss": round(gain_loss, 2),
             "gain_loss_type": "gain" if gain_loss > 0 else "loss" if gain_loss < 0 else "break_even"
         }
@@ -582,26 +681,29 @@ class GenFinFixedAssetsService:
 
     def get_asset_register_report(self, as_of_date: str = None) -> Dict:
         """Get asset register report"""
-        report_date = datetime.strptime(as_of_date, "%Y-%m-%d").date() if as_of_date else date.today()
+        report_date = as_of_date if as_of_date else date.today().isoformat()
 
-        assets_data = []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_fixed_assets
+                WHERE is_active = 1 AND purchase_date IS NOT NULL AND purchase_date <= ?
+                ORDER BY name
+            """, (report_date,))
 
-        for asset in self.assets.values():
-            # Skip assets without purchase date or purchased after report date
-            if not asset.purchase_date or asset.purchase_date > report_date:
-                continue
-
-            assets_data.append({
-                "asset_id": asset.asset_id,
-                "name": asset.name,
-                "category": asset.category.value,
-                "purchase_date": asset.purchase_date.isoformat(),
-                "purchase_price": asset.purchase_price or 0.0,
-                "depreciation_method": asset.depreciation_method.value,
-                "accumulated_depreciation": round(asset.accumulated_depreciation or 0.0, 2),
-                "book_value": round(asset.book_value or 0.0, 2),
-                "status": asset.status.value
-            })
+            assets_data = []
+            for row in cursor.fetchall():
+                assets_data.append({
+                    "asset_id": row['asset_id'],
+                    "name": row['name'],
+                    "category": row['category'],
+                    "purchase_date": row['purchase_date'],
+                    "purchase_price": row['purchase_price'] or 0.0,
+                    "depreciation_method": row['depreciation_method'],
+                    "accumulated_depreciation": round(row['accumulated_depreciation'] or 0.0, 2),
+                    "book_value": round(row['book_value'] or 0.0, 2),
+                    "status": row['status']
+                })
 
         # Summary by category
         by_category = {}
@@ -614,7 +716,7 @@ class GenFinFixedAssetsService:
             by_category[cat]["book_value"] += a["book_value"]
 
         return {
-            "report_date": report_date.isoformat(),
+            "report_date": report_date,
             "assets": assets_data,
             "summary": {
                 "total_assets": len(assets_data),
@@ -629,23 +731,30 @@ class GenFinFixedAssetsService:
         """Get depreciation expense report for a year"""
         report_data = []
 
-        for asset in self.assets.values():
-            # Skip assets without in-service date or not yet in service
-            if not asset.in_service_date or asset.in_service_date.year > year:
-                continue
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_fixed_assets
+                WHERE is_active = 1 AND in_service_date IS NOT NULL
+            """)
 
-            calc = self.calculate_annual_depreciation(asset.asset_id, year)
-            depr = calc.get("depreciation", 0)
+            for row in cursor.fetchall():
+                in_service_year = int(row['in_service_date'][:4]) if row['in_service_date'] else 9999
+                if in_service_year > year:
+                    continue
 
-            if depr > 0 or asset.status == AssetStatus.ACTIVE:
-                report_data.append({
-                    "asset_id": asset.asset_id,
-                    "name": asset.name,
-                    "category": asset.category.value,
-                    "method": asset.depreciation_method.value,
-                    "annual_depreciation": round(depr, 2),
-                    "expense_account": asset.depreciation_expense_account_id
-                })
+                calc = self.calculate_annual_depreciation(row['asset_id'], year)
+                depr = calc.get("depreciation", 0)
+
+                if depr > 0 or row['status'] == 'active':
+                    report_data.append({
+                        "asset_id": row['asset_id'],
+                        "name": row['name'],
+                        "category": row['category'],
+                        "method": row['depreciation_method'],
+                        "annual_depreciation": round(depr, 2),
+                        "expense_account": row['depreciation_expense_account_id']
+                    })
 
         # Group by account
         by_account = {}
@@ -664,30 +773,30 @@ class GenFinFixedAssetsService:
 
     # ==================== UTILITIES ====================
 
-    def _asset_to_dict(self, asset: FixedAsset) -> Dict:
-        """Convert asset to dictionary"""
+    def _row_to_asset_dict(self, row: sqlite3.Row) -> Dict:
+        """Convert row to dictionary"""
         return {
-            "asset_id": asset.asset_id,
-            "name": asset.name,
-            "description": asset.description,
-            "category": asset.category.value,
-            "purchase_date": asset.purchase_date.isoformat() if asset.purchase_date else None,
-            "purchase_price": asset.purchase_price or 0.0,
-            "serial_number": asset.serial_number,
-            "depreciation_method": asset.depreciation_method.value,
-            "useful_life_years": asset.useful_life_years or 1,
-            "salvage_value": asset.salvage_value or 0.0,
-            "in_service_date": asset.in_service_date.isoformat() if asset.in_service_date else None,
-            "cost_basis": asset.cost_basis or 0.0,
-            "accumulated_depreciation": round(asset.accumulated_depreciation or 0.0, 2),
-            "book_value": round(asset.book_value or 0.0, 2),
-            "section_179_amount": asset.section_179_amount or 0.0,
-            "bonus_depreciation_amount": asset.bonus_depreciation_amount or 0.0,
-            "location": asset.location,
-            "status": asset.status.value,
-            "disposal_date": asset.disposal_date.isoformat() if asset.disposal_date else None,
-            "disposal_amount": asset.disposal_amount or 0.0,
-            "created_at": asset.created_at.isoformat()
+            "asset_id": row['asset_id'],
+            "name": row['name'],
+            "description": row['description'] or "",
+            "category": row['category'],
+            "purchase_date": row['purchase_date'],
+            "purchase_price": row['purchase_price'] or 0.0,
+            "serial_number": row['serial_number'] or "",
+            "depreciation_method": row['depreciation_method'],
+            "useful_life_years": row['useful_life_years'] or 1,
+            "salvage_value": row['salvage_value'] or 0.0,
+            "in_service_date": row['in_service_date'],
+            "cost_basis": row['cost_basis'] or 0.0,
+            "accumulated_depreciation": round(row['accumulated_depreciation'] or 0.0, 2),
+            "book_value": round(row['book_value'] or 0.0, 2),
+            "section_179_amount": row['section_179_amount'] or 0.0,
+            "bonus_depreciation_amount": row['bonus_depreciation_amount'] or 0.0,
+            "location": row['location'] or "",
+            "status": row['status'],
+            "disposal_date": row['disposal_date'],
+            "disposal_amount": row['disposal_amount'] or 0.0,
+            "created_at": row['created_at']
         }
 
     def run_all_depreciation(self, year: int) -> Dict:
@@ -695,13 +804,16 @@ class GenFinFixedAssetsService:
         results = []
         period_date = f"{year}-12-31"
 
-        for asset in self.assets.values():
-            if asset.status == AssetStatus.ACTIVE:
-                result = self.run_depreciation(period_date, asset.asset_id)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT asset_id, name FROM genfin_fixed_assets WHERE is_active = 1 AND status = 'active'")
+
+            for row in cursor.fetchall():
+                result = self.run_depreciation(period_date, row['asset_id'])
                 results.append({
-                    "asset_id": asset.asset_id,
-                    "asset_name": asset.name,
-                    "depreciation": result.get("depreciation_amount", 0)
+                    "asset_id": row['asset_id'],
+                    "asset_name": row['name'],
+                    "depreciation": result.get("total_depreciation", 0)
                 })
 
         total_depreciation = sum(r["depreciation"] for r in results)
@@ -724,17 +836,28 @@ class GenFinFixedAssetsService:
 
     def get_service_summary(self) -> Dict:
         """Get service summary"""
-        active = sum(1 for a in self.assets.values() if a.status == AssetStatus.ACTIVE)
-        disposed = sum(1 for a in self.assets.values() if a.status == AssetStatus.DISPOSED)
-        fully_depr = sum(1 for a in self.assets.values() if a.status == AssetStatus.FULLY_DEPRECIATED)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-        total_cost = sum((a.purchase_price or 0.0) for a in self.assets.values())
-        total_book = sum((a.book_value or 0.0) for a in self.assets.values() if a.status == AssetStatus.ACTIVE)
+            cursor.execute("SELECT COUNT(*) FROM genfin_fixed_assets WHERE is_active = 1 AND status = 'active'")
+            active = cursor.fetchone()[0]
 
-        by_category = {}
-        for a in self.assets.values():
-            cat = a.category.value
-            by_category[cat] = by_category.get(cat, 0) + 1
+            cursor.execute("SELECT COUNT(*) FROM genfin_fixed_assets WHERE is_active = 1 AND status = 'disposed'")
+            disposed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_fixed_assets WHERE is_active = 1 AND status = 'fully_depreciated'")
+            fully_depr = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM genfin_fixed_assets WHERE is_active = 1")
+            total = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COALESCE(SUM(purchase_price), 0), COALESCE(SUM(book_value), 0) FROM genfin_fixed_assets WHERE is_active = 1")
+            row = cursor.fetchone()
+            total_cost = row[0]
+            total_book = row[1]
+
+            cursor.execute("SELECT category, COUNT(*) FROM genfin_fixed_assets WHERE is_active = 1 GROUP BY category")
+            by_category = {r[0]: r[1] for r in cursor.fetchall()}
 
         return {
             "service": "GenFin Fixed Asset Manager",
@@ -754,7 +877,7 @@ class GenFinFixedAssetsService:
                 "straight_line", "macrs_3", "macrs_5", "macrs_7",
                 "macrs_10", "macrs_15", "macrs_20", "section_179", "bonus_100"
             ],
-            "total_assets": len(self.assets),
+            "total_assets": total,
             "active_assets": active,
             "disposed_assets": disposed,
             "fully_depreciated": fully_depr,
