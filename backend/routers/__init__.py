@@ -17,7 +17,6 @@ from .grants import router as grants_router
 from .sustainability import router as sustainability_router
 from .farm_business import router as farm_business_router
 from .genfin import router as genfin_router
-from .livestock import router as livestock_router
 from .crops import router as crops_router
 from .converters import router as converters_router
 
@@ -34,7 +33,6 @@ __all__ = [
     'sustainability_router',
     'farm_business_router',
     'genfin_router',
-    'livestock_router',
     'crops_router',
     'converters_router',
 ]
