@@ -1,8 +1,52 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.14.2 | **Last Updated:** January 19, 2026
+> **Current Version:** 6.15.0 | **Last Updated:** January 19, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.15.0 (January 19, 2026)
+
+### Major - SQLite Persistence Migration Complete
+
+**All 13 GenFin services now persist data to SQLite - data survives restarts.**
+
+This release completes the full migration from in-memory storage (51 Dict-based data stores) to SQLite persistence. All business data is now permanently stored in `agtools.db`.
+
+**Phase 1 - Foundation:**
+- `genfin_core_service.py` - 6 tables (accounts, journal_entries, journal_entry_lines, fiscal_periods, classes, locations)
+- `genfin_reports_service.py` - 1 table (saved_reports)
+
+**Phase 2 - Business Operations:**
+- `genfin_receivables_service.py` - 8 tables (customers, invoices, invoice_lines, payments, etc.)
+- `genfin_payables_service.py` - 7 tables (vendors, bills, bill_lines, payments, etc.)
+- `genfin_inventory_service.py` - 8 tables (items, lots, adjustments, counts, price_levels, tax_codes)
+- `genfin_banking_service.py` - 11 tables (bank_accounts, transactions, checks, deposits, ACH, transfers)
+
+**Phase 3 - Supporting Services:**
+- `genfin_payroll_service.py` - 10 tables (employees, pay_rates, time_entries, paychecks, tax_payments)
+- `genfin_fixed_assets_service.py` - 2 tables (fixed_assets, depreciation_entries)
+- `genfin_classes_service.py` - 7 tables (projects, billable_expenses, billable_time, milestones)
+- `genfin_budget_service.py` - 4 tables (budgets, budget_lines, forecasts, scenarios)
+
+**Phase 4 - Auxiliary Services:**
+- `genfin_recurring_service.py` - 2 tables (recurring_templates, generated_transactions)
+- `genfin_bank_feeds_service.py` - 3 tables (import_files, imported_transactions, category_rules)
+- `genfin_advanced_reports_service.py` - 2 tables (memorized_reports, dashboard_widgets)
+
+**Previously Migrated:**
+- `genfin_entity_service.py` - Already SQLite-based
+- `genfin_1099_service.py` - Reference implementation
+
+**Technical Details:**
+- Singleton pattern with lazy initialization
+- Soft deletes using `is_active` column
+- JSON serialization for complex nested data
+- DROP TABLE for schema migration from in-memory versions
+- All 36 existing tests passing
+
+See `docs/SQLITE_MIGRATION_PLAN.md` for implementation details.
 
 ---
 
@@ -48,18 +92,11 @@ For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
 
 - `docs/AUDIT_REPORT_20260119.md` - Full demo readiness audit with test results
 
-### Planned - SQLite Migration for Data Persistence
+### Completed - SQLite Migration for Data Persistence
 
-**CRITICAL: GenFin services use in-memory storage - data lost on restart.**
+**RESOLVED: All 13 GenFin services now use SQLite - data persists across restarts.**
 
-Migration plan created to convert 13 GenFin services (51 data dictionaries) to SQLite:
-- Phase 1: Core service (accounts, journal entries) - Foundation
-- Phase 2: Receivables & Payables (customers, vendors, invoices, bills)
-- Phase 3: Banking & Inventory (bank accounts, checks, items)
-- Phase 4: Payroll, Fixed Assets, Classes, Budgets
-- Phase 5: Recurring, Bank Feeds, Advanced Reports
-
-See `docs/AUDIT_REPORT_20260119.md` for full details.
+See v6.15.0 release notes above for full migration details.
 
 ---
 
