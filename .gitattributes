@@ -1,43 +1,26 @@
-# Git Attributes for AgTools Professional Crop Consulting System
+# Git Attributes for AgTools
+# Handles line endings, language detection, and file type classification
 
-# Auto detect text files and normalize line endings to LF
+# =============================================================================
+# LINE ENDING NORMALIZATION
+# =============================================================================
+
+# Auto-detect text files and normalize to LF
 * text=auto
 
-# Python files
+# Source code - always LF
 *.py text eol=lf
 *.pyi text eol=lf
-
-# JavaScript files
 *.js text eol=lf
 *.jsx text eol=lf
 *.ts text eol=lf
 *.tsx text eol=lf
-
-# JSON files
 *.json text eol=lf
-
-# SQL files
 *.sql text eol=lf
-
-# Markdown files
 *.md text eol=lf
-
-# Shell scripts
 *.sh text eol=lf
-
-# F# files
-*.fs text eol=lf
-*.fsx text eol=lf
-*.fsi text eol=lf
-*.fsproj text eol=lf
-
-# HTML/Template files
 *.html text eol=lf
 *.htm text eol=lf
-*.jinja text eol=lf
-*.jinja2 text eol=lf
-
-# CSS files
 *.css text eol=lf
 *.scss text eol=lf
 *.less text eol=lf
@@ -48,32 +31,44 @@
 *.toml text eol=lf
 *.ini text eol=lf
 *.cfg text eol=lf
+*.env text eol=lf
 
-# Gherkin feature files (BDD tests)
+# Templates
+*.jinja text eol=lf
+*.jinja2 text eol=lf
+
+# Data files
+*.csv text eol=lf
 *.feature text eol=lf
 
-# CSV files (treat as text)
-*.csv text eol=lf
-
-# Requirements files
+# Build/dependency files
 requirements*.txt text eol=lf
-
-# Docker files
 Dockerfile text eol=lf
 *.dockerfile text eol=lf
 
-# Binary files
+# =============================================================================
+# BINARY FILES
+# =============================================================================
+
+# Images
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
 *.ico binary
 *.svg binary
+*.webp binary
+*.bmp binary
+
+# Machine learning models
 *.h5 binary
 *.pkl binary
 *.joblib binary
 *.npy binary
 *.npz binary
+*.pt binary
+*.pth binary
+*.onnx binary
 
 # Archives
 *.zip binary
@@ -81,114 +76,106 @@ Dockerfile text eol=lf
 *.gz binary
 *.tgz binary
 *.rar binary
+*.7z binary
 
-# Python bytecode should not be in repo
+# Database files
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Office documents
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+
+# Python bytecode (should be gitignored, but just in case)
 *.pyc binary
 *.pyo binary
 *.pyd binary
 
-# GitHub linguist overrides (for repository language detection)
-# SHOW ALL LANGUAGES in stats
+# =============================================================================
+# GITHUB LINGUIST - LANGUAGE DETECTION
+# =============================================================================
 
-# Markdown - show in language stats
-*.md linguist-detectable=true
-
-# License file - keep visible
-LICENSE linguist-detectable=true
-
-# Config files - show in stats
-.gitignore linguist-detectable=true
-*.ini linguist-detectable=true
-requirements*.txt linguist-detectable=true
-pytest.ini linguist-detectable=true
-manifest.json linguist-detectable=true
-
-# Database files should be detected as SQL
-*.sql linguist-detectable
-
-# HTML templates - detect as HTML
-*.html linguist-detectable
-
-# CSS files - detect as CSS
-*.css linguist-detectable
-
-# JavaScript files - detect as JavaScript
-*.js linguist-detectable
-
-# JSON files (except manifest) - mark as generated
-backend/static/manifest.json linguist-generated
-tests/*.json linguist-generated
-
-# Core application code - NOT vendored
-database/* linguist-vendored=false
-backend/* linguist-vendored=false
-backend/services/* linguist-vendored=false
-backend/middleware/* linguist-vendored=false
-backend/mobile/* linguist-vendored=false
-backend/templates/* linguist-vendored=false
-backend/static/* linguist-vendored=false
-frontend/* linguist-vendored=false
-frontend/ui/* linguist-vendored=false
-frontend/api/* linguist-vendored=false
-src/* linguist-vendored=false
-
-# Python is the primary language
+# Primary language: Python
+*.py linguist-language=Python
 *.py linguist-detectable=true
+*.pyw linguist-language=Python
 
-# Ensure all Python modules are counted
-backend/**/*.py linguist-detectable=true
-frontend/**/*.py linguist-detectable=true
-database/*.py linguist-detectable=true
-tests/*.py linguist-detectable=true
+# Backend code - not vendored (count in stats)
+backend/*.py linguist-vendored=false
+backend/**/*.py linguist-vendored=false
+frontend/*.py linguist-vendored=false
+frontend/**/*.py linguist-vendored=false
+database/*.py linguist-vendored=false
+tests/*.py linguist-vendored=false
 
-# Markdown files - SHOW in language stats (linguist-detectable)
+# Documentation - show in language stats
 *.md linguist-detectable=true
-docs/*.md linguist-detectable=true
-docs/**/*.md linguist-detectable=true
-tests/*.md linguist-detectable=true
 README.md linguist-detectable=true
 CHANGELOG.md linguist-detectable=true
+docs/*.md linguist-detectable=true
+docs/**/*.md linguist-detectable=true
 
-# Gherkin feature files - show in language stats as Gherkin
+# SQL files
+*.sql linguist-language=SQL
+*.sql linguist-detectable=true
+
+# HTML templates
+*.html linguist-language=HTML
+*.html linguist-detectable=true
+
+# CSS stylesheets
+*.css linguist-language=CSS
+*.css linguist-detectable=true
+
+# JavaScript
+*.js linguist-language=JavaScript
+*.js linguist-detectable=true
+
+# JSON - config files are generated, others are not
+backend/static/manifest.json linguist-generated=true
+tests/*.json linguist-generated=true
+*.json linguist-detectable=true
+
+# Gherkin feature files (BDD tests)
 *.feature linguist-language=Gherkin
 *.feature linguist-detectable=true
-tests/features/*.feature linguist-language=Gherkin
-tests/features/*.feature linguist-detectable=true
 
-# All services should be detected as Python
-backend/services/*.py linguist-language=Python
-backend/services/*.py linguist-detectable=true
+# Configuration files - show in stats
+.gitignore linguist-detectable=true
+requirements*.txt linguist-detectable=true
+pytest.ini linguist-detectable=true
+LICENSE linguist-detectable=true
 
-# Frontend screens should be detected as Python
-frontend/ui/screens/*.py linguist-language=Python
-frontend/ui/screens/*.py linguist-detectable=true
+# =============================================================================
+# GENERATED/VENDORED EXCLUSIONS
+# =============================================================================
 
-# F# files - show in language stats
-*.fs linguist-language="F#"
-*.fs linguist-detectable=true
-*.fs linguist-vendored=false
-*.fsx linguist-language="F#"
-*.fsx linguist-detectable=true
-*.fsx linguist-vendored=false
-*.fsi linguist-language="F#"
-*.fsi linguist-detectable=true
-pipeline.fsx linguist-language="F#"
-pipeline.fsx linguist-detectable=true
-pipeline.fsx linguist-vendored=false
+# Mark generated files
+build/** linguist-generated=true
+dist/** linguist-generated=true
+*.min.js linguist-generated=true
+*.min.css linguist-generated=true
 
-# Python Windows scripts - detect as Python
-*.pyw linguist-language=Python
-*.pyw linguist-detectable=true
-start_agtools.pyw linguist-language=Python
+# Environment files are config, not code
+.env* linguist-generated=true
 
-# Batch files - detect as Batchfile (or mark as generated to hide)
+# Batch/shell scripts for Windows - mark as generated (utility scripts)
 *.bat linguist-generated=true
 *.cmd linguist-generated=true
 
-# Environment files - mark as generated (config, not code)
-.env* linguist-generated=true
-*.env linguist-generated=true
+# =============================================================================
+# DIFF AND MERGE
+# =============================================================================
 
-# Build artifacts - mark as generated
-build/** linguist-generated=true
-dist/** linguist-generated=true
+# Use union merge for requirements files
+requirements*.txt merge=union
+
+# Lock files should not be manually merged
+*.lock binary
+
+# Database schemas - use text diff
+*.sql diff=sql
