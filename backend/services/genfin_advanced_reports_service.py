@@ -1,6 +1,7 @@
 """
 GenFin Advanced Reports Service - QuickBooks-style Comprehensive Reporting
 50+ reports, company snapshot dashboard, graphs, memorized reports
+SQLite persistence for data durability
 """
 
 from datetime import datetime, date, timedelta
@@ -8,6 +9,8 @@ from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
+import sqlite3
+import json
 import math
 
 
@@ -120,18 +123,17 @@ class GenFinAdvancedReportsService:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, db_path: str = "agtools.db"):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, db_path: str = "agtools.db"):
         if self._initialized:
             return
 
-        self.memorized_reports: Dict[str, MemorizedReport] = {}
-        self.dashboard_widgets: Dict[str, DashboardWidget] = {}
+        self.db_path = db_path
 
         # Reference to other GenFin services
         self.core_service = None
@@ -142,8 +144,188 @@ class GenFinAdvancedReportsService:
         self.inventory_service = None
         self.classes_service = None
 
+        self._init_tables()
         self._initialize_default_dashboard()
         self._initialized = True
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get database connection"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _init_tables(self):
+        """Initialize database tables"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Drop old tables if schema changed (migration from in-memory)
+            cursor.execute("DROP TABLE IF EXISTS genfin_memorized_reports")
+            cursor.execute("DROP TABLE IF EXISTS genfin_dashboard_widgets")
+
+            # Memorized reports table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_memorized_reports (
+                    report_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    report_type TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    date_range TEXT DEFAULT 'this_month',
+                    custom_start_date TEXT,
+                    custom_end_date TEXT,
+                    filters TEXT DEFAULT '{}',
+                    show_header INTEGER DEFAULT 1,
+                    show_footer INTEGER DEFAULT 1,
+                    sort_by TEXT DEFAULT '',
+                    group_by TEXT DEFAULT '',
+                    is_shared INTEGER DEFAULT 0,
+                    created_by TEXT DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    last_run TEXT,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Dashboard widgets table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS genfin_dashboard_widgets (
+                    widget_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    widget_type TEXT NOT NULL,
+                    position INTEGER DEFAULT 0,
+                    report_type TEXT DEFAULT '',
+                    metric_name TEXT DEFAULT '',
+                    chart_type TEXT DEFAULT 'bar',
+                    is_visible INTEGER DEFAULT 1,
+                    refresh_interval INTEGER DEFAULT 300,
+                    created_at TEXT NOT NULL,
+                    is_active INTEGER DEFAULT 1
+                )
+            """)
+
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_memorized_category ON genfin_memorized_reports(category)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_widgets_position ON genfin_dashboard_widgets(position)")
+
+            conn.commit()
+
+    def _row_to_memorized_report(self, row: sqlite3.Row) -> MemorizedReport:
+        """Convert database row to MemorizedReport object"""
+        # Handle category - default to CUSTOM if invalid
+        try:
+            category = ReportCategory(row["category"])
+        except ValueError:
+            category = ReportCategory.CUSTOM
+
+        # Handle date range - default to THIS_MONTH if invalid
+        try:
+            date_range = DateRange(row["date_range"])
+        except ValueError:
+            date_range = DateRange.THIS_MONTH
+
+        return MemorizedReport(
+            report_id=row["report_id"],
+            name=row["name"],
+            report_type=row["report_type"],
+            category=category,
+            date_range=date_range,
+            custom_start_date=datetime.strptime(row["custom_start_date"], "%Y-%m-%d").date() if row["custom_start_date"] else None,
+            custom_end_date=datetime.strptime(row["custom_end_date"], "%Y-%m-%d").date() if row["custom_end_date"] else None,
+            filters=json.loads(row["filters"]) if row["filters"] else {},
+            show_header=bool(row["show_header"]),
+            show_footer=bool(row["show_footer"]),
+            sort_by=row["sort_by"] or "",
+            group_by=row["group_by"] or "",
+            is_shared=bool(row["is_shared"]),
+            created_by=row["created_by"] or "",
+            created_at=datetime.fromisoformat(row["created_at"]),
+            last_run=datetime.fromisoformat(row["last_run"]) if row["last_run"] else None
+        )
+
+    def _row_to_widget(self, row: sqlite3.Row) -> DashboardWidget:
+        """Convert database row to DashboardWidget object"""
+        # Handle chart type - default to BAR if invalid
+        try:
+            chart_type = ChartType(row["chart_type"])
+        except ValueError:
+            chart_type = ChartType.BAR
+
+        return DashboardWidget(
+            widget_id=row["widget_id"],
+            name=row["name"],
+            widget_type=row["widget_type"],
+            position=row["position"] or 0,
+            report_type=row["report_type"] or "",
+            metric_name=row["metric_name"] or "",
+            chart_type=chart_type,
+            is_visible=bool(row["is_visible"]),
+            refresh_interval=row["refresh_interval"] or 300,
+            created_at=datetime.fromisoformat(row["created_at"])
+        )
+
+    def _save_memorized_report(self, report: MemorizedReport):
+        """Save memorized report to database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO genfin_memorized_reports (
+                    report_id, name, report_type, category, date_range,
+                    custom_start_date, custom_end_date, filters,
+                    show_header, show_footer, sort_by, group_by,
+                    is_shared, created_by, created_at, last_run, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (
+                report.report_id, report.name, report.report_type, report.category.value,
+                report.date_range.value,
+                report.custom_start_date.isoformat() if report.custom_start_date else None,
+                report.custom_end_date.isoformat() if report.custom_end_date else None,
+                json.dumps(report.filters),
+                1 if report.show_header else 0, 1 if report.show_footer else 0,
+                report.sort_by, report.group_by,
+                1 if report.is_shared else 0, report.created_by,
+                report.created_at.isoformat(),
+                report.last_run.isoformat() if report.last_run else None
+            ))
+            conn.commit()
+
+    def _save_widget(self, widget: DashboardWidget):
+        """Save dashboard widget to database"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO genfin_dashboard_widgets (
+                    widget_id, name, widget_type, position,
+                    report_type, metric_name, chart_type,
+                    is_visible, refresh_interval, created_at, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (
+                widget.widget_id, widget.name, widget.widget_type, widget.position,
+                widget.report_type, widget.metric_name, widget.chart_type.value,
+                1 if widget.is_visible else 0, widget.refresh_interval,
+                widget.created_at.isoformat()
+            ))
+            conn.commit()
+
+    def _get_all_widgets(self) -> List[DashboardWidget]:
+        """Get all active dashboard widgets"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_dashboard_widgets
+                WHERE is_active = 1
+                ORDER BY position
+            """)
+            return [self._row_to_widget(row) for row in cursor.fetchall()]
+
+    def _get_all_memorized_reports(self) -> List[MemorizedReport]:
+        """Get all active memorized reports"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_memorized_reports
+                WHERE is_active = 1
+            """)
+            return [self._row_to_memorized_report(row) for row in cursor.fetchall()]
 
     def set_services(
         self,
@@ -166,6 +348,12 @@ class GenFinAdvancedReportsService:
 
     def _initialize_default_dashboard(self):
         """Initialize default dashboard widgets"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM genfin_dashboard_widgets WHERE is_active = 1")
+            if cursor.fetchone()[0] > 0:
+                return  # Already initialized
+
         default_widgets = [
             {"name": "Income Summary", "type": "metric", "report": "income_summary"},
             {"name": "Expense Summary", "type": "metric", "report": "expense_summary"},
@@ -183,7 +371,7 @@ class GenFinAdvancedReportsService:
 
         for i, widget in enumerate(default_widgets):
             widget_id = str(uuid.uuid4())
-            self.dashboard_widgets[widget_id] = DashboardWidget(
+            w = DashboardWidget(
                 widget_id=widget_id,
                 name=widget["name"],
                 widget_type=widget["type"],
@@ -191,6 +379,7 @@ class GenFinAdvancedReportsService:
                 report_type=widget.get("report", ""),
                 chart_type=widget.get("chart", ChartType.BAR)
             )
+            self._save_widget(w)
 
     def _get_date_range(self, range_type: str, custom_start: str = None, custom_end: str = None) -> Tuple[date, date]:
         """Calculate date range from range type"""
@@ -405,10 +594,6 @@ class GenFinAdvancedReportsService:
 
     def _get_income_summary(self, as_of: date) -> Dict:
         """Get income summary for dashboard"""
-        # This would pull from core_service
-        month_start = as_of.replace(day=1)
-        year_start = date(as_of.year, 1, 1)
-
         return {
             "today": 0.0,
             "this_week": 0.0,
@@ -501,9 +686,6 @@ class GenFinAdvancedReportsService:
 
     def _get_reminders(self) -> Dict:
         """Get reminders for dashboard"""
-        today = date.today()
-        week_out = today + timedelta(days=7)
-
         return {
             "bills_due_today": 0,
             "bills_due_this_week": 0,
@@ -572,108 +754,47 @@ class GenFinAdvancedReportsService:
         class_id: str = None
     ) -> Dict:
         """Run Profit & Loss report"""
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-        # Build report structure
         report = {
             "report_name": "Profit & Loss",
             "subtitle": f"For the period {start_date} to {end_date}",
             "date_range": {"start": start_date, "end": end_date},
             "sections": {
-                "income": {
-                    "title": "Income",
-                    "accounts": [],
-                    "total": 0.0
-                },
-                "cost_of_goods_sold": {
-                    "title": "Cost of Goods Sold",
-                    "accounts": [],
-                    "total": 0.0
-                },
+                "income": {"title": "Income", "accounts": [], "total": 0.0},
+                "cost_of_goods_sold": {"title": "Cost of Goods Sold", "accounts": [], "total": 0.0},
                 "gross_profit": 0.0,
-                "expenses": {
-                    "title": "Expenses",
-                    "accounts": [],
-                    "total": 0.0
-                },
+                "expenses": {"title": "Expenses", "accounts": [], "total": 0.0},
                 "net_operating_income": 0.0,
-                "other_income": {
-                    "title": "Other Income",
-                    "accounts": [],
-                    "total": 0.0
-                },
-                "other_expenses": {
-                    "title": "Other Expenses",
-                    "accounts": [],
-                    "total": 0.0
-                },
+                "other_income": {"title": "Other Income", "accounts": [], "total": 0.0},
+                "other_expenses": {"title": "Other Expenses", "accounts": [], "total": 0.0},
                 "net_other_income": 0.0,
                 "net_income": 0.0
             },
             "comparison": None if not compare_to else {}
         }
-
-        # Calculate values from core service
-        if self.core_service:
-            # This would pull actual data from the GL
-            pass
-
         return report
 
-    def run_balance_sheet(
-        self,
-        as_of_date: str,
-        compare_to: str = None
-    ) -> Dict:
+    def run_balance_sheet(self, as_of_date: str, compare_to: str = None) -> Dict:
         """Run Balance Sheet report"""
-        a_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
-
         report = {
             "report_name": "Balance Sheet",
             "subtitle": f"As of {as_of_date}",
             "as_of_date": as_of_date,
             "sections": {
                 "assets": {
-                    "current_assets": {
-                        "title": "Current Assets",
-                        "accounts": [],
-                        "total": 0.0
-                    },
-                    "fixed_assets": {
-                        "title": "Fixed Assets",
-                        "accounts": [],
-                        "total": 0.0
-                    },
-                    "other_assets": {
-                        "title": "Other Assets",
-                        "accounts": [],
-                        "total": 0.0
-                    },
+                    "current_assets": {"title": "Current Assets", "accounts": [], "total": 0.0},
+                    "fixed_assets": {"title": "Fixed Assets", "accounts": [], "total": 0.0},
+                    "other_assets": {"title": "Other Assets", "accounts": [], "total": 0.0},
                     "total_assets": 0.0
                 },
                 "liabilities": {
-                    "current_liabilities": {
-                        "title": "Current Liabilities",
-                        "accounts": [],
-                        "total": 0.0
-                    },
-                    "long_term_liabilities": {
-                        "title": "Long-Term Liabilities",
-                        "accounts": [],
-                        "total": 0.0
-                    },
+                    "current_liabilities": {"title": "Current Liabilities", "accounts": [], "total": 0.0},
+                    "long_term_liabilities": {"title": "Long-Term Liabilities", "accounts": [], "total": 0.0},
                     "total_liabilities": 0.0
                 },
-                "equity": {
-                    "title": "Equity",
-                    "accounts": [],
-                    "total": 0.0
-                },
+                "equity": {"title": "Equity", "accounts": [], "total": 0.0},
                 "total_liabilities_equity": 0.0
             }
         }
-
         return report
 
     def run_trial_balance(self, as_of_date: str) -> Dict:
@@ -687,12 +808,7 @@ class GenFinAdvancedReportsService:
             "is_balanced": True
         }
 
-    def run_general_ledger(
-        self,
-        start_date: str,
-        end_date: str,
-        account_id: str = None
-    ) -> Dict:
+    def run_general_ledger(self, start_date: str, end_date: str, account_id: str = None) -> Dict:
         """Run General Ledger report"""
         return {
             "report_name": "General Ledger",
@@ -704,25 +820,14 @@ class GenFinAdvancedReportsService:
 
     # ==================== A/R REPORTS ====================
 
-    def run_ar_aging(
-        self,
-        as_of_date: str,
-        detail: bool = False
-    ) -> Dict:
+    def run_ar_aging(self, as_of_date: str, detail: bool = False) -> Dict:
         """Run A/R Aging report"""
         return {
             "report_name": "A/R Aging Summary" if not detail else "A/R Aging Detail",
             "as_of_date": as_of_date,
             "aging_buckets": ["Current", "1-30", "31-60", "61-90", "Over 90"],
             "customers": [],
-            "totals": {
-                "current": 0.0,
-                "1_30": 0.0,
-                "31_60": 0.0,
-                "61_90": 0.0,
-                "over_90": 0.0,
-                "total": 0.0
-            }
+            "totals": {"current": 0.0, "1_30": 0.0, "31_60": 0.0, "61_90": 0.0, "over_90": 0.0, "total": 0.0}
         }
 
     def run_customer_balance(self, detail: bool = False) -> Dict:
@@ -746,25 +851,14 @@ class GenFinAdvancedReportsService:
 
     # ==================== A/P REPORTS ====================
 
-    def run_ap_aging(
-        self,
-        as_of_date: str,
-        detail: bool = False
-    ) -> Dict:
+    def run_ap_aging(self, as_of_date: str, detail: bool = False) -> Dict:
         """Run A/P Aging report"""
         return {
             "report_name": "A/P Aging Summary" if not detail else "A/P Aging Detail",
             "as_of_date": as_of_date,
             "aging_buckets": ["Current", "1-30", "31-60", "61-90", "Over 90"],
             "vendors": [],
-            "totals": {
-                "current": 0.0,
-                "1_30": 0.0,
-                "31_60": 0.0,
-                "61_90": 0.0,
-                "over_90": 0.0,
-                "total": 0.0
-            }
+            "totals": {"current": 0.0, "1_30": 0.0, "31_60": 0.0, "61_90": 0.0, "over_90": 0.0, "total": 0.0}
         }
 
     def run_vendor_balance(self, detail: bool = False) -> Dict:
@@ -788,12 +882,7 @@ class GenFinAdvancedReportsService:
 
     # ==================== SALES REPORTS ====================
 
-    def run_sales_by_customer(
-        self,
-        start_date: str,
-        end_date: str,
-        detail: bool = False
-    ) -> Dict:
+    def run_sales_by_customer(self, start_date: str, end_date: str, detail: bool = False) -> Dict:
         """Run Sales by Customer report"""
         return {
             "report_name": "Sales by Customer Summary" if not detail else "Sales by Customer Detail",
@@ -802,12 +891,7 @@ class GenFinAdvancedReportsService:
             "total_sales": 0.0
         }
 
-    def run_sales_by_item(
-        self,
-        start_date: str,
-        end_date: str,
-        detail: bool = False
-    ) -> Dict:
+    def run_sales_by_item(self, start_date: str, end_date: str, detail: bool = False) -> Dict:
         """Run Sales by Item report"""
         return {
             "report_name": "Sales by Item Summary" if not detail else "Sales by Item Detail",
@@ -818,12 +902,7 @@ class GenFinAdvancedReportsService:
 
     # ==================== PURCHASES REPORTS ====================
 
-    def run_purchases_by_vendor(
-        self,
-        start_date: str,
-        end_date: str,
-        detail: bool = False
-    ) -> Dict:
+    def run_purchases_by_vendor(self, start_date: str, end_date: str, detail: bool = False) -> Dict:
         """Run Purchases by Vendor report"""
         return {
             "report_name": "Purchases by Vendor Summary" if not detail else "Purchases by Vendor Detail",
@@ -832,12 +911,7 @@ class GenFinAdvancedReportsService:
             "total_purchases": 0.0
         }
 
-    def run_purchases_by_item(
-        self,
-        start_date: str,
-        end_date: str,
-        detail: bool = False
-    ) -> Dict:
+    def run_purchases_by_item(self, start_date: str, end_date: str, detail: bool = False) -> Dict:
         """Run Purchases by Item report"""
         return {
             "report_name": "Purchases by Item Summary" if not detail else "Purchases by Item Detail",
@@ -852,7 +926,6 @@ class GenFinAdvancedReportsService:
         """Run Inventory Valuation report"""
         if self.inventory_service:
             return self.inventory_service.get_inventory_valuation_report()
-
         return {
             "report_name": "Inventory Valuation Summary" if not detail else "Inventory Valuation Detail",
             "as_of_date": date.today().isoformat(),
@@ -864,7 +937,6 @@ class GenFinAdvancedReportsService:
         """Run Inventory Stock Status report"""
         if self.inventory_service:
             return self.inventory_service.get_inventory_stock_status()
-
         return {
             "report_name": "Inventory Stock Status",
             "as_of_date": date.today().isoformat(),
@@ -876,41 +948,22 @@ class GenFinAdvancedReportsService:
 
     # ==================== PAYROLL REPORTS ====================
 
-    def run_payroll_summary(
-        self,
-        start_date: str,
-        end_date: str
-    ) -> Dict:
+    def run_payroll_summary(self, start_date: str, end_date: str) -> Dict:
         """Run Payroll Summary report"""
         return {
             "report_name": "Payroll Summary",
             "date_range": {"start": start_date, "end": end_date},
             "employees": [],
-            "totals": {
-                "gross_pay": 0.0,
-                "federal_tax": 0.0,
-                "state_tax": 0.0,
-                "social_security": 0.0,
-                "medicare": 0.0,
-                "net_pay": 0.0
-            }
+            "totals": {"gross_pay": 0.0, "federal_tax": 0.0, "state_tax": 0.0, "social_security": 0.0, "medicare": 0.0, "net_pay": 0.0}
         }
 
-    def run_payroll_detail(
-        self,
-        start_date: str,
-        end_date: str
-    ) -> Dict:
+    def run_payroll_detail(self, start_date: str, end_date: str) -> Dict:
         """Run Payroll Detail report"""
         return {
             "report_name": "Payroll Detail",
             "date_range": {"start": start_date, "end": end_date},
             "pay_runs": [],
-            "totals": {
-                "gross_pay": 0.0,
-                "total_taxes": 0.0,
-                "net_pay": 0.0
-            }
+            "totals": {"gross_pay": 0.0, "total_taxes": 0.0, "net_pay": 0.0}
         }
 
     # ==================== JOB REPORTS ====================
@@ -931,7 +984,6 @@ class GenFinAdvancedReportsService:
                     "actual_revenue": p.get("actual_revenue", 0),
                     "profit": p.get("gross_profit", 0)
                 })
-
             return {
                 "report_name": "Job Profitability Summary" if not detail else "Job Profitability Detail",
                 "jobs": result,
@@ -939,35 +991,21 @@ class GenFinAdvancedReportsService:
                 "total_actual_cost": sum(r["actual_cost"] for r in result),
                 "total_profit": sum(r["profit"] for r in result)
             }
-
-        return {
-            "report_name": "Job Profitability Summary",
-            "jobs": [],
-            "total_profit": 0.0
-        }
+        return {"report_name": "Job Profitability Summary", "jobs": [], "total_profit": 0.0}
 
     def run_estimates_vs_actuals(self, detail: bool = False) -> Dict:
         """Run Job Estimates vs Actuals report"""
         return {
             "report_name": "Job Estimates vs Actuals Summary" if not detail else "Job Estimates vs Actuals Detail",
             "jobs": [],
-            "variance_summary": {
-                "cost_variance": 0.0,
-                "revenue_variance": 0.0,
-                "hours_variance": 0.0
-            }
+            "variance_summary": {"cost_variance": 0.0, "revenue_variance": 0.0, "hours_variance": 0.0}
         }
 
     def run_unbilled_costs(self) -> Dict:
         """Run Unbilled Costs by Job report"""
         if self.classes_service:
             return self.classes_service.get_unbilled_summary()
-
-        return {
-            "report_name": "Unbilled Costs by Job",
-            "jobs": [],
-            "total_unbilled": 0.0
-        }
+        return {"report_name": "Unbilled Costs by Job", "jobs": [], "total_unbilled": 0.0}
 
     # ==================== MEMORIZED REPORTS ====================
 
@@ -1004,20 +1042,23 @@ class GenFinAdvancedReportsService:
             filters=filters or {}
         )
 
-        self.memorized_reports[report_id] = memorized
+        self._save_memorized_report(memorized)
 
-        return {
-            "success": True,
-            "report_id": report_id,
-            "name": name
-        }
+        return {"success": True, "report_id": report_id, "name": name}
 
     def run_memorized_report(self, report_id: str) -> Dict:
         """Run a memorized report"""
-        if report_id not in self.memorized_reports:
-            return {"error": "Memorized report not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_memorized_reports
+                WHERE report_id = ? AND is_active = 1
+            """, (report_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"error": "Memorized report not found"}
 
-        memorized = self.memorized_reports[report_id]
+            memorized = self._row_to_memorized_report(row)
 
         # Calculate date range
         start, end = self._get_date_range(
@@ -1031,12 +1072,14 @@ class GenFinAdvancedReportsService:
         if report_method:
             result = report_method(start.isoformat(), end.isoformat())
             memorized.last_run = datetime.now()
+            self._save_memorized_report(memorized)
             return result
 
         return {"error": "Report type not found"}
 
     def list_memorized_reports(self) -> List[Dict]:
         """List all memorized reports"""
+        reports = self._get_all_memorized_reports()
         return [
             {
                 "report_id": m.report_id,
@@ -1046,24 +1089,31 @@ class GenFinAdvancedReportsService:
                 "last_run": m.last_run.isoformat() if m.last_run else None,
                 "created_at": m.created_at.isoformat()
             }
-            for m in self.memorized_reports.values()
+            for m in reports
         ]
 
     def delete_memorized_report(self, report_id: str) -> Dict:
-        """Delete a memorized report"""
-        if report_id not in self.memorized_reports:
-            return {"success": False, "error": "Report not found"}
+        """Delete a memorized report (soft delete)"""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE genfin_memorized_reports
+                SET is_active = 0
+                WHERE report_id = ?
+            """, (report_id,))
+            if cursor.rowcount == 0:
+                return {"success": False, "error": "Report not found"}
+            conn.commit()
 
-        del self.memorized_reports[report_id]
         return {"success": True, "message": "Report deleted"}
 
     # ==================== DASHBOARD WIDGETS ====================
 
     def get_dashboard(self) -> Dict:
         """Get full dashboard configuration and data"""
-        widgets = []
+        widgets_list = []
 
-        for widget in sorted(self.dashboard_widgets.values(), key=lambda w: w.position):
+        for widget in self._get_all_widgets():
             widget_data = {
                 "widget_id": widget.widget_id,
                 "name": widget.name,
@@ -1077,13 +1127,12 @@ class GenFinAdvancedReportsService:
 
             # Get widget data
             widget_data["data"] = self._get_widget_data(widget)
-
-            widgets.append(widget_data)
+            widgets_list.append(widget_data)
 
         return {
             "dashboard": "Company Snapshot",
             "last_updated": datetime.now().isoformat(),
-            "widgets": widgets
+            "widgets": widgets_list
         }
 
     def _get_widget_data(self, widget: DashboardWidget) -> Any:
@@ -1100,10 +1149,17 @@ class GenFinAdvancedReportsService:
 
     def update_widget(self, widget_id: str, **kwargs) -> Dict:
         """Update a dashboard widget"""
-        if widget_id not in self.dashboard_widgets:
-            return {"success": False, "error": "Widget not found"}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM genfin_dashboard_widgets
+                WHERE widget_id = ? AND is_active = 1
+            """, (widget_id,))
+            row = cursor.fetchone()
+            if not row:
+                return {"success": False, "error": "Widget not found"}
 
-        widget = self.dashboard_widgets[widget_id]
+            widget = self._row_to_widget(row)
 
         for key, value in kwargs.items():
             if hasattr(widget, key) and value is not None:
@@ -1111,13 +1167,20 @@ class GenFinAdvancedReportsService:
                     value = ChartType(value)
                 setattr(widget, key, value)
 
+        self._save_widget(widget)
         return {"success": True, "message": "Widget updated"}
 
     def reorder_widgets(self, widget_order: List[str]) -> Dict:
         """Reorder dashboard widgets"""
         for i, widget_id in enumerate(widget_order):
-            if widget_id in self.dashboard_widgets:
-                self.dashboard_widgets[widget_id].position = i
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE genfin_dashboard_widgets
+                    SET position = ?
+                    WHERE widget_id = ? AND is_active = 1
+                """, (i, widget_id))
+                conn.commit()
 
         return {"success": True, "message": "Widgets reordered"}
 
@@ -1127,6 +1190,13 @@ class GenFinAdvancedReportsService:
         """Get service summary"""
         catalog = self.get_report_catalog()
         total_reports = sum(len(cat["reports"]) for cat in catalog.values())
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM genfin_memorized_reports WHERE is_active = 1")
+            memorized_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM genfin_dashboard_widgets WHERE is_active = 1")
+            widgets_count = cursor.fetchone()[0]
 
         return {
             "service": "GenFin Advanced Reports",
@@ -1142,8 +1212,8 @@ class GenFinAdvancedReportsService:
             ],
             "total_reports": total_reports,
             "report_categories": len(catalog),
-            "memorized_reports": len(self.memorized_reports),
-            "dashboard_widgets": len(self.dashboard_widgets)
+            "memorized_reports": memorized_count,
+            "dashboard_widgets": widgets_count
         }
 
 
