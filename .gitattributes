@@ -11,6 +11,7 @@
 # Source code - always LF
 *.py text eol=lf
 *.pyi text eol=lf
+*.pyw text eol=lf
 *.js text eol=lf
 *.jsx text eol=lf
 *.ts text eol=lf
@@ -24,6 +25,14 @@
 *.css text eol=lf
 *.scss text eol=lf
 *.less text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# F# files
+*.fs text eol=lf
+*.fsx text eol=lf
+*.fsi text eol=lf
+*.fsproj text eol=lf
 
 # Configuration files
 *.yml text eol=lf
@@ -95,77 +104,124 @@ Dockerfile text eol=lf
 *.pyo binary
 *.pyd binary
 
+# Lock files
+*.lock binary
+
 # =============================================================================
-# GITHUB LINGUIST - LANGUAGE DETECTION
+# GITHUB LINGUIST - LANGUAGE DETECTION (ALL DETECTABLE)
 # =============================================================================
 
-# Primary language: Python
+# Python - primary language
 *.py linguist-language=Python
 *.py linguist-detectable=true
+*.py linguist-vendored=false
+*.pyi linguist-language=Python
+*.pyi linguist-detectable=true
 *.pyw linguist-language=Python
+*.pyw linguist-detectable=true
 
-# Backend code - not vendored (count in stats)
-backend/*.py linguist-vendored=false
-backend/**/*.py linguist-vendored=false
-frontend/*.py linguist-vendored=false
-frontend/**/*.py linguist-vendored=false
-database/*.py linguist-vendored=false
-tests/*.py linguist-vendored=false
+# F# - detectable
+*.fs linguist-language=F#
+*.fs linguist-detectable=true
+*.fs linguist-vendored=false
+*.fsx linguist-language=F#
+*.fsx linguist-detectable=true
+*.fsx linguist-vendored=false
+*.fsi linguist-language=F#
+*.fsi linguist-detectable=true
+*.fsproj linguist-detectable=true
 
-# Documentation - show in language stats
+# Markdown - detectable
+*.md linguist-language=Markdown
 *.md linguist-detectable=true
+*.md linguist-vendored=false
 README.md linguist-detectable=true
 CHANGELOG.md linguist-detectable=true
-docs/*.md linguist-detectable=true
-docs/**/*.md linguist-detectable=true
+LICENSE linguist-detectable=true
 
-# SQL files
+# SQL - detectable
 *.sql linguist-language=SQL
 *.sql linguist-detectable=true
 
-# HTML templates
+# HTML - detectable
 *.html linguist-language=HTML
 *.html linguist-detectable=true
+*.htm linguist-language=HTML
+*.htm linguist-detectable=true
 
-# CSS stylesheets
+# CSS - detectable
 *.css linguist-language=CSS
 *.css linguist-detectable=true
+*.scss linguist-language=SCSS
+*.scss linguist-detectable=true
+*.less linguist-language=Less
+*.less linguist-detectable=true
 
-# JavaScript
+# JavaScript - detectable
 *.js linguist-language=JavaScript
 *.js linguist-detectable=true
+*.jsx linguist-language=JavaScript
+*.jsx linguist-detectable=true
 
-# JSON - config files are generated, others are not
-backend/static/manifest.json linguist-generated=true
-tests/*.json linguist-generated=true
+# TypeScript - detectable
+*.ts linguist-language=TypeScript
+*.ts linguist-detectable=true
+*.tsx linguist-language=TypeScript
+*.tsx linguist-detectable=true
+
+# JSON - detectable
+*.json linguist-language=JSON
 *.json linguist-detectable=true
 
-# Gherkin feature files (BDD tests)
+# YAML - detectable
+*.yml linguist-language=YAML
+*.yml linguist-detectable=true
+*.yaml linguist-language=YAML
+*.yaml linguist-detectable=true
+
+# Gherkin/Cucumber - detectable
 *.feature linguist-language=Gherkin
 *.feature linguist-detectable=true
 
-# Configuration files - show in stats
+# Shell scripts - detectable
+*.sh linguist-language=Shell
+*.sh linguist-detectable=true
+
+# Batch files - detectable
+*.bat linguist-language=Batchfile
+*.bat linguist-detectable=true
+*.cmd linguist-language=Batchfile
+*.cmd linguist-detectable=true
+
+# Configuration files - detectable
+*.ini linguist-detectable=true
+*.toml linguist-detectable=true
+*.cfg linguist-detectable=true
 .gitignore linguist-detectable=true
+.gitattributes linguist-detectable=true
 requirements*.txt linguist-detectable=true
 pytest.ini linguist-detectable=true
-LICENSE linguist-detectable=true
+Dockerfile linguist-detectable=true
+
+# Jinja templates - detectable
+*.jinja linguist-language=Jinja
+*.jinja linguist-detectable=true
+*.jinja2 linguist-language=Jinja
+*.jinja2 linguist-detectable=true
 
 # =============================================================================
-# GENERATED/VENDORED EXCLUSIONS
+# NOT VENDORED - COUNT ALL PROJECT CODE
 # =============================================================================
 
-# Mark generated files
-build/** linguist-generated=true
-dist/** linguist-generated=true
-*.min.js linguist-generated=true
-*.min.css linguist-generated=true
-
-# Environment files are config, not code
-.env* linguist-generated=true
-
-# Batch/shell scripts for Windows - mark as generated (utility scripts)
-*.bat linguist-generated=true
-*.cmd linguist-generated=true
+backend/* linguist-vendored=false
+backend/**/* linguist-vendored=false
+frontend/* linguist-vendored=false
+frontend/**/* linguist-vendored=false
+database/* linguist-vendored=false
+tests/* linguist-vendored=false
+tests/**/* linguist-vendored=false
+docs/* linguist-vendored=false
+docs/**/* linguist-vendored=false
 
 # =============================================================================
 # DIFF AND MERGE
@@ -174,8 +230,5 @@ dist/** linguist-generated=true
 # Use union merge for requirements files
 requirements*.txt merge=union
 
-# Lock files should not be manually merged
-*.lock binary
-
-# Database schemas - use text diff
+# Database schemas - use SQL diff
 *.sql diff=sql
