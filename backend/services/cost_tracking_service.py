@@ -11,7 +11,6 @@ import json
 import re
 import sqlite3
 from datetime import datetime, date
-from decimal import Decimal
 from enum import Enum
 from typing import Optional, List, Tuple, Dict, Any
 
@@ -1583,13 +1582,13 @@ class CostTrackingService:
                 continue
 
             # Try to find a date in this line
-            found_date = None
+            _found_date = None
             for pattern in date_patterns:
                 match = re.search(pattern, line, re.IGNORECASE)
                 if match:
                     parsed = self._parse_date(match.group(1))
                     if parsed:
-                        found_date = parsed
+                        _found_date = parsed
                         current_date = parsed
                         break
 

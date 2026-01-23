@@ -12,15 +12,12 @@ Features:
 
 import os
 import re
-import json
 import sqlite3
-from datetime import datetime
 from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 from collections import Counter
 
-import numpy as np
 
 # Try to import sklearn for ML-based categorization
 try:

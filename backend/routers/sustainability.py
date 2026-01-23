@@ -10,20 +10,18 @@ Handles:
 - Conservation practices
 """
 
-from typing import List, Optional
+from typing import Optional
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Depends, Request
-from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
+from middleware.rate_limiter import limiter, RATE_MODERATE
 from services.sustainability_service import (
     get_sustainability_service,
     InputCategory,
     CarbonSource,
     SustainabilityPractice,
-    MetricPeriod,
     InputUsageCreate,
     InputUsageResponse,
     CarbonEntryCreate,
@@ -39,11 +37,8 @@ from services.climate_service import (
     get_climate_service,
     GDDRecordCreate,
     GDDRecordResponse,
-    GDDSummary,
     PrecipitationCreate,
     PrecipitationResponse,
-    PrecipitationSummary,
-    PrecipitationType,
     ClimateSummary
 )
 

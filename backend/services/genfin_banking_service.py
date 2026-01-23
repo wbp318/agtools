@@ -12,7 +12,6 @@ import sqlite3
 import json
 import math
 
-from .genfin_core_service import genfin_core_service
 
 
 class BankAccountType(Enum):
@@ -1075,8 +1074,8 @@ class GenFinBankingService:
                     (deposit_id,)
                 )
                 lines = [
-                    {"account_id": l['account_id'], "amount": l['amount'], "description": l['description'] or ''}
-                    for l in cursor.fetchall()
+                    {"account_id": row_line['account_id'], "amount": row_line['amount'], "description": row_line['description'] or ''}
+                    for row_line in cursor.fetchall()
                 ]
                 return {
                     "deposit_id": row['deposit_id'],

@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
+from middleware.rate_limiter import limiter, RATE_MODERATE
 from services.reporting_service import (
     get_reporting_service,
     OperationsReport,

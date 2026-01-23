@@ -5,7 +5,7 @@ Aggregates farm operations and financial data into a single dashboard view.
 AgTools v6.8.0
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from dataclasses import dataclass
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from .reporting_service import get_reporting_service
 from .genfin_advanced_reports_service import genfin_advanced_reports_service
 from .cost_tracking_service import get_cost_tracking_service
-from .profitability_service import get_profitability_service, CropType
+from .profitability_service import get_profitability_service
 
 
 class KPIType(str, Enum):
@@ -327,12 +327,12 @@ class UnifiedDashboardService:
 
         # Get farm reports
         try:
-            financial_report = self.reporting_service.get_financial_report(start_date, end_date)
+            _financial_report = self.reporting_service.get_financial_report(start_date, end_date)
             equipment_report = self.reporting_service.get_equipment_report(start_date, end_date)
             field_report = self.reporting_service.get_field_performance_report(start_date, end_date)
         except Exception:
             # If no data, return empty KPIs
-            financial_report = None
+            _financial_report = None
             equipment_report = None
             field_report = None
 

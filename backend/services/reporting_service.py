@@ -10,12 +10,12 @@ import csv
 import io
 from datetime import datetime, date
 from enum import Enum
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from .field_service import get_field_service
-from .field_operations_service import get_field_operations_service, OperationType
+from .field_operations_service import get_field_operations_service
 from .equipment_service import get_equipment_service
 from .inventory_service import get_inventory_service
 
@@ -649,7 +649,7 @@ class ReportingService:
                         urgency = "overdue"
                     elif days_until <= 7:
                         urgency = "due_soon"
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError):
                     # Invalid date format, skip urgency calculation
                     pass
 
@@ -745,7 +745,7 @@ class ReportingService:
                     if days_until <= expiry_threshold:
                         is_expiring = True
                         expiring_count += 1
-                except (ValueError, TypeError) as e:
+                except (ValueError, TypeError):
                     # Invalid date format, skip expiry check
                     pass
 

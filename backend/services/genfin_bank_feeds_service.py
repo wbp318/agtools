@@ -9,10 +9,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 import uuid
 import sqlite3
-import json
 import re
-import xml.etree.ElementTree as ET
-from decimal import Decimal
 
 
 class ImportFileType(Enum):

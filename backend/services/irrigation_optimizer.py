@@ -3,9 +3,9 @@ Irrigation Optimization Module
 Helps farmers optimize water usage, timing, and costs for irrigated crops
 """
 
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from enum import Enum
 import math
 
@@ -266,7 +266,7 @@ class IrrigationOptimizer:
         if water_source == "groundwater_well":
             # Energy to lift water depends on depth
             # Formula: kWh = (GPM × Head × 0.746) / (3960 × pump_efficiency)
-            pump_efficiency = 0.65
+            _pump_efficiency = 0.65
             energy_factor = pumping_depth_ft / 150  # Normalize to 150 ft standard
             kwh_per_acre_inch = system['energy_use_per_acre_inch'] * energy_factor
             energy_cost = acre_inches * kwh_per_acre_inch * self.electricity_rate
@@ -698,7 +698,7 @@ class IrrigationOptimizer:
         amount_per_irrigation: float
     ) -> List[Dict[str, Any]]:
         """Generate recommended irrigation schedule"""
-        crop_data = CROP_WATER_USE.get(crop.lower(), CROP_WATER_USE['corn'])
+        _crop_data = CROP_WATER_USE.get(crop.lower(), CROP_WATER_USE['corn'])
         season_days = (season_end - season_start).days
 
         schedule = []
@@ -745,12 +745,12 @@ class IrrigationOptimizer:
         # Corn: ~15 bu/acre per inch of water (during deficit)
         # Soybean: ~4 bu/acre per inch of water
         if crop.lower() == "corn":
-            yield_response = 15  # bu/acre-inch
+            _yield_response = 15  # bu/acre-inch
             grain_price = 4.50
             dryland_yield = 120
             irrigated_yield = 200
         else:
-            yield_response = 4
+            _yield_response = 4
             grain_price = 12.00
             dryland_yield = 35
             irrigated_yield = 55
@@ -906,7 +906,7 @@ if __name__ == "__main__":
     print(f"Target Application: {costs['irrigation_details']['target_application_inches']} inches")
     print(f"Gross Application: {costs['irrigation_details']['gross_application_inches']} inches")
     print(f"System Efficiency: {costs['irrigation_details']['system_efficiency_percent']}%")
-    print(f"\nCost Breakdown:")
+    print("\nCost Breakdown:")
     print(f"  Energy: ${costs['cost_breakdown']['energy_cost']}")
     print(f"  Water: ${costs['cost_breakdown']['water_cost']}")
     print(f"  Labor: ${costs['cost_breakdown']['labor_cost']}")

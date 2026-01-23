@@ -10,7 +10,7 @@ import hashlib
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 from enum import Enum
 
 from jose import JWTError, jwt
@@ -545,7 +545,6 @@ class AuthService:
             True if logged successfully, False if failed (but operation continues)
         """
         import logging
-        import json
 
         # Use provided connection (thread-safe) or fall back to self.db (deprecated)
         db_conn = conn if conn is not None else self.db

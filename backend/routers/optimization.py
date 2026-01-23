@@ -13,11 +13,11 @@ from typing import List, Optional
 from datetime import date
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
+from middleware.rate_limiter import limiter, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1", tags=["Optimization"])
 

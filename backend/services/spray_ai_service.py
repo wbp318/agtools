@@ -14,11 +14,10 @@ import os
 import json
 import sqlite3
 import pickle
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, asdict
+from datetime import datetime
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
-from collections import defaultdict
 
 import numpy as np
 

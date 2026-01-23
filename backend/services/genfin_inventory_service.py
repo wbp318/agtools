@@ -9,7 +9,6 @@ from typing import Dict, List, Optional
 from enum import Enum
 import uuid
 import sqlite3
-import json
 
 
 class ItemType(Enum):

@@ -6,6 +6,7 @@ Version 6.13.0 - Refactored to FastAPI Routers Architecture
 
 import sys
 import os
+import json
 
 # Add parent directory to path so we can import from database/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -13,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Request, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
@@ -21,13 +22,12 @@ from enum import Enum
 import uvicorn
 
 # Rate limiting (shared module for all routers)
-from middleware.rate_limiter import limiter, configure_rate_limiter
+from middleware.rate_limiter import limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 # Auth imports
 from middleware.auth_middleware import (
-    get_current_user,
     get_current_active_user,
     require_admin,
     require_manager,
@@ -88,7 +88,6 @@ from services.equipment_service import (
     EquipmentType,
     EquipmentStatus,
     MaintenanceCreate,
-    MaintenanceUpdate,
     MaintenanceResponse,
     MaintenanceType,
     MaintenanceAlert,
@@ -122,7 +121,6 @@ from services.reporting_service import (
 from services.cost_tracking_service import (
     get_cost_tracking_service,
     ExpenseCategory,
-    SourceType,
     ExpenseCreate,
     ExpenseUpdate,
     ExpenseResponse,
@@ -137,7 +135,6 @@ from services.cost_tracking_service import (
     SavedMappingResponse,
     OCRScanResult,
     CostPerAcreReport,
-    CostPerAcreItem,
     CategoryBreakdown,
     CropCostSummary
 )
@@ -151,7 +148,6 @@ from services.profitability_service import (
     get_profitability_service,
     CropType as ProfitCropType,
     InputCategory,
-    BudgetStatus,
     BreakEvenRequest,
     BreakEvenResponse,
     InputROIRequest,
@@ -166,7 +162,6 @@ from services.sustainability_service import (
     InputCategory as SustainabilityInputCategory,
     CarbonSource,
     SustainabilityPractice,
-    MetricPeriod,
     InputUsageCreate,
     InputUsageResponse,
     CarbonEntryCreate,
@@ -186,7 +181,6 @@ from services.climate_service import (
     GDDRecordCreate,
     GDDRecordResponse,
     GDDSummary,
-    GDDEntry,
     PrecipitationCreate,
     PrecipitationResponse,
     PrecipitationSummary,
@@ -201,7 +195,6 @@ from services.research_service import (
     get_research_service,
     TrialType,
     ExperimentalDesign,
-    PlotStatus,
     MeasurementType,
     TrialCreate,
     TrialUpdate,
@@ -212,62 +205,34 @@ from services.research_service import (
     PlotResponse,
     MeasurementCreate,
     MeasurementResponse,
-    TrialAnalysis,
-    ResearchExport
+    TrialAnalysis
 )
 from services.grant_service import (
-    get_grant_service,
-    GrantProgram,
-    NRCSCategory,
-    CarbonProgram,
-    NRCS_PRACTICES,
-    CARBON_PROGRAMS,
-    BENCHMARK_DATA
+    get_grant_service
 )
 from services.grant_enhancement_service import (
     get_grant_enhancement_service,
-    PrecisionAgTechnology,
-    DataCategory,
-    ResearchArea,
     PartnerType,
-    TECHNOLOGY_BENEFITS,
-    GRANT_DATA_REQUIREMENTS,
     RESEARCH_PARTNERS
 )
 from services.grant_operations_service import (
     get_grant_operations_service,
-    ApplicationStatus,
-    DocumentStatus,
-    LicenseType,
-    ComplianceCategory,
     CropType as BudgetCropType,
-    OutreachType,
-    GRANT_PROGRAMS,
-    CROP_BUDGET_DEFAULTS,
-    COMPLIANCE_REQUIREMENTS
+    OutreachType
 )
 from services.farm_intelligence_service import (
     get_farm_intelligence_service,
     Commodity,
-    ContractStatus,
     InsuranceType,
     CoverageLevel,
-    InputCategory as ProcurementInputCategory,
-    CURRENT_PRICES,
-    INSURANCE_RATES
+    InputCategory as ProcurementInputCategory
 )
 from services.enterprise_operations_service import (
     get_enterprise_operations_service,
     EmployeeType,
-    EmployeeStatus,
     PayType,
     CertificationType,
-    TimeEntryType,
     LeaseType,
-    LeaseStatus,
-    PaymentFrequency,
-    CashFlowCategory,
-    TransactionStatus,
     EntityType,
     CASH_RENT_AVERAGES
 )
@@ -275,19 +240,13 @@ from services.precision_intelligence_service import (
     get_precision_intelligence_service,
     PredictionModel,
     ZoneType,
-    PrescriptionType,
-    RecommendationType as PrecisionRecommendationType,
-    ConfidenceLevel,
-    CropStage
+    PrescriptionType
 )
 from services.grain_storage_service import (
     get_grain_storage_service,
     GrainType,
     BinType,
-    BinStatus,
-    DryerType,
-    TransactionType as GrainTransactionType,
-    AlertType as GrainAlertType
+    DryerType
 )
 from services.farm_business_service import (
     get_farm_business_service,
@@ -304,95 +263,58 @@ from services.farm_business_service import (
 
 # GenFin - Complete Accounting Suite
 from services.genfin_core_service import (
-    genfin_core_service,
-    AccountType as GenFinAccountType,
-    AccountSubType as GenFinAccountSubType,
-    TransactionStatus as GenFinTransactionStatus
+    genfin_core_service
 )
 from services.genfin_payables_service import (
-    genfin_payables_service,
-    VendorStatus,
-    BillStatus,
-    PaymentMethod as APPaymentMethod,
-    PurchaseOrderStatus
+    genfin_payables_service
 )
 from services.genfin_receivables_service import (
-    genfin_receivables_service,
-    CustomerStatus,
-    InvoiceStatus,
-    EstimateStatus,
-    PaymentMethod as ARPaymentMethod
+    genfin_receivables_service
 )
 from services.genfin_banking_service import (
-    genfin_banking_service,
-    BankAccountType,
-    CheckStatus,
-    CheckFormat,
-    TransactionType as BankTransactionType,
-    ReconciliationStatus
+    genfin_banking_service
 )
 from services.genfin_payroll_service import (
-    genfin_payroll_service,
-    EmployeeStatus as PayrollEmployeeStatus,
-    EmployeeType as PayrollEmployeeType,
-    PayFrequency,
-    PayType as PayrollPayType,
-    PayRunStatus,
-    FilingStatus,
-    PaymentMethod as PayrollPaymentMethod
+    genfin_payroll_service
 )
 from services.genfin_reports_service import (
     genfin_reports_service,
-    ReportType,
-    ReportPeriod
+    ReportType
 )
 from services.genfin_budget_service import (
-    genfin_budget_service,
-    BudgetType,
-    BudgetStatus,
-    ForecastMethod
+    genfin_budget_service
 )
 
 # GenFin v6.1 Enhanced Services
 from services.genfin_inventory_service import (
-    genfin_inventory_service,
-    ItemType,
-    InventoryValuationMethod
+    genfin_inventory_service
 )
 
 from services.genfin_classes_service import (
-    genfin_classes_service,
-    ClassType,
-    ProjectStatus
+    genfin_classes_service
 )
 
 from services.genfin_advanced_reports_service import (
-    genfin_advanced_reports_service,
-    ReportCategory,
-    DateRange
+    genfin_advanced_reports_service
 )
 
 # GenFin v6.2 Enhanced Services
 from services.genfin_bank_feeds_service import (
-    genfin_bank_feeds_service,
-    ImportFileType
+    genfin_bank_feeds_service
 )
 
 from services.genfin_fixed_assets_service import (
     genfin_fixed_assets_service,
-    DepreciationMethod,
-    AssetCategory
+    DepreciationMethod
 )
 
 from services.receipt_ocr_service import (
-    receipt_ocr_service,
-    ReceiptData
+    receipt_ocr_service
 )
 
 from services.crop_cost_analysis_service import (
     get_crop_cost_analysis_service,
     CropAnalysisSummary,
-    FieldCostDetail,
     FieldComparisonMatrix,
     CropComparisonItem,
     YearOverYearData,
@@ -2279,7 +2201,6 @@ async def logout(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Logout current user and invalidate session."""
-    from fastapi.security import HTTPBearer
 
     # Get token from header
     auth_header = request.headers.get("Authorization", "")
@@ -4361,7 +4282,7 @@ async def list_input_categories():
 # AI/ML INTELLIGENCE SUITE (v3.0)
 # ============================================================================
 
-from services.ai_image_service import get_ai_image_service, AIProvider
+from services.ai_image_service import get_ai_image_service
 
 
 class AIImageRequest(BaseModel):
@@ -4516,7 +4437,7 @@ async def list_ai_models():
 # CROP HEALTH SCORING (v3.0 Phase 2)
 # ============================================================================
 
-from services.crop_health_service import get_crop_health_service, ImageType, HealthStatus
+from services.crop_health_service import get_crop_health_service, ImageType
 
 
 @app.post("/api/v1/ai/health/analyze", tags=["Crop Health"])
@@ -4874,7 +4795,7 @@ async def get_supported_crops():
 
     Returns typical yields, optimal inputs, and units for each crop.
     """
-    from services.yield_prediction_service import CROP_DEFAULTS, CropType as YC
+    from services.yield_prediction_service import CROP_DEFAULTS
 
     return {
         "crops": [
@@ -11541,19 +11462,16 @@ async def get_document_categories():
 # ----- Import Grant-Winning Services -----
 from services.water_quality_service import (
     water_quality_service,
-    WaterQualityService,
     NutrientApplication,
     NutrientSource,
     WaterSample,
     WaterBodyType,
     BufferStrip,
     BufferType,
-    TileDrainageSystem,
     SoilDrainageClass
 )
 from services.biodiversity_service import (
     biodiversity_service,
-    BiodiversityService,
     HabitatArea,
     HabitatType,
     PollinatorObservation,
@@ -11566,7 +11484,6 @@ from services.biodiversity_service import (
 )
 from services.climate_resilience_service import (
     climate_resilience_service,
-    ClimateResilienceService,
     ClimateRiskType,
     ClimateEvent,
     AdaptationPractice,
@@ -11574,25 +11491,18 @@ from services.climate_resilience_service import (
 )
 from services.food_safety_service import (
     food_safety_service,
-    FoodSafetyService,
     HarvestLotStatus,
     WorkerTraining,
     WaterTest,
     SanitationLog,
-    FoodSafetyIncident,
-    Audit,
-    AuditType
+    FoodSafetyIncident
 )
 from services.grant_assistant_service import (
     grant_assistant_service,
-    GrantAssistantService,
-    GrantCategory,
-    GrantStatus,
-    GrantApplication
+    GrantStatus
 )
 from services.community_impact_service import (
     community_impact_service,
-    CommunityImpactService,
     Employee,
     LocalSale,
     LocalMarketChannel,
@@ -13704,7 +13614,7 @@ async def update_purchase_order(po_id: str, data: Dict, user: AuthenticatedUser 
 
     # Recalculate total if lines updated
     if "lines" in data:
-        po["total"] = sum(l.get("amount", l.get("quantity", 1) * l.get("rate", 0)) for l in po["lines"])
+        po["total"] = sum(line.get("amount", line.get("quantity", 1) * line.get("rate", 0)) for line in po["lines"])
 
     return {"success": True, "purchase_order": po}
 
@@ -15790,9 +15700,7 @@ async def create_inter_entity_transfer(
 # ============================================================================
 
 from services.seed_planting_service import (
-    get_seed_planting_service, CropType as SeedCropType, QuantityUnit,
-    TreatmentType, RateUnit, SoilMoisture, PlantingStatus, CountUnit,
-    SeedInventoryCreate, SeedInventoryUpdate, SeedTreatmentCreate,
+    get_seed_planting_service, CropType as SeedCropType, PlantingStatus, SeedInventoryCreate, SeedInventoryUpdate, SeedTreatmentCreate,
     PlantingRecordCreate, PlantingRecordUpdate, EmergenceRecordCreate
 )
 

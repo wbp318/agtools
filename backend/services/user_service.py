@@ -5,14 +5,14 @@ Handles user CRUD operations, crews, and team management.
 AgTools v2.5.0
 """
 
+import os
 import sqlite3
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Tuple
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from .auth_service import (
-    AuthService,
     UserRole,
     UserCreate,
     UserUpdate,

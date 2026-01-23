@@ -4,11 +4,10 @@ Predicts optimal spray windows based on weather forecasts
 Calculates cost-of-waiting and helps avoid wasted applications
 """
 
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime, timedelta
-import math
 
 
 class SprayType(str, Enum):

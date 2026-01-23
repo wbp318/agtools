@@ -14,7 +14,7 @@ GenFin v6.3.0
 
 import sqlite3
 from datetime import datetime, date
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Tuple
 from enum import Enum
 from pydantic import BaseModel, Field
 

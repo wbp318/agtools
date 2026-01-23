@@ -9,7 +9,6 @@ Ensures connections are properly closed even when exceptions occur.
 import sqlite3
 from contextlib import contextmanager
 from typing import Generator, Optional
-from pathlib import Path
 
 
 # Default database path

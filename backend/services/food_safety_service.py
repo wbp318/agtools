@@ -16,7 +16,7 @@ Features:
 """
 
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
@@ -379,8 +379,8 @@ class FoodSafetyService:
         date_code = harvest_date.strftime("%Y%m%d")
         field_code = field_id[:3].upper() if field_id else "XXX"
         crop_code = crop_type[:2].upper() if crop_type else "XX"
-        sequence = len([l for l in self.harvest_lots
-                       if l.harvest_date == harvest_date and l.field_id == field_id]) + 1
+        sequence = len([lot for lot in self.harvest_lots
+                       if lot.harvest_date == harvest_date and lot.field_id == field_id]) + 1
 
         return f"{date_code}-{field_code}-{crop_code}-{sequence:03d}"
 
@@ -397,7 +397,7 @@ class FoodSafetyService:
     ) -> Dict:
         """Update lot status and add chain of custody info"""
 
-        lot = next((l for l in self.harvest_lots if l.lot_id == lot_id), None)
+        lot = next((item for item in self.harvest_lots if item.lot_id == lot_id), None)
         if not lot:
             return {"success": False, "message": "Lot not found"}
 
@@ -425,7 +425,7 @@ class FoodSafetyService:
     def trace_lot(self, lot_number: str) -> Dict:
         """Generate complete traceability report for a lot"""
 
-        lot = next((l for l in self.harvest_lots if l.lot_number == lot_number), None)
+        lot = next((item for item in self.harvest_lots if item.lot_number == lot_number), None)
         if not lot:
             return {"success": False, "message": "Lot not found"}
 
@@ -501,19 +501,19 @@ class FoodSafetyService:
 
     def get_lots_by_status(self, status: HarvestLotStatus) -> Dict:
         """Get all lots with a specific status"""
-        lots = [l for l in self.harvest_lots if l.status == status]
+        lots = [item for item in self.harvest_lots if item.status == status]
 
         return {
             "status": status.value,
             "count": len(lots),
             "lots": [
                 {
-                    "lot_number": l.lot_number,
-                    "crop": l.crop_type,
-                    "quantity": f"{l.quantity_harvested} {l.unit}",
-                    "harvest_date": l.harvest_date.isoformat()
+                    "lot_number": lot.lot_number,
+                    "crop": lot.crop_type,
+                    "quantity": f"{lot.quantity_harvested} {lot.unit}",
+                    "harvest_date": lot.harvest_date.isoformat()
                 }
-                for l in lots
+                for lot in lots
             ]
         }
 
@@ -806,7 +806,7 @@ class FoodSafetyService:
                 eq: len(records)
                 for eq, records in by_equipment.items()
             },
-            "last_sanitation": max(l.date for l in logs).isoformat() if logs else "No recent records"
+            "last_sanitation": max(log.date for log in logs).isoformat() if logs else "No recent records"
         }
 
     # =========================================================================
@@ -884,7 +884,7 @@ class FoodSafetyService:
         # Update lot statuses
         affected_lots = []
         for lot_num in lot_numbers:
-            lot = next((l for l in self.harvest_lots if l.lot_number == lot_num), None)
+            lot = next((item for item in self.harvest_lots if item.lot_number == lot_num), None)
             if lot:
                 lot.status = HarvestLotStatus.RECALLED
                 affected_lots.append({
@@ -896,7 +896,7 @@ class FoodSafetyService:
                 })
 
         # Generate notification list
-        buyers = set(l["buyer"] for l in affected_lots if l["buyer"])
+        buyers = set(item["buyer"] for item in affected_lots if item["buyer"])
 
         return {
             "recall_id": recall_id,
@@ -906,8 +906,8 @@ class FoodSafetyService:
             "reason": reason,
             "lots_recalled": len(affected_lots),
             "affected_lots": affected_lots,
-            "total_quantity": sum(l.quantity_harvested for l in self.harvest_lots
-                                 if l.lot_number in lot_numbers),
+            "total_quantity": sum(item.quantity_harvested for item in self.harvest_lots
+                                 if item.lot_number in lot_numbers),
             "notification_required": list(buyers),
             "immediate_actions": [
                 "Stop distribution of affected lots",
@@ -1134,7 +1134,7 @@ class FoodSafetyService:
         gap_readiness = self.assess_gap_readiness()
         training_status = self.get_training_status()
         water_summary = self.get_water_quality_summary()
-        incident_summary = self.get_incident_summary()
+        _incident_summary = self.get_incident_summary()
         audit_history = self.get_audit_history()
 
         return {

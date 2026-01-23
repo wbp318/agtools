@@ -9,12 +9,11 @@ Advanced precision agriculture intelligence featuring:
 - Decision Support AI (planting, spraying, harvest timing recommendations)
 """
 
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import statistics
-import random
 import math
 
 
@@ -1109,7 +1108,7 @@ class PrecisionIntelligenceService:
             "rice": 12.5
         }.get(crop, 15.0)
 
-        dry_discount_per_point = {
+        _dry_discount_per_point = {
             "corn": 0.015,  # 1.5 cents per point per bushel
             "soybeans": 0.02
         }.get(crop, 0.02)

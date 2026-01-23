@@ -1,0 +1,38 @@
+# Ruff configuration for AgTools
+# https://docs.astral.sh/ruff/
+
+line-length = 100
+target-version = "py312"
+
+[lint]
+# Start with essential error detection
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes (undefined names, unused imports, etc.)
+    "W",      # pycodestyle warnings
+]
+
+ignore = [
+    "E501",   # Line too long (handled by formatter if needed)
+    "E731",   # Do not assign a lambda expression, use a def
+    "E402",   # Module level import not at top (often needed for path setup)
+    "E701",   # Multiple statements on one line (common in dict patterns)
+    "F811",   # Redefinition - main.py has intentional endpoint overrides (documented)
+]
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+# Tests can have unused imports for fixtures
+"tests/*.py" = ["F401", "F811"]
+"tests/**/*.py" = ["F401", "F811"]
+# __init__.py files often have unused imports for re-export
+"__init__.py" = ["F401"]
+# Services with optional dependencies (sklearn, cv2, httpx, reportlab)
+"backend/services/climate_service.py" = ["F401"]
+"backend/services/crop_health_service.py" = ["F401"]
+"backend/services/expense_categorization_service.py" = ["F401"]
+"backend/services/pdf_report_service.py" = ["F401"]
+"backend/services/spray_ai_service.py" = ["F401"]
+"backend/main.py" = ["F401"]

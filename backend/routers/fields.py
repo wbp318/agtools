@@ -19,7 +19,7 @@ from middleware.auth_middleware import (
     require_manager,
     AuthenticatedUser
 )
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
+from middleware.rate_limiter import limiter, RATE_MODERATE
 from services.field_service import (
     get_field_service,
     FieldCreate,

@@ -17,7 +17,6 @@ from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field
 import sqlite3
-import json
 import os
 
 
@@ -1311,7 +1310,7 @@ class SustainabilityService:
         try:
             water_summary = self.get_water_summary(year, field_id)
             water_score_value = water_summary.efficiency_score
-        except (ValueError, AttributeError, TypeError) as e:
+        except (ValueError, AttributeError, TypeError):
             water_score_value = 70  # Default if no water data
 
         water_efficiency_score = SustainabilityScore(
@@ -1564,7 +1563,7 @@ class SustainabilityService:
 
         try:
             water_summary = self.get_water_summary(year, field_id)
-        except (ValueError, AttributeError, TypeError) as e:
+        except (ValueError, AttributeError, TypeError):
             water_summary = None
 
         practices = self.list_practices(year=year, field_id=field_id)

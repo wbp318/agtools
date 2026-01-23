@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 
-from services.labor_optimizer import LaborOptimizer, get_labor_optimizer
-from services.application_cost_optimizer import ApplicationCostOptimizer, get_application_optimizer
-from services.irrigation_optimizer import IrrigationOptimizer, get_irrigation_optimizer
+from services.labor_optimizer import get_labor_optimizer
+from services.application_cost_optimizer import get_application_optimizer
+from services.irrigation_optimizer import get_irrigation_optimizer
 
 
 class OptimizationPriority(str, Enum):
@@ -810,23 +810,23 @@ if __name__ == "__main__":
     print("=== COMPLETE FARM INPUT COST ANALYSIS ===")
     analysis = optimizer.analyze_complete_farm_costs(farm)
 
-    print(f"\nFarm Summary:")
+    print("\nFarm Summary:")
     print(f"  Total Acres: {analysis['farm_summary']['total_acres']}")
     print(f"  Crops: {', '.join(analysis['farm_summary']['crops'])}")
     print(f"  Irrigated: {analysis['farm_summary']['has_irrigation']}")
 
-    print(f"\n=== COST SUMMARY ===")
+    print("\n=== COST SUMMARY ===")
     costs = analysis['total_costs']
     print(f"Total Input Cost: ${costs['total_input_cost']:,.2f}")
     print(f"Cost per Acre: ${costs['cost_per_acre']}")
     print(f"Potential Savings: ${costs['total_potential_savings']:,.2f} ({costs['potential_savings_percent']}%)")
 
-    print(f"\n=== TOP RECOMMENDATIONS ===")
+    print("\n=== TOP RECOMMENDATIONS ===")
     for i, rec in enumerate(analysis['optimization_opportunities'][:5], 1):
         print(f"{i}. [{rec['category'].upper()}] {rec['recommendation']}")
         print(f"   Estimated Savings: ${rec['estimated_savings']}")
 
-    print(f"\n=== ROI ANALYSIS ===")
+    print("\n=== ROI ANALYSIS ===")
     roi = analysis['roi_summary']
     print(f"Current Net Return: ${roi['current_scenario']['net_return']:,.2f}")
     print(f"Optimized Net Return: ${roi['optimized_scenario']['net_return']:,.2f}")

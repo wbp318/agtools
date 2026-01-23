@@ -10,13 +10,12 @@ Features:
 - Treatment recommendations based on detected issues
 """
 
-import os
 import io
 import json
 import hashlib
 import sqlite3
 from datetime import datetime, date
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
@@ -426,7 +425,7 @@ class CropHealthService:
         - Green = high NDVI (healthy)
         """
         rgb = rgb_array.astype(np.float32) / 255.0
-        r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+        r, g, _b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
 
         # Estimate NDVI based on color
         # Green-heavy = high NDVI, Red-heavy = low NDVI

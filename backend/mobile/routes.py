@@ -12,7 +12,7 @@ Provides server-rendered HTML pages for mobile crew members:
 from typing import Optional
 from datetime import date
 
-from fastapi import APIRouter, Request, Form, Depends, UploadFile, File
+from fastapi import APIRouter, Request, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from slowapi import Limiter
@@ -25,9 +25,7 @@ from .auth import (
     get_session_user,
     set_session_cookie,
     clear_session_cookie,
-    require_session,
 )
-from services.auth_service import get_auth_service
 from services.user_service import get_user_service
 from services.task_service import get_task_service, TaskStatus, TaskPriority
 from services.time_entry_service import (
@@ -519,7 +517,7 @@ async def upload_photo(
 
     # Save photo
     photo_service = get_photo_service()
-    result = await photo_service.save_photo(
+    _result = await photo_service.save_photo(
         task_id=task_id,
         user_id=user["id"],
         file_content=file_content,

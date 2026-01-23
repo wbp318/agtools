@@ -10,10 +10,9 @@ Comprehensive enterprise operations featuring:
 """
 
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
-import calendar
 import statistics
 
 
@@ -1253,7 +1252,7 @@ class EnterpriseOperationsService:
 
         # Upcoming expirations
         today = date.today()
-        expiring = [l for l in leases if datetime.strptime(l["expires"], "%Y-%m-%d").date() <= today + timedelta(days=365)]
+        expiring = [lease for lease in leases if datetime.strptime(lease["expires"], "%Y-%m-%d").date() <= today + timedelta(days=365)]
 
         return {
             "as_of": today.isoformat(),

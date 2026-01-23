@@ -18,7 +18,6 @@ from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field
 import sqlite3
-import json
 import os
 import math
 from statistics import mean, stdev, variance
@@ -1193,7 +1192,7 @@ class ResearchService:
             return None
 
         t_stat = (mean_a - mean_b) / se
-        df = n_a + n_b - 2
+        _df = n_a + n_b - 2
 
         # Approximate p-value using t-distribution approximation
         # For simplicity, using critical values

@@ -15,11 +15,10 @@ Features:
 - Application status tracking
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Any, Tuple
+from datetime import datetime, date
+from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-import math
 
 
 class GrantCategory(str, Enum):
@@ -769,9 +768,9 @@ class GrantAssistantService:
             "suggested_length": "1 page",
             "content_guidance": [
                 f"Introduce {project_data.get('farm_name', 'your operation')}",
-                f"State the problem/opportunity being addressed",
+                "State the problem/opportunity being addressed",
                 f"Summarize proposed {', '.join(project_data.get('practices_planned', [])[:3])}",
-                f"Highlight expected outcomes",
+                "Highlight expected outcomes",
                 f"State funding request: ${project_data.get('budget_estimate', 0):,}"
             ],
             "sample_opening": (

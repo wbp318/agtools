@@ -19,7 +19,6 @@ from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field
 import sqlite3
-import json
 import os
 
 try:
@@ -955,8 +954,8 @@ class ClimateService:
 
         days_above_90 = sum(1 for h in highs if h >= 90)
         days_above_100 = sum(1 for h in highs if h >= 100)
-        days_below_32 = sum(1 for l in lows if l <= 32)
-        days_below_0 = sum(1 for l in lows if l <= 0)
+        days_below_32 = sum(1 for low in lows if low <= 32)
+        days_below_0 = sum(1 for low in lows if low <= 0)
 
         first_frost = None
         last_frost = None

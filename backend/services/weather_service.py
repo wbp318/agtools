@@ -5,7 +5,6 @@ Integration with weather APIs for spray timing and disease forecasting
 
 from datetime import datetime, timedelta
 from typing import Dict, List
-import requests
 
 
 def get_spray_windows(latitude: float, longitude: float, days_ahead: int = 5) -> Dict:
@@ -149,7 +148,7 @@ def _generate_spray_recommendations(spray_windows: List[Dict]) -> List[str]:
     # Wind warnings
     windy_days = [w for w in spray_windows if w["forecast"]["wind_speed_mph"] > 10]
     if windy_days:
-        recommendations.append(f"⚠️ High winds forecast - ensure proper nozzles and boom height")
+        recommendations.append("⚠️ High winds forecast - ensure proper nozzles and boom height")
 
     return recommendations
 

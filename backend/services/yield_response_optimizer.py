@@ -9,7 +9,6 @@ This module helps answer: "What rate maximizes my profit?" not just "What does t
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime
 import math
 
 
@@ -474,9 +473,9 @@ class YieldResponseOptimizer:
         price_ratio = fert_cost / grain_price
 
         model = params["model"]
-        base = params["base_yield"]
+        _base = params["base_yield"]
         linear = params["linear_coefficient"]
-        plateau = params.get("plateau_yield", 300)
+        _plateau = params.get("plateau_yield", 300)
 
         # Adjust for soil test response
         response_factor = 1.0

@@ -11,7 +11,6 @@ from enum import Enum
 from dataclasses import dataclass, field
 import uuid
 
-from .genfin_core_service import genfin_core_service
 from .genfin_banking_service import genfin_banking_service, ACHTransactionCode
 
 
@@ -998,7 +997,7 @@ class GenFinPayrollService:
 
         return {
             "success": True,
-            "message": f"Employee assigned to schedule"
+            "message": "Employee assigned to schedule"
         }
 
     def get_pay_schedule(self, schedule_id: str) -> Optional[Dict]:
@@ -1849,7 +1848,7 @@ class GenFinPayrollService:
                     if not cursor.fetchone():
                         return {"success": False, "error": f"Employee {emp_id} not found"}
 
-            p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
+            _p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
             pay_run_id = str(uuid.uuid4())
             pay_run_number = self._get_next_number("next_pay_run_number")
             now = datetime.now().isoformat()
@@ -1915,8 +1914,8 @@ class GenFinPayrollService:
         pay_run_number = self._get_next_number("next_pay_run_number")
         now = datetime.now().isoformat()
 
-        p_start = datetime.strptime(pay_period_start, "%Y-%m-%d").date()
-        p_end = datetime.strptime(pay_period_end, "%Y-%m-%d").date()
+        _p_start = datetime.strptime(pay_period_start, "%Y-%m-%d").date()
+        _p_end = datetime.strptime(pay_period_end, "%Y-%m-%d").date()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()

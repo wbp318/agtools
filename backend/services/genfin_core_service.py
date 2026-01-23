@@ -5,12 +5,11 @@ SQLite persistent storage implementation
 """
 
 from datetime import datetime, date
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
 import sqlite3
-import json
 
 
 class AccountType(Enum):
@@ -1284,7 +1283,7 @@ class GenFinCoreService:
         total_revenue = 0
         total_expenses = 0
 
-        year_start = date(year, self.fiscal_year_start_month, 1)
+        _year_start = date(year, self.fiscal_year_start_month, 1)
         if self.fiscal_year_start_month == 1:
             year_end = date(year, 12, 31)
         else:

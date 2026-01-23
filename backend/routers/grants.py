@@ -131,7 +131,7 @@ async def list_nrcs_practices(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """List NRCS conservation practices."""
-    from services.grant_service import get_grant_service, NRCS_PRACTICES
+    from services.grant_service import NRCS_PRACTICES
 
     if category:
         practices = [p for p in NRCS_PRACTICES if p.get("category") == category]

@@ -14,10 +14,9 @@ Features:
 """
 
 from datetime import datetime, date
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
-import math
 
 
 class WaterBodyType(str, Enum):

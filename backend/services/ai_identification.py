@@ -4,10 +4,7 @@ Uses deep learning to identify pests and diseases from field photos
 Hybrid approach combining existing pest_detection model with new crop consulting focus
 """
 
-from typing import List, Dict, Optional
-import numpy as np
-from PIL import Image
-import io
+from typing import Dict
 
 
 def identify_from_image(

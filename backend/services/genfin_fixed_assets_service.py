@@ -3,13 +3,11 @@ GenFin Fixed Asset Manager Service with SQLite persistence
 Handles fixed asset tracking, depreciation calculations, and disposal.
 """
 import sqlite3
-import json
 from datetime import datetime, date
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
-from dateutil.relativedelta import relativedelta
 
 
 class DepreciationMethod(Enum):

@@ -398,7 +398,7 @@ class AIImageService:
                     results = response.json()
                     if isinstance(results, list):
                         raw_labels = [{"label": r.get("label", ""), "score": r.get("score", 0)} for r in results[:10]]
-            except Exception as e:
+            except Exception:
                 # Try general image model as fallback
                 try:
                     model_id = self.HF_MODELS["general_image"]
@@ -412,7 +412,7 @@ class AIImageService:
                         results = response.json()
                         if isinstance(results, list):
                             raw_labels = [{"label": r.get("label", ""), "score": r.get("score", 0)} for r in results[:10]]
-                except (ValueError, KeyError, TypeError, Exception) as e:
+                except (ValueError, KeyError, TypeError, Exception):
                     # Log error but continue with fallback
                     pass
 
@@ -434,7 +434,6 @@ class AIImageService:
 
     async def _analyze_with_local_model(self, image_bytes: bytes, crop: str) -> ImageAnalysisResult:
         """Analyze image using local TensorFlow model"""
-        import tensorflow as tf
 
         # Preprocess image
         image = self._preprocess_image(image_bytes)

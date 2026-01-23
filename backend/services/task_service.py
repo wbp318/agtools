@@ -12,7 +12,6 @@ from typing import Optional, List, Tuple
 
 from pydantic import BaseModel, Field
 
-from .auth_service import UserRole
 from database.db_utils import get_db_connection
 from .base_service import BaseService
 

@@ -5,14 +5,14 @@ SQLite persistent storage implementation
 """
 
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
 import sqlite3
 import json
 
-from .genfin_core_service import genfin_core_service, AccountType, AccountSubType
+from .genfin_core_service import genfin_core_service
 
 
 class ReportType(Enum):
@@ -698,8 +698,8 @@ class GenFinReportsService:
         """Get income breakdown by customer"""
         from .genfin_receivables_service import genfin_receivables_service
 
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        _s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        _e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         customer_income = {}
 
@@ -742,8 +742,8 @@ class GenFinReportsService:
         """Get expense breakdown by vendor"""
         from .genfin_payables_service import genfin_payables_service
 
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        _s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        _e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         vendor_expenses = {}
 

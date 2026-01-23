@@ -10,13 +10,12 @@ Features:
 - Marketing/pricing decision support
 """
 
-import os
 import json
 import sqlite3
 import pickle
-from datetime import datetime, date
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, asdict
+from datetime import date
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 

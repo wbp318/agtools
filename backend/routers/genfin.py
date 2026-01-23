@@ -16,13 +16,13 @@ Handles:
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import date, datetime
+from datetime import date
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, require_manager, AuthenticatedUser
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE, RATE_RELAXED
+from middleware.rate_limiter import limiter, RATE_MODERATE, RATE_RELAXED
 
 router = APIRouter(prefix="/api/v1/genfin", tags=["GenFin"])
 

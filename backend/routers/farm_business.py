@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, require_manager, AuthenticatedUser
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
+from middleware.rate_limiter import limiter, RATE_MODERATE
 
 router = APIRouter(prefix="/api/v1", tags=["Farm Business"])
 
@@ -404,7 +404,7 @@ async def get_market_prices(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get current commodity prices."""
-    from services.farm_intelligence_service import get_farm_intelligence_service, CURRENT_PRICES
+    from services.farm_intelligence_service import CURRENT_PRICES
 
     return {"prices": CURRENT_PRICES}
 

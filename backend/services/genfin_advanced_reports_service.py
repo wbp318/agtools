@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 import uuid
 import sqlite3
 import json
-import math
 
 
 class ReportCategory(Enum):

@@ -10,7 +10,7 @@ This service extends grant support with:
 
 from datetime import datetime, date
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import statistics
 
@@ -932,10 +932,10 @@ opportunity for AgTools decision support software."""
                     "Decision support from data integration"
                 ],
                 "assumptions": [
-                    f"Corn price: $5.00/bu, Soybean: $12.00/bu",
-                    f"Base yields: Corn 180 bu/ac, Soybean 50 bu/ac",
-                    f"Labor value: $25/hour",
-                    f"Analysis period: 5 years"
+                    "Corn price: $5.00/bu, Soybean: $12.00/bu",
+                    "Base yields: Corn 180 bu/ac, Soybean 50 bu/ac",
+                    "Labor value: $25/hour",
+                    "Analysis period: 5 years"
                 ],
                 "data_sources": [
                     "On-farm yield monitor data",

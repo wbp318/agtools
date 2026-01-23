@@ -5,15 +5,13 @@ Handles photo uploads for tasks - crew members can attach photos with GPS.
 AgTools v2.6.0 Phase 6.5
 """
 
-import os
 import sqlite3
 import uuid
-import shutil
 from datetime import datetime
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 # ============================================================================

@@ -5,14 +5,14 @@ SQLite persistence for data durability
 """
 
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid
 import sqlite3
 import json
 
-from .genfin_core_service import genfin_core_service, AccountType
+from .genfin_core_service import genfin_core_service
 from .genfin_reports_service import genfin_reports_service
 
 
@@ -385,8 +385,8 @@ class GenFinBudgetService:
         elif copy_from_actuals:
             # Copy from prior year actuals
             prior_year = fiscal_year - 1
-            prior_start = date(prior_year, 1, 1)
-            prior_end = date(prior_year, 12, 31)
+            _prior_start = date(prior_year, 1, 1)
+            _prior_end = date(prior_year, 12, 31)
 
             # Get accounts from core service
             accounts = genfin_core_service.list_accounts()
@@ -508,9 +508,9 @@ class GenFinBudgetService:
 
         # Find or create line
         line = None
-        for l in budget.lines:
-            if l.account_id == account_id:
-                line = l
+        for budget_line in budget.lines:
+            if budget_line.account_id == account_id:
+                line = budget_line
                 break
 
         if line:
@@ -1424,7 +1424,7 @@ class GenFinBudgetService:
             "end_date": budget.end_date.isoformat(),
             "description": budget.description,
             "status": budget.status.value,
-            "lines": sorted(lines_data, key=lambda l: l["account_number"]),
+            "lines": sorted(lines_data, key=lambda line: line["account_number"]),
             "total_revenue": budget.total_revenue,
             "total_expenses": budget.total_expenses,
             "net_budget": budget.net_budget,

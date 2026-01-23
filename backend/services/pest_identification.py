@@ -175,8 +175,8 @@ class PestIdentifier:
         """Match growth stage to typical pest timing"""
 
         # Extract timing information from pest data
-        lifecycle = pest.get("lifecycle", "").lower()
-        management_notes = pest.get("management_notes", "").lower()
+        _lifecycle = pest.get("lifecycle", "").lower()
+        _management_notes = pest.get("management_notes", "").lower()
 
         # Growth stage categories
         early_stages = ["ve", "v1", "v2", "v3", "v4"]

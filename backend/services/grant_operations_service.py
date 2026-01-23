@@ -11,9 +11,8 @@ This service provides comprehensive grant operations support:
 
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-import statistics
 
 
 # =============================================================================
@@ -1026,9 +1025,9 @@ class GrantOperationsService:
         return {
             "licenses": {
                 "total": len(self.licenses),
-                "active": sum(1 for l in self.licenses.values() if l.status == "active"),
+                "active": sum(1 for lic in self.licenses.values() if lic.status == "active"),
                 "expiring_soon": len([a for a in license_alerts if a["status"] == "warning"]),
-                "expired": sum(1 for l in self.licenses.values() if l.status == "expired"),
+                "expired": sum(1 for lic in self.licenses.values() if lic.status == "expired"),
                 "alerts": sorted(license_alerts, key=lambda x: x["days_until"])
             },
             "wps": {

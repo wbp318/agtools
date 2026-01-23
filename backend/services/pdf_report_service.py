@@ -8,7 +8,7 @@ from __future__ import annotations  # Enable postponed evaluation of annotations
 import io
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 

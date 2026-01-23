@@ -12,14 +12,13 @@ from typing import List, Optional
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Depends, Request
-from pydantic import BaseModel
 
 from middleware.auth_middleware import (
     get_current_active_user,
     require_manager,
     AuthenticatedUser
 )
-from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
+from middleware.rate_limiter import limiter, RATE_MODERATE
 from services.inventory_service import (
     get_inventory_service,
     InventoryItemCreate,

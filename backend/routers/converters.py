@@ -10,9 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from services.measurement_converter_service import (
-    get_measurement_converter_service,
-    ApplicationRateUnit,
-    ProductCategory
+    get_measurement_converter_service
 )
 
 

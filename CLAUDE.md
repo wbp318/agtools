@@ -45,6 +45,17 @@ python -m pytest tests/ --cov=backend --cov-report=html
 
 Tests use temporary SQLite databases for isolation. Key fixtures are in `tests/conftest.py`.
 
+### Linting
+```bash
+# Check for issues
+ruff check backend/
+
+# Auto-fix issues
+ruff check backend/ --fix
+```
+
+Configuration is in `ruff.toml`. The linter catches undefined names, unused imports, and style issues.
+
 ## Architecture
 
 ### Backend (`backend/`)

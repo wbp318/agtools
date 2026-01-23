@@ -14,11 +14,10 @@ Features:
 - Economic ripple effects
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Any, Tuple
+from datetime import datetime, date
+from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-import math
 
 
 class ImpactCategory(str, Enum):

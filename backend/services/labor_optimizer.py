@@ -5,7 +5,6 @@ Helps farmers reduce labor costs through efficient scheduling and resource alloc
 
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import Enum
 
 
@@ -264,8 +263,8 @@ class LaborOptimizer:
         # In production, would use actual GPS coordinates and road distances
         remaining = fields.copy()
         route = []
-        current_location = start_location or {"lat": 0, "lon": 0}
-        total_travel_time = 0
+        _current_location = start_location or {"lat": 0, "lon": 0}
+        _total_travel_time = 0
 
         while remaining:
             # Find nearest field (simplified - using index as proxy for distance)

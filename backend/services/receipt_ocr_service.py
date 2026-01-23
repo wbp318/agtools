@@ -20,7 +20,7 @@ import sqlite3
 import hashlib
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path

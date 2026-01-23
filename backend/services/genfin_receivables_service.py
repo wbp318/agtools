@@ -7,12 +7,11 @@ SQLite persistent storage implementation
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional
 from enum import Enum
-from dataclasses import dataclass, field
 import uuid
 import sqlite3
 import json
 
-from .genfin_core_service import genfin_core_service, TransactionStatus
+from .genfin_core_service import genfin_core_service
 
 
 class CustomerStatus(Enum):
@@ -1571,8 +1570,8 @@ class GenFinReceivablesService:
         if not customer:
             return {"error": "Customer not found"}
 
-        s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        _s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        _e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         opening_balance = customer.get("opening_balance", 0) or 0
 
@@ -1757,20 +1756,20 @@ class GenFinReceivablesService:
             "billing_address": row['billing_address'] or "",
             "shipping_address": row['shipping_address'] or "",
             "lines": [{
-                "line_id": l['line_id'],
-                "account_id": l['account_id'],
-                "description": l['description'] or "",
-                "quantity": l['quantity'] or 1,
-                "unit_price": l['unit_price'] or 0,
-                "amount": l['amount'] or 0,
-                "tax_code": l['tax_code'],
-                "tax_amount": l['tax_amount'] or 0,
-                "discount_percent": l['discount_percent'] or 0,
-                "discount_amount": l['discount_amount'] or 0,
-                "class_id": l['class_id'],
-                "location_id": l['location_id'],
-                "service_date": l['service_date']
-            } for l in lines],
+                "line_id": line['line_id'],
+                "account_id": line['account_id'],
+                "description": line['description'] or "",
+                "quantity": line['quantity'] or 1,
+                "unit_price": line['unit_price'] or 0,
+                "amount": line['amount'] or 0,
+                "tax_code": line['tax_code'],
+                "tax_amount": line['tax_amount'] or 0,
+                "discount_percent": line['discount_percent'] or 0,
+                "discount_amount": line['discount_amount'] or 0,
+                "class_id": line['class_id'],
+                "location_id": line['location_id'],
+                "service_date": line['service_date']
+            } for line in lines],
             "subtotal": row['subtotal'] or 0,
             "discount_total": row['discount_total'] or 0,
             "tax_total": row['tax_total'] or 0,
@@ -1817,13 +1816,13 @@ class GenFinReceivablesService:
             "reason": row['reason'] or "",
             "memo": row['memo'] or "",
             "lines": [{
-                "line_id": l['line_id'],
-                "account_id": l['account_id'],
-                "description": l['description'] or "",
-                "quantity": l['quantity'] or 1,
-                "unit_price": l['unit_price'] or 0,
-                "amount": l['amount'] or 0
-            } for l in lines],
+                "line_id": line['line_id'],
+                "account_id": line['account_id'],
+                "description": line['description'] or "",
+                "quantity": line['quantity'] or 1,
+                "unit_price": line['unit_price'] or 0,
+                "amount": line['amount'] or 0
+            } for line in lines],
             "total": row['total'] or 0,
             "amount_applied": row['amount_applied'] or 0,
             "balance": row['balance'] or 0,
@@ -1847,14 +1846,14 @@ class GenFinReceivablesService:
             "memo": row['memo'] or "",
             "message_to_customer": row['message_to_customer'] or "",
             "lines": [{
-                "line_id": l['line_id'],
-                "account_id": l['account_id'] or "",
-                "description": l['description'] or "",
-                "quantity": l['quantity'] or 1,
-                "unit_price": l['unit_price'] or 0,
-                "amount": l['amount'] or 0,
-                "tax_amount": l['tax_amount'] or 0
-            } for l in lines],
+                "line_id": line['line_id'],
+                "account_id": line['account_id'] or "",
+                "description": line['description'] or "",
+                "quantity": line['quantity'] or 1,
+                "unit_price": line['unit_price'] or 0,
+                "amount": line['amount'] or 0,
+                "tax_amount": line['tax_amount'] or 0
+            } for line in lines],
             "subtotal": row['subtotal'] or 0,
             "tax_total": row['tax_total'] or 0,
             "total": row['total'] or 0,
@@ -1882,14 +1881,14 @@ class GenFinReceivablesService:
             "reference_number": row['reference_number'] or "",
             "memo": row['memo'] or "",
             "lines": [{
-                "line_id": l['line_id'],
-                "account_id": l['account_id'],
-                "description": l['description'] or "",
-                "quantity": l['quantity'] or 1,
-                "unit_price": l['unit_price'] or 0,
-                "amount": l['amount'] or 0,
-                "tax_amount": l['tax_amount'] or 0
-            } for l in lines],
+                "line_id": line['line_id'],
+                "account_id": line['account_id'],
+                "description": line['description'] or "",
+                "quantity": line['quantity'] or 1,
+                "unit_price": line['unit_price'] or 0,
+                "amount": line['amount'] or 0,
+                "tax_amount": line['tax_amount'] or 0
+            } for line in lines],
             "subtotal": row['subtotal'] or 0,
             "tax_total": row['tax_total'] or 0,
             "total": row['total'] or 0,

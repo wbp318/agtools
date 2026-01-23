@@ -8,7 +8,7 @@ AgTools v6.4.0 - Farm Operations Suite
 import sqlite3
 from datetime import datetime, date
 from enum import Enum
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict
 
 from pydantic import BaseModel, Field
 

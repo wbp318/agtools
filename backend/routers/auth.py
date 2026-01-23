@@ -14,7 +14,6 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from middleware.auth_middleware import (
-    get_current_user,
     get_current_active_user,
     require_admin,
     require_manager,
@@ -22,7 +21,7 @@ from middleware.auth_middleware import (
     get_client_ip,
     get_user_agent
 )
-from middleware.rate_limiter import limiter, RATE_STRICT, RATE_MODERATE, RATE_STANDARD
+from middleware.rate_limiter import limiter, RATE_STRICT
 from services.auth_service import (
     UserRole,
     UserCreate,

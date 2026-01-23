@@ -4,11 +4,9 @@ Optimizes fertilizer, pesticide, and fungicide application costs
 Helps farmers make economical decisions on input purchases and application methods
 """
 
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime
-import math
 
 
 class ApplicationType(str, Enum):

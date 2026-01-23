@@ -5,8 +5,8 @@ Track income/expenses by class, project, and job for detailed profitability anal
 
 import sqlite3
 import json
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, date
+from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 import uuid

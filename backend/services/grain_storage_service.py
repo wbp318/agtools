@@ -9,12 +9,10 @@ Comprehensive grain management featuring:
 - Basis Alerts (automated notifications when basis hits targets)
 """
 
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from datetime import datetime, date
+from typing import Dict, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
-import statistics
-import math
 
 
 # =============================================================================
@@ -561,14 +559,14 @@ class GrainStorageService:
 
         alerts = []
         if moisture_pct is not None:
-            old_moisture = inv.moisture_pct
+            _old_moisture = inv.moisture_pct
             inv.moisture_pct = moisture_pct
             target = TARGET_MOISTURE.get(inv.grain_type, 15.0)
             if moisture_pct > target + 2:
                 alerts.append(f"High moisture: {moisture_pct}% (target: {target}%)")
 
         if temperature is not None:
-            old_temp = inv.temperature
+            _old_temp = inv.temperature
             inv.temperature = temperature
             if temperature > 70:
                 alerts.append(f"High temperature: {temperature}F - check aeration")
@@ -638,7 +636,7 @@ class GrainStorageService:
         # Total cost
         total_cost = fuel_cost + electric_cost
         cost_per_bushel = total_cost / bushels if bushels > 0 else 0
-        cost_per_point = total_cost / points_to_remove / bushels * 100 if points_to_remove > 0 and bushels > 0 else 0
+        _cost_per_point = total_cost / points_to_remove / bushels * 100 if points_to_remove > 0 and bushels > 0 else 0
 
         # Value of shrink
         grain_price = CURRENT_PRICES.get(gtype, {"cash": 4.50})["cash"]
@@ -896,7 +894,7 @@ class GrainStorageService:
 
         # Storage cost estimate (per month)
         storage_cost_per_bu_month = 0.03
-        days_stored = 30  # Average assumption
+        _days_stored = 30  # Average assumption
 
         monthly_storage_cost = total_bushels * storage_cost_per_bu_month
         break_even_basis_improvement = storage_cost_per_bu_month

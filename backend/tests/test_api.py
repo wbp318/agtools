@@ -4,7 +4,6 @@ API endpoint tests for AgTools backend.
 Run with: pytest tests/ -v
 """
 
-import pytest
 
 
 class TestRootEndpoint:

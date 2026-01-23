@@ -4,7 +4,6 @@ Professional-grade pesticide recommendations with resistance management and econ
 """
 
 from typing import List, Dict, Optional, Any
-from datetime import datetime, date
 import sys
 import os
 
@@ -14,8 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.chemical_database import (
     INSECTICIDE_PRODUCTS,
     FUNGICIDE_PRODUCTS,
-    ADJUVANTS,
-    RESISTANCE_MANAGEMENT_STRATEGIES
+    ADJUVANTS
 )
 from database.seed_data import CORN_PESTS, SOYBEAN_PESTS, CORN_DISEASES, SOYBEAN_DISEASES
 from services.measurement_converter_service import convert_rate_string
@@ -415,7 +413,7 @@ class SprayRecommender:
         """Recommend adjuvants"""
         recommendations = []
 
-        product_type = primary_product.get("product_name", "").lower()
+        _product_type = primary_product.get("product_name", "").lower()
 
         # Generic recommendations
         recommendations.append("NIS (non-ionic surfactant) at 0.25% v/v for most applications")
@@ -613,7 +611,7 @@ if __name__ == "__main__":
     print(f"Active Ingredient: {result['primary_product']['active_ingredient']}")
     print(f"Rate: {result['primary_product']['rate']}")
     print(f"Cost/Acre: ${result['primary_product']['cost_per_acre']:.2f}")
-    print(f"\nEconomic Analysis:")
+    print("\nEconomic Analysis:")
     print(f"  Total Cost: ${result['economic_analysis']['total_treatment_cost']:.2f}")
     print(f"  Protected Revenue: ${result['economic_analysis']['total_protected_revenue']:.2f}")
     print(f"  Net Benefit: ${result['economic_analysis']['net_benefit']:.2f}")

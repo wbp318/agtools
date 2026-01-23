@@ -8,23 +8,17 @@ Handles:
 - Profitability analysis
 """
 
-from typing import List, Optional
+from typing import Optional
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Depends, Request
-from pydantic import BaseModel
 
 from middleware.auth_middleware import get_current_active_user, AuthenticatedUser
 from middleware.rate_limiter import limiter, RATE_STANDARD, RATE_MODERATE
 from services.crop_cost_analysis_service import (
     get_crop_cost_analysis_service,
     CropAnalysisSummary,
-    FieldCostDetail,
-    FieldComparisonMatrix,
-    CropComparisonItem,
-    YearOverYearData,
-    ROIAnalysisItem,
-    TrendDataPoint
+    FieldComparisonMatrix
 )
 from services.profitability_service import (
     get_profitability_service,

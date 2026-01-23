@@ -12,11 +12,10 @@ Comprehensive farm intelligence featuring:
 """
 
 from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
 import statistics
-import random  # For demo price generation
 
 
 # =============================================================================
@@ -1150,7 +1149,7 @@ class FarmIntelligenceService:
                     "projected_revenue": round(crop_revenue, 2)
                 })
                 total_revenue += crop_revenue
-            except (ValueError, TypeError, KeyError) as e:
+            except (ValueError, TypeError, KeyError):
                 # Skip invalid field data
                 pass
 
@@ -1339,7 +1338,7 @@ class FarmIntelligenceService:
             }
 
         total_acres = sum(r.acres_harvested for r in records)
-        total_yield = sum(r.total_yield for r in records)
+        _total_yield = sum(r.total_yield for r in records)
 
         # By crop summary
         by_crop = {}

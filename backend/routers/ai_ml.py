@@ -11,7 +11,6 @@ Handles:
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import date
 from enum import Enum
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request

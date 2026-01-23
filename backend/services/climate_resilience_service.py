@@ -14,11 +14,10 @@ Features:
 - Climate-smart practice tracking
 """
 
-from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Any, Tuple
+from datetime import datetime, date
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
-import math
 
 
 class ClimateRiskType(str, Enum):
@@ -1193,7 +1192,7 @@ class ClimateResilienceService:
         )
 
         return {
-            "report_title": f"Climate Resilience Assessment Report",
+            "report_title": "Climate Resilience Assessment Report",
             "farm_id": farm_id,
             "region": region,
             "grant_program": grant_program,

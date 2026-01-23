@@ -9,12 +9,11 @@ Complete farm business management featuring:
 - Document Vault (centralized document management)
 """
 
-from datetime import datetime, date, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from datetime import date, timedelta
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from enum import Enum
 import statistics
-import math
 
 
 # =============================================================================

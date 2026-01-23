@@ -7,19 +7,16 @@ AgTools v2.5.0
 
 import os
 from typing import Optional, List
-from functools import wraps
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 from services.auth_service import (
-    AuthService,
-    TokenData,
     UserRole,
     get_auth_service
 )
-from services.user_service import UserService, UserResponse, get_user_service
+from services.user_service import get_user_service
 
 # Dev mode for local desktop app - bypasses auth for testing
 # SECURITY: Defaults to DISABLED. Set AGTOOLS_DEV_MODE=1 to enable (local dev only!)

@@ -11,10 +11,9 @@ This service provides grant application support including:
 
 from datetime import datetime, date
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import statistics
-import json
 
 
 # =============================================================================
@@ -1049,7 +1048,7 @@ class GrantService:
                 interpretation = f"Opportunity for improvement - {vs_national:.1f}% above national average"
         else:
             if farm_value > bench["top_10_pct"]:
-                interpretation = f"Exceptional! In top 10% nationally"
+                interpretation = "Exceptional! In top 10% nationally"
             elif farm_value > bench["national_avg"]:
                 interpretation = f"Above average - {vs_national:.1f}% above national average"
             else:

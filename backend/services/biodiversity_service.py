@@ -14,10 +14,9 @@ Features:
 """
 
 from datetime import datetime, date
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
-import math
 
 
 class HabitatType(str, Enum):
