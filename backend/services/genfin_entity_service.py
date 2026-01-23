@@ -607,12 +607,18 @@ class GenFinEntityService:
         cursor.execute("SELECT COUNT(DISTINCT user_id) FROM genfin_entity_users")
         user_count = cursor.fetchone()[0]
 
+        # Get count by entity type for by_type dict
+        cursor.execute("SELECT entity_type, COUNT(*) FROM genfin_entities WHERE status = 'active' GROUP BY entity_type")
+        by_type = {row[0]: row[1] for row in cursor.fetchall()}
+
         conn.close()
 
         return {
             "service": "GenFin Multi-Entity",
             "version": "6.3.0",
+            "total_entities": entity_count,
             "active_entities": entity_count,
+            "by_type": by_type,
             "inter_entity_transfers": transfer_count,
             "users_with_access": user_count,
             "features": [

@@ -7,7 +7,7 @@ AgTools v6.13.8
 
 import sqlite3
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Tuple, Any, Type, TypeVar, Dict, Generic
 from pydantic import BaseModel
 
@@ -432,7 +432,7 @@ class BaseService(ABC, Generic[ResponseT]):
                 UPDATE {self.TABLE_NAME}
                 SET is_active = 0, updated_at = ?
                 WHERE id = ? AND is_active = 1
-            """, (datetime.utcnow(), entity_id))
+            """, (datetime.now(timezone.utc), entity_id))
 
             if cursor.rowcount == 0:
                 return False, f"{name.title()} not found"

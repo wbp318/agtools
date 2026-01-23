@@ -948,14 +948,9 @@ class GenFinPayrollService:
                   now, now))
             conn.commit()
 
-        # Get count for numeric ID
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM genfin_pay_schedules WHERE is_active = 1")
-            count = cursor.fetchone()[0]
-
         return {
-            "id": count,
+            "id": schedule_id,
+            "schedule_id": schedule_id,
             "name": name,
             "frequency": frequency,
             "next_pay_date": next_pay

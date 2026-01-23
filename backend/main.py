@@ -6373,7 +6373,7 @@ async def export_fields(
     field_service = get_field_service()
 
     fields = field_service.list_fields()
-    field_data = [f.dict() for f in fields]
+    field_data = [f.model_dump() for f in fields]
 
     export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
 
@@ -6407,7 +6407,7 @@ async def export_equipment(
     equip_service = get_equipment_service()
 
     equipment = equip_service.list_equipment()
-    equip_data = [e.dict() for e in equipment]
+    equip_data = [e.model_dump() for e in equipment]
 
     export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
 
@@ -6441,7 +6441,7 @@ async def export_inventory(
     inv_service = get_inventory_service()
 
     items = inv_service.list_items()
-    item_data = [i.dict() for i in items]
+    item_data = [i.model_dump() for i in items]
 
     export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
 
@@ -6475,7 +6475,7 @@ async def export_tasks(
     task_service = get_task_service()
 
     tasks = task_service.list_tasks()
-    task_data = [t.dict() for t in tasks]
+    task_data = [t.model_dump() for t in tasks]
 
     export_format = ExportFormat.EXCEL if format.lower() == "excel" else ExportFormat.CSV
 
@@ -6552,10 +6552,10 @@ async def export_full_farm_report(
     task_service = get_task_service()
 
     sheets = {
-        "Fields": [f.dict() for f in field_service.list_fields()],
-        "Equipment": [e.dict() for e in equip_service.list_equipment()],
-        "Inventory": [i.dict() for i in inv_service.list_items()],
-        "Tasks": [t.dict() for t in task_service.list_tasks()],
+        "Fields": [f.model_dump() for f in field_service.list_fields()],
+        "Equipment": [e.model_dump() for e in equip_service.list_equipment()],
+        "Inventory": [i.model_dump() for i in inv_service.list_items()],
+        "Tasks": [t.model_dump() for t in task_service.list_tasks()],
     }
 
     content = service.export_multi_sheet(sheets)
@@ -6693,7 +6693,7 @@ async def export_reports_dashboard(
         if hasattr(obj, 'model_dump'):
             return obj.model_dump()
         elif hasattr(obj, 'dict'):
-            return obj.dict()
+            return obj.model_dump()
         return obj if isinstance(obj, dict) else {}
 
     # Get report data based on type
@@ -6863,7 +6863,7 @@ async def export_crop_cost_analysis(
         if hasattr(obj, 'model_dump'):
             return obj.model_dump()
         elif hasattr(obj, 'dict'):
-            return obj.dict()
+            return obj.model_dump()
         return obj if isinstance(obj, dict) else {}
 
     # Get data based on tab
@@ -12515,7 +12515,7 @@ async def create_harvest_lot(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Create a new harvest lot with full traceability"""
-    return food_safety_service.create_harvest_lot(data.dict())
+    return food_safety_service.create_harvest_lot(data.model_dump())
 
 
 @app.put("/api/v1/food-safety/lots/{lot_id}/status", tags=["Food Safety"])
@@ -12736,7 +12736,7 @@ async def find_matching_grants(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Find grants that match your farm characteristics"""
-    return grant_assistant_service.find_matching_grants(data.dict())
+    return grant_assistant_service.find_matching_grants(data.model_dump())
 
 
 @app.get("/api/v1/grants/programs/{program_id}", tags=["Grant Assistant"])
@@ -12770,7 +12770,7 @@ async def assess_eligibility(
     """Detailed eligibility assessment for a specific program"""
     return grant_assistant_service.assess_eligibility(
         program_id=data.program_id,
-        applicant_data=data.dict()
+        applicant_data=data.model_dump()
     )
 
 
@@ -12782,7 +12782,7 @@ async def generate_proposal_outline(
     """Generate a proposal outline with suggested content"""
     return grant_assistant_service.generate_proposal_outline(
         program_id=data.program_id,
-        project_data=data.dict()
+        project_data=data.model_dump()
     )
 
 
@@ -12807,7 +12807,7 @@ async def calculate_project_impact(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Calculate expected impact metrics for grant application"""
-    return grant_assistant_service.calculate_project_impact(data.dict())
+    return grant_assistant_service.calculate_project_impact(data.model_dump())
 
 
 @app.post("/api/v1/grants/applications", tags=["Grant Assistant"])
@@ -12816,7 +12816,7 @@ async def create_grant_application(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Create a new grant application tracking record"""
-    return grant_assistant_service.create_application(data.dict())
+    return grant_assistant_service.create_application(data.model_dump())
 
 
 @app.put("/api/v1/grants/applications/{application_id}/status", tags=["Grant Assistant"])
@@ -12849,7 +12849,7 @@ async def calculate_success_probability(
     """Calculate estimated success probability"""
     return grant_assistant_service.calculate_success_probability(
         program_id=data.program_id,
-        application_strength=data.dict()
+        application_strength=data.model_dump()
     )
 
 
@@ -13322,7 +13322,7 @@ async def get_chart_of_accounts(user: AuthenticatedUser = Depends(get_current_ac
 @app.post("/api/v1/genfin/accounts", tags=["GenFin Core"])
 async def create_account(data: GenFinAccountCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a new account"""
-    return genfin_core_service.create_account(**data.dict())
+    return genfin_core_service.create_account(**data.model_dump())
 
 @app.get("/api/v1/genfin/accounts", tags=["GenFin Core"])
 async def list_accounts(
@@ -13345,7 +13345,7 @@ async def get_account(account_id: str, user: AuthenticatedUser = Depends(get_cur
 @app.put("/api/v1/genfin/accounts/{account_id}", tags=["GenFin Core"])
 async def update_account(account_id: str, data: GenFinAccountUpdate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Update an account"""
-    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     result = genfin_core_service.update_account(account_id, **update_data)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Account not found"))
@@ -13381,7 +13381,7 @@ async def get_account_ledger(
 @app.post("/api/v1/genfin/journal-entries", tags=["GenFin Core"])
 async def create_journal_entry(data: GenFinJournalEntryCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a journal entry"""
-    lines = [line.dict() for line in data.lines]
+    lines = [line.model_dump() for line in data.lines]
     return genfin_core_service.create_journal_entry(
         entry_date=data.entry_date,
         lines=lines,
@@ -13421,7 +13421,7 @@ async def get_trial_balance(
 @app.post("/api/v1/genfin/vendors", tags=["GenFin Payables"])
 async def create_vendor(data: GenFinVendorCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a new vendor"""
-    return genfin_payables_service.create_vendor(**data.dict())
+    return genfin_payables_service.create_vendor(**data.model_dump())
 
 @app.get("/api/v1/genfin/vendors", tags=["GenFin Payables"])
 async def list_vendors(
@@ -13466,7 +13466,7 @@ async def get_vendor_balance(vendor_id: str, user: AuthenticatedUser = Depends(g
 @app.post("/api/v1/genfin/bills", tags=["GenFin Payables"])
 async def create_bill(data: GenFinBillCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a new bill"""
-    lines = [line.dict() for line in data.lines]
+    lines = [line.model_dump() for line in data.lines]
     return genfin_payables_service.create_bill(
         vendor_id=data.vendor_id,
         bill_date=data.bill_date,
@@ -13512,7 +13512,7 @@ async def post_bill(bill_id: str, user: AuthenticatedUser = Depends(get_current_
 @app.post("/api/v1/genfin/bill-payments", tags=["GenFin Payables"])
 async def create_bill_payment(data: GenFinBillPaymentCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a bill payment"""
-    return genfin_payables_service.create_bill_payment(**data.dict())
+    return genfin_payables_service.create_bill_payment(**data.model_dump())
 
 @app.get("/api/v1/genfin/ap-aging", tags=["GenFin Payables"])
 async def get_ap_aging(
@@ -13660,7 +13660,7 @@ async def create_purchase_order(data: GenFinPurchaseOrderCreate, user: Authentic
         "ship_via": data.ship_via,
         "terms": data.terms,
         "fob": data.fob,
-        "lines": [line.dict() for line in data.lines],
+        "lines": [line.model_dump() for line in data.lines],
         "memo": data.memo,
         "total": total,
         "status": "open",
@@ -13722,7 +13722,7 @@ async def delete_purchase_order(po_id: str, user: AuthenticatedUser = Depends(ge
 @app.post("/api/v1/genfin/customers", tags=["GenFin Receivables"])
 async def create_customer(data: GenFinCustomerCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a new customer"""
-    return genfin_receivables_service.create_customer(**data.dict())
+    return genfin_receivables_service.create_customer(**data.model_dump())
 
 @app.get("/api/v1/genfin/customers", tags=["GenFin Receivables"])
 async def list_customers(
@@ -13777,7 +13777,7 @@ async def get_customer_statement(
 @app.post("/api/v1/genfin/invoices", tags=["GenFin Receivables"])
 async def create_invoice(data: GenFinInvoiceCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a new invoice"""
-    lines = [line.dict() for line in data.lines]
+    lines = [line.model_dump() for line in data.lines]
     return genfin_receivables_service.create_invoice(
         customer_id=data.customer_id,
         invoice_date=data.invoice_date,
@@ -13824,7 +13824,7 @@ async def send_invoice(invoice_id: str, user: AuthenticatedUser = Depends(get_cu
 @app.post("/api/v1/genfin/payments-received", tags=["GenFin Receivables"])
 async def receive_payment(data: GenFinPaymentReceivedCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Receive a payment"""
-    return genfin_receivables_service.receive_payment(**data.dict())
+    return genfin_receivables_service.receive_payment(**data.model_dump())
 
 @app.get("/api/v1/genfin/ar-aging", tags=["GenFin Receivables"])
 async def get_ar_aging(
@@ -13849,7 +13849,7 @@ async def get_sales_summary(
 @app.post("/api/v1/genfin/bank-accounts", tags=["GenFin Banking"])
 async def create_bank_account(data: GenFinBankAccountCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a bank account"""
-    return genfin_banking_service.create_bank_account(**data.dict())
+    return genfin_banking_service.create_bank_account(**data.model_dump())
 
 @app.get("/api/v1/genfin/bank-accounts", tags=["GenFin Banking"])
 async def list_bank_accounts(active_only: bool = True, user: AuthenticatedUser = Depends(get_current_active_user)):
@@ -13877,7 +13877,7 @@ async def get_bank_register(
 @app.post("/api/v1/genfin/checks", tags=["GenFin Banking"])
 async def create_check(data: GenFinCheckCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a check"""
-    return genfin_banking_service.create_check(**data.dict())
+    return genfin_banking_service.create_check(**data.model_dump())
 
 @app.get("/api/v1/genfin/checks", tags=["GenFin Banking"])
 async def list_checks(
@@ -13983,7 +13983,7 @@ async def get_undeposited_funds(user: AuthenticatedUser = Depends(get_current_ac
 @app.post("/api/v1/genfin/ach-batch", tags=["GenFin Banking"])
 async def create_ach_batch(data: GenFinACHBatchCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create an ACH batch for direct deposit"""
-    return genfin_banking_service.create_ach_batch(**data.dict())
+    return genfin_banking_service.create_ach_batch(**data.model_dump())
 
 @app.get("/api/v1/genfin/ach-batch/{batch_id}/nacha", tags=["GenFin Banking"])
 async def generate_nacha_file(batch_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
@@ -14007,7 +14007,7 @@ async def list_ach_batches(
 @app.post("/api/v1/genfin/employees", tags=["GenFin Payroll"])
 async def create_employee(data: GenFinEmployeeCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a new employee"""
-    return genfin_payroll_service.create_employee(**data.dict())
+    return genfin_payroll_service.create_employee(**data.model_dump())
 
 @app.get("/api/v1/genfin/employees", tags=["GenFin Payroll"])
 async def list_employees(
@@ -14056,7 +14056,7 @@ async def get_employee_deductions(employee_id: str, user: AuthenticatedUser = De
 @app.post("/api/v1/genfin/time-entries", tags=["GenFin Payroll"])
 async def record_time(data: GenFinTimeEntryCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Record time entry"""
-    return genfin_payroll_service.record_time(**data.dict())
+    return genfin_payroll_service.record_time(**data.model_dump())
 
 @app.get("/api/v1/genfin/time-entries", tags=["GenFin Payroll"])
 async def get_time_entries(
@@ -14071,7 +14071,7 @@ async def get_time_entries(
 @app.post("/api/v1/genfin/pay-runs", tags=["GenFin Payroll"])
 async def create_pay_run(data: GenFinPayRunCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a pay run"""
-    return genfin_payroll_service.create_pay_run(**data.dict())
+    return genfin_payroll_service.create_pay_run(**data.model_dump())
 
 @app.get("/api/v1/genfin/pay-runs", tags=["GenFin Payroll"])
 async def list_pay_runs(
@@ -14363,7 +14363,7 @@ async def get_budget(budget_id: str, user: AuthenticatedUser = Depends(get_curre
 @app.put("/api/v1/genfin/budgets/line", tags=["GenFin Budget"])
 async def update_budget_line(data: GenFinBudgetLineUpdate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Update a budget line"""
-    return genfin_budget_service.update_budget_line(**data.dict())
+    return genfin_budget_service.update_budget_line(**data.model_dump())
 
 @app.post("/api/v1/genfin/budgets/{budget_id}/activate", tags=["GenFin Budget"])
 async def activate_budget(budget_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
@@ -14412,7 +14412,7 @@ async def get_forecast_summary(forecast_id: str, user: AuthenticatedUser = Depen
 @app.post("/api/v1/genfin/scenarios", tags=["GenFin Budget"])
 async def create_scenario(data: GenFinScenarioCreate, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Create a budget scenario"""
-    return genfin_budget_service.create_scenario(**data.dict())
+    return genfin_budget_service.create_scenario(**data.model_dump())
 
 @app.get("/api/v1/genfin/scenarios", tags=["GenFin Budget"])
 async def list_scenarios(user: AuthenticatedUser = Depends(get_current_active_user)):

@@ -6,7 +6,7 @@ AgTools v6.13.6
 """
 
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 from typing import Optional, List, Tuple
 
@@ -561,7 +561,7 @@ class TaskService(BaseService[TaskResponse]):
                 # Set completed_at if completing
                 if task_data.status == TaskStatus.COMPLETED:
                     updates.append("completed_at = ?")
-                    params.append(datetime.utcnow())
+                    params.append(datetime.now(timezone.utc))
                 elif current_status == TaskStatus.COMPLETED:
                     # Reopening - clear completed_at
                     updates.append("completed_at = NULL")
@@ -586,7 +586,7 @@ class TaskService(BaseService[TaskResponse]):
                 return self.get_task_by_id(task_id), None
 
             updates.append("updated_at = ?")
-            params.append(datetime.utcnow())
+            params.append(datetime.now(timezone.utc))
             # Add optimistic locking: only update if record hasn't changed
             params.append(task_id)
             params.append(original_updated_at)

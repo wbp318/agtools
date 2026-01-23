@@ -57,8 +57,7 @@ class CustomerResponse(BaseModel):
     status: Optional[str] = "active"
     balance: Optional[float] = 0
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}
 
 class CustomerListResponse(BaseModel):
     customers: List[Dict[str, Any]]
@@ -73,8 +72,7 @@ class VendorResponse(BaseModel):
     status: Optional[str] = "active"
     balance: Optional[float] = 0
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}
 
 class VendorListResponse(BaseModel):
     vendors: List[Dict[str, Any]]
@@ -88,8 +86,7 @@ class EmployeeResponse(BaseModel):
     phone: Optional[str] = None
     status: Optional[str] = "active"
 
-    class Config:
-        extra = "allow"
+    model_config = {"extra": "allow"}
 
 class EmployeeListResponse(BaseModel):
     employees: List[Dict[str, Any]]
@@ -171,29 +168,50 @@ class BalanceSheetResponse(BaseModel):
     equity: Dict[str, Any]
 
 class ProfitLossResponse(BaseModel):
-    start_date: date
-    end_date: date
+    """P&L Response - matches service output format"""
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     revenue: Dict[str, Any]
-    expenses: Dict[str, Any]
+    expenses: Optional[Dict[str, Any]] = None
+    operating_expenses: Optional[Dict[str, Any]] = None
     net_income: float
 
+    model_config = {"extra": "allow"}
+
 class CashFlowReportResponse(BaseModel):
-    start_date: date
-    end_date: date
-    operating: Dict[str, Any]
-    investing: Dict[str, Any]
-    financing: Dict[str, Any]
-    net_change: float
+    """Cash Flow Response - matches service output format"""
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    operating: Optional[Dict[str, Any]] = None
+    operating_activities: Optional[Dict[str, Any]] = None
+    investing: Optional[Dict[str, Any]] = None
+    investing_activities: Optional[Dict[str, Any]] = None
+    financing: Optional[Dict[str, Any]] = None
+    financing_activities: Optional[Dict[str, Any]] = None
+    net_change: Optional[float] = None
+    net_change_in_cash: Optional[float] = None
+
+    model_config = {"extra": "allow"}
 
 class AgingReportResponse(BaseModel):
-    as_of_date: date
-    current: float
-    days_1_30: float
-    days_31_60: float
-    days_61_90: float
-    over_90: float
-    total: float
-    details: List[Dict[str, Any]]
+    """Aging Report - matches service output format"""
+    as_of_date: Optional[str] = None
+    # Service returns nested 'aging' dict
+    aging: Optional[Dict[str, Any]] = None
+    # Or flat fields for legacy format
+    current: Optional[float] = None
+    days_1_30: Optional[float] = None
+    days_31_60: Optional[float] = None
+    days_61_90: Optional[float] = None
+    over_90: Optional[float] = None
+    total: Optional[float] = None
+    details: Optional[List[Dict[str, Any]]] = None
+
+    model_config = {"extra": "allow"}
 
 class PayScheduleResponse(BaseModel):
     id: int
@@ -251,11 +269,15 @@ class FixedAssetListResponse(BaseModel):
     total: int
 
 class FixedAssetsSummaryResponse(BaseModel):
+    """Fixed Assets Summary - matches service output format"""
     total_assets: int
-    total_purchase_price: float
-    total_accumulated_depreciation: float
-    total_book_value: float
-    by_category: Dict[str, float]
+    total_purchase_price: Optional[float] = None
+    total_accumulated_depreciation: Optional[float] = None
+    total_book_value: Optional[float] = None
+    total_cost: Optional[float] = None
+    by_category: Dict[str, Any]
+
+    model_config = {"extra": "allow"}
 
 class GenFinEntityResponse(BaseModel):
     id: int
@@ -288,54 +310,7 @@ async def genfin_health_check(request: Request):
 # CHART OF ACCOUNTS
 # ============================================================================
 
-@router.get("/accounts", response_model=AccountListResponse, tags=["Accounts"])
-async def list_accounts(
-    account_type: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List chart of accounts."""
-    from services.genfin_core_service import genfin_core_service
-
-    return genfin_core_service.list_accounts(account_type=account_type)
-
-
-@router.post("/accounts", response_model=AccountResponse, tags=["Accounts"])
-async def create_account(
-    name: str,
-    account_type: str,
-    account_number: Optional[str] = None,
-    sub_type: Optional[str] = None,
-    description: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Create a new account."""
-    from services.genfin_core_service import genfin_core_service
-
-    result = genfin_core_service.create_account(
-        name=name,
-        account_type=account_type,
-        account_number=account_number,
-        sub_type=sub_type,
-        description=description
-    )
-
-    return result
-
-
-@router.get("/accounts/{account_id}", response_model=AccountResponse, tags=["Accounts"])
-async def get_account(
-    account_id: int,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Get account details."""
-    from services.genfin_core_service import genfin_core_service
-
-    account = genfin_core_service.get_account(account_id)
-
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-
-    return account
+# Note: GET/POST /accounts endpoints are in main.py with proper Pydantic model support
 
 
 # ============================================================================
@@ -688,181 +663,28 @@ async def update_tax_withholding(
 # INVOICES
 # ============================================================================
 
-@router.get("/invoices", response_model=InvoiceListResponse, tags=["Invoices"])
-async def list_invoices(
-    status: Optional[str] = None,
-    customer_id: Optional[int] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List invoices."""
-    from services.genfin_receivables_service import genfin_receivables_service
-
-    return genfin_receivables_service.list_invoices(
-        status=status,
-        customer_id=customer_id
-    )
-
-
-@router.post("/invoices", response_model=InvoiceResponse, tags=["Invoices"])
-async def create_invoice(
-    customer_id: int,
-    invoice_date: date,
-    due_date: date,
-    lines: List[dict],
-    memo: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Create a new invoice."""
-    from services.genfin_receivables_service import genfin_receivables_service
-
-    result = genfin_receivables_service.create_invoice(
-        customer_id=customer_id,
-        invoice_date=invoice_date,
-        due_date=due_date,
-        lines=lines,
-        memo=memo
-    )
-
-    return result
-
-
-@router.get("/invoices/{invoice_id}", response_model=InvoiceResponse, tags=["Invoices"])
-async def get_invoice(
-    invoice_id: int,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Get invoice details."""
-    from services.genfin_receivables_service import genfin_receivables_service
-
-    invoice = genfin_receivables_service.get_invoice(invoice_id)
-
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
-    return invoice
+# Note: GET/POST /invoices endpoints are in main.py with proper Pydantic model support
 
 
 # ============================================================================
 # BILLS
 # ============================================================================
 
-@router.get("/bills", response_model=BillListResponse, tags=["Bills"])
-async def list_bills(
-    status: Optional[str] = None,
-    vendor_id: Optional[int] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List bills."""
-    from services.genfin_payables_service import genfin_payables_service
-
-    return genfin_payables_service.list_bills(
-        status=status,
-        vendor_id=vendor_id
-    )
-
-
-@router.post("/bills", response_model=BillResponse, tags=["Bills"])
-async def create_bill(
-    vendor_id: int,
-    bill_date: date,
-    due_date: date,
-    lines: List[dict],
-    memo: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Create a new bill."""
-    from services.genfin_payables_service import genfin_payables_service
-
-    result = genfin_payables_service.create_bill(
-        vendor_id=vendor_id,
-        bill_date=bill_date,
-        due_date=due_date,
-        lines=lines,
-        memo=memo
-    )
-
-    return result
+# Note: GET/POST /bills endpoints are in main.py with proper Pydantic model support
 
 
 # ============================================================================
 # CHECKS
 # ============================================================================
 
-@router.get("/checks", response_model=CheckListResponse, tags=["Checks"])
-async def list_checks(
-    bank_account_id: Optional[int] = None,
-    status: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List checks."""
-    from services.genfin_banking_service import genfin_banking_service
-
-    return genfin_banking_service.list_checks(
-        bank_account_id=bank_account_id,
-        status=status
-    )
-
-
-@router.post("/checks", response_model=CheckResponse, tags=["Checks"])
-async def create_check(
-    bank_account_id: int,
-    payee_name: str,
-    check_date: date,
-    amount: float,
-    expenses: Optional[List[dict]] = None,
-    memo: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Write a check."""
-    from services.genfin_banking_service import genfin_banking_service
-
-    result = genfin_banking_service.create_check(
-        bank_account_id=bank_account_id,
-        payee_name=payee_name,
-        check_date=check_date,
-        amount=amount,
-        expenses=expenses,
-        memo=memo
-    )
-
-    return result
+# Note: GET/POST /checks endpoints are in main.py with proper Pydantic model support
 
 
 # ============================================================================
 # BANK ACCOUNTS
 # ============================================================================
 
-@router.get("/bank-accounts", response_model=BankAccountListResponse, tags=["Banking"])
-async def list_bank_accounts(
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List bank accounts."""
-    from services.genfin_banking_service import genfin_banking_service
-
-    return genfin_banking_service.list_bank_accounts()
-
-
-@router.post("/bank-accounts", response_model=BankAccountResponse, tags=["Banking"])
-async def create_bank_account(
-    account_name: str,
-    account_type: str,
-    account_number: Optional[str] = None,
-    routing_number: Optional[str] = None,
-    opening_balance: float = 0,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Create a new bank account."""
-    from services.genfin_banking_service import genfin_banking_service
-
-    result = genfin_banking_service.create_bank_account(
-        account_name=account_name,
-        account_type=account_type,
-        account_number=account_number,
-        routing_number=routing_number,
-        opening_balance=opening_balance
-    )
-
-    return result
+# Note: GET/POST /bank-accounts endpoints are in main.py with proper Pydantic model support
 
 
 # ============================================================================
@@ -937,9 +759,9 @@ async def get_ar_aging(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get accounts receivable aging report. Rate limited: 30/minute."""
-    from services.genfin_reports_service import genfin_reports_service
+    from services.genfin_receivables_service import genfin_receivables_service
 
-    return genfin_reports_service.get_ar_aging(as_of_date=as_of_date)
+    return genfin_receivables_service.get_ar_aging(as_of_date=as_of_date)
 
 
 @router.get("/reports/ap-aging", response_model=AgingReportResponse, tags=["Reports"])
@@ -950,24 +772,17 @@ async def get_ap_aging(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get accounts payable aging report. Rate limited: 30/minute."""
-    from services.genfin_reports_service import genfin_reports_service
+    from services.genfin_payables_service import genfin_payables_service
 
-    return genfin_reports_service.get_ap_aging(as_of_date=as_of_date)
+    return genfin_payables_service.get_ap_aging(as_of_date=as_of_date)
 
 
 # ============================================================================
 # PAYROLL
 # ============================================================================
 
-@router.get("/payroll/schedules", response_model=PayScheduleListResponse, tags=["Payroll"])
-async def list_pay_schedules(
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List pay schedules."""
-    from services.genfin_payroll_service import genfin_payroll_service
-
-    return genfin_payroll_service.list_pay_schedules()
-
+# Note: GET /payroll/schedules and GET /payroll/runs are in main.py
+# They return list format directly rather than wrapped responses
 
 @router.post("/payroll/schedules", response_model=PayScheduleResponse, tags=["Payroll"])
 async def create_pay_schedule(
@@ -988,83 +803,18 @@ async def create_pay_schedule(
     return result
 
 
-@router.get("/payroll/runs", response_model=PayRunListResponse, tags=["Payroll"])
-async def list_pay_runs(
-    status: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List pay runs."""
-    from services.genfin_payroll_service import genfin_payroll_service
-
-    return genfin_payroll_service.list_pay_runs(status=status)
-
-
 # ============================================================================
 # BANK FEEDS
 # ============================================================================
 
-@router.get("/bank-feeds/summary", response_model=BankFeedSummaryResponse, tags=["Bank Feeds"])
-async def get_bank_feed_summary(
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Get bank feed summary."""
-    from services.genfin_bank_feeds_service import genfin_bank_feeds_service
-
-    return genfin_bank_feeds_service.get_summary()
-
-
-@router.get("/bank-feeds/transactions", response_model=BankFeedTransactionListResponse, tags=["Bank Feeds"])
-async def list_bank_feed_transactions(
-    status: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List bank feed transactions."""
-    from services.genfin_bank_feeds_service import genfin_bank_feeds_service
-
-    return genfin_bank_feeds_service.list_transactions(status=status)
+# Note: Bank feeds endpoints are in main.py with proper method names and Pydantic models
 
 
 # ============================================================================
 # FIXED ASSETS
 # ============================================================================
 
-@router.get("/fixed-assets", response_model=FixedAssetListResponse, tags=["Fixed Assets"])
-async def list_fixed_assets(
-    category: Optional[str] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List fixed assets."""
-    from services.genfin_fixed_assets_service import genfin_fixed_assets_service
-
-    return genfin_fixed_assets_service.list_assets(category=category)
-
-
-@router.post("/fixed-assets", response_model=FixedAssetResponse, tags=["Fixed Assets"])
-async def create_fixed_asset(
-    name: str = Query(...),
-    category: str = Query(...),
-    purchase_date: date = Query(...),
-    purchase_price: float = Query(...),
-    depreciation_method: str = Query("straight_line"),
-    useful_life_years: int = Query(7),
-    salvage_value: float = Query(0),
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Create a fixed asset."""
-    from services.genfin_fixed_assets_service import genfin_fixed_assets_service
-
-    result = genfin_fixed_assets_service.create_asset(
-        name=name,
-        category=category,
-        purchase_date=purchase_date,
-        purchase_price=purchase_price,
-        depreciation_method=depreciation_method,
-        useful_life_years=useful_life_years,
-        salvage_value=salvage_value
-    )
-
-    return result
-
+# Note: GET/POST /fixed-assets endpoints are in main.py with proper Pydantic model support
 
 @router.get("/fixed-assets/summary", response_model=FixedAssetsSummaryResponse, tags=["Fixed Assets"])
 async def get_fixed_assets_summary(
@@ -1080,30 +830,7 @@ async def get_fixed_assets_summary(
 # ENTITIES (MULTI-COMPANY)
 # ============================================================================
 
-@router.get("/entities", response_model=GenFinEntityListResponse, tags=["Entities"])
-async def list_genfin_entities(
-    active_only: bool = True,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List entities (companies)."""
-    from services.genfin_entity_service import get_entity_service
-
-    entity_service = get_entity_service()
-    entities = entity_service.list_entities(active_only)
-
-    # Convert service EntityResponse objects to router's simpler GenFinEntityResponse format
-    entity_list = [
-        {
-            "id": e.id,
-            "name": e.name,
-            "entity_type": e.entity_type,
-            "tax_id": e.tax_id,
-            "status": e.status
-        }
-        for e in entities
-    ]
-    return {"entities": entity_list, "total": len(entity_list)}
-
+# Note: GET /entities endpoint is in main.py with proper Pydantic model support
 
 @router.get("/entities/summary", response_model=EntitiesSummaryResponse, tags=["Entities"])
 async def get_entities_summary(

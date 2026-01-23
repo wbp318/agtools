@@ -115,8 +115,8 @@ class GenFinReportsService:
 
     def get_profit_loss(
         self,
-        start_date: str,
-        end_date: str,
+        start_date: str = None,
+        end_date: str = None,
         compare_prior_period: bool = False,
         compare_prior_year: bool = False,
         group_by_month: bool = False,
@@ -124,6 +124,12 @@ class GenFinReportsService:
         location_id: Optional[str] = None
     ) -> Dict:
         """Generate Profit & Loss Statement"""
+        # Handle null dates with sensible defaults
+        if start_date is None:
+            start_date = date(date.today().year, 1, 1).isoformat()
+        if end_date is None:
+            end_date = date.today().isoformat()
+
         s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
@@ -369,11 +375,15 @@ class GenFinReportsService:
 
     def get_balance_sheet(
         self,
-        as_of_date: str,
+        as_of_date: str = None,
         compare_prior_period: bool = False,
         compare_prior_year: bool = False
     ) -> Dict:
         """Generate Balance Sheet"""
+        # Handle null date with sensible default
+        if as_of_date is None:
+            as_of_date = date.today().isoformat()
+
         report_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
 
         # Get all accounts with balances
@@ -522,8 +532,14 @@ class GenFinReportsService:
 
     # ==================== CASH FLOW ====================
 
-    def get_cash_flow(self, start_date: str, end_date: str) -> Dict:
+    def get_cash_flow(self, start_date: str = None, end_date: str = None) -> Dict:
         """Generate Cash Flow Statement"""
+        # Handle null dates with sensible defaults
+        if start_date is None:
+            start_date = date(date.today().year, 1, 1).isoformat()
+        if end_date is None:
+            end_date = date.today().isoformat()
+
         s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         e_date = datetime.strptime(end_date, "%Y-%m-%d").date()
 
