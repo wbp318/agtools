@@ -561,7 +561,7 @@ class TaskService(BaseService[TaskResponse]):
                 # Set completed_at if completing
                 if task_data.status == TaskStatus.COMPLETED:
                     updates.append("completed_at = ?")
-                    params.append(datetime.now(timezone.utc))
+                    params.append(datetime.now(timezone.utc).isoformat())
                 elif current_status == TaskStatus.COMPLETED:
                     # Reopening - clear completed_at
                     updates.append("completed_at = NULL")
@@ -586,7 +586,7 @@ class TaskService(BaseService[TaskResponse]):
                 return self.get_task_by_id(task_id), None
 
             updates.append("updated_at = ?")
-            params.append(datetime.now(timezone.utc))
+            params.append(datetime.now(timezone.utc).isoformat())
             # Add optimistic locking: only update if record hasn't changed
             params.append(task_id)
             params.append(original_updated_at)

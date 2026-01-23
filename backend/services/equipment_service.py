@@ -6,7 +6,7 @@ AgTools v6.13.5
 """
 
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 from typing import Optional, List, Tuple
 
@@ -654,7 +654,7 @@ class EquipmentService:
             return self.get_equipment_by_id(equip_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow().isoformat())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(equip_id)
 
         try:
@@ -697,7 +697,7 @@ class EquipmentService:
                 UPDATE equipment
                 SET is_active = 0, status = ?, updated_at = ?
                 WHERE id = ? AND is_active = 1
-            """, (EquipmentStatus.RETIRED.value, datetime.utcnow().isoformat(), equip_id))
+            """, (EquipmentStatus.RETIRED.value, datetime.now(timezone.utc).isoformat(), equip_id))
 
             if cursor.rowcount == 0:
                 conn.close()
@@ -734,7 +734,7 @@ class EquipmentService:
                 UPDATE equipment
                 SET current_hours = ?, updated_at = ?
                 WHERE id = ? AND is_active = 1
-            """, (new_hours, datetime.utcnow().isoformat(), equip_id))
+            """, (new_hours, datetime.now(timezone.utc).isoformat(), equip_id))
 
             if cursor.rowcount == 0:
                 conn.close()
@@ -960,7 +960,7 @@ class EquipmentService:
                 cursor.execute("""
                     UPDATE equipment SET current_hours = ?, updated_at = ?
                     WHERE id = ?
-                """, (usage_data.ending_hours, datetime.utcnow().isoformat(), usage_data.equipment_id))
+                """, (usage_data.ending_hours, datetime.now(timezone.utc).isoformat(), usage_data.equipment_id))
 
             conn.commit()
 

@@ -432,7 +432,7 @@ class BaseService(ABC, Generic[ResponseT]):
                 UPDATE {self.TABLE_NAME}
                 SET is_active = 0, updated_at = ?
                 WHERE id = ? AND is_active = 1
-            """, (datetime.now(timezone.utc), entity_id))
+            """, (datetime.now(timezone.utc).isoformat(), entity_id))
 
             if cursor.rowcount == 0:
                 return False, f"{name.title()} not found"

@@ -1,8 +1,51 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.15.0 | **Last Updated:** January 19, 2026
+> **Current Version:** 6.15.1 | **Last Updated:** January 23, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.15.1 (January 23, 2026)
+
+### API Consolidation & Python 3.12+ Compatibility
+
+**Fixed GenFin API duplicate endpoints and eliminated deprecation warnings.**
+
+**GenFin API Cleanup:**
+- Removed 17 duplicate endpoints from `genfin.py` router that conflicted with `main.py`
+- Endpoints in `main.py` use proper Pydantic request models; duplicates used Query params
+- Fixed AR/AP aging endpoints to call correct services (receivables/payables)
+- Fixed pay schedule create to return actual UUID instead of count
+- Updated response models to handle service output format variations
+- Fixed date processing in reports service (null handling for defaults)
+- Fixed entity summary to include `total_entities` and `by_type` fields
+
+**Python 3.12+ Deprecation Fixes:**
+- Replaced all `datetime.utcnow()` with `datetime.now(timezone.utc)` across 9 service files
+- Replaced Pydantic `.dict()` with `.model_dump()` (35 occurrences in main.py)
+- Replaced `class Config` with `model_config = {"extra": "allow"}` in response models
+- Added `.isoformat()` for datetime objects passed to SQLite queries
+
+**Test Suite:**
+- All 227 tests pass with 0 deprecation warnings (was 475 warnings)
+- Updated test assertions for flexible response format handling
+
+**Files Changed:**
+- `backend/routers/genfin.py` - Removed duplicate endpoints, updated response models
+- `backend/main.py` - Replaced .dict() with .model_dump()
+- `backend/services/genfin_*.py` - Fixed date handling, entity summary
+- `backend/services/auth_service.py` - Fixed datetime deprecations
+- `backend/services/equipment_service.py` - Fixed datetime deprecations
+- `backend/services/field_service.py` - Fixed datetime deprecations
+- `backend/services/field_operations_service.py` - Fixed datetime deprecations
+- `backend/services/inventory_service.py` - Fixed datetime deprecations
+- `backend/services/task_service.py` - Fixed datetime deprecations
+- `backend/services/time_entry_service.py` - Fixed datetime deprecations
+- `backend/services/user_service.py` - Fixed datetime deprecations
+- `backend/services/base_service.py` - Fixed datetime deprecations
+- `tests/test_genfin_endpoints.py` - Updated assertions
+- `CLAUDE.md` - Added GenFin architecture and common issues documentation
 
 ---
 

@@ -9,7 +9,7 @@ import os
 import hashlib
 import secrets
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, Tuple
 from enum import Enum
 
@@ -172,9 +172,9 @@ class AuthService:
             Encoded JWT token string
         """
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
         to_encode = {
             "sub": str(user_id),
@@ -196,7 +196,7 @@ class AuthService:
         Returns:
             Encoded JWT refresh token string
         """
-        expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
         to_encode = {
             "sub": str(user_id),
@@ -343,14 +343,14 @@ class AuthService:
             access_hash = self.hash_token_for_storage(access_token)
             refresh_hash = self.hash_token_for_storage(refresh_token)
 
-            expires_at = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            refresh_expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            refresh_expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
             cursor.execute("""
                 INSERT INTO sessions
                 (user_id, token_hash, refresh_token_hash, expires_at, refresh_expires_at, ip_address, user_agent)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, access_hash, refresh_hash, expires_at, refresh_expires_at, ip_address, user_agent))
+            """, (user_id, access_hash, refresh_hash, expires_at.isoformat(), refresh_expires_at.isoformat(), ip_address, user_agent))
 
             # Only commit if we own the connection (self.db), not if passed externally
             if conn is None and self.db:
@@ -473,7 +473,7 @@ class AuthService:
             if isinstance(expires_at, str):
                 expires_at = datetime.fromisoformat(expires_at)
 
-            return datetime.utcnow() < expires_at
+            return datetime.now(timezone.utc) < expires_at
 
         except Exception as e:
             print(f"Error checking session: {e}")
@@ -495,7 +495,7 @@ class AuthService:
             cursor.execute("""
                 DELETE FROM sessions
                 WHERE expires_at < ? OR is_valid = 0
-            """, (datetime.utcnow(),))
+            """, (datetime.now(timezone.utc).isoformat(),))
 
             self.db.commit()
             return cursor.rowcount
@@ -557,7 +557,7 @@ class AuthService:
             "entity_id": entity_id,
             "details": details,
             "ip_address": ip_address,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         if not db_conn:

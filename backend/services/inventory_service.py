@@ -6,7 +6,7 @@ AgTools v6.13.5
 """
 
 import sqlite3
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from enum import Enum
 from typing import Optional, List, Tuple
 
@@ -390,7 +390,7 @@ class InventoryService:
             SET total_value = quantity * COALESCE(unit_cost, 0),
                 updated_at = ?
             WHERE id = ?
-        """, (datetime.utcnow().isoformat(), item_id))
+        """, (datetime.now(timezone.utc).isoformat(), item_id))
 
     # ========================================================================
     # INVENTORY ITEM CRUD
@@ -594,7 +594,7 @@ class InventoryService:
             return self.get_item_by_id(item_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow().isoformat())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(item_id)
 
         try:
@@ -640,7 +640,7 @@ class InventoryService:
                 UPDATE inventory_items
                 SET is_active = 0, updated_at = ?
                 WHERE id = ? AND is_active = 1
-            """, (datetime.utcnow().isoformat(), item_id))
+            """, (datetime.now(timezone.utc).isoformat(), item_id))
 
             if cursor.rowcount == 0:
                 conn.close()
@@ -731,7 +731,7 @@ class InventoryService:
                 UPDATE inventory_items
                 SET quantity = ?, updated_at = ?
                 WHERE id = ?
-            """, (new_qty, datetime.utcnow().isoformat(), trans_data.inventory_item_id))
+            """, (new_qty, datetime.now(timezone.utc).isoformat(), trans_data.inventory_item_id))
 
             # Update total value
             self._update_item_total_value(cursor, trans_data.inventory_item_id)

@@ -6,7 +6,7 @@ AgTools v2.5.0
 """
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Tuple
 
 from pydantic import BaseModel, EmailStr, Field
@@ -286,7 +286,7 @@ class UserService:
         # Update last login
         cursor.execute("""
             UPDATE users SET last_login = ? WHERE id = ?
-        """, (datetime.utcnow(), user_dict["id"]))
+        """, (datetime.now(timezone.utc).isoformat(), user_dict["id"]))
 
         conn.commit()
 
@@ -328,7 +328,7 @@ class UserService:
             role=UserRole(user_dict["role"]),
             is_active=user_dict["is_active"],
             created_at=user_dict["created_at"],
-            last_login=datetime.utcnow()
+            last_login=datetime.now(timezone.utc)
         )
 
         return tokens, user_response, None
@@ -646,7 +646,7 @@ class UserService:
             return self.get_user_by_id(user_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(user_id)
 
         try:
@@ -708,7 +708,7 @@ class UserService:
         new_hash = self.auth_service.hash_password(new_password)
         cursor.execute("""
             UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?
-        """, (new_hash, datetime.utcnow(), user_id))
+        """, (new_hash, datetime.now(timezone.utc).isoformat(), user_id))
 
         # Invalidate all sessions (thread-safe - pass connection explicitly)
         self.auth_service.invalidate_all_user_sessions(user_id, conn=conn)
@@ -745,7 +745,7 @@ class UserService:
 
         cursor.execute("""
             UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?
-        """, (datetime.utcnow(), user_id))
+        """, (datetime.now(timezone.utc).isoformat(), user_id))
 
         # Invalidate all sessions (thread-safe - pass connection explicitly)
         self.auth_service.invalidate_all_user_sessions(user_id, conn=conn)
@@ -900,7 +900,7 @@ class UserService:
             return self.get_crew_by_id(crew_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(crew_id)
 
         try:

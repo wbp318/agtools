@@ -6,7 +6,7 @@ AgTools v6.13.6
 """
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, List, Tuple
 
@@ -463,7 +463,7 @@ class FieldService(BaseService[FieldResponse]):
             return self.get_field_by_id(field_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(field_id)
 
         try:

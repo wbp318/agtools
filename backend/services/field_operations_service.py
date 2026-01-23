@@ -6,7 +6,7 @@ AgTools v2.5.0 Phase 3
 """
 
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 from typing import Optional, List, Tuple
 
@@ -626,7 +626,7 @@ class FieldOperationsService:
             return self.get_operation_by_id(op_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(op_id)
 
         try:
@@ -672,7 +672,7 @@ class FieldOperationsService:
 
         cursor.execute("""
             UPDATE field_operations SET is_active = 0, updated_at = ? WHERE id = ?
-        """, (datetime.utcnow(), op_id))
+        """, (datetime.now(timezone.utc).isoformat(), op_id))
 
         if cursor.rowcount == 0:
             conn.close()

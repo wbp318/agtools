@@ -6,7 +6,7 @@ AgTools v2.6.0 Phase 6.4
 """
 
 import sqlite3
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 
@@ -368,7 +368,7 @@ class TimeEntryService:
             return self.get_entry_by_id(entry_id), None
 
         updates.append("updated_at = ?")
-        params.append(datetime.utcnow())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(entry_id)
 
         try:
