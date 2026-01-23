@@ -199,9 +199,15 @@ LICENSE linguist-detectable=true
 *.cfg linguist-detectable=true
 .gitignore linguist-detectable=true
 .gitattributes linguist-detectable=true
+.dockerignore linguist-language=Ignore\ List
+.dockerignore linguist-detectable=true
+.env.example linguist-language=Shell
+.env.example linguist-detectable=true
 requirements*.txt linguist-detectable=true
 pytest.ini linguist-detectable=true
+Dockerfile linguist-language=Dockerfile
 Dockerfile linguist-detectable=true
+docker-compose.yml linguist-detectable=true
 
 # Jinja templates - detectable
 *.jinja linguist-language=Jinja
