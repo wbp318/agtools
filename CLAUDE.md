@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AgTools is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend and a PyQt6 desktop frontend.
+AgTools (v6.15.1) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
 
 ## Build & Run Commands
 
@@ -21,6 +21,9 @@ cd frontend
 pip install -r requirements.txt
 python main.py
 ```
+
+### Mobile Interface
+Access at `http://localhost:8000/m/login` when backend is running.
 
 ### Running Tests
 ```bash
@@ -48,7 +51,7 @@ Tests use temporary SQLite databases for isolation. Key fixtures are in `tests/c
 - **main.py**: FastAPI application with 825+ REST API endpoints. Most GenFin endpoints are defined here with Pydantic request models.
 - **routers/**: Supplementary route handlers organized by domain. Note: `genfin.py` router has rate-limited endpoints and some duplicates with main.py - main.py takes priority for Pydantic model endpoints.
 - **services/**: Business logic services (~70 service modules)
-  - `genfin_*.py`: GenFin accounting services (payroll, banking, receivables, payables, reports, etc.)
+  - `genfin_*.py`: GenFin accounting services (13 files)
   - `*_service.py`: Farm operations services (field, equipment, inventory, task, etc.)
   - `base_service.py`: Base class with common CRUD patterns and `ServiceRegistry` for dependency injection
 - **middleware/**: Auth middleware, rate limiting
@@ -77,14 +80,20 @@ Services use a `ServiceRegistry` pattern for dependency injection. Each service 
 - `/api/v1/grants/*` - Grant management and compliance
 
 ### GenFin Module Structure
-GenFin is a full accounting system with these service files:
-- `genfin_core_service.py` - Chart of accounts, journal entries
-- `genfin_receivables_service.py` - Customers, invoices, AR aging
-- `genfin_payables_service.py` - Vendors, bills, AP aging
-- `genfin_banking_service.py` - Bank accounts, checks, deposits, ACH
-- `genfin_payroll_service.py` - Employees, pay schedules, pay runs
-- `genfin_reports_service.py` - P&L, balance sheet, cash flow
+GenFin is a full accounting system with 13 service files:
+- `genfin_core_service.py` - Chart of accounts, journal entries, fiscal periods
+- `genfin_receivables_service.py` - Customers, invoices, AR aging, payments
+- `genfin_payables_service.py` - Vendors, bills, AP aging, bill payments
+- `genfin_banking_service.py` - Bank accounts, checks, deposits, reconciliation
+- `genfin_payroll_service.py` - Employees, pay schedules, pay runs, NACHA
+- `genfin_reports_service.py` - P&L, balance sheet, cash flow, financial ratios
 - `genfin_budget_service.py` - Budgets, forecasts, scenarios
+- `genfin_inventory_service.py` - Items, FIFO/LIFO costing, assemblies
+- `genfin_classes_service.py` - Classes, projects, billable time
+- `genfin_entity_service.py` - Multi-entity management
+- `genfin_fixed_assets_service.py` - Depreciation, asset tracking
+- `genfin_bank_feeds_service.py` - OFX import, transaction matching
+- `genfin_advanced_reports_service.py` - Additional report types
 
 ## Environment Variables
 
@@ -94,6 +103,7 @@ GenFin is a full accounting system with these service files:
 
 ## Testing Notes
 
+- 600+ tests total, 227 GenFin tests in `test_genfin_endpoints.py`
 - Tests set `AGTOOLS_DEV_MODE=1` and `AGTOOLS_TEST_MODE=1` automatically
 - Default test admin credentials: username `admin`, password `admin123`
 - Use `DataFactory` class from `conftest.py` to generate test data
@@ -107,8 +117,12 @@ GenFin is a full accounting system with these service files:
 - SQLite is the default database (PostgreSQL optional)
 - GenFin services follow a consistent CRUD pattern with SQLite persistence
 - Frontend uses httpx for async API calls with secure token storage
-- Pydantic V2 is used - use `model_dump()` not `.dict()`, use `model_config = {"extra": "allow"}` not `class Config`
-- Use `datetime.now(timezone.utc)` not `datetime.utcnow()` (deprecated in Python 3.12+)
+- Pydantic V2 is used:
+  - Use `model_dump()` not `.dict()`
+  - Use `model_config = {"extra": "allow"}` not `class Config`
+- Python 3.12+ datetime:
+  - Use `datetime.now(timezone.utc)` not `datetime.utcnow()`
+  - When passing datetime to SQLite queries, use `.isoformat()`
 
 ## Common Issues
 
@@ -120,3 +134,10 @@ Services return dictionaries with various field names. Response models in router
 
 ### Test Data Dependencies
 Test classes share `test_ids` fixture. Tests may fail when run in full suite but pass individually due to test ordering and data dependencies.
+
+### SQLite Datetime
+Always use `.isoformat()` when passing datetime objects to SQLite:
+```python
+cursor.execute("INSERT INTO table (created_at) VALUES (?)",
+               (datetime.now(timezone.utc).isoformat(),))
+```
