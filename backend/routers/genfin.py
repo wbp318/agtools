@@ -208,19 +208,6 @@ class PayRunListResponse(BaseModel):
     pay_runs: List[PayRunResponse]
     total: int
 
-class RecurringTemplateResponse(BaseModel):
-    id: int
-    template_type: str
-    name: str
-    frequency: str
-    amount: float
-    next_date: date
-    status: Optional[str] = "active"
-
-class RecurringTemplateListResponse(BaseModel):
-    templates: List[RecurringTemplateResponse]
-    total: int
-
 class BankFeedSummaryResponse(BaseModel):
     pending_count: int
     matched_count: int
@@ -275,23 +262,6 @@ class GenFinEntityListResponse(BaseModel):
 class EntitiesSummaryResponse(BaseModel):
     total_entities: int
     by_type: Dict[str, int]
-
-class Summary1099Response(BaseModel):
-    year: int
-    total_vendors: int
-    total_payments: float
-    threshold: float
-
-class Vendor1099Response(BaseModel):
-    vendor_id: int
-    vendor_name: str
-    tax_id: Optional[str] = None
-    total_payments: float
-    requires_1099: bool
-
-class Vendor1099ListResponse(BaseModel):
-    vendors: List[Vendor1099Response]
-    total: int
 
 
 # ============================================================================
@@ -1009,43 +979,6 @@ async def list_pay_runs(
 
 
 # ============================================================================
-# RECURRING TRANSACTIONS
-# ============================================================================
-
-@router.get("/recurring", response_model=RecurringTemplateListResponse, tags=["Recurring"])
-async def list_recurring_templates(
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List recurring transaction templates."""
-    from services.genfin_recurring_service import genfin_recurring_service
-
-    return genfin_recurring_service.list_templates()
-
-
-@router.post("/recurring", response_model=RecurringTemplateResponse, tags=["Recurring"])
-async def create_recurring_template(
-    template_type: str,
-    name: str,
-    frequency: str,
-    amount: float,
-    next_date: date,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Create a recurring transaction template."""
-    from services.genfin_recurring_service import genfin_recurring_service
-
-    result = genfin_recurring_service.create_template(
-        template_type=template_type,
-        name=name,
-        frequency=frequency,
-        amount=amount,
-        next_date=next_date
-    )
-
-    return result
-
-
-# ============================================================================
 # BANK FEEDS
 # ============================================================================
 
@@ -1162,27 +1095,3 @@ async def get_entities_summary(
     return entity_service.get_service_summary()
 
 
-# ============================================================================
-# 1099 TRACKING
-# ============================================================================
-
-@router.get("/1099/summary", response_model=Summary1099Response, tags=["1099"])
-async def get_1099_summary(
-    year: Optional[int] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """Get 1099 tracking summary."""
-    from services.genfin_1099_service import genfin_1099_service
-
-    return genfin_1099_service.get_summary(year=year)
-
-
-@router.get("/1099/vendors", response_model=Vendor1099ListResponse, tags=["1099"])
-async def list_1099_vendors(
-    year: Optional[int] = None,
-    user: AuthenticatedUser = Depends(get_current_active_user)
-):
-    """List vendors requiring 1099."""
-    from services.genfin_1099_service import genfin_1099_service
-
-    return genfin_1099_service.list_1099_vendors(year=year)
