@@ -1,6 +1,6 @@
 # GenFin - Complete Farm Financial Management System
 
-*Version 6.7.16 | January 2026*
+*Version 6.15.1 | January 2026*
 
 ---
 
@@ -1438,4 +1438,4 @@ GenFin is part of AgTools Professional. For questions:
 
 *GenFin - Farm Financial Management Built for Farmers*
 
-**Copyright 2025 New Generation Farms. All Rights Reserved.**
+**Copyright 2024-2026 New Generation Farms. All Rights Reserved.**
