@@ -49,7 +49,7 @@ class AccountListResponse(BaseModel):
     total: int
 
 class CustomerResponse(BaseModel):
-    id: int
+    customer_id: str
     display_name: str
     company_name: Optional[str] = None
     email: Optional[str] = None
@@ -57,12 +57,15 @@ class CustomerResponse(BaseModel):
     status: Optional[str] = "active"
     balance: Optional[float] = 0
 
+    class Config:
+        extra = "allow"
+
 class CustomerListResponse(BaseModel):
-    customers: List[CustomerResponse]
+    customers: List[Dict[str, Any]]
     total: int
 
 class VendorResponse(BaseModel):
-    id: int
+    vendor_id: str
     display_name: str
     company_name: Optional[str] = None
     email: Optional[str] = None
@@ -70,20 +73,26 @@ class VendorResponse(BaseModel):
     status: Optional[str] = "active"
     balance: Optional[float] = 0
 
+    class Config:
+        extra = "allow"
+
 class VendorListResponse(BaseModel):
-    vendors: List[VendorResponse]
+    vendors: List[Dict[str, Any]]
     total: int
 
 class EmployeeResponse(BaseModel):
-    id: int
+    employee_id: str
     first_name: str
     last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
     status: Optional[str] = "active"
 
+    class Config:
+        extra = "allow"
+
 class EmployeeListResponse(BaseModel):
-    employees: List[EmployeeResponse]
+    employees: List[Dict[str, Any]]
     total: int
 
 class InvoiceLineResponse(BaseModel):
@@ -341,7 +350,8 @@ async def list_customers(
     """List customers."""
     from services.genfin_receivables_service import genfin_receivables_service
 
-    return genfin_receivables_service.list_customers(status=status)
+    customers = genfin_receivables_service.list_customers(status=status)
+    return {"customers": customers, "total": len(customers)}
 
 
 @router.post("/customers", response_model=CustomerResponse, tags=["Customers"])
@@ -362,12 +372,15 @@ async def create_customer(
         phone=phone
     )
 
-    return result
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to create customer"))
+
+    return result.get("customer")
 
 
 @router.get("/customers/{customer_id}", response_model=CustomerResponse, tags=["Customers"])
 async def get_customer(
-    customer_id: int,
+    customer_id: str,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get customer details."""
@@ -393,7 +406,8 @@ async def list_vendors(
     """List vendors."""
     from services.genfin_payables_service import genfin_payables_service
 
-    return genfin_payables_service.list_vendors(status=status)
+    vendors = genfin_payables_service.list_vendors(status=status)
+    return {"vendors": vendors, "total": len(vendors)}
 
 
 @router.post("/vendors", response_model=VendorResponse, tags=["Vendors"])
@@ -414,12 +428,15 @@ async def create_vendor(
         phone=phone
     )
 
-    return result
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to create vendor"))
+
+    return result.get("vendor")
 
 
 @router.get("/vendors/{vendor_id}", response_model=VendorResponse, tags=["Vendors"])
 async def get_vendor(
-    vendor_id: int,
+    vendor_id: str,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get vendor details."""
@@ -445,7 +462,9 @@ async def list_genfin_employees(
     """List employees."""
     from services.genfin_payroll_service import genfin_payroll_service
 
-    return genfin_payroll_service.list_employees(status=status)
+    result = genfin_payroll_service.list_employees(status=status)
+    # Service returns {"employees": [...], "total": N}
+    return result
 
 
 @router.post("/employees", response_model=EmployeeResponse, tags=["Employees"])
@@ -462,9 +481,12 @@ async def create_genfin_employee(
     result = genfin_payroll_service.create_employee(
         first_name=first_name,
         last_name=last_name,
-        email=email,
-        phone=phone
+        email=email or "",
+        phone=phone or ""
     )
+
+    if not result or not result.get("employee_id"):
+        raise HTTPException(status_code=400, detail="Failed to create employee")
 
     return result
 
@@ -481,7 +503,6 @@ async def get_genfin_employee(
     if not result:
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    result["id"] = 1  # Add numeric id for response model
     return result
 
 

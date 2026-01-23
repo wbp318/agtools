@@ -8,15 +8,24 @@ Each endpoint gets its own test function for clear reporting.
 Run with: pytest tests/test_genfin_endpoints.py -v
 """
 
+import os
+import sys
 import pytest
-import requests
 import random
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional, Tuple
 
+# Add backend to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend"))
+
+# Set test environment before importing app
+os.environ["AGTOOLS_DEV_MODE"] = "1"
+os.environ["AGTOOLS_TEST_MODE"] = "1"
+
+from fastapi.testclient import TestClient
+
 # Configuration
-API_BASE = "http://127.0.0.1:8000/api/v1/genfin"  # Standard API port
-TIMEOUT = 10
+API_BASE = "/api/v1/genfin"
 
 # =============================================================================
 # FIXTURES - Shared test data and setup
@@ -24,44 +33,53 @@ TIMEOUT = 10
 
 @pytest.fixture(scope="module")
 def api():
-    """API helper class for making requests."""
-    class APIHelper:
-        def get(self, endpoint: str, params: dict = None) -> Tuple[int, Any]:
-            try:
-                r = requests.get(f"{API_BASE}{endpoint}", params=params, timeout=TIMEOUT)
-                return r.status_code, r.json() if r.status_code == 200 else r.text
-            except Exception as e:
-                return 500, str(e)
+    """API helper class for making requests using TestClient."""
+    from main import app
+    from services.base_service import ServiceRegistry
 
-        def post(self, endpoint: str, data: dict = None, params: dict = None) -> Tuple[int, Any]:
-            try:
-                if params:
-                    r = requests.post(f"{API_BASE}{endpoint}", params=params, timeout=TIMEOUT)
-                else:
-                    r = requests.post(f"{API_BASE}{endpoint}", json=data or {}, timeout=TIMEOUT)
-                return r.status_code, r.json() if r.status_code == 200 else r.text
-            except Exception as e:
-                return 500, str(e)
+    # Clear cached service instances to ensure fresh state
+    ServiceRegistry.clear()
 
-        def put(self, endpoint: str, data: dict = None, params: dict = None) -> Tuple[int, Any]:
-            try:
-                # If params provided, use query params; otherwise use JSON body
-                if params:
-                    r = requests.put(f"{API_BASE}{endpoint}", params=params, timeout=TIMEOUT)
-                else:
-                    r = requests.put(f"{API_BASE}{endpoint}", json=data or {}, timeout=TIMEOUT)
-                return r.status_code, r.json() if r.status_code == 200 else r.text
-            except Exception as e:
-                return 500, str(e)
+    with TestClient(app) as test_client:
+        class APIHelper:
+            def __init__(self, client):
+                self.client = client
 
-        def delete(self, endpoint: str) -> Tuple[int, Any]:
-            try:
-                r = requests.delete(f"{API_BASE}{endpoint}", timeout=TIMEOUT)
-                return r.status_code, r.json() if r.status_code == 200 else r.text
-            except Exception as e:
-                return 500, str(e)
+            def get(self, endpoint: str, params: dict = None) -> Tuple[int, Any]:
+                try:
+                    r = self.client.get(f"{API_BASE}{endpoint}", params=params)
+                    return r.status_code, r.json() if r.status_code == 200 else r.text
+                except Exception as e:
+                    return 500, str(e)
 
-    return APIHelper()
+            def post(self, endpoint: str, data: dict = None, params: dict = None) -> Tuple[int, Any]:
+                try:
+                    if params:
+                        r = self.client.post(f"{API_BASE}{endpoint}", params=params)
+                    else:
+                        r = self.client.post(f"{API_BASE}{endpoint}", json=data or {})
+                    return r.status_code, r.json() if r.status_code == 200 else r.text
+                except Exception as e:
+                    return 500, str(e)
+
+            def put(self, endpoint: str, data: dict = None, params: dict = None) -> Tuple[int, Any]:
+                try:
+                    if params:
+                        r = self.client.put(f"{API_BASE}{endpoint}", params=params)
+                    else:
+                        r = self.client.put(f"{API_BASE}{endpoint}", json=data or {})
+                    return r.status_code, r.json() if r.status_code == 200 else r.text
+                except Exception as e:
+                    return 500, str(e)
+
+            def delete(self, endpoint: str) -> Tuple[int, Any]:
+                try:
+                    r = self.client.delete(f"{API_BASE}{endpoint}")
+                    return r.status_code, r.json() if r.status_code == 200 else r.text
+                except Exception as e:
+                    return 500, str(e)
+
+        yield APIHelper(test_client)
 
 
 @pytest.fixture(scope="module")
@@ -125,14 +143,13 @@ class TestCustomers:
 
     def test_create_customer(self, api, test_ids):
         """POST /customers - Create a new customer."""
-        data = {
+        params = {
             "company_name": f"Test Customer {random.randint(1000, 9999)}",
             "display_name": "Test Customer",
-            "contact_name": "John Test",
             "email": "test@example.com",
             "phone": "555-0100"
         }
-        status, result = api.post("/customers", data)
+        status, result = api.post("/customers", params=params)
         assert status == 200, f"Create customer failed: {result}"
         test_ids["customer_id"] = result.get("customer_id") or result.get("id")
 
@@ -140,7 +157,8 @@ class TestCustomers:
         """GET /customers - List all customers."""
         status, data = api.get("/customers")
         assert status == 200, f"List customers failed: {data}"
-        assert isinstance(data, list)
+        # API returns {customers: [], total: N}
+        assert "customers" in data and isinstance(data["customers"], list)
 
     def test_get_customer(self, api, test_ids):
         """GET /customers/{customer_id} - Get customer by ID."""
@@ -185,14 +203,13 @@ class TestVendors:
 
     def test_create_vendor(self, api, test_ids):
         """POST /vendors - Create a new vendor."""
-        data = {
+        params = {
             "company_name": f"Test Vendor {random.randint(1000, 9999)}",
             "display_name": "Test Vendor",
-            "contact_name": "Vendor Contact",
             "email": "vendor@example.com",
             "phone": "555-0200"
         }
-        status, result = api.post("/vendors", data)
+        status, result = api.post("/vendors", params=params)
         assert status == 200, f"Create vendor failed: {result}"
         test_ids["vendor_id"] = result.get("vendor_id") or result.get("id")
 
@@ -200,7 +217,8 @@ class TestVendors:
         """GET /vendors - List all vendors."""
         status, data = api.get("/vendors")
         assert status == 200, f"List vendors failed: {data}"
-        assert isinstance(data, list)
+        # API returns {vendors: [], total: N}
+        assert "vendors" in data and isinstance(data["vendors"], list)
 
     def test_get_vendor(self, api, test_ids):
         """GET /vendors/{vendor_id} - Get vendor by ID."""
@@ -234,7 +252,7 @@ class TestEmployees:
 
     def test_create_employee(self, api, test_ids):
         """POST /employees - Create a new employee."""
-        data = {
+        params = {
             "first_name": "Test",
             "last_name": f"Employee{random.randint(1000, 9999)}",
             "email": "employee@example.com",
@@ -243,7 +261,7 @@ class TestEmployees:
             "pay_rate": 25.00,
             "pay_type": "hourly"
         }
-        status, result = api.post("/employees", data)
+        status, result = api.post("/employees", params=params)
         assert status == 200, f"Create employee failed: {result}"
         test_ids["employee_id"] = result.get("employee_id") or result.get("id")
 
@@ -251,7 +269,8 @@ class TestEmployees:
         """GET /employees - List all employees."""
         status, data = api.get("/employees")
         assert status == 200, f"List employees failed: {data}"
-        assert isinstance(data, list)
+        # API returns {employees: [], total: N}
+        assert "employees" in data and isinstance(data["employees"], list)
 
     def test_get_employee(self, api, test_ids):
         """GET /employees/{employee_id} - Get employee by ID."""
@@ -293,12 +312,12 @@ class TestAccounts:
 
     def test_create_account(self, api, test_ids):
         """POST /accounts - Create a new account."""
-        data = {
+        params = {
             "name": f"Test Account {random.randint(1000, 9999)}",
             "account_type": "expense",
             "account_number": f"{random.randint(5000, 5999)}"
         }
-        status, result = api.post("/accounts", data)
+        status, result = api.post("/accounts", params=params)
         assert status == 200, f"Create account failed: {result}"
         test_ids["account_id"] = result.get("account_id") or result.get("id")
 
@@ -306,7 +325,8 @@ class TestAccounts:
         """GET /accounts - List all accounts."""
         status, data = api.get("/accounts")
         assert status == 200, f"List accounts failed: {data}"
-        assert isinstance(data, list)
+        # API returns {accounts: [], total: N}
+        assert "accounts" in data or isinstance(data, list)
 
     def test_get_account(self, api, test_ids):
         """GET /accounts/{account_id} - Get account by ID."""
