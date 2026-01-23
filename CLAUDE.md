@@ -40,7 +40,7 @@ Tests use temporary SQLite databases for isolation. Key fixtures are in `tests/c
 
 ### Backend (`backend/`)
 - **main.py**: FastAPI application with 825+ REST API endpoints
-- **services/**: Business logic services (70+ service modules)
+- **services/**: Business logic services (~70 service modules)
   - `genfin_*.py`: GenFin accounting services (payroll, banking, receivables, payables, reports, etc.)
   - `*_service.py`: Farm operations services (field, equipment, inventory, task, etc.)
 - **routers/**: API route handlers organized by domain (auth, genfin, fields, equipment, etc.)
@@ -66,7 +66,9 @@ Services use a `ServiceRegistry` pattern for dependency injection. Each service 
 - `/api/v1/fields/*`, `/api/v1/tasks/*`, `/api/v1/equipment/*`, `/api/v1/inventory/*` - Farm operations
 - `/api/v1/genfin/*` - GenFin accounting (accounts, vendors, customers, banking, payroll, reports)
 - `/api/v1/ai/*` - AI/ML features (pest ID, yield prediction, expense categorization)
-- `/api/v1/livestock/*`, `/api/v1/seeds/*`, `/api/v1/planting/*` - Specialized modules
+- `/api/v1/seeds/*`, `/api/v1/planting/*` - Seed and planting management
+- `/api/v1/sustainability/*` - Sustainability tracking (carbon, water, practices)
+- `/api/v1/grants/*` - Grant management and compliance
 
 ## Environment Variables
 
