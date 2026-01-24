@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QHeaderView, QComboBox, QDialog, QFormLayout,
     QMessageBox, QTextEdit, QDoubleSpinBox, QGroupBox
 )
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 
 import sys

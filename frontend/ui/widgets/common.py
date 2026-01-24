@@ -7,11 +7,9 @@ Reusable UI components for loading states, validation, and feedback.
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFrame, QPushButton, QProgressBar, QDialog,
-    QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox,
-    QMessageBox, QApplication
+    QLineEdit, QSpinBox, QApplication
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QMovie, QColor, QPalette
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 import sys
 import os
@@ -37,10 +35,10 @@ class LoadingOverlay(QWidget):
         self.hide()
 
     def _setup_ui(self) -> None:
-        self.setStyleSheet(f"""
-            QWidget {{
+        self.setStyleSheet("""
+            QWidget {
                 background-color: rgba(255, 255, 255, 0.85);
-            }}
+            }
         """)
 
         layout = QVBoxLayout(self)
@@ -186,11 +184,11 @@ class StatusMessage(QFrame):
         self._close_btn.clicked.connect(self.hide_message)
         layout.addWidget(self._close_btn)
 
-        self.setStyleSheet(f"""
-            QFrame {{
+        self.setStyleSheet("""
+            QFrame {
                 border-radius: 6px;
                 margin: 4px 0;
-            }}
+            }
         """)
 
     def show_success(self, message: str, auto_hide: int = 5000) -> None:

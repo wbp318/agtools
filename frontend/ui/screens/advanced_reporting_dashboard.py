@@ -12,21 +12,19 @@ from typing import Optional, Dict, Any, List
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QPushButton, QScrollArea, QGridLayout, QComboBox,
-    QDateEdit, QMessageBox, QDialog, QTableWidget,
-    QTableWidgetItem, QHeaderView, QSizePolicy
+    QPushButton, QScrollArea, QDateEdit, QDialog, QTableWidget,
+    QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QDate, QTimer
-from PyQt6.QtGui import QFont
 
-from ..styles import COLORS, set_widget_class
+from ..styles import COLORS
 from ..widgets.kpi_card import KPICard, KPICardGrid
 from ..widgets.common import LoadingOverlay, StatusMessage
 from ..widgets.export_toolbar import ExportToolbar
 
 from api.unified_dashboard_api import (
     get_unified_dashboard_api, UnifiedDashboard, KPI,
-    TransactionList, KPIDetail
+    TransactionList
 )
 from api.export_api import get_export_api
 

@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.client import APIClient, APIResponse, get_api_client
+from api.client import APIClient, get_api_client
 from models.identification import (
     PestIdentificationRequest, DiseaseIdentificationRequest,
     PestInfo, DiseaseInfo,

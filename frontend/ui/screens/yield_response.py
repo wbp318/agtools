@@ -6,15 +6,13 @@ Interactive yield response curve visualization and Economic Optimum Rate calcula
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QDoubleSpinBox, QSpinBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QSplitter, QTabWidget, QFormLayout, QMessageBox
+    QFrame, QPushButton, QGridLayout, QComboBox, QDoubleSpinBox, QSpinBox,
+    QTableWidget, QTableWidgetItem, QHeaderView,
+    QSplitter, QFormLayout, QMessageBox
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 
-import numpy as np
 
 # Import pyqtgraph for charting
 try:
@@ -30,8 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from ui.styles import COLORS, set_widget_class
 from models.yield_response import (
     Crop, Nutrient, SoilTestLevel, ResponseModel,
-    YieldCurveRequest, YieldCurveResponse,
-    EORRequest, EORResult,
+    YieldCurveRequest, EORRequest, EORResult,
     CompareRatesRequest, CompareRatesResponse,
 )
 from api.yield_response_api import get_yield_response_api

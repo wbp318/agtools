@@ -12,30 +12,25 @@ from PyQt6.QtWidgets import (
     QStackedWidget, QTableWidget, QTableWidgetItem,
     QHeaderView, QLineEdit, QComboBox, QSpinBox,
     QDoubleSpinBox, QDateEdit, QGroupBox, QTabWidget,
-    QSizePolicy, QMessageBox, QSpacerItem, QDialog,
-    QFormLayout, QTextEdit, QCheckBox, QDialogButtonBox,
-    QFileDialog, QProgressDialog, QListWidget, QListWidgetItem,
-    QRadioButton, QButtonGroup, QPlainTextEdit, QMenu,
-    QTreeWidget, QTreeWidgetItem, QCompleter, QStyle,
-    QScrollBar, QTabBar
+    QMessageBox, QDialog, QInputDialog,
+    QFormLayout, QTextEdit, QCheckBox, QFileDialog, QProgressDialog, QListWidget, QRadioButton, QButtonGroup, QPlainTextEdit, QMenu,
+    QTreeWidget, QTreeWidgetItem, QCompleter, QStyle
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QDate, QTimer, QMarginsF, QSizeF
+from PyQt6.QtCore import Qt, pyqtSignal, QDate, QTimer
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import (
-    QFont, QShortcut, QKeySequence, QPainter, QPageLayout,
-    QPageSize, QTextDocument, QColor
+    QFont, QShortcut, QKeySequence, QPageSize, QTextDocument, QColor
 )
-from PyQt6.QtPrintSupport import QPrinter, QPrintPreviewDialog, QPrintDialog
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 
 import requests
 import csv
 import os
 import json
 from datetime import datetime, date
-from typing import Optional, Dict, List, Any
-from decimal import Decimal
+from typing import Optional, Dict, List
 
-from ui.genfin_styles import GENFIN_COLORS, get_genfin_stylesheet, set_genfin_class
+from ui.genfin_styles import GENFIN_COLORS, get_genfin_stylesheet
 from config import APIConfig
 
 # Backend API base URL - uses config for flexibility
@@ -1689,7 +1684,7 @@ class AccountingImportWizard(GenFinDialog):
         self.import_progress_bar = QProgressDialog()
         self.progress_bar = QFrame()
         self.progress_bar.setFixedHeight(24)
-        self.progress_bar.setStyleSheet(f"""
+        self.progress_bar.setStyleSheet("""
             background: #e0e0e0;
             border-radius: 4px;
         """)
@@ -2326,16 +2321,16 @@ class AccountingImportWizard(GenFinDialog):
                 f"✅ Import completed successfully!\n"
                 f"Imported {total_imported:,} records into {self.import_data['company_name']}"
             )
-            self.results_summary.setStyleSheet(f"color: green; font-size: 14px; padding: 10px;")
+            self.results_summary.setStyleSheet("color: green; font-size: 14px; padding: 10px;")
         else:
             self.results_summary.setText(
                 f"⚠️ Import completed with {total_errors} error(s)\n"
                 f"Imported {total_imported:,} records, skipped {total_skipped:,}"
             )
-            self.results_summary.setStyleSheet(f"color: orange; font-size: 14px; padding: 10px;")
+            self.results_summary.setStyleSheet("color: orange; font-size: 14px; padding: 10px;")
 
         self._log(f"\n{'='*50}")
-        self._log(f"IMPORT COMPLETE")
+        self._log("IMPORT COMPLETE")
         self._log(f"Total imported: {total_imported:,}")
         self._log(f"Total skipped: {total_skipped:,}")
         self._log(f"Total errors: {total_errors}")
@@ -3658,7 +3653,7 @@ class AddBillDialog(GenFinDialog):
             if isinstance(label, QLabel):
                 try:
                     total += float(label.text().replace("$", "").replace(",", ""))
-                except:
+                except Exception:
                     pass
         self.amount_due.setText(f"${total:,.2f}")
 
@@ -3887,7 +3882,7 @@ class ReceivePaymentDialog(GenFinDialog):
         self.customer.completer().setFilterMode(Qt.MatchFlag.MatchContains)
         self.customer.addItem("", "")
         for c in self.customers:
-            balance = c.get("balance", 0)
+            c.get("balance", 0)
             name = c.get("display_name") or c.get("company_name") or "Unknown"
             self.customer.addItem(f"{name}", c.get("customer_id"))
         self.customer.currentIndexChanged.connect(self._on_customer_changed)
@@ -5023,7 +5018,7 @@ class PayBillsDialog(GenFinDialog):
                 bd = QDate.fromString(bill_date, "yyyy-MM-dd")
                 if bd.isValid() and bd.daysTo(today) <= 10:
                     return amt_due * discount_pct
-            except:
+            except Exception:
                 pass
 
         return 0.0
@@ -5311,7 +5306,7 @@ class AccountComboBox(QComboBox):
             for acct in accounts:
                 # Format: "Account Name (Type)"
                 name = acct.get("name", "")
-                acct_type = acct.get("account_type", "").replace("_", " ").title()
+                acct.get("account_type", "").replace("_", " ").title()
                 display = f"{name}"
                 self.addItem(display, acct.get("account_id"))
 
@@ -5335,7 +5330,7 @@ class QuickAddNameDialog(GenFinDialog):
     """
 
     def __init__(self, name: str, name_type: str = "Vendor", parent=None):
-        super().__init__(f"Name Not Found", parent)
+        super().__init__("Name Not Found", parent)
         self.entered_name = name
         self.name_type = name_type  # Vendor, Customer, Employee, Other
         self.result_action = None  # "quick_add", "set_up", "cancel"
@@ -6172,7 +6167,7 @@ class WriteCheckDialog(GenFinDialog):
                 text = amount_label.text().replace("$", "").replace(",", "")
                 try:
                     items_total += float(text)
-                except:
+                except Exception:
                     pass
         self.items_total.setText(f"${items_total:,.2f}")
 
@@ -6201,7 +6196,7 @@ class WriteCheckDialog(GenFinDialog):
                 text = amount_label.text().replace("$", "").replace(",", "")
                 try:
                     total += float(text)
-                except:
+                except Exception:
                     pass
         self.amount.setValue(total)
 
@@ -7637,7 +7632,7 @@ class PurchaseOrderDialog(GenFinDialog):
                     line["qty_received"] = int(recv_label.text()) if recv_label else 0
                 lines.append(line)
 
-        subtotal = sum(l["amount"] for l in lines)
+        subtotal = sum(ln["amount"] for ln in lines)
 
         return {
             "vendor_id": self.vendor_combo.currentData(),
@@ -8784,7 +8779,7 @@ class GenFinHomeScreen(QWidget):
         company_layout.addWidget(company_icon)
 
         company_label = QLabel("Company:")
-        company_label.setStyleSheet(f"""
+        company_label.setStyleSheet("""
             color: white;
             font-weight: bold;
             font-size: 12px;
@@ -9044,7 +9039,7 @@ class GenFinHomeScreen(QWidget):
         entity_id = self.company_combo.itemData(index)
         if entity_id and entity_id != self._current_entity_id:
             self._current_entity_id = entity_id
-            company_name = self.company_combo.currentText()
+            self.company_combo.currentText()
             self._update_welcome_message()
             self.company_changed.emit(entity_id)
             # Reload stats for the new company
@@ -9343,7 +9338,7 @@ class GenFinListScreen(QWidget):
 
         dialog = self.dialog_class(item, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.result_data:
-            item_id = item.get(self.id_field)
+            item.get(self.id_field)
             # For now, just reload - full edit API integration can be added
             QMessageBox.information(self, "Info", "Edit saved (refresh to see changes).")
             self.load_data()
@@ -10269,7 +10264,7 @@ class SalesOrderDialog(GenFinDialog):
         total_str = self.total.text().replace("$", "").replace(",", "")
         try:
             total = float(total_str)
-        except:
+        except Exception:
             total = 0.0
         pct = self.deposit_pct.value()
         self.deposit_amount.blockSignals(True)
@@ -10282,7 +10277,7 @@ class SalesOrderDialog(GenFinDialog):
         total_str = self.total.text().replace("$", "").replace(",", "")
         try:
             total = float(total_str)
-        except:
+        except Exception:
             total = 0.0
         if total > 0:
             pct = (self.deposit_amount.value() / total) * 100
@@ -10324,7 +10319,7 @@ class SalesOrderDialog(GenFinDialog):
         total_str = self.total.text().replace("$", "").replace(",", "")
         try:
             total = float(total_str)
-        except:
+        except Exception:
             total = 0.0
 
         self.result_data = {
@@ -10532,8 +10527,8 @@ class GenFinPurchaseOrdersScreen(GenFinListScreen):
                         lines[i]["qty_received"] = lines[i].get("qty_received", 0) + recv_qty
 
                 # Calculate new status
-                total_ordered = sum(l.get("quantity", 0) for l in lines)
-                total_received = sum(l.get("qty_received", 0) for l in lines)
+                total_ordered = sum(ln.get("quantity", 0) for ln in lines)
+                total_received = sum(ln.get("qty_received", 0) for ln in lines)
                 if total_received == 0:
                     status = "open"
                 elif total_received >= total_ordered:
@@ -10635,8 +10630,8 @@ class GenFinPurchaseOrdersScreen(GenFinListScreen):
 
                 # Calculate received amount
                 lines = po.get("lines", [])
-                total_qty = sum(l.get("quantity", 0) for l in lines)
-                recv_qty = sum(l.get("qty_received", 0) for l in lines)
+                total_qty = sum(ln.get("quantity", 0) for ln in lines)
+                recv_qty = sum(ln.get("qty_received", 0) for ln in lines)
                 if total_qty > 0:
                     recv_pct = (recv_qty / total_qty) * 100
                     self.table.setItem(i, 6, QTableWidgetItem(f"{recv_pct:.0f}%"))
@@ -12172,7 +12167,7 @@ class GenFinBankFeedsScreen(QWidget):
     def _run_auto_match(self):
         """Run the auto-matching algorithm on all pending transactions."""
         matched = 0
-        total = len(self._feed_transactions)
+        len(self._feed_transactions)
 
         for trans in self._feed_transactions:
             if trans.get('status') == 'pending':
@@ -12333,11 +12328,11 @@ class GenFinBankFeedsScreen(QWidget):
     def _dates_close(self, date1: str, date2: str, days: int) -> bool:
         """Check if two dates are within specified days of each other."""
         try:
-            from datetime import datetime, timedelta
+            from datetime import datetime
             d1 = datetime.strptime(date1[:10], '%Y-%m-%d')
             d2 = datetime.strptime(date2[:10], '%Y-%m-%d')
             return abs((d1 - d2).days) <= days
-        except:
+        except Exception:
             return False
 
     def _string_similarity(self, s1: str, s2: str) -> float:
@@ -13178,7 +13173,7 @@ class GenFinStatementsScreen(QWidget):
                         aging_90 += amount
                     else:
                         aging_over += amount
-                except:
+                except Exception:
                     current += amount
 
                 transactions.append({
@@ -13351,7 +13346,7 @@ class GenFinStatementsScreen(QWidget):
 
                 # In production, would actually send email via API
                 # For now, simulate
-                statement_data = self._build_statement_data(customer)
+                self._build_statement_data(customer)
 
                 # Call API to send email (placeholder)
                 result = api_post("/statements/email", {
@@ -13683,7 +13678,7 @@ class GenFinPayLiabilitiesScreen(QWidget):
 
         # E-Pay info
         info_frame = QFrame()
-        info_frame.setStyleSheet(f"""
+        info_frame.setStyleSheet("""
             background-color: #FFF3CD;
             border: 1px solid #FFEAA7;
             padding: 8px;
@@ -14132,7 +14127,7 @@ class GenFinMemorizedTransScreen(QWidget):
 
     def _filter_changed(self):
         """Handle filter dropdown change."""
-        filter_val = self.group_filter.currentData()
+        self.group_filter.currentData()
         # Re-populate with filter applied
         self._populate_tree()
 
@@ -14902,7 +14897,7 @@ class GenFinHelpScreen(QWidget):
 
         for i, (title, desc) in enumerate(topics):
             btn = QPushButton(title)
-            btn.setStyleSheet(f"""
+            btn.setStyleSheet("""
                 text-align: left;
                 padding: 12px;
                 font-weight: bold;
@@ -15350,7 +15345,7 @@ class GenFinScanReceiptScreen(QWidget):
             QMessageBox.information(
                 self,
                 "Expense Created",
-                f"Expense recorded successfully!"
+                "Expense recorded successfully!"
             )
             self._clear_form()
         else:
@@ -15651,19 +15646,19 @@ class RunScheduledPayrollDialog(GenFinDialog):
                     try:
                         start = QDate.fromString(sched["next_pay_period_start"], "yyyy-MM-dd")
                         self.period_start.setDate(start)
-                    except:
+                    except Exception:
                         pass
                 if sched.get("next_pay_period_end"):
                     try:
                         end = QDate.fromString(sched["next_pay_period_end"], "yyyy-MM-dd")
                         self.period_end.setDate(end)
-                    except:
+                    except Exception:
                         pass
                 if sched.get("next_pay_date"):
                     try:
                         pay = QDate.fromString(sched["next_pay_date"], "yyyy-MM-dd")
                         self.pay_date.setDate(pay)
-                    except:
+                    except Exception:
                         pass
 
     def _on_run(self):
@@ -15709,7 +15704,7 @@ class RunUnscheduledPayrollDialog(GenFinDialog):
         # Info banner
         banner = QLabel("Unscheduled payroll for bonuses, corrections, emergency advances, "
                        "commissions, or new hire first paycheck.")
-        banner.setStyleSheet(f"""
+        banner.setStyleSheet("""
             background-color: #FFF3CD;
             color: #856404;
             padding: 10px;
@@ -16369,7 +16364,7 @@ class GenFinPayrollCenterScreen(QWidget):
             "- New hire first paycheck\n"
             "- Termination checks"
         )
-        unsched_info.setStyleSheet(f"""
+        unsched_info.setStyleSheet("""
             background-color: #FFF3CD;
             color: #856404;
             padding: 12px;
@@ -16947,7 +16942,7 @@ class GenFinReportsScreen(QWidget):
         data = api_get(endpoint)
         if data:
             QMessageBox.information(self, name,
-                f"Report generated successfully!\n\nData preview available in API response.")
+                "Report generated successfully!\n\nData preview available in API response.")
         else:
             QMessageBox.warning(self, "Error", "Failed to generate report.")
 

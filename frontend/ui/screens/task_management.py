@@ -11,14 +11,14 @@ from PyQt6.QtWidgets import (
     QHeaderView, QComboBox, QDialog, QFormLayout,
     QMessageBox, QCheckBox, QTextEdit, QDateEdit
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QFont, QColor
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from api.task_api import get_task_api, TaskAPI, TaskInfo
+from api.task_api import get_task_api, TaskInfo
 from api.user_api import get_user_api
 from api.crew_api import get_crew_api
 from api.auth_api import UserInfo

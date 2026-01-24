@@ -6,10 +6,8 @@ AgTools v2.5.0 Phase 4
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QComboBox, QDialog, QFormLayout,
-    QMessageBox, QGroupBox, QTabWidget, QScrollArea,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem,
+    QHeaderView, QComboBox, QDialog, QMessageBox, QTabWidget, QScrollArea,
     QFrame
 )
 from PyQt6.QtCore import Qt

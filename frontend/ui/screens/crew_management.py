@@ -6,20 +6,20 @@ Admin screen for managing crews/teams and their members.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFrame, QTableWidget, QTableWidgetItem,
+    QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QComboBox, QDialog, QFormLayout,
     QMessageBox, QTextEdit, QListWidget, QListWidgetItem,
     QSplitter, QGroupBox
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from api.crew_api import get_crew_api, CrewAPI, CrewInfo, CrewMember
-from api.user_api import get_user_api, UserAPI
+from api.crew_api import get_crew_api, CrewInfo, CrewMember
+from api.user_api import get_user_api
 from api.auth_api import UserInfo
 
 

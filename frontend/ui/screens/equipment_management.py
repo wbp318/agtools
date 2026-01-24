@@ -10,9 +10,9 @@ from PyQt6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QComboBox, QDialog, QFormLayout,
     QMessageBox, QTextEdit, QDoubleSpinBox, QSpinBox, QGroupBox,
-    QDateEdit, QTabWidget
+    QDateEdit
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QFont, QColor
 
 import sys
@@ -20,8 +20,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from api.equipment_api import (
-    get_equipment_api, EquipmentAPI, EquipmentInfo,
-    MaintenanceInfo, MaintenanceAlert, EquipmentUsage, EquipmentSummary
+    get_equipment_api, EquipmentAPI, EquipmentInfo
 )
 from api.auth_api import UserInfo
 

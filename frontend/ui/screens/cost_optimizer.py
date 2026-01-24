@@ -6,14 +6,12 @@ Tabbed interface for comprehensive input cost optimization.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QDoubleSpinBox, QSpinBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QSplitter, QTabWidget, QFormLayout, QMessageBox,
-    QProgressBar, QCheckBox, QLineEdit
+    QFrame, QPushButton, QGridLayout, QComboBox, QDoubleSpinBox, QSpinBox,
+    QTableWidget, QTableWidgetItem, QHeaderView,
+    QTabWidget, QFormLayout, QMessageBox,
+    QCheckBox
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont
 
 import sys
 import os
@@ -21,10 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from ui.styles import COLORS, set_widget_class
 from models.cost_optimizer import (
-    OptimizationPriority, CropInfo,
-    QuickEstimateRequest, QuickEstimateResponse,
-    FertilizerRequest, FertilizerResponse,
-    IrrigationCostRequest, IrrigationCostResponse,
+    QuickEstimateRequest, FertilizerRequest, IrrigationCostRequest,
 )
 from api.cost_optimizer_api import get_cost_optimizer_api
 
@@ -345,7 +340,7 @@ class FertilizerTab(QWidget):
 
         # Soil test section
         soil_header = QLabel("Soil Test Results")
-        soil_header.setStyleSheet(f"font-weight: 600; margin-top: 8px;")
+        soil_header.setStyleSheet("font-weight: 600; margin-top: 8px;")
         input_layout.addWidget(soil_header)
 
         soil_form = QFormLayout()

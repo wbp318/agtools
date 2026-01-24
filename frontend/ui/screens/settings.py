@@ -6,19 +6,18 @@ User preferences, application configuration, and data management.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QSpinBox, QLineEdit,
+    QFrame, QPushButton, QGridLayout, QComboBox, QSpinBox, QLineEdit,
     QGroupBox, QFormLayout, QMessageBox, QCheckBox,
-    QTabWidget, QFileDialog, QProgressBar, QTextEdit
+    QTabWidget, QFileDialog, QTextEdit
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from ui.styles import COLORS, set_widget_class
+from ui.styles import COLORS
 from config import get_settings, reset_settings, APP_VERSION, USER_DATA_DIR
 from database.local_db import get_local_db, DB_PATH
 
@@ -282,7 +281,7 @@ class ConnectionSettingsTab(QWidget):
             else:
                 self._test_result.setText(f"Error: {response.status_code}")
                 self._test_result.setStyleSheet(f"color: {COLORS['error']};")
-        except Exception as e:
+        except Exception:
             self._test_result.setText("Failed")
             self._test_result.setStyleSheet(f"color: {COLORS['error']};")
 
@@ -553,7 +552,7 @@ class AboutTab(QWidget):
         title_layout = QVBoxLayout(title_frame)
 
         app_name = QLabel("AgTools Professional")
-        app_name.setStyleSheet(f"color: white; font-size: 24pt; font-weight: bold;")
+        app_name.setStyleSheet("color: white; font-size: 24pt; font-weight: bold;")
         app_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_layout.addWidget(app_name)
 

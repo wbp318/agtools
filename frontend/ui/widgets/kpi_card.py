@@ -10,13 +10,12 @@ Interactive card component with:
 AgTools v6.8.0
 """
 
-from typing import Optional, Dict, List, Any, Callable
+from typing import Optional, Dict, List, Any
 from PyQt6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QMenu, QWidget, QSizePolicy, QGraphicsOpacityEffect
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QMenu, QWidget, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QCursor
+from PyQt6.QtGui import QCursor
 
 from ..styles import COLORS
 

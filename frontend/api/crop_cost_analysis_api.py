@@ -5,7 +5,7 @@ Handles crop cost analysis endpoints for the Farm Operations Manager.
 AgTools v6.9.0
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, List, Tuple, Dict, Any
 
 from .client import APIClient, get_api_client

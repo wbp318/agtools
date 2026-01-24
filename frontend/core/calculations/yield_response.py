@@ -6,8 +6,8 @@ calculations for use when the API server is unavailable.
 """
 
 import math
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 from enum import Enum
 
 

@@ -6,13 +6,9 @@ Provides encrypted storage for sensitive data like authentication tokens.
 Uses Fernet symmetric encryption with a machine-derived key.
 """
 
-import os
 import base64
-import hashlib
 import getpass
 import platform
-from pathlib import Path
-from typing import Optional
 
 try:
     from cryptography.fernet import Fernet, InvalidToken

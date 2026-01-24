@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QComboBox, QGroupBox, QFormLayout,
     QMessageBox, QFileDialog, QProgressBar, QFrame,
-    QSpinBox, QCheckBox, QScrollArea, QSplitter
+    QSpinBox, QCheckBox, QSplitter
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from api.accounting_import_api import (
     get_accounting_import_api, AccountingImportAPI, QBImportPreview,
-    QBImportSummary, QBAccountPreview, ExpenseCategory
+    QBImportSummary, ExpenseCategory
 )
 
 

@@ -6,7 +6,7 @@ Handles user CRUD operations for admin/manager users.
 
 from typing import Optional, List, Tuple
 
-from .client import APIClient, APIResponse, get_api_client
+from .client import APIClient, get_api_client
 from .auth_api import UserInfo
 
 

@@ -6,9 +6,8 @@ Handles login, logout, token refresh, and user profile operations.
 
 from typing import Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime
 
-from .client import APIClient, APIResponse, get_api_client
+from .client import APIClient, get_api_client
 
 
 @dataclass

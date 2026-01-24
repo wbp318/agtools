@@ -5,7 +5,6 @@ Provides UI for managing seed inventory, planting records, and emergence trackin
 AgTools v6.4.0 - Farm Operations Suite
 """
 
-from datetime import date
 from typing import Optional, List
 
 from PyQt6.QtWidgets import (
@@ -15,14 +14,13 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox, QSpinBox, QTextEdit, QTabWidget, QMessageBox,
     QFrame, QCheckBox
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QColor
 
 from api.seed_planting_api import (
-    get_seed_planting_api, SeedPlantingAPI, SeedInfo, PlantingInfo,
-    EmergenceInfo, SeedPlantingSummary
+    get_seed_planting_api, SeedPlantingAPI, SeedInfo, PlantingInfo
 )
-from api.field_api import get_field_api, FieldAPI
+from api.field_api import get_field_api
 from api.auth_api import UserInfo
 
 

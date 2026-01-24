@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QTextEdit, QDoubleSpinBox, QGroupBox,
     QDateEdit, QSpinBox
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QFont, QColor
 
 import sys

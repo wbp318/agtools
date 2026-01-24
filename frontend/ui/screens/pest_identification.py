@@ -7,13 +7,12 @@ Symptom-based pest identification with confidence scoring and management info.
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QSpinBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QSplitter, QFormLayout, QMessageBox,
-    QCheckBox, QTextEdit, QListWidget, QListWidgetItem
+    QComboBox, QSpinBox,
+    QGroupBox, QFormLayout, QMessageBox,
+    QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtGui import QFont
 
 import sys
 import os
@@ -21,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from ui.styles import COLORS, set_widget_class
 from models.identification import (
-    CropType, GrowthStage, PEST_SYMPTOMS,
+    PEST_SYMPTOMS,
     PestIdentificationRequest, PestInfo,
 )
 from api.identification_api import get_identification_api
@@ -346,7 +345,7 @@ class PestIdentificationScreen(QWidget):
 
     def _update_symptoms(self) -> None:
         """Update symptom list based on selected crop."""
-        crop = self._crop_combo.currentText().lower()
+        self._crop_combo.currentText().lower()
         symptoms = PEST_SYMPTOMS
         self._symptom_selector.set_symptoms(symptoms)
 

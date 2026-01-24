@@ -5,8 +5,8 @@ Handles reporting endpoints for the Farm Operations Manager.
 AgTools v2.5.0 Phase 5
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, List, Tuple, Dict, Any
+from dataclasses import dataclass
+from typing import Optional, List, Tuple, Dict
 
 from .client import APIClient, get_api_client
 

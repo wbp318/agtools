@@ -13,18 +13,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
-    QDateEdit, QTabWidget, QScrollArea, QFrame, QFileDialog,
-    QMessageBox, QSizePolicy
+    QTableWidget, QTableWidgetItem, QHeaderView, QDateEdit, QTabWidget, QFrame
 )
-from PyQt6.QtCore import Qt, QDate
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtCore import QDate
+from PyQt6.QtGui import QColor
 
 from api.auth_api import UserInfo
 from api.reports_api import (
-    get_reports_api, ReportsAPI,
-    OperationsReport, FinancialReport, EquipmentReport,
-    InventoryReport, FieldPerformanceReport, DashboardSummary
+    get_reports_api, OperationsReport, FinancialReport, EquipmentReport,
+    InventoryReport, FieldPerformanceReport
 )
 from api.export_api import get_export_api
 

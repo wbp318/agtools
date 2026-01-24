@@ -6,11 +6,9 @@ Price management, supplier quotes, and buy/wait recommendations.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QDoubleSpinBox, QSpinBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QSplitter, QTabWidget, QFormLayout, QMessageBox,
-    QLineEdit, QDateEdit, QTextEdit, QDialog, QDialogButtonBox
+    QFrame, QPushButton, QGridLayout, QComboBox, QDoubleSpinBox, QTableWidget, QTableWidgetItem, QHeaderView,
+    QTabWidget, QFormLayout, QMessageBox,
+    QLineEdit, QDateEdit, QDialog, QDialogButtonBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QDate
 from PyQt6.QtGui import QFont, QColor
@@ -21,11 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from ui.styles import COLORS, set_widget_class
 from models.pricing import (
-    ProductCategory, Region, PriceTrend, BuyRecommendation,
-    ProductPrice, GetPricesResponse,
-    SetPriceRequest, SetPriceResponse,
-    BuyRecommendationRequest, BuyRecommendationResponse,
-    PriceAlert, PriceAlertsResponse,
+    SetPriceRequest, BuyRecommendationRequest, PriceAlert,
 )
 from api.pricing_api import get_pricing_api
 

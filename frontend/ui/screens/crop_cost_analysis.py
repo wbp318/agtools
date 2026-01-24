@@ -14,22 +14,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
-    QTabWidget, QScrollArea, QFrame, QSpinBox,
-    QSizePolicy
+    QTabWidget, QScrollArea, QFrame, QSpinBox
 )
 from PyQt6.QtCore import Qt, QDate
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QColor
 
 from api.auth_api import UserInfo
 from api.crop_cost_analysis_api import (
     get_crop_cost_analysis_api,
-    CropAnalysisSummary,
-    FieldCostDetail,
-    FieldComparisonMatrix,
-    CropComparisonItem,
-    YearOverYearData,
-    ROIAnalysisItem,
-    TrendDataPoint
+    CropComparisonItem
 )
 from api.export_api import get_export_api
 
@@ -38,7 +31,7 @@ from ui.widgets.export_toolbar import ExportToolbar
 # Try to import pyqtgraph for charts
 try:
     import pyqtgraph as pg
-    import numpy as np
+    import numpy as np  # noqa: F401 - required by pyqtgraph
     HAS_PYQTGRAPH = True
 except ImportError:
     HAS_PYQTGRAPH = False
@@ -632,13 +625,13 @@ class CropCostAnalysisScreen(QWidget):
         card = QFrame()
         card.setMinimumWidth(150)
         card.setMaximumWidth(200)
-        card.setStyleSheet(f"""
-            QFrame {{
+        card.setStyleSheet("""
+            QFrame {
                 background-color: white;
                 border: 1px solid #ddd;
                 border-radius: 8px;
                 padding: 15px;
-            }}
+            }
         """)
 
         layout = QVBoxLayout(card)

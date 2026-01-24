@@ -10,9 +10,9 @@ from PyQt6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QComboBox, QDialog, QFormLayout,
     QMessageBox, QTextEdit, QDoubleSpinBox, QGroupBox,
-    QDateEdit, QTabWidget, QCheckBox
+    QDateEdit, QCheckBox
 )
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QFont, QColor
 
 import sys
@@ -20,8 +20,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from api.inventory_api import (
-    get_inventory_api, InventoryAPI, InventoryItem,
-    InventoryTransaction, InventoryAlert, InventorySummary
+    get_inventory_api, InventoryAPI, InventoryItem
 )
 from api.auth_api import UserInfo
 

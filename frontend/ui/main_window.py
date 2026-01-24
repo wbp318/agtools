@@ -8,14 +8,13 @@ Includes offline mode support with sync manager integration.
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QStackedWidget, QLabel, QFrame, QStatusBar,
-    QSplitter, QSizePolicy, QPushButton, QProgressBar,
-    QMessageBox
+    QSizePolicy, QPushButton, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSlot
 from PyQt6.QtGui import QFont
 
 from config import APP_NAME, APP_VERSION, get_settings
-from ui.styles import COLORS, get_stylesheet
+from ui.styles import COLORS
 from ui.retro_styles import RETRO_COLORS, get_retro_stylesheet
 from ui.sidebar import Sidebar
 from ui.screens.dashboard import DashboardScreen
@@ -694,7 +693,6 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             # Clear auth token
             from api.auth_api import get_auth_api
-            from api.client import get_api_client
 
             auth_api = get_auth_api()
             auth_api.logout()

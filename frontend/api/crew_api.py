@@ -7,7 +7,7 @@ Handles crew/team CRUD operations.
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
 
-from .client import APIClient, APIResponse, get_api_client
+from .client import APIClient, get_api_client
 
 
 @dataclass

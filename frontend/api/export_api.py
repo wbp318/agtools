@@ -112,7 +112,7 @@ class ExportAPI:
         return self._do_export(
             f"/export/unified-dashboard/{format_type}",
             params,
-            f"unified_dashboard_report",
+            "unified_dashboard_report",
             format_type
         )
 

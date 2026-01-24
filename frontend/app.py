@@ -7,7 +7,6 @@ PyQt6 application setup and initialization with login flow.
 import os
 import sys
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
 from config import APP_NAME, APP_ORGANIZATION, get_settings

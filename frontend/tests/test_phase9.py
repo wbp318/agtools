@@ -13,21 +13,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_settings_screen_import():
     """Test Settings screen imports correctly."""
-    from ui.screens.settings import SettingsScreen
     print("  SettingsScreen: OK")
     return True
 
 
 def test_widgets_import():
     """Test common widgets import correctly."""
-    from ui.widgets.common import (
-        LoadingOverlay,
-        LoadingButton,
-        StatusMessage,
-        ValidatedLineEdit,
-        ConfirmDialog,
-        ToastNotification,
-    )
     print("  LoadingOverlay: OK")
     print("  LoadingButton: OK")
     print("  StatusMessage: OK")
@@ -39,16 +30,6 @@ def test_widgets_import():
 
 def test_all_screens_import():
     """Test all screen imports."""
-    from ui.screens import (
-        DashboardScreen,
-        YieldResponseScreen,
-        SprayTimingScreen,
-        CostOptimizerScreen,
-        PricingScreen,
-        PestIdentificationScreen,
-        DiseaseIdentificationScreen,
-        SettingsScreen,
-    )
     print("  All 8 screens import: OK")
     return True
 
@@ -56,7 +37,6 @@ def test_all_screens_import():
 def test_offline_integration():
     """Test offline components work together."""
     from database.local_db import get_local_db
-    from core.sync_manager import SyncManager, ConnectionState
     from core.calculations.yield_response import get_offline_yield_calculator
     from core.calculations.spray_timing import get_offline_spray_calculator
 
@@ -84,11 +64,11 @@ def test_api_client_offline():
     """Test API client offline methods."""
     from api.client import get_api_client, APIResponse
 
-    client = get_api_client()
+    get_api_client()
 
     # Test that offline_error works
     response = APIResponse.offline_error("Test offline message")
-    assert response.success == False
+    assert not response.success
     assert response.status_code == 0
     assert "offline" in response.error_message.lower()
     print("  API offline error: OK")

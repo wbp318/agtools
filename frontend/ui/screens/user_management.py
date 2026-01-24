@@ -6,18 +6,17 @@ Admin screen for managing users - create, edit, deactivate users.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFrame, QTableWidget, QTableWidgetItem,
+    QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QComboBox, QDialog, QFormLayout,
-    QMessageBox, QCheckBox, QSpacerItem, QSizePolicy
+    QMessageBox, QCheckBox
 )
-from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from api.user_api import get_user_api, UserAPI
+from api.user_api import get_user_api
 from api.auth_api import UserInfo
 
 

@@ -7,14 +7,12 @@ Designed for South African and Brazilian operators.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QDoubleSpinBox, QSpinBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
+    QFrame, QPushButton, QGridLayout, QComboBox, QDoubleSpinBox, QTableWidget, QTableWidgetItem, QHeaderView,
     QTabWidget, QFormLayout, QMessageBox, QLineEdit,
     QApplication
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QColor, QClipboard
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QColor
 
 import sys
 import os
@@ -23,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from ui.retro_styles import RETRO_COLORS
 from models.measurement_converter import (
     ApplicationRateUnit,
-    ProductCategory,
     ConversionResult,
     TankMixResult,
     ReferenceProduct,
@@ -311,7 +308,7 @@ class QuickConverterTab(QWidget):
                     # Fallback to local calc for common cases
                     self._imperial_label.setText(f"{value:g}")
                     self._metric_label.setText("--")
-        except Exception as e:
+        except Exception:
             self._imperial_label.setText(f"{value:g}")
             self._metric_label.setText("Error")
 

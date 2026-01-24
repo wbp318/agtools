@@ -5,11 +5,8 @@ Screen for managing livestock - cattle, hogs, poultry, etc.
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QComboBox, QMessageBox, QGroupBox,
+    QWidget, QVBoxLayout, QLabel, QGroupBox,
 )
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
 import sys

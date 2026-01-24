@@ -78,12 +78,11 @@ class SectionHeader(QLabel):
 
     def __init__(self, text: str, parent=None):
         super().__init__(text.upper(), parent)
-        c = RETRO_COLORS
         font = QFont()
         font.setPointSize(8)
         font.setWeight(QFont.Weight.Bold)
         self.setFont(font)
-        self.setStyleSheet(f"""
+        self.setStyleSheet("""
             color: #001515;
             padding: 14px 12px 4px 12px;
             background: transparent;

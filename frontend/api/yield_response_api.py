@@ -4,13 +4,13 @@ Yield Response API Client
 API calls for yield response curves and economic optimum rate calculations.
 """
 
-from typing import Optional, List
+from typing import Optional
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.client import APIClient, APIResponse, get_api_client
+from api.client import APIClient, get_api_client
 from models.yield_response import (
     YieldCurveRequest, YieldCurveResponse,
     EORRequest, EORResult,

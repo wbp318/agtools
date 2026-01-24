@@ -5,10 +5,9 @@ Local implementation of spray timing evaluation for use when
 the API server is unavailable.
 """
 
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime
 
 
 class RiskLevel(Enum):
@@ -139,7 +138,7 @@ class OfflineSprayCalculator:
         rh = humidity_pct / 100.0
 
         # Simple wet bulb approximation
-        wet_bulb = temp_f * (0.151977 * (rh + 8.313659) ** 0.5) + \
+        temp_f * (0.151977 * (rh + 8.313659) ** 0.5) + \
                    (temp_f - 14.381) ** 0.5 - 1.21 if rh > 0.01 else temp_f
 
         # Alternate simpler method for field use
@@ -441,7 +440,7 @@ class OfflineSprayCalculator:
         """Determine overall risk level from score and conditions."""
         # Check for any unsuitable conditions (critical factors)
         unsuitable_count = sum(1 for c in conditions if c.status == "unsuitable")
-        marginal_count = sum(1 for c in conditions if c.status == "marginal")
+        sum(1 for c in conditions if c.status == "marginal")
 
         if unsuitable_count >= 2:
             return RiskLevel.DO_NOT_SPRAY

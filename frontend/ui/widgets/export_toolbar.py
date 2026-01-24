@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QPushButton, QMenu,
     QFileDialog, QMessageBox
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QAction
 
 from ..retro_styles import RETRO_COLORS

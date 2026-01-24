@@ -6,14 +6,13 @@ Stores prices, pest/disease data, crop parameters, and user preferences.
 """
 
 import sqlite3
-from pathlib import Path
 from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import json
 import threading
 
-from config import USER_DATA_DIR, get_settings
+from config import USER_DATA_DIR
 
 
 # Database file location

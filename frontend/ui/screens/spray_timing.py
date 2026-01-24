@@ -6,10 +6,9 @@ Weather-smart spray timing evaluation and window finder.
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QGridLayout, QScrollArea,
-    QSizePolicy, QComboBox, QDoubleSpinBox, QSpinBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QSplitter, QTabWidget, QFormLayout, QMessageBox,
+    QFrame, QPushButton, QGridLayout, QComboBox, QDoubleSpinBox, QSpinBox,
+    QTableWidget, QTableWidgetItem, QHeaderView,
+    QSplitter, QFormLayout, QMessageBox,
     QProgressBar, QLineEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -21,8 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from ui.styles import COLORS, set_widget_class
 from models.spray import (
-    SprayType, RiskLevel, DiseasePressure,
-    WeatherCondition, EvaluateConditionsRequest, SprayEvaluation,
+    SprayType, WeatherCondition, EvaluateConditionsRequest, SprayEvaluation,
     CostOfWaitingRequest, CostOfWaitingResult,
 )
 from api.spray_api import get_spray_timing_api

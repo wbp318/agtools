@@ -4,13 +4,13 @@ Pricing Service API Client
 API calls for pricing, supplier quotes, and cost calculations.
 """
 
-from typing import Optional, List
+from typing import Optional
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.client import APIClient, APIResponse, get_api_client
+from api.client import APIClient, get_api_client
 from models.pricing import (
     ProductPrice, GetPricesResponse,
     SetPriceRequest, SetPriceResponse,
