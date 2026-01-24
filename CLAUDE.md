@@ -45,13 +45,22 @@ python -m pytest tests/ --cov=backend --cov-report=html
 
 Tests use temporary SQLite databases for isolation. Key fixtures are in `tests/conftest.py`. Use `test_db_path_module` for module-scoped database sharing when tests need shared state.
 
+```bash
+# Run frontend tests (requires PyQt6)
+python -m pytest frontend/tests/ -v
+```
+
 ### Linting
 ```bash
-# Check for issues
+# Check backend
 ruff check backend/
+
+# Check frontend
+ruff check frontend/
 
 # Auto-fix issues
 ruff check backend/ --fix
+ruff check frontend/ --fix
 ```
 
 Configuration is in `ruff.toml`. The linter catches undefined names, unused imports, and style issues.
