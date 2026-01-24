@@ -146,6 +146,7 @@ logs/
 *.pkl
 *.joblib
 models/
+!frontend/models/
 training_data/
 checkpoints/
 
