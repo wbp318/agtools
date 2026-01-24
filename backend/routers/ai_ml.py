@@ -158,10 +158,32 @@ async def identify_from_image(
 ):
     """Identify pest or disease from uploaded image. Rate limited: 5/minute (compute-intensive)."""
     from services.ai_image_service import get_ai_image_service
+    from fastapi import HTTPException
+
+    # Validate crop is provided
+    if crop is None:
+        raise HTTPException(status_code=422, detail="crop parameter is required")
+
+    # Validate file type
+    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"]
+    if file.content_type and file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}"
+        )
+
+    content = await file.read()
+
+    # Validate file size (max 10MB)
+    max_size = 10 * 1024 * 1024  # 10MB
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is 10MB, got {len(content) / (1024*1024):.1f}MB"
+        )
 
     service = get_ai_image_service()
 
-    content = await file.read()
     # analyze_image is an async method, must await it
     result = await service.analyze_image(
         image_bytes=content,

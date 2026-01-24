@@ -398,7 +398,18 @@ async def optimize_fertilizer_program(request: FertilizerOptimizationRequest):
         soil_test_results=soil_test
     )
 
-    return result
+    # Transform to expected response format
+    cost_summary = result.get("cost_summary", {})
+    return FertilizerOptimizationResponse(
+        total_cost=cost_summary.get("total_cost", 0.0),
+        cost_per_acre=cost_summary.get("cost_per_acre", 0.0),
+        recommendations=result.get("recommendations", []),
+        nutrient_plan=result.get("nutrient_requirements", {}),
+        potential_savings=sum(
+            opt.get("potential_savings_per_acre", 0) * request.acres
+            for opt in result.get("optimization_opportunities", [])
+        ) if result.get("optimization_opportunities") else None
+    )
 
 
 @router.post("/optimize/pesticides/compare", response_model=PesticideComparisonResponse, tags=["Cost Optimization"])

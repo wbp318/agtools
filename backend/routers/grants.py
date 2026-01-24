@@ -224,7 +224,65 @@ async def list_grant_applications(
     from services.grant_operations_service import get_grant_operations_service
 
     service = get_grant_operations_service()
-    return service.list_applications(status=status)
+    # Get applications from the dict, optionally filter by status
+    apps = list(service.applications.values())
+    if status:
+        apps = [a for a in apps if getattr(a, 'status', None) == status]
+
+    # Convert to response format
+    applications = [
+        {
+            "id": getattr(app, 'id', ''),
+            "program_id": getattr(app, 'program_id', ''),
+            "title": getattr(app, 'title', ''),
+            "status": getattr(app, 'status', 'draft'),
+            "description": getattr(app, 'description', None)
+        }
+        for app in apps
+    ]
+    return {"applications": applications, "total": len(applications)}
+
+
+@router.get("/grants/applications/download", tags=["Grant Applications"])
+async def download_grant_applications(
+    format: str = "csv",
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Download grant applications in CSV or JSON format."""
+    from services.grant_operations_service import get_grant_operations_service
+    from fastapi.responses import Response
+    import csv
+    import io
+
+    service = get_grant_operations_service()
+    # Get applications from the dict
+    apps = list(service.applications.values())
+    applications = [
+        {
+            "id": getattr(app, 'id', ''),
+            "program_id": getattr(app, 'program_id', ''),
+            "title": getattr(app, 'title', ''),
+            "status": getattr(app, 'status', 'draft'),
+            "description": getattr(app, 'description', None)
+        }
+        for app in apps
+    ]
+
+    if format.lower() == "json":
+        return {"applications": applications, "count": len(applications)}
+
+    # Default to CSV
+    output = io.StringIO()
+    if applications:
+        writer = csv.DictWriter(output, fieldnames=applications[0].keys())
+        writer.writeheader()
+        writer.writerows(applications)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=grant_applications.csv"}
+    )
 
 
 @router.post("/grants/applications", response_model=GrantApplicationResponse, tags=["Grant Applications"])
