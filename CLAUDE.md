@@ -43,7 +43,7 @@ python -m pytest tests/test_genfin_endpoints.py::TestAccounts::test_create_accou
 python -m pytest tests/ --cov=backend --cov-report=html
 ```
 
-Tests use temporary SQLite databases for isolation. Key fixtures are in `tests/conftest.py`.
+Tests use temporary SQLite databases for isolation. Key fixtures are in `tests/conftest.py`. Use `test_db_path_module` for module-scoped database sharing when tests need shared state.
 
 ### Linting
 ```bash
@@ -80,6 +80,7 @@ Services use a `ServiceRegistry` pattern for dependency injection. Each service 
 - Has its own SQLite table(s) initialized in `_init_tables()`
 - Exposes Pydantic models for request/response
 - Returns dictionaries from methods (not Pydantic models directly)
+- Has a `MAX_LIMIT = 10000` cap on list queries to prevent memory exhaustion
 
 ### API Endpoint Structure
 - `/api/v1/auth/*` - Authentication
@@ -100,7 +101,7 @@ GenFin is a full accounting system with 13 service files:
 - `genfin_reports_service.py` - P&L, balance sheet, cash flow, financial ratios
 - `genfin_budget_service.py` - Budgets, forecasts, scenarios
 - `genfin_inventory_service.py` - Items, FIFO/LIFO costing, assemblies
-- `genfin_classes_service.py` - Classes, projects, billable time
+- `genfin_class_service.py` - Classes, projects, billable time
 - `genfin_entity_service.py` - Multi-entity management
 - `genfin_fixed_assets_service.py` - Depreciation, asset tracking
 - `genfin_bank_feeds_service.py` - OFX import, transaction matching
@@ -120,7 +121,7 @@ GenFin is a full accounting system with 13 service files:
 - Use `DataFactory` class from `conftest.py` to generate test data
 - The `client` fixture provides a fresh TestClient per test function
 - The `auth_token` and `auth_headers` fixtures handle authentication
-- `test_ids` fixture (module-scoped) stores created entity IDs across tests within a file
+- `test_ids` fixture (function-scoped) provides a fresh dict per test; use class-level attributes if you need shared state across a test class
 - Services clear and reinitialize via `ServiceRegistry.clear()` in tests
 
 ## Key Patterns
