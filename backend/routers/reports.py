@@ -316,8 +316,11 @@ async def get_cost_per_acre_report(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get cost per acre report."""
+    from datetime import datetime
     cost_service = get_cost_tracking_service()
-    return cost_service.get_cost_per_acre_report(year=year, field_id=field_id)
+    crop_year = year if year else datetime.now().year
+    field_ids = [field_id] if field_id else None
+    return cost_service.get_cost_per_acre_report(crop_year=crop_year, field_ids=field_ids)
 
 
 @router.get("/costs/reports/by-category", response_model=List[CategoryBreakdown], tags=["Cost Tracking"])
@@ -326,8 +329,10 @@ async def get_costs_by_category(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get costs broken down by category."""
+    from datetime import datetime
     cost_service = get_cost_tracking_service()
-    return cost_service.get_costs_by_category(year=year)
+    crop_year = year if year else datetime.now().year
+    return cost_service.get_category_breakdown(crop_year=crop_year)
 
 
 @router.get("/costs/reports/by-crop", response_model=List[CropCostSummary], tags=["Cost Tracking"])
@@ -336,8 +341,10 @@ async def get_costs_by_crop(
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get costs broken down by crop."""
+    from datetime import datetime
     cost_service = get_cost_tracking_service()
-    return cost_service.get_costs_by_crop(year=year)
+    crop_year = year if year else datetime.now().year
+    return cost_service.get_cost_by_crop(crop_year=crop_year)
 
 
 @router.get("/costs/categories", tags=["Cost Tracking"])

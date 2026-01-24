@@ -347,12 +347,15 @@ async def get_weather_spray_window(
     days_ahead: int = 5
 ):
     """Get spray window recommendations based on weather forecast."""
-    from services.weather_service import get_weather_service
+    from services.weather_service import get_spray_windows
 
-    service = get_weather_service()
-    result = service.get_spray_windows(
-        latitude=latitude,
-        longitude=longitude,
+    # Use default location if not provided
+    lat = latitude if latitude else 41.8780  # Central Iowa default
+    lon = longitude if longitude else -93.0977
+
+    result = get_spray_windows(
+        latitude=lat,
+        longitude=lon,
         days_ahead=days_ahead
     )
 

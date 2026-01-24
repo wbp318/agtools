@@ -133,12 +133,29 @@ async def list_nrcs_practices(
     """List NRCS conservation practices."""
     from services.grant_service import NRCS_PRACTICES
 
-    if category:
-        practices = [p for p in NRCS_PRACTICES if p.get("category") == category]
-    else:
-        practices = NRCS_PRACTICES
+    # Convert dict of NRCSPractice objects to list of dicts
+    practices_list = [
+        {
+            "code": p.code,
+            "name": p.name,
+            "category": p.category.value if hasattr(p.category, 'value') else p.category,
+            "description": p.description,
+            "payment_rate": p.payment_rate,
+            "carbon_benefit": p.carbon_benefit,
+            "soil_health_points": p.soil_health_points,
+            "water_quality_points": p.water_quality_points,
+            "biodiversity_points": p.biodiversity_points,
+            "eligible_programs": p.eligible_programs,
+            "documentation_required": p.documentation_required,
+            "verification_method": p.verification_method
+        }
+        for p in NRCS_PRACTICES.values()
+    ]
 
-    return {"practices": practices}
+    if category:
+        practices_list = [p for p in practices_list if p.get("category") == category]
+
+    return {"practices": practices_list}
 
 
 @router.get("/grants/benchmarks", response_model=BenchmarksResponse, tags=["Grants"])
@@ -162,7 +179,12 @@ async def list_carbon_programs(
     """List carbon credit programs."""
     from services.grant_service import CARBON_PROGRAMS
 
-    return {"programs": CARBON_PROGRAMS}
+    # Convert dict to list format expected by response model
+    programs_list = [
+        {"id": program.value, **info}
+        for program, info in CARBON_PROGRAMS.items()
+    ]
+    return {"programs": programs_list}
 
 
 # ============================================================================

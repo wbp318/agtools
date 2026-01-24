@@ -18,6 +18,14 @@ from enum import Enum
 from pydantic import BaseModel, Field
 import sqlite3
 import os
+import math
+
+
+def _safe_float(value: float, default: float = 0.0) -> float:
+    """Convert infinity/nan to a safe default value for JSON serialization"""
+    if math.isinf(value) or math.isnan(value):
+        return default
+    return value
 
 
 # =============================================================================
@@ -918,13 +926,13 @@ class SustainabilityService:
 
         return CarbonSummary(
             period=str(year),
-            total_emissions_kg=total_emissions,
-            total_sequestration_kg=abs(total_sequestration),
-            net_carbon_kg=net_carbon,
-            emissions_per_acre=total_emissions / total_acres,
-            sequestration_per_acre=abs(total_sequestration) / total_acres,
-            net_per_acre=net_carbon / total_acres,
-            by_source=by_source,
+            total_emissions_kg=_safe_float(total_emissions),
+            total_sequestration_kg=_safe_float(abs(total_sequestration)),
+            net_carbon_kg=_safe_float(net_carbon),
+            emissions_per_acre=_safe_float(total_emissions / total_acres),
+            sequestration_per_acre=_safe_float(abs(total_sequestration) / total_acres),
+            net_per_acre=_safe_float(net_carbon / total_acres),
+            by_source={k: _safe_float(v) for k, v in by_source.items()},
             trend="improving" if net_carbon < 0 else "needs_improvement"
         )
 
@@ -1042,8 +1050,8 @@ class SustainabilityService:
         total_gallons = totals["total_gallons"] or 0
         total_acres = totals["total_acres"] or 1
 
-        by_method = {row["irrigation_method"] or "unknown": row["total_gallons"] or 0 for row in method_rows}
-        by_source = {row["source"] or "unknown": row["total_gallons"] or 0 for row in source_rows}
+        by_method = {row["irrigation_method"] or "unknown": _safe_float(row["total_gallons"] or 0) for row in method_rows}
+        by_source = {row["source"] or "unknown": _safe_float(row["total_gallons"] or 0) for row in source_rows}
 
         # Calculate efficiency score (lower gallons per acre = higher score)
         gpa = total_gallons / total_acres if total_acres > 0 else 0
@@ -1052,12 +1060,12 @@ class SustainabilityService:
 
         return WaterSummary(
             period=str(year),
-            total_gallons=total_gallons,
-            total_acres=total_acres,
-            gallons_per_acre=gpa,
+            total_gallons=_safe_float(total_gallons),
+            total_acres=_safe_float(total_acres),
+            gallons_per_acre=_safe_float(gpa),
             by_method=by_method,
             by_source=by_source,
-            efficiency_score=efficiency_score,
+            efficiency_score=_safe_float(efficiency_score),
             trend="stable"
         )
 
@@ -1234,6 +1242,16 @@ class SustainabilityService:
     # SUSTAINABILITY SCORECARD
     # =========================================================================
 
+    def get_scorecard(
+        self,
+        field_id: Optional[int] = None,
+        year: Optional[int] = None
+    ) -> SustainabilityScorecard:
+        """Get sustainability scorecard (wrapper for generate_scorecard)"""
+        if year is None:
+            year = datetime.now().year
+        return self.generate_scorecard(year=year, field_id=field_id)
+
     def generate_scorecard(
         self,
         year: int,
@@ -1263,7 +1281,7 @@ class SustainabilityService:
 
         # Calculate carbon score (0-100, lower emissions = higher score)
         # Target: Net zero or negative
-        net_per_acre = carbon_summary.net_per_acre
+        net_per_acre = _safe_float(carbon_summary.net_per_acre)
         if net_per_acre <= 0:
             carbon_score_value = 100  # Carbon negative = perfect
         elif net_per_acre < 500:
@@ -1274,19 +1292,20 @@ class SustainabilityService:
             carbon_score_value = 40 + (20 * (2000 - net_per_acre) / 1000)
         else:
             carbon_score_value = max(0, 40 - (net_per_acre - 2000) / 100)
+        carbon_score_value = _safe_float(carbon_score_value, 50.0)
 
         carbon_score = SustainabilityScore(
             metric="Carbon Footprint",
             score=carbon_score_value,
             weight=0.30,
-            weighted_score=carbon_score_value * 0.30,
+            weighted_score=_safe_float(carbon_score_value * 0.30),
             trend="improving" if net_per_acre < 0 else "needs_improvement",
             details=f"Net {net_per_acre:.0f} kg CO2e/acre"
         )
 
         # Calculate input efficiency score
-        total_input_carbon = sum(s.carbon_footprint_kg for s in input_summaries)
-        input_per_acre = total_input_carbon / total_acres if total_acres > 0 else 0
+        total_input_carbon = _safe_float(sum(s.carbon_footprint_kg for s in input_summaries))
+        input_per_acre = _safe_float(total_input_carbon / total_acres if total_acres > 0 else 0)
 
         if input_per_acre < 100:
             input_score_value = 100
@@ -1296,12 +1315,13 @@ class SustainabilityService:
             input_score_value = 50 + (20 * (500 - input_per_acre) / 200)
         else:
             input_score_value = max(0, 50 - (input_per_acre - 500) / 20)
+        input_score_value = _safe_float(input_score_value, 50.0)
 
         input_efficiency_score = SustainabilityScore(
             metric="Input Efficiency",
             score=input_score_value,
             weight=0.25,
-            weighted_score=input_score_value * 0.25,
+            weighted_score=_safe_float(input_score_value * 0.25),
             trend="stable",
             details=f"{input_per_acre:.0f} kg CO2e/acre from inputs"
         )
@@ -1309,15 +1329,15 @@ class SustainabilityService:
         # Water efficiency score
         try:
             water_summary = self.get_water_summary(year, field_id)
-            water_score_value = water_summary.efficiency_score
+            water_score_value = _safe_float(water_summary.efficiency_score, 70.0)
         except (ValueError, AttributeError, TypeError):
-            water_score_value = 70  # Default if no water data
+            water_score_value = 70.0  # Default if no water data
 
         water_efficiency_score = SustainabilityScore(
             metric="Water Efficiency",
             score=water_score_value,
             weight=0.15,
-            weighted_score=water_score_value * 0.15,
+            weighted_score=_safe_float(water_score_value * 0.15),
             trend="stable",
             details="Based on irrigation efficiency"
         )
@@ -1328,13 +1348,13 @@ class SustainabilityService:
         practice_count = len(unique_practices)
 
         # Score based on number of practices (max 14 possible)
-        practice_score_value = min(100, (practice_count / 7) * 100)
+        practice_score_value = _safe_float(min(100, (practice_count / 7) * 100), 50.0)
 
         practice_adoption_score = SustainabilityScore(
             metric="Practice Adoption",
             score=practice_score_value,
             weight=0.20,
-            weighted_score=practice_score_value * 0.20,
+            weighted_score=_safe_float(practice_score_value * 0.20),
             trend="improving" if practice_count > 0 else "needs_improvement",
             details=f"{practice_count} sustainable practices adopted"
         )
@@ -1347,24 +1367,25 @@ class SustainabilityService:
             SustainabilityPractice.CROP_ROTATION,
         }
         bio_count = len(unique_practices & biodiversity_practices)
-        biodiversity_score_value = min(100, (bio_count / 4) * 100)
+        biodiversity_score_value = _safe_float(min(100, (bio_count / 4) * 100), 50.0)
 
         biodiversity_score = SustainabilityScore(
             metric="Biodiversity",
             score=biodiversity_score_value,
             weight=0.10,
-            weighted_score=biodiversity_score_value * 0.10,
+            weighted_score=_safe_float(biodiversity_score_value * 0.10),
             trend="improving" if bio_count > 0 else "stable",
             details=f"{bio_count} biodiversity-supporting practices"
         )
 
         # Calculate overall score
-        overall_score = (
+        overall_score = _safe_float(
             carbon_score.weighted_score +
             input_efficiency_score.weighted_score +
             water_efficiency_score.weighted_score +
             practice_adoption_score.weighted_score +
-            biodiversity_score.weighted_score
+            biodiversity_score.weighted_score,
+            50.0
         )
 
         # Assign grade
@@ -1388,8 +1409,8 @@ class SustainabilityService:
         prev_row = cursor.fetchone()
         previous_year_score = prev_row["overall_score"] if prev_row else None
 
-        score_change = overall_score - previous_year_score if previous_year_score else None
-        score_change_percent = (score_change / previous_year_score * 100) if previous_year_score and score_change else None
+        score_change = _safe_float(overall_score - previous_year_score) if previous_year_score else None
+        score_change_percent = _safe_float(score_change / previous_year_score * 100) if previous_year_score and score_change else None
 
         # Improvement opportunities
         improvements = []
@@ -1416,11 +1437,11 @@ class SustainabilityService:
             water_efficiency_score=water_efficiency_score,
             practice_adoption_score=practice_adoption_score,
             biodiversity_score=biodiversity_score,
-            total_carbon_footprint_kg=carbon_summary.total_emissions_kg,
-            carbon_per_acre=carbon_summary.emissions_per_acre,
-            carbon_sequestered_kg=carbon_summary.total_sequestration_kg,
-            net_carbon_kg=carbon_summary.net_carbon_kg,
-            total_acres=total_acres,
+            total_carbon_footprint_kg=_safe_float(carbon_summary.total_emissions_kg),
+            carbon_per_acre=_safe_float(carbon_summary.emissions_per_acre),
+            carbon_sequestered_kg=_safe_float(carbon_summary.total_sequestration_kg),
+            net_carbon_kg=_safe_float(carbon_summary.net_carbon_kg),
+            total_acres=_safe_float(total_acres),
             practices_adopted=[p.value for p in unique_practices],
             improvement_opportunities=improvements,
             previous_year_score=previous_year_score,
@@ -1490,6 +1511,18 @@ class SustainabilityService:
     # RESEARCH DATA EXPORT
     # =========================================================================
 
+    def _sanitize_floats(self, obj: Any) -> Any:
+        """Recursively sanitize float values to be JSON-serializable (replace inf/nan with None)"""
+        if isinstance(obj, dict):
+            return {k: self._sanitize_floats(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._sanitize_floats(v) for v in obj]
+        elif isinstance(obj, float):
+            if math.isinf(obj) or math.isnan(obj):
+                return None
+            return obj
+        return obj
+
     def export_research_data(
         self,
         year: int,
@@ -1536,7 +1569,18 @@ class SustainabilityService:
             }
         }
 
-        return export_data
+        # Sanitize any infinity/nan values for JSON serialization
+        return self._sanitize_floats(export_data)
+
+    def get_report(
+        self,
+        year: Optional[int] = None,
+        field_id: Optional[int] = None
+    ) -> SustainabilityReport:
+        """Get comprehensive sustainability report (wrapper for generate_grant_report)"""
+        if year is None:
+            year = datetime.now().year
+        return self.generate_grant_report(year=year, field_id=field_id)
 
     def generate_grant_report(
         self,

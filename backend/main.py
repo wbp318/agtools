@@ -2034,29 +2034,27 @@ async def compare_rate_scenarios(request: RateScenarioRequest):
     Compare profitability of different application rates
     Useful for 'what-if' analysis and rate decisions
     """
-    from services.yield_response_optimizer import (
-        get_yield_response_optimizer,
-        SoilTestLevel as STL
-    )
+    from services.yield_response_optimizer import get_yield_response_optimizer
 
     optimizer = get_yield_response_optimizer()
 
-    soil_map = {
-        SoilTestLevel.VERY_LOW: STL.VERY_LOW,
-        SoilTestLevel.LOW: STL.LOW,
-        SoilTestLevel.MEDIUM: STL.MEDIUM,
-        SoilTestLevel.HIGH: STL.HIGH,
-        SoilTestLevel.VERY_HIGH: STL.VERY_HIGH,
+    # Convert soil test level enum to ppm value
+    soil_ppm_map = {
+        SoilTestLevel.VERY_LOW: 5.0,
+        SoilTestLevel.LOW: 10.0,
+        SoilTestLevel.MEDIUM: 20.0,
+        SoilTestLevel.HIGH: 40.0,
+        SoilTestLevel.VERY_HIGH: 80.0,
     }
 
     result = optimizer.compare_rate_scenarios(
         crop=request.crop.value,
         nutrient=request.nutrient.value,
         rates=request.rates,
-        nutrient_price_per_lb=request.nutrient_price_per_lb,
-        grain_price_per_bu=request.grain_price_per_bu,
+        nutrient_cost=request.nutrient_price_per_lb,
+        commodity_price=request.grain_price_per_bu,
         acres=request.acres,
-        soil_test_level=soil_map[request.soil_test_level]
+        soil_test_level=soil_ppm_map.get(request.soil_test_level, 20.0)
     )
 
     return result

@@ -49,7 +49,8 @@ async def list_seeds(
     from services.seed_planting_service import get_seed_planting_service
 
     service = get_seed_planting_service()
-    return service.list_seeds(crop_type=crop_type, year=year)
+    # Note: year parameter kept for API compatibility but not used by service
+    return service.list_seeds(crop_type=crop_type)
 
 
 @router.post("/seeds", tags=["Seeds"])

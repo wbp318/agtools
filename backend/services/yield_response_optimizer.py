@@ -28,6 +28,15 @@ class NutrientType(str, Enum):
     SULFUR = "sulfur"
 
 
+class SoilTestLevel(str, Enum):
+    """Soil test categories for nutrient levels"""
+    VERY_LOW = "very_low"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+
 # Crop-specific yield response parameters (based on university research)
 # These represent typical Midwest conditions - can be calibrated with local data
 YIELD_RESPONSE_PARAMS = {

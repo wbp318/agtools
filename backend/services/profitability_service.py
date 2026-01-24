@@ -747,6 +747,10 @@ class ProfitabilityService:
             if_cut_lowest_roi=if_cut_lowest,
         )
 
+    def calculate_input_roi(self, request: InputROIRequest) -> InputROIResponse:
+        """Alias for rank_inputs_by_roi for API compatibility."""
+        return self.rank_inputs_by_roi(request)
+
     # ========================================================================
     # SCENARIO PLANNER
     # ========================================================================

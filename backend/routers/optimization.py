@@ -593,7 +593,20 @@ async def quick_cost_estimate(request: QuickEstimateRequest):
         yield_goal=request.yield_goal
     )
 
-    return result
+    # Transform to expected response format
+    return QuickEstimateResponse(
+        estimated_cost=result.get("total_cost", 0.0),
+        cost_per_acre=result.get("total_cost_per_acre", 0.0),
+        assumptions={
+            "crop": result.get("crop"),
+            "acres": result.get("acres"),
+            "yield_goal": result.get("yield_goal"),
+            "is_irrigated": result.get("is_irrigated"),
+            "cost_breakdown_per_acre": result.get("cost_breakdown_per_acre", {}),
+            "economics": result.get("economics", {}),
+            "note": result.get("note", "")
+        }
+    )
 
 
 @router.post("/optimize/budget-worksheet", response_model=BudgetWorksheetResponse, tags=["Cost Optimization"])

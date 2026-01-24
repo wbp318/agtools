@@ -579,6 +579,94 @@ class GrantService:
         self.practice_counter = 0
 
     # -------------------------------------------------------------------------
+    # GRANT PROGRAM LISTING
+    # -------------------------------------------------------------------------
+
+    def list_programs(self) -> Dict[str, Any]:
+        """List all available grant programs"""
+        # Define program metadata
+        program_info = {
+            GrantProgram.USDA_SBIR: {
+                "name": "USDA Small Business Innovation Research",
+                "agency": "USDA",
+                "description": "Competitive research grants for small businesses",
+                "max_funding": 100000.0,
+                "eligibility": ["Small business", "U.S. owned", "For-profit"]
+            },
+            GrantProgram.NSF_SBIR: {
+                "name": "NSF Small Business Innovation Research",
+                "agency": "NSF",
+                "description": "Technology innovation funding for small businesses",
+                "max_funding": 256000.0,
+                "eligibility": ["Small business", "U.S. owned", "Technology focus"]
+            },
+            GrantProgram.SARE_PRODUCER: {
+                "name": "SARE Producer Grant",
+                "agency": "USDA SARE",
+                "description": "On-farm research for sustainable agriculture",
+                "max_funding": 15000.0,
+                "eligibility": ["Active farmer/rancher", "U.S. based"]
+            },
+            GrantProgram.SARE_RESEARCH: {
+                "name": "SARE Research & Education",
+                "agency": "USDA SARE",
+                "description": "Research projects advancing sustainable agriculture",
+                "max_funding": 250000.0,
+                "eligibility": ["Researchers", "Educators", "Farmers"]
+            },
+            GrantProgram.CIG: {
+                "name": "Conservation Innovation Grant",
+                "agency": "NRCS",
+                "description": "Innovative conservation approaches",
+                "max_funding": 1000000.0,
+                "eligibility": ["Any entity", "Conservation focus"]
+            },
+            GrantProgram.EQIP: {
+                "name": "Environmental Quality Incentives Program",
+                "agency": "NRCS",
+                "description": "Conservation practices on working lands",
+                "max_funding": 450000.0,
+                "eligibility": ["Agricultural producers", "Forest landowners"]
+            },
+            GrantProgram.CSP: {
+                "name": "Conservation Stewardship Program",
+                "agency": "NRCS",
+                "description": "Maintaining and improving conservation systems",
+                "max_funding": 200000.0,
+                "eligibility": ["Agricultural producers", "Active conservation"]
+            },
+            GrantProgram.CRP: {
+                "name": "Conservation Reserve Program",
+                "agency": "FSA",
+                "description": "Land retirement for conservation",
+                "max_funding": 50000.0,
+                "eligibility": ["Agricultural landowners", "Cropland history"]
+            },
+            GrantProgram.LA_ON_FARM: {
+                "name": "Louisiana On-Farm Research",
+                "agency": "LSU AgCenter",
+                "description": "On-farm trials in Louisiana",
+                "max_funding": 10000.0,
+                "eligibility": ["Louisiana farmers", "Research collaboration"]
+            }
+        }
+
+        programs = [
+            {
+                "id": program.value,
+                "name": info["name"],
+                "agency": info["agency"],
+                "description": info.get("description"),
+                "max_funding": info.get("max_funding"),
+                "deadline": None,
+                "eligibility": info.get("eligibility", [])
+            }
+            for program, info in program_info.items()
+        ]
+
+        return {"programs": programs, "total": len(programs)}
+
+    # -------------------------------------------------------------------------
     # NRCS PRACTICE MANAGEMENT
     # -------------------------------------------------------------------------
 
