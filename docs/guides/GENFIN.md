@@ -1,6 +1,6 @@
 # GenFin - Complete Farm Financial Management System
 
-*Version 6.15.1 | January 2026*
+*Version 6.15.2 | January 2026*
 
 ---
 

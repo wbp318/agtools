@@ -1,8 +1,40 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.15.1 | **Last Updated:** January 23, 2026
+> **Current Version:** 6.15.2 | **Last Updated:** January 23, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.15.2 (January 23, 2026)
+
+### Linting & Test Suite Improvements
+
+**Added ruff linter and fixed 32 failing tests across API/service layer.**
+
+**Ruff Linter Integration:**
+- Added `ruff.toml` configuration for Python 3.12
+- Fixed 308 unused imports via auto-fix
+- Fixed 4 critical missing imports (json, Response, StreamingResponse in main.py; os in user_service.py)
+- Fixed 22 ambiguous variable names (l → line, lot, low, etc.)
+- Fixed 16 f-strings without placeholders
+- Fixed 34 unused variables (prefixed with _)
+
+**Test Suite Fixes (32 failures → 0):**
+- `grants.py`: Convert CARBON_PROGRAMS/NRCS_PRACTICES dicts to lists, add bulk download endpoint
+- `reports.py`: Fix cost service method names (get_category_breakdown, get_cost_per_acre_report)
+- `crops.py`: Remove unsupported 'year' param from list_seeds
+- `ai_ml.py`: Fix weather service import, add image upload validation (type, size, crop param)
+- `optimization.py`: Transform fertilizer/quick-estimate responses to match models
+- `grant_service.py`: Add list_programs() method
+- `profitability_service.py`: Add calculate_input_roi() wrapper
+- `sustainability_service.py`: Add get_report/get_scorecard wrappers, _safe_float for JSON serialization
+- `yield_response_optimizer.py`: Add SoilTestLevel enum
+- `main.py`: Fix compare_rate_scenarios params and soil level mapping
+
+**Test Results:**
+- 810 tests passing (was 778 pass, 32 fail)
+- 8 skipped, 1 pre-existing e2e error
 
 ---
 

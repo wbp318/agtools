@@ -2,7 +2,7 @@
 
 Complete guide to installing, configuring, and using every feature in AgTools.
 
-**Version:** 6.15.1 | **Updated:** January 2026
+**Version:** 6.15.2 | **Updated:** January 2026
 
 ---
 
@@ -963,5 +963,5 @@ curl http://localhost:8000/
 
 ---
 
-*AgTools Quick Start Guide v6.15.1*
+*AgTools Quick Start Guide v6.15.2*
 *Copyright 2024-2026 New Generation Farms and William Brooks Parker. All Rights Reserved.*

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AgTools (v6.15.1) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
+AgTools (v6.15.2) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
 
 ## Build & Run Commands
 
@@ -114,7 +114,7 @@ GenFin is a full accounting system with 13 service files:
 
 ## Testing Notes
 
-- 600+ tests total, 227 GenFin tests in `test_genfin_endpoints.py`
+- 810+ tests total, 227 GenFin tests in `test_genfin_endpoints.py`
 - Tests set `AGTOOLS_DEV_MODE=1` and `AGTOOLS_TEST_MODE=1` automatically
 - Default test admin credentials: username `admin`, password `admin123`
 - Use `DataFactory` class from `conftest.py` to generate test data

@@ -136,7 +136,7 @@ agtools/
 │   ├── schema.sql     ← Database structure
 │   └── seed_data.py   ← Pest/disease knowledge base
 │
-├── tests/             ← Quality assurance (600+ tests)
+├── tests/             ← Quality assurance (810+ tests)
 │
 └── docs/              ← Documentation
     ├── TECHNICAL_REFERENCE.md  ← Developer details
