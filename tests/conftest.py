@@ -114,17 +114,30 @@ def client() -> Generator[TestClient, None, None]:
     # (field_service queries depend on this table existing)
     get_field_operations_service()
 
-    # Initialize user service and set known test password for admin
+    # Set test credentials via environment for user service initialization
+    os.environ["AGTOOLS_ADMIN_USER"] = "admin"
+    os.environ["AGTOOLS_ADMIN_PASS"] = "admin123"
+
+    # Initialize user service (will create admin with test credentials)
     user_service = get_user_service()
     auth_service = get_auth_service()
 
-    # Update admin password to known test value
+    # Ensure test admin account exists with known credentials
     import sqlite3
     conn = sqlite3.connect(user_service.db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     test_password_hash = auth_service.hash_password("admin123")
-    cursor.execute("UPDATE users SET password_hash = ? WHERE username = 'admin'", (test_password_hash,))
+
+    # Check if test admin exists, create if not
+    cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO users (username, email, password_hash, first_name, last_name, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, ("admin", "testadmin@test.local", test_password_hash, "Test", "Admin", "admin", 1))
+    else:
+        cursor.execute("UPDATE users SET password_hash = ? WHERE username = 'admin'", (test_password_hash,))
     conn.commit()
     conn.close()
 

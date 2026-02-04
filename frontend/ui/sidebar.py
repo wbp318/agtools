@@ -235,7 +235,7 @@ class Sidebar(QFrame):
         layout.addWidget(scroll, 1)
 
         # Version info at bottom - Windows 98 sunken panel style
-        version_label = QLabel("v6.9.0")
+        version_label = QLabel("v6.15.3")
         version_label.setStyleSheet(f"""
             color: {c['turquoise_pale']};
             background: {c['turquoise_dark']};

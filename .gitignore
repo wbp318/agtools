@@ -18,6 +18,7 @@ secrets.json
 *.pfx
 credentials.*
 *_credentials.*
+.credentials
 api_keys.*
 tokens.json
 service_account*.json
@@ -60,7 +61,8 @@ share/python-wheels/
 
 # PyInstaller
 *.manifest
-*.spec
+# Keep agtools.spec for build, ignore others
+!frontend/agtools.spec
 
 # Installer Logs
 pip-log.txt

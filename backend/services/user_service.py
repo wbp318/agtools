@@ -194,9 +194,6 @@ class UserService:
 
     def _ensure_admin_exists(self) -> None:
         """Create default admin user if no admin exists."""
-        import secrets
-        import string
-
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -204,32 +201,44 @@ class UserService:
         count = cursor.fetchone()[0]
 
         if count == 0:
-            # SECURITY: Generate a random secure password for default admin
-            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-            random_password = ''.join(secrets.choice(alphabet) for _ in range(16))
-            password_hash = self.auth_service.hash_password(random_password)
+            # SECURITY: Load credentials from environment or credentials file
+            # Never hardcode credentials in source code
+            default_username = os.environ.get("AGTOOLS_ADMIN_USER")
+            default_password = os.environ.get("AGTOOLS_ADMIN_PASS")
+
+            # Try loading from credentials file if env vars not set
+            if not default_username or not default_password:
+                creds_file = os.path.join(os.path.dirname(self.db_path), ".credentials")
+                if os.path.exists(creds_file):
+                    with open(creds_file, "r") as f:
+                        lines = f.read().strip().split("\n")
+                        for line in lines:
+                            if line.startswith("ADMIN_USER="):
+                                default_username = line.split("=", 1)[1]
+                            elif line.startswith("ADMIN_PASS="):
+                                default_password = line.split("=", 1)[1]
+
+            # Require credentials to be configured
+            if not default_username or not default_password:
+                import logging
+                logging.error(
+                    "Admin credentials not configured! Set AGTOOLS_ADMIN_USER and "
+                    "AGTOOLS_ADMIN_PASS environment variables, or create a .credentials "
+                    "file in the database directory with ADMIN_USER= and ADMIN_PASS= lines."
+                )
+                conn.close()
+                return
+
+            password_hash = self.auth_service.hash_password(default_password)
 
             cursor.execute("""
                 INSERT INTO users (username, email, password_hash, first_name, last_name, role)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, ("admin", "admin@farm.local", password_hash, "Farm", "Admin", "admin"))
+            """, (default_username, "admin@farm.local", password_hash, "Farm", "Admin", "admin"))
             conn.commit()
 
-            # SECURITY: Write credentials to secure file instead of console
-            # User must check this file and delete it after reading
             import logging
-            logging.warning("DEFAULT ADMIN ACCOUNT CREATED - Check admin_credentials.txt")
-            credentials_file = os.path.join(os.path.dirname(self.db_path), "admin_credentials.txt")
-            with open(credentials_file, "w") as f:
-                f.write("=" * 60 + "\n")
-                f.write("  DEFAULT ADMIN ACCOUNT CREATED\n")
-                f.write("=" * 60 + "\n")
-                f.write("  Username: admin\n")
-                f.write(f"  Password: {random_password}\n")
-                f.write("\n")
-                f.write("  IMPORTANT: Delete this file after saving the password!\n")
-                f.write("  Use scripts/reset_admin_password.py to reset if lost.\n")
-                f.write("=" * 60 + "\n")
+            logging.info("Default admin account initialized from secure credentials")
 
         conn.close()
 

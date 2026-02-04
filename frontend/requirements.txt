@@ -18,3 +18,6 @@ numpy>=1.24.0
 
 # Secure token storage (v6.13.3)
 cryptography>=41.0.0
+
+# Packaging (for building standalone executables)
+pyinstaller>=6.0.0

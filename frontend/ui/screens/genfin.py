@@ -8520,7 +8520,7 @@ class GenFinTitleBar(QFrame):
         layout.addLayout(title_layout)
         layout.addStretch()
 
-        version = QLabel("v6.6.0")
+        version = QLabel("v6.15.3")
         version.setStyleSheet(f"""
             color: {GENFIN_COLORS['teal_bright']};
             font-size: 10px;
