@@ -216,18 +216,26 @@ docker-compose.yml linguist-detectable=true
 *.jinja2 linguist-detectable=true
 
 # =============================================================================
+# GENERATED/BUILD OUTPUT - EXCLUDE FROM STATS
+# =============================================================================
+
+dist/** linguist-generated=true
+dist/** linguist-vendored=true
+build/** linguist-generated=true
+build/** linguist-vendored=true
+frontend/dist/** linguist-generated=true
+frontend/build/** linguist-generated=true
+*.spec linguist-generated=true
+
+# =============================================================================
 # NOT VENDORED - COUNT ALL PROJECT CODE
 # =============================================================================
 
-backend/* linguist-vendored=false
-backend/**/* linguist-vendored=false
-frontend/* linguist-vendored=false
-frontend/**/* linguist-vendored=false
-database/* linguist-vendored=false
-tests/* linguist-vendored=false
-tests/**/* linguist-vendored=false
-docs/* linguist-vendored=false
-docs/**/* linguist-vendored=false
+backend/** linguist-vendored=false
+frontend/** linguist-vendored=false
+database/** linguist-vendored=false
+tests/** linguist-vendored=false
+docs/** linguist-vendored=false
 
 # =============================================================================
 # DIFF AND MERGE
