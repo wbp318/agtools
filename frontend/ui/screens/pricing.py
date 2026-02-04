@@ -22,6 +22,7 @@ from models.pricing import (
     SetPriceRequest, BuyRecommendationRequest, PriceAlert,
 )
 from api.pricing_api import get_pricing_api
+from database.local_db import get_local_db
 
 
 class SetPriceDialog(QDialog):
@@ -181,18 +182,43 @@ class PriceListTab(QWidget):
         self._load_prices()
 
     def _load_prices(self) -> None:
-        """Load prices from API."""
+        """Load prices from API with offline fallback."""
         category = self._category_combo.currentData()
         region = self._region_combo.currentData()
+        cache_key = f"prices_{category or 'all'}_{region}"
 
         success, result = self._api.get_prices(category=category, region=region)
 
-        if not success:
-            QMessageBox.warning(self, "Error", f"Failed to load prices: {result}")
-            return
+        if success:
+            self._prices = result.prices
+            # Cache for offline use
+            try:
+                db = get_local_db()
+                db.cache_set("pricing", cache_key, {
+                    "prices": {k: v.to_dict() if hasattr(v, 'to_dict') else v for k, v in self._prices.items()}
+                }, ttl_hours=24)
+            except Exception:
+                pass  # Cache failure is not critical
+            self._update_table()
+        else:
+            # Try to load from cache
+            try:
+                db = get_local_db()
+                cached = db.cache_get("pricing", cache_key)
+                if cached and "prices" in cached:
+                    from models.pricing import ProductPrice
+                    self._prices = {k: ProductPrice.from_dict(v) if isinstance(v, dict) else v
+                                   for k, v in cached["prices"].items()}
+                    self._update_table()
+                    QMessageBox.information(self, "Offline Mode",
+                        "Using cached prices. Connect to server for latest data.")
+                    return
+            except Exception:
+                pass
 
-        self._prices = result.prices
-        self._update_table()
+            # No cache available
+            error_msg = "Unable to connect to server" if "connect" in str(result).lower() else str(result)
+            QMessageBox.warning(self, "Error", f"Failed to load prices: {error_msg}\n\nMake sure the backend server is running.")
 
     def _update_table(self) -> None:
         """Update the price table."""
