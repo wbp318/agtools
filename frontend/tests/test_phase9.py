@@ -13,51 +13,67 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_settings_screen_import():
     """Test Settings screen imports correctly."""
-    print("  SettingsScreen: OK")
-    return True
+    from ui.screens.settings import SettingsScreen
+    assert SettingsScreen is not None
 
 
 def test_widgets_import():
     """Test common widgets import correctly."""
-    print("  LoadingOverlay: OK")
-    print("  LoadingButton: OK")
-    print("  StatusMessage: OK")
-    print("  ValidatedLineEdit: OK")
-    print("  ConfirmDialog: OK")
-    print("  ToastNotification: OK")
-    return True
+    from ui.widgets.common import (
+        LoadingOverlay, LoadingButton, StatusMessage,
+        ValidatedLineEdit, ConfirmDialog, ToastNotification
+    )
+    assert LoadingOverlay is not None
+    assert LoadingButton is not None
+    assert StatusMessage is not None
+    assert ValidatedLineEdit is not None
+    assert ConfirmDialog is not None
+    assert ToastNotification is not None
 
 
 def test_all_screens_import():
     """Test all screen imports."""
-    print("  All 8 screens import: OK")
-    return True
+    from ui.screens.dashboard import DashboardScreen
+    from ui.screens.login import LoginScreen
+    from ui.screens.settings import SettingsScreen
+    from ui.screens.field_management import FieldManagementScreen
+    from ui.screens.equipment_management import EquipmentManagementScreen
+    from ui.screens.task_management import TaskManagementScreen
+    from ui.screens.inventory_management import InventoryManagementScreen
+    from ui.screens.yield_response import YieldResponseScreen
+
+    assert DashboardScreen is not None
+    assert LoginScreen is not None
+    assert SettingsScreen is not None
+    assert FieldManagementScreen is not None
+    assert EquipmentManagementScreen is not None
+    assert TaskManagementScreen is not None
+    assert InventoryManagementScreen is not None
+    assert YieldResponseScreen is not None
 
 
 def test_offline_integration():
     """Test offline components work together."""
     from database.local_db import get_local_db
     from core.calculations.yield_response import get_offline_yield_calculator
-    from core.calculations.spray_timing import get_offline_spray_calculator
+    from core.calculations.spray_timing import get_offline_spray_calculator, WeatherCondition
 
     # Test database
     db = get_local_db()
     stats = db.get_stats()
-    print(f"  Database stats: {stats}")
+    assert stats is not None
 
     # Test offline calculator
     calc = get_offline_yield_calculator()
     result = calc.calculate_eor('corn', 'N', 0.50, 5.00, 200)
-    print(f"  Offline EOR calculation: {result.eor} lb/acre")
+    assert result is not None
+    assert result.eor > 0
 
     # Test spray calculator
-    from core.calculations.spray_timing import WeatherCondition
     spray = get_offline_spray_calculator()
     weather = WeatherCondition(temperature_f=75, wind_speed_mph=5, humidity_pct=60)
     eval_result = spray.evaluate_conditions(weather)
-    print(f"  Offline spray eval: {eval_result.risk_level.value}")
-
-    return True
+    assert eval_result is not None
 
 
 def test_api_client_offline():
@@ -71,9 +87,6 @@ def test_api_client_offline():
     assert not response.success
     assert response.status_code == 0
     assert "offline" in response.error_message.lower()
-    print("  API offline error: OK")
-
-    return True
 
 
 def test_config_and_settings():
@@ -81,12 +94,10 @@ def test_config_and_settings():
     from config import get_settings, APP_VERSION, USER_DATA_DIR
 
     settings = get_settings()
-    print(f"  App version: {APP_VERSION}")
-    print(f"  User data dir: {USER_DATA_DIR}")
-    print(f"  Region: {settings.region}")
-    print(f"  Offline enabled: {settings.offline.enabled}")
-
-    return True
+    assert APP_VERSION is not None
+    assert USER_DATA_DIR is not None
+    assert settings.region is not None
+    assert settings.offline is not None
 
 
 def run_all_tests():
@@ -110,8 +121,9 @@ def run_all_tests():
     for name, test_func in tests:
         print(f"\n{name}:")
         try:
-            if test_func():
-                passed += 1
+            test_func()
+            print("  OK")
+            passed += 1
         except Exception as e:
             print(f"  FAILED: {e}")
             failed += 1
