@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
         self._add_screen("genfin", genfin_screen)
 
         # Livestock Management Screen (v6.4.0) - All users
-        livestock_screen = LivestockManagementScreen(current_user=self._current_user)
+        livestock_screen = LivestockManagementScreen(user_info=self._current_user)
         self._add_screen("livestock", livestock_screen)
 
         # Seed & Planting Screen (v6.4.0) - All users
