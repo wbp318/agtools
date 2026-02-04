@@ -1,5 +1,5 @@
 PROPRIETARY SOFTWARE LICENSE AGREEMENT
-Copyright (c) 2024 New Generation Farms and William Brooks Parker / AgTools Professional Crop Consulting System
+Copyright (c) 2024-2025 New Generation Farms and William Brooks Parker / AgTools Professional Crop Consulting System
 ALL RIGHTS RESERVED
 
 ================================================================================
@@ -133,10 +133,61 @@ may result in severe civil and criminal penalties.
 
    This license shall be governed by the laws of the State of Louisiana and
    applicable federal law. Any legal action shall be brought exclusively in the
-   state or federal courts located in Louisiana, and you consent to personal
-   jurisdiction in such courts.
+   Sixth Judicial District Court for East Carroll Parish, Louisiana, or the
+   United States District Court for the Western District of Louisiana, and you
+   hereby consent to personal jurisdiction and venue in such courts.
 
-10. COMMERCIAL LICENSING AVAILABLE
+10. LOUISIANA STATE LAW VIOLATIONS
+
+    Unauthorized downloading, copying, access, or use of this software
+    constitutes violations of Louisiana state law, including but not limited to:
+
+    a) LOUISIANA COMPUTER-RELATED CRIME ACT (La. R.S. 14:73.1 et seq.):
+
+       - La. R.S. 14:73.3 (Computer Fraud): Intentional access or causing access
+         to a computer system without authorization for the purpose of obtaining
+         anything of value constitutes computer fraud, punishable by imprisonment
+         up to 10 years and fines up to $10,000.
+
+       - La. R.S. 14:73.4 (Computer Tampering): Knowingly accessing and causing
+         the removal of computer programs or data constitutes computer tampering,
+         punishable by imprisonment up to 5 years and fines up to $5,000.
+
+       - La. R.S. 14:73.5 (Interference with Critical Infrastructure): If this
+         software is used in agricultural operations deemed critical
+         infrastructure, unauthorized interference carries enhanced penalties
+         including imprisonment up to 15 years.
+
+       - La. R.S. 14:73.7 (Unauthorized Use of a Computer): Intentional access
+         to or use of any computer system without authorization, including the
+         downloading of proprietary software, constitutes unauthorized use.
+
+    b) LOUISIANA UNIFORM TRADE SECRETS ACT (La. R.S. 51:1431-1439):
+
+       - Misappropriation of trade secrets contained in this software, including
+         algorithms, business logic, database schemas, and proprietary methods,
+         is actionable under La. R.S. 51:1432.
+
+       - Remedies include injunctive relief, actual damages, unjust enrichment,
+         and reasonable royalties (La. R.S. 51:1433).
+
+       - Willful and malicious misappropriation may result in exemplary damages
+         up to twice the compensatory award plus attorney's fees (La. R.S.
+         51:1434-1435).
+
+    c) LOUISIANA THEFT STATUTES (La. R.S. 14:67 et seq.):
+
+       - Theft of computer services, data, or intellectual property valued over
+         $25,000 constitutes felony theft punishable by imprisonment up to 10
+         years and fines up to $10,000 under La. R.S. 14:67.
+
+    VENUE: All civil and criminal proceedings arising from unauthorized use of
+    this software shall be venued in East Carroll Parish, Louisiana. By
+    downloading, accessing, or using this software without authorization, you
+    consent to the jurisdiction of East Carroll Parish courts and waive any
+    objection to venue.
+
+11. COMMERCIAL LICENSING AVAILABLE
 
     Authorized commercial use requires a separate written license agreement.
     Licensing options include:
@@ -173,8 +224,8 @@ DO NOT TEST US.
 Third-party libraries and dependencies retain their original open-source
 licenses as specified in their respective packages.
 
-Last Updated: December 26, 2024
-License Version: 2.0
+Last Updated: February 4, 2025
+License Version: 2.1
 Copyright Holder: New Generation Farms and William Brooks Parker
 
 For portfolio evaluation: Employers and clients may view this code to assess
