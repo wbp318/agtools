@@ -759,7 +759,7 @@ class EquipmentManagementScreen(QWidget):
         ])
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)
-        self._table.setColumnWidth(8, 280)
+        self._table.setColumnWidth(8, 320)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setAlternatingRowColors(True)
         self._table.setStyleSheet("""
@@ -888,14 +888,16 @@ class EquipmentManagementScreen(QWidget):
 
             # Edit button
             edit_btn = QPushButton("Edit")
+            edit_btn.setMinimumWidth(50)
             edit_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #1976d2;
                     color: white;
-                    padding: 4px 8px;
+                    padding: 5px 10px;
                     border: none;
                     border-radius: 3px;
                     font-size: 11px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #1565c0;
@@ -906,14 +908,16 @@ class EquipmentManagementScreen(QWidget):
 
             # Hours button
             hours_btn = QPushButton("Hours")
+            hours_btn.setMinimumWidth(50)
             hours_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #7b1fa2;
                     color: white;
-                    padding: 4px 8px;
+                    padding: 5px 10px;
                     border: none;
                     border-radius: 3px;
                     font-size: 11px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #6a1b9a;
@@ -924,14 +928,16 @@ class EquipmentManagementScreen(QWidget):
 
             # Maintenance button
             maint_btn = QPushButton("Service")
+            maint_btn.setMinimumWidth(55)
             maint_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #f57c00;
                     color: white;
-                    padding: 4px 8px;
+                    padding: 5px 10px;
                     border: none;
                     border-radius: 3px;
                     font-size: 11px;
+                    font-weight: bold;
                 }
                 QPushButton:hover {
                     background-color: #e65100;
@@ -942,15 +948,17 @@ class EquipmentManagementScreen(QWidget):
 
             # Delete button (manager/admin only)
             if self._current_user and self._current_user.role in ("admin", "manager"):
-                delete_btn = QPushButton("Del")
+                delete_btn = QPushButton("Delete")
+                delete_btn.setMinimumWidth(55)
                 delete_btn.setStyleSheet("""
                     QPushButton {
                         background-color: #d32f2f;
                         color: white;
-                        padding: 4px 8px;
+                        padding: 5px 10px;
                         border: none;
                         border-radius: 3px;
                         font-size: 11px;
+                        font-weight: bold;
                     }
                     QPushButton:hover {
                         background-color: #b71c1c;
