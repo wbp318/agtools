@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AgTools (v6.15.2) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
 
+**Requirements:** Python 3.12+
+
 ## Build & Run Commands
 
 ### Backend (FastAPI Server)
@@ -86,10 +88,12 @@ Configuration is in `ruff.toml`. The linter catches undefined names, unused impo
 ### Services Architecture
 Services use a `ServiceRegistry` pattern for dependency injection. Each service typically:
 - Inherits from `base_service.py` patterns
-- Has its own SQLite table(s) initialized in `_init_tables()`
+- Has its own SQLite table(s) initialized in `_init_database()`
 - Exposes Pydantic models for request/response
 - Returns dictionaries from methods (not Pydantic models directly)
 - Has a `MAX_LIMIT = 10000` cap on list queries to prevent memory exhaustion
+
+Get services via factory functions (e.g., `get_field_service()`) which use `ServiceRegistry.get_service()` internally.
 
 ### API Endpoint Structure
 - `/api/v1/auth/*` - Authentication
