@@ -1,8 +1,45 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.15.2 | **Last Updated:** January 23, 2026
+> **Current Version:** 6.15.3 | **Last Updated:** February 4, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.15.3 (February 4, 2026)
+
+### Standalone Executable & Security Improvements
+
+**Added PyInstaller packaging and secure credential system.**
+
+**Packaging:**
+- Added `frontend/build.py` script for creating standalone Windows executable
+- Added `frontend/agtools.spec` PyInstaller configuration
+- Creates `dist/AgTools.exe` (65 MB) - runs without Python installed
+- Added PyInstaller to frontend requirements
+
+**Security:**
+- Removed hardcoded admin credentials from source code
+- Admin credentials now loaded from environment variables (`AGTOOLS_ADMIN_USER`, `AGTOOLS_ADMIN_PASS`)
+- Or from `.credentials` file (gitignored) in backend directory
+- Added `backend/.credentials.example` template
+- Dev mode OFF by default in production builds
+
+**Frontend Improvements:**
+- Added offline support to pricing screen with local caching
+- Fixed equipment management action buttons visibility (Edit, Hours, Service, Delete)
+- Widened Actions column for better button display
+- Added frontend test conftest.py with singleton reset fixture
+
+**Code Quality:**
+- Fixed datetime timezone handling across 49 files (`datetime.now(timezone.utc)`)
+- Converted 50+ print statements to proper logging
+- Fixed test isolation issues (Qt object lifetime errors)
+- Fixed test_phase9.py return value warnings
+
+**Test Results:**
+- 1,042 tests passing (810 backend + 232 frontend)
+- All critical paths verified
 
 ---
 

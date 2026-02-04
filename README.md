@@ -70,9 +70,17 @@ Everything runs locally on your machine - your data never leaves your computer u
 
 ## Quick Start
 
-### Step 1: Install Python
+### Option A: Download Standalone Executable (Easiest)
 
-Download Python from https://python.org/downloads and install it. **Check "Add Python to PATH"** during installation.
+1. Download `AgTools.exe` from [Releases](https://github.com/wbp318/agtools/releases)
+2. Start the backend server (see Option B, Steps 1-3)
+3. Run `AgTools.exe`
+
+### Option B: Run from Source
+
+#### Step 1: Install Python
+
+Download Python 3.12+ from https://python.org/downloads and install it. **Check "Add Python to PATH"** during installation.
 
 ### Step 2: Download AgTools
 
@@ -96,7 +104,12 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000
 - **API Explorer:** http://localhost:8000/docs
 - **Mobile Interface:** http://localhost:8000/m/login
 
-Default login: `admin` / `admin123`
+**First-time Setup:** Configure admin credentials via environment variables:
+```bash
+set AGTOOLS_ADMIN_USER=your_username
+set AGTOOLS_ADMIN_PASS=your_password
+```
+Or create `backend/.credentials` file (see `backend/.credentials.example`).
 
 ---
 
@@ -136,7 +149,7 @@ agtools/
 │   ├── schema.sql     ← Database structure
 │   └── seed_data.py   ← Pest/disease knowledge base
 │
-├── tests/             ← Quality assurance (810+ tests)
+├── tests/             ← Quality assurance (1,042 tests)
 │
 └── docs/              ← Documentation
     ├── TECHNICAL_REFERENCE.md  ← Developer details

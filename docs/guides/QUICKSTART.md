@@ -2,7 +2,7 @@
 
 Complete guide to installing, configuring, and using every feature in AgTools.
 
-**Version:** 6.15.2 | **Updated:** January 2026
+**Version:** 6.15.3 | **Updated:** February 2026
 
 ---
 
@@ -33,7 +33,7 @@ Complete guide to installing, configuring, and using every feature in AgTools.
 ### System Requirements
 
 - **Operating System:** Windows 10+, macOS 10.14+, or Linux
-- **Python:** Version 3.8 or higher
+- **Python:** Version 3.12 or higher
 - **RAM:** 4 GB minimum, 8 GB recommended
 - **Storage:** 500 MB for application, plus space for your data
 - **Internet:** Required only for weather features and updates
@@ -41,7 +41,7 @@ Complete guide to installing, configuring, and using every feature in AgTools.
 ### Step 1: Install Python
 
 1. Go to https://python.org/downloads
-2. Download Python 3.8 or higher
+2. Download Python 3.12 or higher
 3. Run the installer
 4. **IMPORTANT:** Check the box that says **"Add Python to PATH"**
 5. Click "Install Now"
@@ -49,7 +49,7 @@ Complete guide to installing, configuring, and using every feature in AgTools.
 Verify installation:
 ```bash
 python --version
-# Should show: Python 3.8.x or higher
+# Should show: Python 3.12.x or higher
 ```
 
 ### Step 2: Download AgTools
@@ -120,12 +120,29 @@ INFO:     Application startup complete.
 | **Mobile Interface** | http://localhost:8000/m/login | Field crews, phones/tablets |
 | **Desktop App** | Run `python main.py` in frontend/ | Full-featured daily use |
 
-### Default Login
+### Setting Up Admin Credentials
 
-- **Username:** `admin`
-- **Password:** `admin123`
+Admin credentials must be configured before first login. Choose one method:
 
-**Change this password in production!**
+**Method 1: Environment Variables (Recommended)**
+```bash
+# Windows
+set AGTOOLS_ADMIN_USER=your_username
+set AGTOOLS_ADMIN_PASS=your_secure_password
+
+# Linux/Mac
+export AGTOOLS_ADMIN_USER=your_username
+export AGTOOLS_ADMIN_PASS=your_secure_password
+```
+
+**Method 2: Credentials File**
+Create `backend/.credentials` with:
+```
+ADMIN_USER=your_username
+ADMIN_PASS=your_secure_password
+```
+
+See `backend/.credentials.example` for a template. The `.credentials` file is gitignored for security.
 
 ### Starting the Desktop App
 

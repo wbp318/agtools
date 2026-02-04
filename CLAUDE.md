@@ -90,9 +90,12 @@ Configuration is in `ruff.toml`. The linter catches undefined names, unused impo
 
 ### Frontend (`frontend/`)
 - **main.py**: PyQt6 application entry point
+- **app.py**: Application class with login flow
 - **api/**: HTTP client modules for backend communication
 - **ui/**: User interface screens and widgets
-- **database/**: Local SQLite cache
+- **database/**: Local SQLite cache for offline support
+- **core/**: Offline calculations (yield response, spray timing) and sync management
+- **build.py**: PyInstaller build script for standalone executable
 
 ### Services Architecture
 Services use a `ServiceRegistry` pattern for dependency injection. Each service typically:
@@ -134,6 +137,16 @@ GenFin is a full accounting system with 13 service files:
 - `AGTOOLS_DEV_MODE=1` - Enable dev mode (auto-login, relaxed auth)
 - `AGTOOLS_TEST_MODE=1` - Enable test mode (no rate limiting)
 - `AGTOOLS_DB_PATH=path.db` - Custom database path
+- `AGTOOLS_ADMIN_USER` - Admin username for initial setup
+- `AGTOOLS_ADMIN_PASS` - Admin password for initial setup
+
+### Credential Configuration
+Admin credentials are loaded from environment variables or a `.credentials` file in the backend directory:
+```
+ADMIN_USER=your_username
+ADMIN_PASS=your_password
+```
+The `.credentials` file is gitignored. See `backend/.credentials.example` for the template.
 
 ## Testing Notes
 
@@ -174,6 +187,9 @@ Services return dictionaries with various field names. Response models in router
 
 ### Test Data Dependencies
 Test classes share `test_ids` fixture. Tests may fail when run in full suite but pass individually due to test ordering and data dependencies.
+
+### Frontend Test Isolation
+Frontend tests use `frontend/tests/conftest.py` with a `reset_singletons` fixture that resets the SyncManager between tests to prevent Qt object lifetime issues ("wrapped C/C++ object deleted" errors).
 
 ### SQLite Datetime
 Always use `.isoformat()` when passing datetime objects to SQLite:

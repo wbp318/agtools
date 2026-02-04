@@ -2,7 +2,7 @@
 
 Complete technical documentation for developers, system administrators, and integrators.
 
-**Version:** 6.15.2 | **Updated:** January 2026
+**Version:** 6.15.3 | **Updated:** February 2026
 
 ---
 
