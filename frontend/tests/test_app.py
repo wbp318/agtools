@@ -105,7 +105,7 @@ class TestAllScreensImport:
         for module_name, class_name in screens:
             try:
                 module = __import__(module_name, fromlist=[class_name])
-                cls = getattr(module, class_name)
+                getattr(module, class_name)  # Verify attr exists
                 imported.append(class_name)
             except (ImportError, AttributeError) as e:
                 failed.append((class_name, str(e)))
@@ -140,7 +140,7 @@ class TestAllAPIClientsImport:
         for module_name, item_name in clients:
             try:
                 module = __import__(module_name, fromlist=[item_name])
-                item = getattr(module, item_name)
+                getattr(module, item_name)  # Verify attr exists
                 imported.append(item_name)
             except (ImportError, AttributeError):
                 pass
@@ -167,7 +167,7 @@ class TestAllModelsImport:
         for module_name, item_name in models:
             try:
                 module = __import__(module_name, fromlist=[item_name])
-                item = getattr(module, item_name)
+                getattr(module, item_name)  # Verify attr exists
                 imported.append(item_name)
             except (ImportError, AttributeError):
                 pass

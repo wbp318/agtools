@@ -71,9 +71,9 @@ def http_request(method: str, path: str, data: dict = None, headers: dict = None
         return 0, {"error": str(e)}
 
 
-def test_endpoint(category: str, name: str, method: str, path: str,
-                  data: dict = None, expected_codes: list = None):
-    """Test a single endpoint"""
+def check_endpoint(category: str, name: str, method: str, path: str,
+                   data: dict = None, expected_codes: list = None):
+    """Check a single endpoint (helper function, not a pytest test)"""
     if expected_codes is None:
         expected_codes = [200, 201, 401, 403]  # 401/403 are OK (auth required)
 
@@ -101,9 +101,9 @@ def test_core_endpoints():
     print("CORE ENDPOINTS")
     print("="*70)
 
-    test_endpoint("Core", "Root endpoint", "GET", "/")
-    test_endpoint("Core", "API docs", "GET", "/docs", expected_codes=[200])
-    test_endpoint("Core", "OpenAPI spec", "GET", "/openapi.json", expected_codes=[200])
+    check_endpoint("Core", "Root endpoint", "GET", "/")
+    check_endpoint("Core", "API docs", "GET", "/docs", expected_codes=[200])
+    check_endpoint("Core", "OpenAPI spec", "GET", "/openapi.json", expected_codes=[200])
 
 
 def test_auth_endpoints():
@@ -112,11 +112,11 @@ def test_auth_endpoints():
     print("AUTHENTICATION")
     print("="*70)
 
-    test_endpoint("Auth", "Login endpoint exists", "POST", "/api/v1/auth/login",
+    check_endpoint("Auth", "Login endpoint exists", "POST", "/api/v1/auth/login",
                   data={"username": "test", "password": "test"},
                   expected_codes=[200, 401, 422])
-    test_endpoint("Auth", "Get current user", "GET", "/api/v1/auth/me")
-    test_endpoint("Auth", "Logout", "POST", "/api/v1/auth/logout")
+    check_endpoint("Auth", "Get current user", "GET", "/api/v1/auth/me")
+    check_endpoint("Auth", "Logout", "POST", "/api/v1/auth/logout")
 
 
 def test_field_endpoints():
@@ -125,9 +125,9 @@ def test_field_endpoints():
     print("FIELD MANAGEMENT")
     print("="*70)
 
-    test_endpoint("Fields", "List fields", "GET", "/api/v1/fields")
-    test_endpoint("Fields", "Get farm names", "GET", "/api/v1/fields/farms")
-    test_endpoint("Fields", "Get field summary", "GET", "/api/v1/fields/summary")
+    check_endpoint("Fields", "List fields", "GET", "/api/v1/fields")
+    check_endpoint("Fields", "Get farm names", "GET", "/api/v1/fields/farms")
+    check_endpoint("Fields", "Get field summary", "GET", "/api/v1/fields/summary")
 
 
 def test_equipment_endpoints():
@@ -136,10 +136,10 @@ def test_equipment_endpoints():
     print("EQUIPMENT MANAGEMENT")
     print("="*70)
 
-    test_endpoint("Equipment", "List equipment", "GET", "/api/v1/equipment")
-    test_endpoint("Equipment", "Get equipment types", "GET", "/api/v1/equipment/types")
-    test_endpoint("Equipment", "Get equipment statuses", "GET", "/api/v1/equipment/statuses")
-    test_endpoint("Equipment", "Get equipment summary", "GET", "/api/v1/equipment/summary")
+    check_endpoint("Equipment", "List equipment", "GET", "/api/v1/equipment")
+    check_endpoint("Equipment", "Get equipment types", "GET", "/api/v1/equipment/types")
+    check_endpoint("Equipment", "Get equipment statuses", "GET", "/api/v1/equipment/statuses")
+    check_endpoint("Equipment", "Get equipment summary", "GET", "/api/v1/equipment/summary")
 
 
 def test_inventory_endpoints():
@@ -148,10 +148,10 @@ def test_inventory_endpoints():
     print("INVENTORY MANAGEMENT")
     print("="*70)
 
-    test_endpoint("Inventory", "List inventory", "GET", "/api/v1/inventory")
-    test_endpoint("Inventory", "Get categories", "GET", "/api/v1/inventory/categories")
-    test_endpoint("Inventory", "Get inventory summary", "GET", "/api/v1/inventory/summary")
-    test_endpoint("Inventory", "Get alerts", "GET", "/api/v1/inventory/alerts")
+    check_endpoint("Inventory", "List inventory", "GET", "/api/v1/inventory")
+    check_endpoint("Inventory", "Get categories", "GET", "/api/v1/inventory/categories")
+    check_endpoint("Inventory", "Get inventory summary", "GET", "/api/v1/inventory/summary")
+    check_endpoint("Inventory", "Get alerts", "GET", "/api/v1/inventory/alerts")
 
 
 def test_task_endpoints():
@@ -160,7 +160,7 @@ def test_task_endpoints():
     print("TASK MANAGEMENT")
     print("="*70)
 
-    test_endpoint("Tasks", "List tasks", "GET", "/api/v1/tasks")
+    check_endpoint("Tasks", "List tasks", "GET", "/api/v1/tasks")
 
 
 def test_crew_endpoints():
@@ -169,7 +169,7 @@ def test_crew_endpoints():
     print("CREW MANAGEMENT")
     print("="*70)
 
-    test_endpoint("Crews", "List crews", "GET", "/api/v1/crews")
+    check_endpoint("Crews", "List crews", "GET", "/api/v1/crews")
 
 
 def test_operations_endpoints():
@@ -178,8 +178,8 @@ def test_operations_endpoints():
     print("FIELD OPERATIONS")
     print("="*70)
 
-    test_endpoint("Operations", "List operations", "GET", "/api/v1/operations")
-    test_endpoint("Operations", "Get operations summary", "GET", "/api/v1/operations/summary")
+    check_endpoint("Operations", "List operations", "GET", "/api/v1/operations")
+    check_endpoint("Operations", "Get operations summary", "GET", "/api/v1/operations/summary")
 
 
 def test_cost_optimizer_endpoints():
@@ -189,16 +189,16 @@ def test_cost_optimizer_endpoints():
     print("="*70)
 
     # Quick estimate
-    test_endpoint("Cost Optimizer", "Quick estimate (corn)", "POST", "/api/v1/optimize/quick-estimate",
+    check_endpoint("Cost Optimizer", "Quick estimate (corn)", "POST", "/api/v1/optimize/quick-estimate",
                   data={"acres": 160, "crop": "corn", "is_irrigated": False, "yield_goal": 200},
                   expected_codes=[200, 422])
 
-    test_endpoint("Cost Optimizer", "Quick estimate (irrigated)", "POST", "/api/v1/optimize/quick-estimate",
+    check_endpoint("Cost Optimizer", "Quick estimate (irrigated)", "POST", "/api/v1/optimize/quick-estimate",
                   data={"acres": 160, "crop": "corn", "is_irrigated": True, "yield_goal": 200},
                   expected_codes=[200, 422])
 
     # Fertilizer
-    test_endpoint("Cost Optimizer", "Fertilizer optimization", "POST", "/api/v1/optimize/fertilizer",
+    check_endpoint("Cost Optimizer", "Fertilizer optimization", "POST", "/api/v1/optimize/fertilizer",
                   data={
                       "crop": "corn",
                       "yield_goal": 200,
@@ -212,7 +212,7 @@ def test_cost_optimizer_endpoints():
                   expected_codes=[200, 422])
 
     # Labor
-    test_endpoint("Cost Optimizer", "Labor seasonal budget", "POST", "/api/v1/optimize/labor/seasonal-budget",
+    check_endpoint("Cost Optimizer", "Labor seasonal budget", "POST", "/api/v1/optimize/labor/seasonal-budget",
                   data={
                       "total_acres": 500,
                       "crop": "corn",
@@ -230,9 +230,9 @@ def test_pricing_endpoints():
     print("PRICING SERVICE")
     print("="*70)
 
-    test_endpoint("Pricing", "Get all prices", "GET", "/api/v1/pricing/prices")
-    test_endpoint("Pricing", "Get price alerts", "GET", "/api/v1/pricing/alerts")
-    test_endpoint("Pricing", "Get budget prices (corn)", "GET", "/api/v1/pricing/budget-prices/corn")
+    check_endpoint("Pricing", "Get all prices", "GET", "/api/v1/pricing/prices")
+    check_endpoint("Pricing", "Get price alerts", "GET", "/api/v1/pricing/alerts")
+    check_endpoint("Pricing", "Get budget prices (corn)", "GET", "/api/v1/pricing/budget-prices/corn")
 
 
 def test_spray_timing_endpoints():
@@ -243,7 +243,7 @@ def test_spray_timing_endpoints():
 
     # Test evaluate conditions (POST with weather data)
     from datetime import datetime
-    test_endpoint("Spray Timing", "Evaluate conditions", "POST", "/api/v1/spray-timing/evaluate",
+    check_endpoint("Spray Timing", "Evaluate conditions", "POST", "/api/v1/spray-timing/evaluate",
                   data={
                       "weather": {
                           "datetime": datetime.now().isoformat(),
@@ -255,7 +255,7 @@ def test_spray_timing_endpoints():
                       "spray_type": "herbicide"
                   },
                   expected_codes=[200, 422])
-    test_endpoint("Spray Timing", "Disease pressure", "POST", "/api/v1/spray-timing/disease-pressure",
+    check_endpoint("Spray Timing", "Disease pressure", "POST", "/api/v1/spray-timing/disease-pressure",
                   data={
                       "weather_history": [{
                           "datetime": datetime.now().isoformat(),
@@ -276,10 +276,10 @@ def test_yield_response_endpoints():
     print("YIELD RESPONSE")
     print("="*70)
 
-    test_endpoint("Yield Response", "Get response curve", "POST", "/api/v1/yield-response/curve",
+    check_endpoint("Yield Response", "Get response curve", "POST", "/api/v1/yield-response/curve",
                   data={"crop": "corn", "nutrient": "nitrogen"},
                   expected_codes=[200, 422])
-    test_endpoint("Yield Response", "Get economic optimum", "POST", "/api/v1/yield-response/economic-optimum",
+    check_endpoint("Yield Response", "Get economic optimum", "POST", "/api/v1/yield-response/economic-optimum",
                   data={
                       "crop": "corn",
                       "nutrient": "nitrogen",
@@ -295,16 +295,16 @@ def test_identification_endpoints():
     print("PEST/DISEASE IDENTIFICATION")
     print("="*70)
 
-    test_endpoint("Identification", "List pests", "GET", "/api/v1/pests")
-    test_endpoint("Identification", "List diseases", "GET", "/api/v1/diseases")
-    test_endpoint("Identification", "Identify pest by symptoms", "POST", "/api/v1/identify/pest",
+    check_endpoint("Identification", "List pests", "GET", "/api/v1/pests")
+    check_endpoint("Identification", "List diseases", "GET", "/api/v1/diseases")
+    check_endpoint("Identification", "Identify pest by symptoms", "POST", "/api/v1/identify/pest",
                   data={
                       "crop": "corn",
                       "symptoms": ["leaf_damage", "holes"],
                       "growth_stage": "V6"
                   },
                   expected_codes=[200, 422])
-    test_endpoint("Identification", "Identify disease by symptoms", "POST", "/api/v1/identify/disease",
+    check_endpoint("Identification", "Identify disease by symptoms", "POST", "/api/v1/identify/disease",
                   data={
                       "crop": "corn",
                       "symptoms": ["leaf_spots", "yellowing"],
@@ -319,14 +319,14 @@ def test_genfin_endpoints():
     print("GENFIN ACCOUNTING")
     print("="*70)
 
-    test_endpoint("GenFin", "Get entities", "GET", "/api/v1/genfin/entities")
-    test_endpoint("GenFin", "Get financial summary", "GET", "/api/v1/genfin/summary")
-    test_endpoint("GenFin", "Get accounts", "GET", "/api/v1/genfin/accounts")
-    test_endpoint("GenFin", "Get chart of accounts", "GET", "/api/v1/genfin/chart-of-accounts")
-    test_endpoint("GenFin", "Get invoices", "GET", "/api/v1/genfin/invoices")
-    test_endpoint("GenFin", "Get bills", "GET", "/api/v1/genfin/bills")
-    test_endpoint("GenFin", "Get checks", "GET", "/api/v1/genfin/checks")
-    test_endpoint("GenFin", "Get bank accounts", "GET", "/api/v1/genfin/bank-accounts")
+    check_endpoint("GenFin", "Get entities", "GET", "/api/v1/genfin/entities")
+    check_endpoint("GenFin", "Get financial summary", "GET", "/api/v1/genfin/summary")
+    check_endpoint("GenFin", "Get accounts", "GET", "/api/v1/genfin/accounts")
+    check_endpoint("GenFin", "Get chart of accounts", "GET", "/api/v1/genfin/chart-of-accounts")
+    check_endpoint("GenFin", "Get invoices", "GET", "/api/v1/genfin/invoices")
+    check_endpoint("GenFin", "Get bills", "GET", "/api/v1/genfin/bills")
+    check_endpoint("GenFin", "Get checks", "GET", "/api/v1/genfin/checks")
+    check_endpoint("GenFin", "Get bank accounts", "GET", "/api/v1/genfin/bank-accounts")
 
 
 def test_accounting_import_endpoints():
@@ -335,9 +335,9 @@ def test_accounting_import_endpoints():
     print("ACCOUNTING IMPORT")
     print("="*70)
 
-    test_endpoint("Accounting Import", "Get supported formats", "GET", "/api/v1/accounting-import/formats")
-    test_endpoint("Accounting Import", "Get default mappings", "GET", "/api/v1/accounting-import/default-mappings")
-    test_endpoint("Accounting Import", "Get user mappings", "GET", "/api/v1/accounting-import/mappings")
+    check_endpoint("Accounting Import", "Get supported formats", "GET", "/api/v1/accounting-import/formats")
+    check_endpoint("Accounting Import", "Get default mappings", "GET", "/api/v1/accounting-import/default-mappings")
+    check_endpoint("Accounting Import", "Get user mappings", "GET", "/api/v1/accounting-import/mappings")
 
 
 def test_reports_endpoints():
@@ -346,11 +346,11 @@ def test_reports_endpoints():
     print("REPORTS")
     print("="*70)
 
-    test_endpoint("Reports", "Get dashboard summary", "GET", "/api/v1/reports/dashboard")
-    test_endpoint("Reports", "Get operations report", "GET", "/api/v1/reports/operations")
-    test_endpoint("Reports", "Get financial report", "GET", "/api/v1/reports/financial")
-    test_endpoint("Reports", "Get equipment report", "GET", "/api/v1/reports/equipment")
-    test_endpoint("Reports", "Get inventory report", "GET", "/api/v1/reports/inventory")
+    check_endpoint("Reports", "Get dashboard summary", "GET", "/api/v1/reports/dashboard")
+    check_endpoint("Reports", "Get operations report", "GET", "/api/v1/reports/operations")
+    check_endpoint("Reports", "Get financial report", "GET", "/api/v1/reports/financial")
+    check_endpoint("Reports", "Get equipment report", "GET", "/api/v1/reports/equipment")
+    check_endpoint("Reports", "Get inventory report", "GET", "/api/v1/reports/inventory")
 
 
 def test_livestock_endpoints():
@@ -359,9 +359,9 @@ def test_livestock_endpoints():
     print("LIVESTOCK")
     print("="*70)
 
-    test_endpoint("Livestock", "Get livestock summary", "GET", "/api/v1/livestock/summary")
-    test_endpoint("Livestock", "List groups", "GET", "/api/v1/livestock/groups")
-    test_endpoint("Livestock", "List animals", "GET", "/api/v1/livestock")
+    check_endpoint("Livestock", "Get livestock summary", "GET", "/api/v1/livestock/summary")
+    check_endpoint("Livestock", "List groups", "GET", "/api/v1/livestock/groups")
+    check_endpoint("Livestock", "List animals", "GET", "/api/v1/livestock")
 
 
 def test_seeds_endpoints():
@@ -370,9 +370,9 @@ def test_seeds_endpoints():
     print("SEEDS & PLANTING")
     print("="*70)
 
-    test_endpoint("Seeds", "Get seeds summary", "GET", "/api/v1/seeds/summary")
-    test_endpoint("Seeds", "List seeds", "GET", "/api/v1/seeds")
-    test_endpoint("Planting", "List plantings", "GET", "/api/v1/planting")
+    check_endpoint("Seeds", "Get seeds summary", "GET", "/api/v1/seeds/summary")
+    check_endpoint("Seeds", "List seeds", "GET", "/api/v1/seeds")
+    check_endpoint("Planting", "List plantings", "GET", "/api/v1/planting")
 
 
 def test_maintenance_endpoints():
@@ -381,8 +381,8 @@ def test_maintenance_endpoints():
     print("MAINTENANCE")
     print("="*70)
 
-    test_endpoint("Maintenance", "List maintenance records", "GET", "/api/v1/maintenance")
-    test_endpoint("Maintenance", "Get maintenance alerts", "GET", "/api/v1/maintenance/alerts")
+    check_endpoint("Maintenance", "List maintenance records", "GET", "/api/v1/maintenance")
+    check_endpoint("Maintenance", "Get maintenance alerts", "GET", "/api/v1/maintenance/alerts")
 
 
 def test_weather_endpoints():
@@ -392,7 +392,7 @@ def test_weather_endpoints():
     print("="*70)
 
     # Spray window requires lat/lon params
-    test_endpoint("Weather", "Get spray window", "GET", "/api/v1/weather/spray-window?latitude=41.5&longitude=-93.5",
+    check_endpoint("Weather", "Get spray window", "GET", "/api/v1/weather/spray-window?latitude=41.5&longitude=-93.5",
                   expected_codes=[200, 422, 500])  # May fail without API key
 
 
@@ -402,10 +402,10 @@ def test_grants_endpoints():
     print("GRANTS")
     print("="*70)
 
-    test_endpoint("Grants", "List grant programs", "GET", "/api/v1/grants/programs")
-    test_endpoint("Grants", "Get NRCS practices", "GET", "/api/v1/grants/nrcs-practices")
-    test_endpoint("Grants", "Get practices summary", "GET", "/api/v1/grants/practices/summary")
-    test_endpoint("Grants", "Get benchmarks", "GET", "/api/v1/grants/benchmarks")
+    check_endpoint("Grants", "List grant programs", "GET", "/api/v1/grants/programs")
+    check_endpoint("Grants", "Get NRCS practices", "GET", "/api/v1/grants/nrcs-practices")
+    check_endpoint("Grants", "Get practices summary", "GET", "/api/v1/grants/practices/summary")
+    check_endpoint("Grants", "Get benchmarks", "GET", "/api/v1/grants/benchmarks")
 
 
 def test_unified_dashboard_endpoints():
@@ -414,8 +414,8 @@ def test_unified_dashboard_endpoints():
     print("UNIFIED DASHBOARD")
     print("="*70)
 
-    test_endpoint("Dashboard", "Get summary", "GET", "/api/v1/unified-dashboard/summary")
-    test_endpoint("Dashboard", "Get transactions", "GET", "/api/v1/unified-dashboard/transactions?kpi_type=cash_flow")
+    check_endpoint("Dashboard", "Get summary", "GET", "/api/v1/unified-dashboard/summary")
+    check_endpoint("Dashboard", "Get transactions", "GET", "/api/v1/unified-dashboard/transactions?kpi_type=cash_flow")
 
 
 # ==============================================================================

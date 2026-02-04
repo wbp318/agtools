@@ -15,7 +15,7 @@ Features:
 - Application status tracking
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
@@ -1130,7 +1130,7 @@ class GrantAssistantService:
         """Create a new grant application tracking record"""
 
         application = GrantApplication(
-            application_id=f"APP-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            application_id=f"APP-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
             grant_program=app_data.get("grant_program", ""),
             status=GrantStatus.IDENTIFIED,
             project_title=app_data.get("project_title", ""),
@@ -1392,7 +1392,7 @@ class GrantAssistantService:
 
         return {
             "report_title": "Grant Portfolio Report",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "portfolio_summary": {
                 "total_applications": dashboard.get("total_applications", 0),
                 "total_requested": dashboard.get("financials", {}).get("total_requested", 0),

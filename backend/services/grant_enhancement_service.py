@@ -8,7 +8,7 @@ This service extends grant support with:
 - Partnership Opportunity Finder (research matching)
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -909,7 +909,7 @@ opportunity for AgTools decision support software."""
 
         return {
             "report_type": "Economic Impact Analysis",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
 
             "executive_summary": {
@@ -1033,7 +1033,7 @@ opportunity for AgTools decision support software."""
             return {"error": f"Unknown grant program: {grant_program}"}
 
         requirements = GRANT_DATA_REQUIREMENTS[grant_program]
-        current_year = datetime.now().year
+        current_year = datetime.now(timezone.utc).year
 
         # Check required data
         required_status = []
@@ -1190,7 +1190,7 @@ opportunity for AgTools decision support software."""
 
         return {
             "report_type": "Data Quality Assessment",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
 
             "summary": {
@@ -1446,7 +1446,7 @@ opportunity for AgTools decision support software."""
 
         return {
             "report_type": "Partnership Opportunity Analysis",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
 
             "summary": {

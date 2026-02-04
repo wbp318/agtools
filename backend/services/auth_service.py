@@ -13,10 +13,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from enum import Enum
 
+import logging
+
 from jose import JWTError, jwt
 import bcrypt
 from pydantic import BaseModel, EmailStr, Field
 
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # CONFIGURATION
@@ -358,7 +361,7 @@ class AuthService:
             return cursor.lastrowid
 
         except Exception as e:
-            print(f"Error storing session: {e}")
+            logger.error(f"Error storing session: {e}")
             return None
 
     def invalidate_session(
@@ -396,7 +399,7 @@ class AuthService:
             return cursor.rowcount > 0
 
         except Exception as e:
-            print(f"Error invalidating session: {e}")
+            logger.error(f"Error invalidating session: {e}")
             return False
 
     def invalidate_all_user_sessions(
@@ -433,7 +436,7 @@ class AuthService:
             return cursor.rowcount
 
         except Exception as e:
-            print(f"Error invalidating user sessions: {e}")
+            logger.error(f"Error invalidating user sessions: {e}")
             return 0
 
     def is_session_valid(self, token: str) -> bool:
@@ -476,7 +479,7 @@ class AuthService:
             return datetime.now(timezone.utc) < expires_at
 
         except Exception as e:
-            print(f"Error checking session: {e}")
+            logger.error(f"Error checking session: {e}")
             return False
 
     def cleanup_expired_sessions(self) -> int:
@@ -501,7 +504,7 @@ class AuthService:
             return cursor.rowcount
 
         except Exception as e:
-            print(f"Error cleaning sessions: {e}")
+            logger.error(f"Error cleaning sessions: {e}")
             return 0
 
     # ========================================================================

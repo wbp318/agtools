@@ -14,7 +14,7 @@ Features:
 - Economic ripple effects
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
@@ -680,7 +680,7 @@ class CommunityImpactService:
         overall_impact_score = sum(impact_scores.values()) / len(impact_scores)
 
         return {
-            "assessment_date": datetime.now().isoformat(),
+            "assessment_date": datetime.now(timezone.utc).isoformat(),
             "year": year if year else "Current",
             "annual_revenue": round(annual_revenue, 0),
             "impact_categories": {
@@ -766,7 +766,7 @@ class CommunityImpactService:
         return {
             "report_title": "Community & Economic Impact Report",
             "grant_program": grant_program,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "executive_summary": {
                 "overall_impact_score": comprehensive.get("overall_impact_score", 0),
                 "impact_grade": comprehensive.get("impact_grade", "N/A"),

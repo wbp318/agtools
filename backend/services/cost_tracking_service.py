@@ -10,7 +10,7 @@ import io
 import json
 import re
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 from typing import Optional, List, Tuple, Dict, Any
 
@@ -455,7 +455,7 @@ class CostTrackingService:
             ImportResult with counts and errors
         """
         if default_tax_year is None:
-            default_tax_year = datetime.now().year
+            default_tax_year = datetime.now(timezone.utc).year
 
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -1445,7 +1445,7 @@ class CostTrackingService:
             Tuple of (extracted_expenses, warnings)
         """
         if default_tax_year is None:
-            default_tax_year = datetime.now().year
+            default_tax_year = datetime.now(timezone.utc).year
 
         warnings = []
 

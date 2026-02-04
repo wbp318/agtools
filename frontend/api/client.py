@@ -7,13 +7,16 @@ Handles connection management, error handling, offline fallback,
 and HTTPS/SSL configuration for production deployments.
 """
 
+import logging
 import httpx
 from typing import Any, Optional, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import sys
 import os
+
+logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import get_settings, AppSettings
@@ -130,7 +133,7 @@ class APIClient:
             verify_ssl = self._settings.api.verify_ssl
             if not verify_ssl and not self._settings.api.is_localhost:
                 # Force SSL verification for non-localhost unless explicitly disabled
-                print("WARNING: SSL verification disabled for non-localhost connection")
+                logger.warning("SSL verification disabled for non-localhost connection")
 
             self._client = httpx.Client(
                 base_url=self.base_url,
@@ -144,7 +147,7 @@ class APIClient:
             # Log security status on first connection
             is_valid, warning = self._settings.api.validate_security()
             if warning:
-                print(warning)
+                logger.warning(warning)
 
         return self._client
 
@@ -188,11 +191,11 @@ class APIClient:
                 timeout=5.0
             )
             self._is_connected = response.status_code == 200
-            self._last_check = datetime.now()
+            self._last_check = datetime.now(timezone.utc)
             return self._is_connected
         except Exception:
             self._is_connected = False
-            self._last_check = datetime.now()
+            self._last_check = datetime.now(timezone.utc)
             return False
 
     def _handle_response(self, response: httpx.Response) -> APIResponse:

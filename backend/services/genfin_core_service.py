@@ -4,7 +4,7 @@ Complete double-entry accounting system for farm financial management
 SQLite persistent storage implementation
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
@@ -451,7 +451,7 @@ class GenFinCoreService:
             if count > 0:
                 return  # Already initialized
 
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             for acct in FARM_CHART_OF_ACCOUNTS:
                 account_id = str(uuid.uuid4())
                 cursor.execute("""
@@ -514,7 +514,7 @@ class GenFinCoreService:
             except ValueError as e:
                 return {"success": False, "error": f"Invalid account type: {str(e)}"}
 
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO genfin_accounts
@@ -551,7 +551,7 @@ class GenFinCoreService:
 
             if not obe_row:
                 obe_id = str(uuid.uuid4())
-                now = datetime.now().isoformat()
+                now = datetime.now(timezone.utc).isoformat()
                 cursor.execute("""
                     INSERT INTO genfin_accounts
                     (account_id, account_number, name, account_type, sub_type, is_system, created_at, updated_at)
@@ -563,7 +563,7 @@ class GenFinCoreService:
             # Create journal entry
             entry_id = str(uuid.uuid4())
             entry_number = self._get_next_entry_number()
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO genfin_journal_entries
@@ -632,7 +632,7 @@ class GenFinCoreService:
                 params.append(tax_line)
 
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.now(timezone.utc).isoformat())
             params.append(account_id)
 
             cursor.execute(f"""
@@ -800,7 +800,7 @@ class GenFinCoreService:
 
             entry_id = str(uuid.uuid4())
             entry_number = self._get_next_entry_number()
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             status = "posted" if auto_post else "draft"
             posted_at = now if auto_post else None
 
@@ -860,7 +860,7 @@ class GenFinCoreService:
                 UPDATE genfin_journal_entries
                 SET status = 'posted', posted_at = ?
                 WHERE entry_id = ?
-            """, (datetime.now().isoformat(), entry_id))
+            """, (datetime.now(timezone.utc).isoformat(), entry_id))
 
             conn.commit()
 
@@ -1255,7 +1255,7 @@ class GenFinCoreService:
             if not cursor.fetchone():
                 return {"success": False, "error": "Period not found"}
 
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             cursor.execute("""
                 UPDATE genfin_fiscal_periods
                 SET is_closed = 1, closed_at = ?, closed_by = ?

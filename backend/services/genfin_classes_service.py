@@ -5,7 +5,7 @@ Track income/expenses by class, project, and job for detailed profitability anal
 
 import sqlite3
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
@@ -421,7 +421,7 @@ class GenFinClassesService:
             if cursor.fetchone()[0] > 0:
                 return
 
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             farm_classes = [
                 {"name": "Corn", "type": "crop"},
                 {"name": "Soybeans", "type": "crop"},
@@ -452,7 +452,7 @@ class GenFinClassesService:
     ) -> Dict:
         """Create a new class"""
         class_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -495,7 +495,7 @@ class GenFinClassesService:
 
             if updates:
                 updates.append("updated_at = ?")
-                values.append(datetime.now().isoformat())
+                values.append(datetime.now(timezone.utc).isoformat())
                 values.append(class_id)
 
                 cursor.execute(f"""
@@ -616,7 +616,7 @@ class GenFinClassesService:
     ) -> Dict:
         """Create a new project/job"""
         project_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -664,7 +664,7 @@ class GenFinClassesService:
 
             if updates:
                 updates.append("updated_at = ?")
-                values.append(datetime.now().isoformat())
+                values.append(datetime.now(timezone.utc).isoformat())
                 values.append(project_id)
 
                 cursor.execute(f"""
@@ -752,7 +752,7 @@ class GenFinClassesService:
                 UPDATE genfin_projects
                 SET status = ?, end_date = ?, updated_at = ?
                 WHERE project_id = ?
-            """, (status, end_date, datetime.now().isoformat(), project_id))
+            """, (status, end_date, datetime.now(timezone.utc).isoformat(), project_id))
             conn.commit()
 
         return {
@@ -784,7 +784,7 @@ class GenFinClassesService:
                 return {"success": False, "error": "Project not found"}
 
             expense_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             markup = amount * (markup_percent / 100) if markup_percent else 0
             billable_amount = amount + markup
@@ -888,7 +888,7 @@ class GenFinClassesService:
                 return {"success": False, "error": "Project not found"}
 
             time_entry_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             amount = hours * hourly_rate
             bill_rate = billable_rate if billable_rate is not None else hourly_rate
@@ -991,7 +991,7 @@ class GenFinClassesService:
                 return {"success": False, "error": "Project not found"}
 
             milestone_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO genfin_milestones
@@ -1057,7 +1057,7 @@ class GenFinClassesService:
                 return {"success": False, "error": "Project not found"}
 
             billing_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             contract_amount = project_row['contract_amount'] or 0.0
             amount_billed = project_row['amount_billed'] or 0.0
 
@@ -1122,7 +1122,7 @@ class GenFinClassesService:
                 return {"success": False, "error": "Class not found"}
 
             link_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO genfin_transaction_classes

@@ -4,7 +4,7 @@ Complete banking and check management for farm operations
 SQLite-backed persistence
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 import uuid
@@ -400,7 +400,7 @@ class GenFinBankingService:
     ) -> Dict:
         """Create a new bank account"""
         bank_account_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -460,7 +460,7 @@ class GenFinBankingService:
 
         if updates:
             updates.append("updated_at = ?")
-            values.append(datetime.now().isoformat())
+            values.append(datetime.now(timezone.utc).isoformat())
             values.append(bank_account_id)
 
             with self._get_connection() as conn:
@@ -576,7 +576,7 @@ class GenFinBankingService:
                 return {"success": False, "error": "Check printing not enabled for this account"}
 
             check_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             # Use provided check number or get next
             if check_number is None:
@@ -790,7 +790,7 @@ class GenFinBankingService:
             cursor.execute("""
                 UPDATE genfin_checks SET status = ?, printed_at = ?
                 WHERE check_id = ?
-            """, ('printed', datetime.now().isoformat(), check_id))
+            """, ('printed', datetime.now(timezone.utc).isoformat(), check_id))
             conn.commit()
 
         return {
@@ -844,7 +844,7 @@ class GenFinBankingService:
                 return {"success": False, "error": f"Check {check_id} is not from this bank account"}
 
         batch_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1028,7 +1028,7 @@ class GenFinBankingService:
 
         deposit_id = str(uuid.uuid4())
         total_amount = sum(line.get("amount", 0) for line in lines)
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1207,7 +1207,7 @@ class GenFinBankingService:
                 return {"success": False, "error": "ACH not enabled for this account"}
 
             batch_id = str(uuid.uuid4())
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             total_credit = 0.0
             total_debit = 0.0
@@ -1292,8 +1292,8 @@ class GenFinBankingService:
             lines = []
 
             # File Header Record (1)
-            file_creation_date = datetime.now().strftime("%y%m%d")
-            file_creation_time = datetime.now().strftime("%H%M")
+            file_creation_date = datetime.now(timezone.utc).strftime("%y%m%d")
+            file_creation_time = datetime.now(timezone.utc).strftime("%H%M")
 
             file_header = (
                 "1"
@@ -1476,7 +1476,7 @@ class GenFinBankingService:
             return {"success": False, "error": "Bank account not found"}
 
         trans_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1518,7 +1518,7 @@ class GenFinBankingService:
             return {"success": False, "error": "Bank account not found"}
 
         trans_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1564,7 +1564,7 @@ class GenFinBankingService:
         transfer_id = str(uuid.uuid4())
         from_trans_id = str(uuid.uuid4())
         to_trans_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1634,7 +1634,7 @@ class GenFinBankingService:
 
         recon_id = str(uuid.uuid4())
         s_date = datetime.strptime(statement_date, "%Y-%m-%d").date()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Determine period start
         if account['last_reconciled_date']:
@@ -1761,7 +1761,7 @@ class GenFinBankingService:
             """, (
                 cleared_deposits, cleared_payments, cleared_balance,
                 json.dumps(outstanding_deposits), json.dumps(outstanding_checks),
-                difference, status, datetime.now().isoformat(), completed_by, reconciliation_id
+                difference, status, datetime.now(timezone.utc).isoformat(), completed_by, reconciliation_id
             ))
 
             # Update bank account if balanced

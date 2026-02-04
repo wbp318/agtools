@@ -9,7 +9,7 @@ Comprehensive grain management featuring:
 - Basis Alerts (automated notifications when basis hits targets)
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -1103,7 +1103,7 @@ class GrainStorageService:
                 })
 
         return {
-            "checked_at": datetime.now().isoformat(),
+            "checked_at": datetime.now(timezone.utc).isoformat(),
             "triggered_count": len(triggered_alerts),
             "active_count": len(active_alerts),
             "triggered_alerts": triggered_alerts,

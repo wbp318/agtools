@@ -9,7 +9,7 @@ This service provides grant application support including:
 - Benchmark comparisons vs regional/national averages
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -1201,7 +1201,7 @@ class GrantService:
 
         return {
             "farm_name": farm_name,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "metrics_compared": len(comparisons),
             "overall_percentile": round(avg_percentile),
             "comparisons": comparisons,
@@ -1254,7 +1254,7 @@ class GrantService:
 
         return {
             "report_type": "SARE Producer Grant Application",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
             "project_title": project_title,
 
@@ -1327,7 +1327,7 @@ class GrantService:
 
         return {
             "report_type": "SBIR/STTR Technical Metrics",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "product_name": product_name,
             "version": version,
 
@@ -1426,7 +1426,7 @@ class GrantService:
 
         return {
             "report_type": "CIG Compliance Report",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
             "project_title": project_title,
             "reporting_period": reporting_period,
@@ -1525,7 +1525,7 @@ class GrantService:
 
         return {
             "report_type": "EQIP Application Package",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
             "farm_acres": farm_acres,
 
@@ -1714,7 +1714,7 @@ class GrantService:
 
         return {
             "farm_name": farm_name,
-            "assessment_date": datetime.now().isoformat(),
+            "assessment_date": datetime.now(timezone.utc).isoformat(),
             "overall_readiness_score": round(avg_readiness, 1),
             "grant_assessments": grant_assessments,
             "top_opportunity": max(grant_assessments, key=lambda x: x["readiness_score"]),

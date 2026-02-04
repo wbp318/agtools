@@ -14,7 +14,7 @@ Features:
 - Heat stress monitoring
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -519,7 +519,7 @@ class ClimateService:
             gdd_soybean=row["gdd_soybean"],
             gdd_wheat=row["gdd_wheat"],
             source=row["source"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def list_gdd_records(
@@ -566,7 +566,7 @@ class ClimateService:
                 gdd_soybean=row["gdd_soybean"],
                 gdd_wheat=row["gdd_wheat"],
                 source=row["source"],
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
             )
             for row in rows
         ]
@@ -762,7 +762,7 @@ class ClimateService:
             intensity=row["intensity"],
             source=row["source"],
             notes=row["notes"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def list_precipitation(
@@ -813,7 +813,7 @@ class ClimateService:
                 intensity=row["intensity"],
                 source=row["source"],
                 notes=row["notes"],
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
             )
             for row in rows
         ]
@@ -1067,7 +1067,7 @@ class ClimateService:
 
         return {
             "metadata": {
-                "export_date": datetime.now().isoformat(),
+                "export_date": datetime.now(timezone.utc).isoformat(),
                 "year": year,
                 "field_id": field_id,
                 "software": "AgTools Climate Module",

@@ -9,7 +9,7 @@ AgTools v6.10.0
 
 from dataclasses import dataclass
 from typing import Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import httpx
 
 from .client import APIClient, get_api_client
@@ -82,7 +82,7 @@ class ExportAPI:
 
     def _generate_filename(self, base_name: str, format_type: str) -> str:
         """Generate a filename with timestamp."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         ext = self.EXTENSIONS.get(format_type, "")
         return f"{base_name}_{timestamp}{ext}"
 

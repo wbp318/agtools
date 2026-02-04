@@ -13,7 +13,7 @@ Features:
 - Ecosystem services valuation
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -1232,7 +1232,7 @@ class BiodiversityService:
         return {
             "report_title": f"Biodiversity & Ecosystem Services Report - {crop_year}",
             "grant_program": grant_program,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_summary": {
                 "total_acres": total_farm_acres,
                 "habitat_acres": habitat_score.get("habitat_summary", {}).get("total_habitat_acres", 0),

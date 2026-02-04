@@ -8,7 +8,7 @@ Stores prices, pest/disease data, crop parameters, and user preferences.
 import sqlite3
 from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import threading
 
@@ -35,7 +35,7 @@ class CacheEntry:
     def is_expired(self) -> bool:
         if self.expires_at is None:
             return False
-        return datetime.now() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
 
 class LocalDatabase:
@@ -248,7 +248,7 @@ class LocalDatabase:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         expires_at = (now + timedelta(hours=ttl_hours)) if ttl_hours else None
 
         cursor.execute("""
@@ -289,7 +289,7 @@ class LocalDatabase:
         # Check expiration
         if row['expires_at']:
             expires_at = datetime.fromisoformat(row['expires_at'])
-            if datetime.now() > expires_at:
+            if datetime.now(timezone.utc) > expires_at:
                 # Expired - delete and return None
                 cursor.execute("""
                     DELETE FROM cache WHERE category = ? AND cache_key = ?
@@ -328,7 +328,7 @@ class LocalDatabase:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         cursor.execute("""
             DELETE FROM cache WHERE expires_at IS NOT NULL AND expires_at < ?
         """, (now,))
@@ -352,7 +352,7 @@ class LocalDatabase:
         """
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         for product in products:
             cursor.execute("""
@@ -422,7 +422,7 @@ class LocalDatabase:
         """
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("""
             INSERT INTO custom_prices
@@ -469,7 +469,7 @@ class LocalDatabase:
         """Save pest data to local database."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         for pest in pests:
             cursor.execute("""
@@ -511,7 +511,7 @@ class LocalDatabase:
         """Save disease data to local database."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         for disease in diseases:
             cursor.execute("""
@@ -556,7 +556,7 @@ class LocalDatabase:
         """Save crop agronomic parameters."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("""
             INSERT OR REPLACE INTO crop_parameters (crop, parameters_json, updated_at)
@@ -589,7 +589,7 @@ class LocalDatabase:
         """Save a calculation to history."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("""
             INSERT INTO calculation_history (calculation_type, inputs_json, results_json, created_at, notes)
@@ -635,7 +635,7 @@ class LocalDatabase:
         """Add an action to the sync queue for when online."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("""
             INSERT INTO sync_queue (action, endpoint, payload_json, created_at)
@@ -667,7 +667,7 @@ class LocalDatabase:
         """Mark a sync action as attempted."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("""
             UPDATE sync_queue
@@ -698,7 +698,7 @@ class LocalDatabase:
         """Save a setting to the cache."""
         conn = self._get_connection()
         cursor = conn.cursor()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute("""
             INSERT OR REPLACE INTO settings_cache (key, value, updated_at)

@@ -288,9 +288,9 @@ class ConnectionSettingsTab(QWidget):
     def _refresh_status(self) -> None:
         """Refresh connection status display."""
         import httpx
-        from datetime import datetime
+        from datetime import datetime, timezone
 
-        lines = [f"Status check at {datetime.now().strftime('%H:%M:%S')}"]
+        lines = [f"Status check at {datetime.now(timezone.utc).strftime('%H:%M:%S')}"]
         lines.append("-" * 40)
 
         url = self._settings.api.base_url

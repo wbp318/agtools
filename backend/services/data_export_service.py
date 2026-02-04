@@ -5,7 +5,7 @@ Exports data to CSV and Excel formats
 
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -170,7 +170,7 @@ class DataExportService:
         if config.include_metadata:
             # Add export timestamp in a separate row at the bottom
             last_row = len(rows) + start_row + 1
-            ws.cell(row=last_row, column=1, value=f"Exported: {datetime.now().strftime(config.datetime_format)}")
+            ws.cell(row=last_row, column=1, value=f"Exported: {datetime.now(timezone.utc).strftime(config.datetime_format)}")
 
         # Save to bytes
         output = io.BytesIO()

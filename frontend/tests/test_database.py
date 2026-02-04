@@ -6,10 +6,6 @@ Tests for local SQLite caching and data persistence.
 
 import sys
 import os
-import pytest
-import tempfile
-import json
-from datetime import datetime, timedelta
 
 # Add frontend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -233,8 +229,7 @@ class TestDatabaseErrorHandling:
         # Empty key should either work or raise clear error
         try:
             db.cache_set("empty_test", "", {"data": 1}, ttl_hours=1)
-            result = db.cache_get("empty_test", "")
-            # If it works, that's fine
+            db.cache_get("empty_test", "")  # Verify retrieval works
         except (ValueError, KeyError):
             # Also acceptable
             pass

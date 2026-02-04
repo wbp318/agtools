@@ -261,22 +261,24 @@ class AccountingImportService:
     def _init_mapping_table(self) -> None:
         """Initialize QB account mapping table."""
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS qb_account_mappings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                qb_account TEXT NOT NULL,
-                agtools_category TEXT NOT NULL,
-                is_default BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, qb_account)
-            )
-        """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS qb_account_mappings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    qb_account TEXT NOT NULL,
+                    agtools_category TEXT NOT NULL,
+                    is_default BOOLEAN DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, qb_account)
+                )
+            """)
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     # ========================================================================
     # FORMAT DETECTION
@@ -629,20 +631,22 @@ class AccountingImportService:
     def get_user_mappings(self, user_id: int) -> Dict[str, ExpenseCategory]:
         """Get saved QB account mappings for a user."""
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT qb_account, agtools_category FROM qb_account_mappings
-            WHERE user_id = ?
-        """, (user_id,))
+            cursor.execute("""
+                SELECT qb_account, agtools_category FROM qb_account_mappings
+                WHERE user_id = ?
+            """, (user_id,))
 
-        mappings = {
-            row["qb_account"].lower(): ExpenseCategory(row["agtools_category"])
-            for row in cursor.fetchall()
-        }
+            mappings = {
+                row["qb_account"].lower(): ExpenseCategory(row["agtools_category"])
+                for row in cursor.fetchall()
+            }
 
-        conn.close()
-        return mappings
+            return mappings
+        finally:
+            conn.close()
 
     def save_user_mappings(
         self,
@@ -660,64 +664,70 @@ class AccountingImportService:
             Number of mappings saved
         """
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        saved = 0
-        for qb_account, category in mappings.items():
-            try:
-                cursor.execute("""
-                    INSERT OR REPLACE INTO qb_account_mappings
-                    (user_id, qb_account, agtools_category)
-                    VALUES (?, ?, ?)
-                """, (user_id, qb_account.lower(), category))
-                saved += 1
-            except sqlite3.Error:
-                continue
+            saved = 0
+            for qb_account, category in mappings.items():
+                try:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO qb_account_mappings
+                        (user_id, qb_account, agtools_category)
+                        VALUES (?, ?, ?)
+                    """, (user_id, qb_account.lower(), category))
+                    saved += 1
+                except sqlite3.Error:
+                    continue
 
-        conn.commit()
-        conn.close()
-        return saved
+            conn.commit()
+            return saved
+        finally:
+            conn.close()
 
     def get_all_user_mappings(self, user_id: int) -> List[QBAccountMapping]:
         """Get all saved QB account mappings for a user as list."""
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT id, qb_account, agtools_category, is_default, created_at
-            FROM qb_account_mappings
-            WHERE user_id = ?
-            ORDER BY qb_account
-        """, (user_id,))
+            cursor.execute("""
+                SELECT id, qb_account, agtools_category, is_default, created_at
+                FROM qb_account_mappings
+                WHERE user_id = ?
+                ORDER BY qb_account
+            """, (user_id,))
 
-        rows = cursor.fetchall()
-        conn.close()
+            rows = cursor.fetchall()
 
-        return [
-            QBAccountMapping(
-                id=row["id"],
-                qb_account=row["qb_account"],
-                agtools_category=ExpenseCategory(row["agtools_category"]),
-                is_default=bool(row["is_default"]),
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None
-            )
-            for row in rows
-        ]
+            return [
+                QBAccountMapping(
+                    id=row["id"],
+                    qb_account=row["qb_account"],
+                    agtools_category=ExpenseCategory(row["agtools_category"]),
+                    is_default=bool(row["is_default"]),
+                    created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
 
     def delete_user_mapping(self, user_id: int, mapping_id: int) -> bool:
         """Delete a QB account mapping."""
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            DELETE FROM qb_account_mappings
-            WHERE id = ? AND user_id = ?
-        """, (mapping_id, user_id))
+            cursor.execute("""
+                DELETE FROM qb_account_mappings
+                WHERE id = ? AND user_id = ?
+            """, (mapping_id, user_id))
 
-        deleted = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-        return deleted
+            deleted = cursor.rowcount > 0
+            conn.commit()
+            return deleted
+        finally:
+            conn.close()
 
     # ========================================================================
     # IMPORT
@@ -759,139 +769,141 @@ class AccountingImportService:
 
         # Create import batch
         conn = self._get_connection()
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            INSERT INTO import_batches (source_file, source_type, user_id, status)
-            VALUES (?, ?, ?, ?)
-        """, (source_file, f"quickbooks_{format_type.value}", user_id, ImportStatus.PROCESSING.value))
-        batch_id = cursor.lastrowid
+            cursor.execute("""
+                INSERT INTO import_batches (source_file, source_type, user_id, status)
+                VALUES (?, ?, ?, ?)
+            """, (source_file, f"quickbooks_{format_type.value}", user_id, ImportStatus.PROCESSING.value))
+            batch_id = cursor.lastrowid
 
-        # Process each row
-        successful = 0
-        failed = 0
-        skipped_non_expense = 0
-        duplicates = 0
-        errors = []
-        by_category: Dict[str, int] = {}
-        by_account: Dict[str, float] = {}
-        total_amount = 0.0
+            # Process each row
+            successful = 0
+            failed = 0
+            skipped_non_expense = 0
+            duplicates = 0
+            errors = []
+            by_category: Dict[str, int] = {}
+            by_account: Dict[str, float] = {}
+            total_amount = 0.0
 
-        # Convert mappings to lowercase for matching
-        mappings_lower = {k.lower(): v for k, v in account_mappings.items()}
+            # Convert mappings to lowercase for matching
+            mappings_lower = {k.lower(): v for k, v in account_mappings.items()}
 
-        for i, row in enumerate(rows, start=1):
-            try:
-                trans_type = row.get("type", "").lower()
+            for i, row in enumerate(rows, start=1):
+                try:
+                    trans_type = row.get("type", "").lower()
 
-                # Skip non-expense transactions
-                if self._is_skippable_transaction(trans_type):
-                    skipped_non_expense += 1
-                    continue
-
-                # Skip credits/refunds (negative amounts)
-                if row.get("is_credit"):
-                    skipped_non_expense += 1
-                    continue
-
-                # Get amount
-                amount = row.get("amount", 0)
-                if not amount or amount <= 0:
-                    continue
-
-                # Get date
-                expense_date = row.get("date")
-                if not expense_date:
-                    errors.append(f"Row {i}: Missing date")
-                    failed += 1
-                    continue
-
-                # Determine category from account
-                qb_account = row.get("account", "").lower()
-                category_str = mappings_lower.get(qb_account)
-
-                if not category_str:
-                    # Try partial match
-                    for map_key, map_val in mappings_lower.items():
-                        if map_key in qb_account or qb_account in map_key:
-                            category_str = map_val
-                            break
-
-                if not category_str:
-                    # Fall back to auto-detection
-                    category = self._suggest_category(qb_account, {})
-                    if not category:
-                        category = ExpenseCategory.OTHER
-                else:
-                    try:
-                        category = ExpenseCategory(category_str)
-                    except ValueError:
-                        category = ExpenseCategory.OTHER
-
-                # Build reference for duplicate checking
-                reference = row.get("num", "")
-                vendor = row.get("name", "")
-
-                # Check for duplicates
-                if reference:
-                    cursor.execute("""
-                        SELECT id FROM expenses
-                        WHERE quickbooks_id = ? AND expense_date = ? AND amount = ?
-                        AND is_active = 1
-                    """, (reference, expense_date.isoformat(), amount))
-                    if cursor.fetchone():
-                        duplicates += 1
+                    # Skip non-expense transactions
+                    if self._is_skippable_transaction(trans_type):
+                        skipped_non_expense += 1
                         continue
 
-                # Derive tax year
-                year = tax_year or expense_date.year
+                    # Skip credits/refunds (negative amounts)
+                    if row.get("is_credit"):
+                        skipped_non_expense += 1
+                        continue
 
-                # Insert expense
-                cursor.execute("""
-                    INSERT INTO expenses (
-                        category, vendor, description, amount, expense_date, tax_year,
-                        source_type, source_reference, import_batch_id, quickbooks_id,
-                        notes, created_by_user_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    category.value,
-                    vendor or None,
-                    row.get("memo") or None,
-                    amount,
-                    expense_date.isoformat(),
-                    year,
-                    f"quickbooks_{format_type.value}",
-                    source_file,
-                    batch_id,
-                    reference or None,
-                    f"QB Account: {row.get('account', 'Unknown')}" if row.get('account') else None,
-                    user_id
-                ))
+                    # Get amount
+                    amount = row.get("amount", 0)
+                    if not amount or amount <= 0:
+                        continue
 
-                successful += 1
-                total_amount += amount
+                    # Get date
+                    expense_date = row.get("date")
+                    if not expense_date:
+                        errors.append(f"Row {i}: Missing date")
+                        failed += 1
+                        continue
 
-                # Track stats
-                by_category[category.value] = by_category.get(category.value, 0) + 1
-                orig_account = row.get("account", "Unknown")
-                by_account[orig_account] = by_account.get(orig_account, 0) + amount
+                    # Determine category from account
+                    qb_account = row.get("account", "").lower()
+                    category_str = mappings_lower.get(qb_account)
 
-            except Exception as e:
-                errors.append(f"Row {i}: {str(e)}")
-                failed += 1
+                    if not category_str:
+                        # Try partial match
+                        for map_key, map_val in mappings_lower.items():
+                            if map_key in qb_account or qb_account in map_key:
+                                category_str = map_val
+                                break
 
-        # Update batch record
-        status = ImportStatus.COMPLETED.value
-        error_msg = "; ".join(errors[:10]) if errors else None
+                    if not category_str:
+                        # Fall back to auto-detection
+                        category = self._suggest_category(qb_account, {})
+                        if not category:
+                            category = ExpenseCategory.OTHER
+                    else:
+                        try:
+                            category = ExpenseCategory(category_str)
+                        except ValueError:
+                            category = ExpenseCategory.OTHER
 
-        cursor.execute("""
-            UPDATE import_batches
-            SET total_records = ?, successful = ?, failed = ?, status = ?, error_message = ?
-            WHERE id = ?
-        """, (len(rows), successful, failed, status, error_msg, batch_id))
+                    # Build reference for duplicate checking
+                    reference = row.get("num", "")
+                    vendor = row.get("name", "")
 
-        conn.commit()
-        conn.close()
+                    # Check for duplicates
+                    if reference:
+                        cursor.execute("""
+                            SELECT id FROM expenses
+                            WHERE quickbooks_id = ? AND expense_date = ? AND amount = ?
+                            AND is_active = 1
+                        """, (reference, expense_date.isoformat(), amount))
+                        if cursor.fetchone():
+                            duplicates += 1
+                            continue
+
+                    # Derive tax year
+                    year = tax_year or expense_date.year
+
+                    # Insert expense
+                    cursor.execute("""
+                        INSERT INTO expenses (
+                            category, vendor, description, amount, expense_date, tax_year,
+                            source_type, source_reference, import_batch_id, quickbooks_id,
+                            notes, created_by_user_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        category.value,
+                        vendor or None,
+                        row.get("memo") or None,
+                        amount,
+                        expense_date.isoformat(),
+                        year,
+                        f"quickbooks_{format_type.value}",
+                        source_file,
+                        batch_id,
+                        reference or None,
+                        f"QB Account: {row.get('account', 'Unknown')}" if row.get('account') else None,
+                        user_id
+                    ))
+
+                    successful += 1
+                    total_amount += amount
+
+                    # Track stats
+                    by_category[category.value] = by_category.get(category.value, 0) + 1
+                    orig_account = row.get("account", "Unknown")
+                    by_account[orig_account] = by_account.get(orig_account, 0) + amount
+
+                except Exception as e:
+                    errors.append(f"Row {i}: {str(e)}")
+                    failed += 1
+
+            # Update batch record
+            status = ImportStatus.COMPLETED.value
+            error_msg = "; ".join(errors[:10]) if errors else None
+
+            cursor.execute("""
+                UPDATE import_batches
+                SET total_records = ?, successful = ?, failed = ?, status = ?, error_message = ?
+                WHERE id = ?
+            """, (len(rows), successful, failed, status, error_msg, batch_id))
+
+            conn.commit()
+        finally:
+            conn.close()
 
         return QBImportSummary(
             batch_id=batch_id,

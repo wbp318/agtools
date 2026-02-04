@@ -5,7 +5,7 @@ Aggregates farm operations and financial data into a single dashboard view.
 AgTools v6.8.0
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from dataclasses import dataclass
@@ -167,7 +167,7 @@ class UnifiedDashboardService:
                 "revenue_trend": revenue_trend
             },
             "alerts": alerts,
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now(timezone.utc).isoformat()
         }
 
     # ========================================================================

@@ -3,7 +3,7 @@ GenFin Fixed Asset Manager Service with SQLite persistence
 Handles fixed asset tracking, depreciation calculations, and disposal.
 """
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, Optional
 from enum import Enum
 from dataclasses import dataclass, field
@@ -244,7 +244,7 @@ class GenFinFixedAssetsService:
         """Create a new fixed asset"""
         asset_id = str(uuid.uuid4())
         service_date = in_service_date if in_service_date else purchase_date
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Calculate cost basis after Section 179 and bonus
         bonus_amount = purchase_price * (bonus_depreciation_percent / 100) if bonus_depreciation_percent else 0.0
@@ -301,7 +301,7 @@ class GenFinFixedAssetsService:
 
             if updates:
                 updates.append("updated_at = ?")
-                values.append(datetime.now().isoformat())
+                values.append(datetime.now(timezone.utc).isoformat())
                 values.append(asset_id)
 
                 cursor.execute(f"""
@@ -377,7 +377,7 @@ class GenFinFixedAssetsService:
                 return {"success": False, "error": "Cannot delete asset with depreciation history. Dispose instead."}
 
             cursor.execute("UPDATE genfin_fixed_assets SET is_active = 0, updated_at = ? WHERE asset_id = ?",
-                         (datetime.now().isoformat(), asset_id))
+                         (datetime.now(timezone.utc).isoformat(), asset_id))
             conn.commit()
 
         return {"success": True, "message": "Asset deleted"}
@@ -447,7 +447,7 @@ class GenFinFixedAssetsService:
         """Run depreciation for period (usually monthly)"""
         per_date = datetime.strptime(period_date, "%Y-%m-%d").date()
         year = per_date.year
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         results = []
         total_depreciation = 0.0
@@ -661,7 +661,7 @@ class GenFinFixedAssetsService:
                     status = 'disposed', updated_at = ?
                 WHERE asset_id = ?
             """, (disposal_date, disposal_amount, disposal_method,
-                  datetime.now().isoformat(), asset_id))
+                  datetime.now(timezone.utc).isoformat(), asset_id))
             conn.commit()
 
         return {

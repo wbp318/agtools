@@ -4,7 +4,7 @@ Full inventory tracking, item types, COGS, assemblies, reorder points
 SQLite-backed persistence
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 import uuid
@@ -307,7 +307,7 @@ class GenFinInventoryService:
     ) -> Dict:
         """Create a new item"""
         item_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Calculate initial asset value for inventory items
         asset_value = 0.0
@@ -417,7 +417,7 @@ class GenFinInventoryService:
     ) -> Dict:
         """Create an assembly item (built from components)"""
         item_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Calculate cost from components
         total_cost = 0.0
@@ -469,7 +469,7 @@ class GenFinInventoryService:
     ) -> Dict:
         """Create a group item (bundle of items)"""
         item_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Calculate total price and cost
         total_price = 0.0
@@ -521,7 +521,7 @@ class GenFinInventoryService:
     ) -> Dict:
         """Create a discount item"""
         item_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -551,7 +551,7 @@ class GenFinInventoryService:
         """Create a sales tax item"""
         item_id = str(uuid.uuid4())
         tax_code_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -613,7 +613,7 @@ class GenFinInventoryService:
 
         if updates:
             updates.append("updated_at = ?")
-            values.append(datetime.now().isoformat())
+            values.append(datetime.now(timezone.utc).isoformat())
             values.append(item_id)
 
             with self._get_connection() as conn:
@@ -648,7 +648,7 @@ class GenFinInventoryService:
             cursor = conn.cursor()
             cursor.execute(
                 "UPDATE genfin_items SET is_active = 0, updated_at = ? WHERE item_id = ?",
-                (datetime.now().isoformat(), item_id)
+                (datetime.now(timezone.utc).isoformat(), item_id)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -778,7 +778,7 @@ class GenFinInventoryService:
 
         lot_id = str(uuid.uuid4())
         total_cost = quantity * cost_per_unit
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -856,7 +856,7 @@ class GenFinInventoryService:
                 UPDATE genfin_items
                 SET quantity_on_hand = ?, asset_value = ?, updated_at = ?
                 WHERE item_id = ?
-            """, (new_qty, new_value, datetime.now().isoformat(), item_id))
+            """, (new_qty, new_value, datetime.now(timezone.utc).isoformat(), item_id))
 
             conn.commit()
 
@@ -951,7 +951,7 @@ class GenFinInventoryService:
             return {"success": False, "error": "Item is not an inventory item"}
 
         adj_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         old_qty = item["quantity_on_hand"]
         old_value = item.get("asset_value", 0)
@@ -1056,7 +1056,7 @@ class GenFinInventoryService:
                 UPDATE genfin_items
                 SET quantity_on_hand = ?, asset_value = ?, average_cost = ?, updated_at = ?
                 WHERE item_id = ?
-            """, (new_qty, new_value, new_avg_cost, datetime.now().isoformat(), item_id))
+            """, (new_qty, new_value, new_avg_cost, datetime.now(timezone.utc).isoformat(), item_id))
 
             conn.commit()
 
@@ -1078,7 +1078,7 @@ class GenFinInventoryService:
     ) -> Dict:
         """Start a physical inventory count"""
         count_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1247,7 +1247,7 @@ class GenFinInventoryService:
                 UPDATE genfin_physical_counts
                 SET status = ?, posted_at = ?, total_variance_value = ?
                 WHERE count_id = ?
-            """, ('posted', datetime.now().isoformat(), total_variance_value, count_id))
+            """, ('posted', datetime.now(timezone.utc).isoformat(), total_variance_value, count_id))
 
             conn.commit()
 
@@ -1270,7 +1270,7 @@ class GenFinInventoryService:
     ) -> Dict:
         """Create a price level"""
         price_level_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()

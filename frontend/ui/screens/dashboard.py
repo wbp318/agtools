@@ -260,3 +260,8 @@ class DashboardScreen(QWidget):
     def set_sync_time(self, time_str: str) -> None:
         """Update the last sync time display."""
         self._status_card.set_sync_time(time_str)
+
+    def refresh(self) -> None:
+        """Refresh the dashboard data."""
+        # Dashboard is mostly static, but this method satisfies the interface
+        pass

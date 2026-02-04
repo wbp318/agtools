@@ -13,7 +13,7 @@ GenFin v6.3.0
 """
 
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, List, Dict, Tuple
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -317,7 +317,7 @@ class GenFinEntityService:
             return None, "No fields to update"
 
         updates.append("updated_at = ?")
-        params.append(datetime.now().isoformat())
+        params.append(datetime.now(timezone.utc).isoformat())
         params.append(entity_id)
 
         try:

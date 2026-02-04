@@ -5,13 +5,16 @@ Handles photo uploads for tasks - crew members can attach photos with GPS.
 AgTools v2.6.0 Phase 6.5
 """
 
+import logging
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 from pathlib import Path
 
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -189,7 +192,7 @@ class PhotoService:
         """Generate a unique filename for storage."""
         ext = Path(original_filename).suffix.lower()
         unique_id = uuid.uuid4().hex[:12]
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         return f"task_{task_id}_{timestamp}_{unique_id}{ext}"
 
     def _validate_file(self, filename: str, file_size: int) -> Tuple[bool, Optional[str]]:
@@ -395,7 +398,7 @@ class PhotoService:
                 file_path.unlink()
         except Exception as e:
             # Log but don't fail - orphan files are less bad than orphan records
-            print(f"Warning: Could not delete file {file_path}: {e}")
+            logger.warning(f"Could not delete file {file_path}: {e}")
 
         # Delete from database
         cursor.execute("DELETE FROM task_photos WHERE id = ?", (photo_id,))

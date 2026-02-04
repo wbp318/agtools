@@ -5,7 +5,7 @@ Complete payroll management for farm operations with SQLite persistence
 
 import sqlite3
 import json
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
 from dataclasses import dataclass, field
@@ -792,7 +792,7 @@ class GenFinPayrollService:
 
     def _initialize_pay_schedules(self):
         """Set up default pay schedules - QuickBooks style"""
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         schedules = [
             ("Weekly", PayFrequency.WEEKLY, 4, 15, 0),
@@ -924,7 +924,7 @@ class GenFinPayrollService:
         """Create a new pay schedule"""
         schedule_id = str(uuid.uuid4())
         freq = PayFrequency(frequency)
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         next_start = self._calculate_next_period_start(freq)
         next_end = self._calculate_next_period_end(freq)
@@ -980,18 +980,18 @@ class GenFinPayrollService:
                 if employee_id in emp_ids:
                     emp_ids.remove(employee_id)
                     cursor.execute("UPDATE genfin_pay_schedules SET employee_ids_json = ?, updated_at = ? WHERE schedule_id = ?",
-                                 (json.dumps(emp_ids), datetime.now().isoformat(), row['schedule_id']))
+                                 (json.dumps(emp_ids), datetime.now(timezone.utc).isoformat(), row['schedule_id']))
 
             # Add to new schedule
             emp_ids = json.loads(schedule_row['employee_ids_json'] or '[]')
             if employee_id not in emp_ids:
                 emp_ids.append(employee_id)
             cursor.execute("UPDATE genfin_pay_schedules SET employee_ids_json = ?, updated_at = ? WHERE schedule_id = ?",
-                         (json.dumps(emp_ids), datetime.now().isoformat(), schedule_id))
+                         (json.dumps(emp_ids), datetime.now(timezone.utc).isoformat(), schedule_id))
 
             # Update employee's pay frequency
             cursor.execute("UPDATE genfin_employees SET pay_frequency = ?, updated_at = ? WHERE employee_id = ?",
-                         (schedule_row['frequency'], datetime.now().isoformat(), employee_id))
+                         (schedule_row['frequency'], datetime.now(timezone.utc).isoformat(), employee_id))
 
             conn.commit()
 
@@ -1151,7 +1151,7 @@ class GenFinPayrollService:
                 SET next_pay_period_start = ?, next_pay_period_end = ?, next_pay_date = ?, updated_at = ?
                 WHERE schedule_id = ?
             """, (next_start.isoformat(), next_end.isoformat(), next_pay.isoformat(),
-                  datetime.now().isoformat(), schedule_id))
+                  datetime.now(timezone.utc).isoformat(), schedule_id))
             conn.commit()
 
     # ==================== EMPLOYEE MANAGEMENT ====================
@@ -1194,7 +1194,7 @@ class GenFinPayrollService:
         employee_number = f"EMP-{emp_number}"
 
         h_date = hire_date if hire_date else date.today().isoformat()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1264,7 +1264,7 @@ class GenFinPayrollService:
                       kwargs.get("pay_type", row['pay_type']),
                       kwargs["pay_rate"],
                       kwargs.get("rate_change_reason", "Rate change"),
-                      datetime.now().isoformat()))
+                      datetime.now(timezone.utc).isoformat()))
 
             # Handle pay schedule change
             if "pay_schedule_id" in kwargs:
@@ -1290,7 +1290,7 @@ class GenFinPayrollService:
 
             if updates:
                 updates.append("updated_at = ?")
-                values.append(datetime.now().isoformat())
+                values.append(datetime.now(timezone.utc).isoformat())
                 values.append(employee_id)
 
                 cursor.execute(f"""
@@ -1323,7 +1323,7 @@ class GenFinPayrollService:
                 UPDATE genfin_employees
                 SET status = 'terminated', termination_date = ?, notes = ?, updated_at = ?
                 WHERE employee_id = ?
-            """, (termination_date, notes, datetime.now().isoformat(), employee_id))
+            """, (termination_date, notes, datetime.now(timezone.utc).isoformat(), employee_id))
             conn.commit()
 
         return {
@@ -1529,7 +1529,7 @@ class GenFinPayrollService:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
             """, (entry_id, employee_id, work_date, regular_hours, overtime_hours,
                   double_time_hours, sick_hours, vacation_hours, holiday_hours,
-                  notes, datetime.now().isoformat()))
+                  notes, datetime.now(timezone.utc).isoformat()))
             conn.commit()
 
         return {
@@ -1851,7 +1851,7 @@ class GenFinPayrollService:
             _p_date = datetime.strptime(pay_date, "%Y-%m-%d").date()
             pay_run_id = str(uuid.uuid4())
             pay_run_number = self._get_next_number("next_pay_run_number")
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO genfin_pay_runs
@@ -1912,7 +1912,7 @@ class GenFinPayrollService:
         """Create a new pay run"""
         pay_run_id = str(uuid.uuid4())
         pay_run_number = self._get_next_number("next_pay_run_number")
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         _p_start = datetime.strptime(pay_period_start, "%Y-%m-%d").date()
         _p_end = datetime.strptime(pay_period_end, "%Y-%m-%d").date()
@@ -2181,7 +2181,7 @@ class GenFinPayrollService:
                 WHERE pay_run_id = ?
             """, (round(total_gross, 2), round(total_taxes, 2),
                   round(total_deductions, 2), round(total_net, 2),
-                  round(total_employer_taxes, 2), datetime.now().isoformat(),
+                  round(total_employer_taxes, 2), datetime.now(timezone.utc).isoformat(),
                   pay_run_id))
 
             conn.commit()
@@ -2204,7 +2204,7 @@ class GenFinPayrollService:
             if row['status'] != 'calculated':
                 return {"success": False, "error": "Pay run must be calculated before approval"}
 
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             cursor.execute("""
                 UPDATE genfin_pay_runs
                 SET status = 'approved', approved_by = ?, approved_at = ?, updated_at = ?
@@ -2287,7 +2287,7 @@ class GenFinPayrollService:
                 if ach_result.get("success"):
                     ach_batch_id = ach_result["batch_id"]
 
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             cursor.execute("""
                 UPDATE genfin_pay_runs
                 SET status = 'paid', paid_at = ?, ach_batch_id = ?, updated_at = ?

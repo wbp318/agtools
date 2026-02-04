@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 pytest.importorskip("PyQt6")
 
 from PyQt6.QtWidgets import QApplication, QWidget
-from PyQt6.QtCore import Qt
 
 
 @pytest.fixture(scope="module")
@@ -193,9 +192,11 @@ class TestKPICard:
         from ui.widgets.kpi_card import KPICard
 
         card = KPICard(
+            kpi_id="revenue",
             title="Total Revenue",
             value="$125,000",
-            trend="+5.2%"
+            trend="up",
+            change_percent=5.2
         )
         assert card is not None
         assert isinstance(card, QWidget)
@@ -205,18 +206,18 @@ class TestKPICard:
         from ui.widgets.kpi_card import KPICard
 
         # Test with number value
-        card1 = KPICard(title="Count", value="42")
+        card1 = KPICard(kpi_id="count", title="Count", value="42")
         assert card1 is not None
 
         # Test with formatted value
-        card2 = KPICard(title="Yield", value="185 bu/acre")
+        card2 = KPICard(kpi_id="yield", title="Yield", value="185 bu/acre")
         assert card2 is not None
 
     def test_kpi_card_update(self, qapp):
         """Test KPICard value update."""
         from ui.widgets.kpi_card import KPICard
 
-        card = KPICard(title="Status", value="0")
+        card = KPICard(kpi_id="status", title="Status", value="0")
 
         if hasattr(card, 'set_value'):
             card.set_value("100")
@@ -229,11 +230,11 @@ class TestKPICard:
         from ui.widgets.kpi_card import KPICard
 
         # Positive trend
-        card_up = KPICard(title="Sales", value="$50k", trend="+10%")
+        card_up = KPICard(kpi_id="sales", title="Sales", value="$50k", trend="up", change_percent=10.0)
         assert card_up is not None
 
         # Negative trend
-        card_down = KPICard(title="Costs", value="$30k", trend="-5%")
+        card_down = KPICard(kpi_id="costs", title="Costs", value="$30k", trend="down", change_percent=5.0)
         assert card_down is not None
 
 
@@ -266,7 +267,7 @@ class TestWidgetStyling:
         """Test widgets accept stylesheet."""
         from ui.widgets.kpi_card import KPICard
 
-        card = KPICard(title="Test", value="0")
+        card = KPICard(kpi_id="test", title="Test", value="0")
 
         # Should be able to set stylesheet
         card.setStyleSheet("background: white;")
@@ -275,7 +276,7 @@ class TestWidgetStyling:
         """Test widgets have reasonable size hints."""
         from ui.widgets.kpi_card import KPICard
 
-        card = KPICard(title="Test", value="0")
+        card = KPICard(kpi_id="test", title="Test", value="0")
 
         size = card.sizeHint()
         assert size.width() >= 0

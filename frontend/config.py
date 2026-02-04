@@ -6,11 +6,14 @@ Application settings, API configuration, and environment management.
 Includes secure encrypted storage for authentication tokens.
 """
 
+import logging
 import os
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 import json
+
+logger = logging.getLogger(__name__)
 
 # Secure token storage
 from utils.secure_storage import (
@@ -244,15 +247,15 @@ class AppSettings:
                     settings.auth_token = ""
 
             except (json.JSONDecodeError, KeyError) as e:
-                print(f"Warning: Could not load settings: {e}")
+                logger.warning("Could not load settings: %s", e)
 
         # Re-save if we migrated a plaintext token
         if needs_resave and settings.auth_token:
             try:
                 settings.save()
-                print("Settings migrated to encrypted token storage.")
+                logger.info("Settings migrated to encrypted token storage.")
             except Exception as e:
-                print(f"Warning: Could not migrate settings: {e}")
+                logger.warning("Could not migrate settings: %s", e)
 
         return settings
 

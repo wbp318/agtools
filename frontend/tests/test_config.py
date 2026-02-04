@@ -6,8 +6,6 @@ Tests for application settings, configuration, and secure storage.
 
 import sys
 import os
-import pytest
-import tempfile
 
 # Add frontend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

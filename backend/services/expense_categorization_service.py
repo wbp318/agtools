@@ -10,6 +10,7 @@ Features:
 - Confidence scoring for categorizations
 """
 
+import logging
 import os
 import re
 import sqlite3
@@ -18,6 +19,7 @@ from dataclasses import dataclass
 from enum import Enum
 from collections import Counter
 
+logger = logging.getLogger(__name__)
 
 # Try to import sklearn for ML-based categorization
 try:
@@ -31,7 +33,7 @@ try:
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
-    print("scikit-learn not available - using rule-based categorization")
+    logger.info("scikit-learn not available - using rule-based categorization")
 
 
 class ExpenseCategory(str, Enum):
@@ -282,9 +284,9 @@ class ExpenseCategorizationService:
                     saved = pickle.load(f)
                     self.model = saved.get('model')
                     self.vectorizer = saved.get('vectorizer')
-                print("Loaded expense categorization model")
+                logger.info("Loaded expense categorization model")
             except Exception as e:
-                print(f"Failed to load model: {e}")
+                logger.warning(f"Failed to load model: {e}")
 
     def _load_vendor_mappings(self):
         """Load vendor mappings from database"""
@@ -433,7 +435,7 @@ class ExpenseCategorizationService:
 
             return scores
         except Exception as e:
-            print(f"ML prediction failed: {e}")
+            logger.warning(f"ML prediction failed: {e}")
             return {}
 
     def _combine_scores(
@@ -548,7 +550,7 @@ class ExpenseCategorizationService:
             conn.commit()
             return True
         except Exception as e:
-            print(f"Error saving correction: {e}")
+            logger.error(f"Error saving correction: {e}")
             conn.rollback()
             return False
         finally:

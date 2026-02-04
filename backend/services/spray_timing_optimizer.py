@@ -7,7 +7,7 @@ Calculates cost-of-waiting and helps avoid wasted applications
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class SprayType(str, Enum):
@@ -979,7 +979,7 @@ if __name__ == "__main__":
 
     # Create sample current conditions
     current = WeatherCondition(
-        datetime=datetime.now(),
+        datetime=datetime.now(timezone.utc),
         temp_f=78,
         humidity_pct=65,
         wind_mph=7,
@@ -1007,7 +1007,7 @@ if __name__ == "__main__":
     # Create sample forecast
     print("\n--- Finding Spray Windows ---")
     forecast = []
-    base_time = datetime.now()
+    base_time = datetime.now(timezone.utc)
     for hour in range(48):
         # Simulate varying conditions
         time = base_time + timedelta(hours=hour)

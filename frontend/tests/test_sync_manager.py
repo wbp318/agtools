@@ -6,7 +6,6 @@ Tests for connection state tracking and offline/online synchronization.
 
 import sys
 import os
-import pytest
 
 # Add frontend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -111,47 +110,47 @@ class TestSyncResult:
 
     def test_sync_result_creation(self):
         """Test SyncResult creation."""
-        from core.sync_manager import SyncResult
+        from core.sync_manager import SyncResult, SyncStatus
 
         result = SyncResult(
-            success=True,
-            items_synced=10,
-            items_failed=0
+            status=SyncStatus.SUCCESS,
+            synced_items=10,
+            failed_items=0
         )
 
-        assert result.success is True
-        assert result.items_synced == 10
-        assert result.items_failed == 0
+        assert result.status == SyncStatus.SUCCESS
+        assert result.synced_items == 10
+        assert result.failed_items == 0
 
     def test_sync_result_with_errors(self):
         """Test SyncResult with errors."""
-        from core.sync_manager import SyncResult
+        from core.sync_manager import SyncResult, SyncStatus
 
         result = SyncResult(
-            success=False,
-            items_synced=5,
-            items_failed=3,
+            status=SyncStatus.FAILED,
+            synced_items=5,
+            failed_items=3,
             errors=["Network timeout", "Server error"]
         )
 
-        assert result.success is False
-        assert result.items_failed == 3
+        assert result.status == SyncStatus.FAILED
+        assert result.failed_items == 3
         assert len(result.errors) == 2
 
     def test_sync_result_partial_success(self):
         """Test SyncResult with partial success."""
-        from core.sync_manager import SyncResult
+        from core.sync_manager import SyncResult, SyncStatus
 
         result = SyncResult(
-            success=True,  # Overall success
-            items_synced=8,
-            items_failed=2,
-            warnings=["2 items skipped"]
+            status=SyncStatus.PARTIAL,
+            synced_items=8,
+            failed_items=2,
+            errors=["2 items skipped"]
         )
 
-        assert result.success is True
-        assert result.items_synced == 8
-        assert result.items_failed == 2
+        assert result.status == SyncStatus.PARTIAL
+        assert result.synced_items == 8
+        assert result.failed_items == 2
 
 
 class TestSyncQueue:

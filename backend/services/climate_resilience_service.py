@@ -14,7 +14,7 @@ Features:
 - Climate-smart practice tracking
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -447,7 +447,7 @@ class ClimateResilienceService:
         return {
             "region": region,
             "farm_acres": farm_acres,
-            "assessment_date": datetime.now().isoformat(),
+            "assessment_date": datetime.now(timezone.utc).isoformat(),
             "risk_scores": risk_scores,
             "primary_risks": [r.value for r in regional_data["primary_risks"]],
             "secondary_risks": [r.value for r in regional_data["secondary_risks"]],
@@ -1091,7 +1091,7 @@ class ClimateResilienceService:
         return {
             "farm_id": farm_id,
             "region": region,
-            "assessment_date": datetime.now().isoformat(),
+            "assessment_date": datetime.now(timezone.utc).isoformat(),
             "component_scores": {
                 "drought_resilience": {
                     "score": round(drought_score, 1),
@@ -1187,8 +1187,8 @@ class ClimateResilienceService:
         risk_assessment = self.assess_climate_risk(region, 0, [], False, "loam")
         adaptation_summary = self.get_adaptation_summary()
         event_history = self.analyze_climate_event_history(
-            datetime.now().year - 5,
-            datetime.now().year
+            datetime.now(timezone.utc).year - 5,
+            datetime.now(timezone.utc).year
         )
 
         return {
@@ -1196,7 +1196,7 @@ class ClimateResilienceService:
             "farm_id": farm_id,
             "region": region,
             "grant_program": grant_program,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "sections": {
                 "climate_risk_assessment": {
                     "overall_risk_level": risk_assessment.get("risk_level"),

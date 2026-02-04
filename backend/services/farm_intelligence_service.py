@@ -11,7 +11,7 @@ Comprehensive farm intelligence featuring:
 - Input Procurement Optimizer (supplier comparison, order tracking)
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -1164,7 +1164,7 @@ class FarmIntelligenceService:
 
         return {
             "report_type": "Agricultural Operating Loan Package",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
             "operator_name": operator_name,
             "crop_year": year,
@@ -1214,7 +1214,7 @@ class FarmIntelligenceService:
 
         return {
             "report_type": "Farm Investment Summary",
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "farm_name": farm_name,
 
             "investment_overview": {

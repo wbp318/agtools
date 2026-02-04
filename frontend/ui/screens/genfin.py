@@ -23,14 +23,17 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 
+import logging
 import requests
 import csv
 import os
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, Dict, List
 
 from ui.genfin_styles import GENFIN_COLORS, get_genfin_stylesheet
+
+logger = logging.getLogger(__name__)
 from config import APIConfig
 
 # Backend API base URL - uses config for flexibility
@@ -45,10 +48,10 @@ def api_get(endpoint: str) -> Optional[Dict]:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             return response.json()
-        print(f"API GET {url} returned status {response.status_code}: {response.text[:200]}")
+        logger.warning("API GET %s returned status %s: %s", url, response.status_code, response.text[:200])
         return None
     except Exception as e:
-        print(f"API GET error for {endpoint}: {e}")
+        logger.error("API GET error for %s: %s", endpoint, e)
         return None
 
 
@@ -59,10 +62,10 @@ def api_post(endpoint: str, data: Dict) -> Optional[Dict]:
         response = requests.post(url, json=data, timeout=5)
         if response.status_code in [200, 201]:
             return response.json()
-        print(f"API POST {url} returned status {response.status_code}: {response.text[:200]}")
+        logger.warning("API POST %s returned status %s: %s", url, response.status_code, response.text[:200])
         return response.json() if response.text else None
     except Exception as e:
-        print(f"API POST error for {endpoint}: {e}")
+        logger.error("API POST error for %s: %s", endpoint, e)
         return None
 
 
@@ -73,10 +76,10 @@ def api_put(endpoint: str, data: Dict) -> Optional[Dict]:
         response = requests.put(url, json=data, timeout=5)
         if response.status_code == 200:
             return response.json()
-        print(f"API PUT {url} returned status {response.status_code}: {response.text[:200]}")
+        logger.warning("API PUT %s returned status %s: %s", url, response.status_code, response.text[:200])
         return response.json() if response.text else None
     except Exception as e:
-        print(f"API PUT error for {endpoint}: {e}")
+        logger.error("API PUT error for %s: %s", endpoint, e)
         return None
 
 
@@ -87,10 +90,10 @@ def api_delete(endpoint: str) -> bool:
         response = requests.delete(url, timeout=5)
         if response.status_code in [200, 204]:
             return True
-        print(f"API DELETE {url} returned status {response.status_code}: {response.text[:200]}")
+        logger.warning("API DELETE %s returned status %s: %s", url, response.status_code, response.text[:200])
         return False
     except Exception as e:
-        print(f"API DELETE error for {endpoint}: {e}")
+        logger.error("API DELETE error for %s: %s", endpoint, e)
         return False
 
 
@@ -288,7 +291,7 @@ class PrintPreviewDialog(GenFinDialog):
             <div style="border: 2px solid #000; padding: 20px; margin-bottom: 20px;">
                 <div style="text-align: right; font-size: 12px;">
                     <b>Check #: {d.get('check_number', '____')}</b><br>
-                    Date: {d.get('date', datetime.now().strftime('%m/%d/%Y'))}
+                    Date: {d.get('date', datetime.now(timezone.utc).strftime('%m/%d/%Y'))}
                 </div>
                 <div style="margin-top: 20px;">
                     <b>PAY TO THE ORDER OF:</b><br>
@@ -1937,7 +1940,7 @@ class AccountingImportWizard(GenFinDialog):
                     transactions.append(trans)
 
         except Exception as e:
-            print(f"OFX parse error: {e}")
+            logger.error("OFX parse error: %s", e)
 
         return transactions
 
@@ -9365,7 +9368,7 @@ class GenFinListScreen(QWidget):
 
         if reply == QMessageBox.StandardButton.Yes:
             endpoint = f"{self.api_endpoint}/{item_id}"
-            print(f"Attempting to delete: {endpoint}")  # Debug
+            logger.debug("Attempting to delete: %s", endpoint)
             if api_delete(endpoint):
                 QMessageBox.information(self, "Success", f"'{name}' deleted successfully!")
                 self.load_data()
@@ -12137,7 +12140,7 @@ class GenFinBankFeedsScreen(QWidget):
                     transactions.append(trans)
 
         except Exception as e:
-            print(f"OFX parse error: {e}")
+            logger.error("OFX parse error: %s", e)
 
         return transactions
 

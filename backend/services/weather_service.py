@@ -3,7 +3,7 @@ Weather Service
 Integration with weather APIs for spray timing and disease forecasting
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
 
@@ -30,7 +30,7 @@ def get_spray_windows(latitude: float, longitude: float, days_ahead: int = 5) ->
 
     # Simulated forecast for demonstration
     forecast = []
-    base_date = datetime.now()
+    base_date = datetime.now(timezone.utc)
 
     for i in range(days_ahead):
         day = base_date + timedelta(days=i)
@@ -169,7 +169,7 @@ def get_growing_degree_days(latitude: float, longitude: float, start_date: datet
     # In production, would query historical weather data
     # For now, return estimated value
 
-    days_elapsed = (datetime.now() - start_date).days
+    days_elapsed = (datetime.now(timezone.utc) - start_date).days
     estimated_gdd = days_elapsed * 15  # Rough estimate: 15 GDD per day average
 
     return estimated_gdd

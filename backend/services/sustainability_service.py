@@ -12,7 +12,7 @@ Features:
 - Research-ready data export
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -687,8 +687,8 @@ class SustainabilityService:
             cost_per_acre=cost_per_acre,
             carbon_footprint_kg=row["carbon_footprint_kg"],
             created_by_user_id=row["created_by_user_id"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(),
-            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc),
+            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else datetime.now(timezone.utc)
         )
 
     def list_input_usage(
@@ -869,7 +869,7 @@ class SustainabilityService:
             calculation_method=row["calculation_method"],
             data_source=row["data_source"],
             created_by_user_id=row["created_by_user_id"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def get_carbon_summary(
@@ -1006,7 +1006,7 @@ class SustainabilityService:
             hours_run=row["hours_run"],
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def get_water_summary(
@@ -1197,7 +1197,7 @@ class SustainabilityService:
             verification_source=row["verification_source"],
             carbon_benefit_kg=row["carbon_benefit_kg"],
             created_by_user_id=row["created_by_user_id"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def list_practices(
@@ -1249,7 +1249,7 @@ class SustainabilityService:
     ) -> SustainabilityScorecard:
         """Get sustainability scorecard (wrapper for generate_scorecard)"""
         if year is None:
-            year = datetime.now().year
+            year = datetime.now(timezone.utc).year
         return self.generate_scorecard(year=year, field_id=field_id)
 
     def generate_scorecard(
@@ -1447,7 +1447,7 @@ class SustainabilityService:
             previous_year_score=previous_year_score,
             score_change=score_change,
             score_change_percent=score_change_percent,
-            generated_at=datetime.now()
+            generated_at=datetime.now(timezone.utc)
         )
 
         # Save scorecard to database
@@ -1537,7 +1537,7 @@ class SustainabilityService:
 
         export_data = {
             "metadata": {
-                "export_date": datetime.now().isoformat(),
+                "export_date": datetime.now(timezone.utc).isoformat(),
                 "year": year,
                 "field_id": field_id,
                 "format": format,
@@ -1579,7 +1579,7 @@ class SustainabilityService:
     ) -> SustainabilityReport:
         """Get comprehensive sustainability report (wrapper for generate_grant_report)"""
         if year is None:
-            year = datetime.now().year
+            year = datetime.now(timezone.utc).year
         return self.generate_grant_report(year=year, field_id=field_id)
 
     def generate_grant_report(
@@ -1658,7 +1658,7 @@ class SustainabilityService:
 
         return SustainabilityReport(
             report_title=f"Sustainability Report - {year}",
-            generated_at=datetime.now(),
+            generated_at=datetime.now(timezone.utc),
             period_start=date(year, 1, 1),
             period_end=date(year, 12, 31),
             farm_name="Farm Operations",

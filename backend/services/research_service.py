@@ -13,7 +13,7 @@ Features:
 - Protocol documentation
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional, List, Tuple, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -560,8 +560,8 @@ class ResearchService:
             protocol_number=row["protocol_number"],
             status=row["status"],
             created_by_user_id=row["created_by_user_id"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(),
-            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc),
+            updated_at=datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else datetime.now(timezone.utc)
         )
 
     def list_trials(
@@ -646,7 +646,7 @@ class ResearchService:
                 return self.get_trial(trial_id), None
 
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.now(timezone.utc).isoformat())
             params.append(trial_id)
 
             cursor.execute(f"""
@@ -725,7 +725,7 @@ class ResearchService:
             rate_unit=row["rate_unit"],
             application_timing=row["application_timing"],
             application_method=row["application_method"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def list_treatments(self, trial_id: int) -> List[TreatmentResponse]:
@@ -755,7 +755,7 @@ class ResearchService:
                 rate_unit=row["rate_unit"],
                 application_timing=row["application_timing"],
                 application_method=row["application_method"],
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
             )
             for row in rows
         ]
@@ -827,7 +827,7 @@ class ResearchService:
             gps_latitude=row["gps_latitude"],
             gps_longitude=row["gps_longitude"],
             location_notes=row["location_notes"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def list_plots(self, trial_id: int) -> List[PlotResponse]:
@@ -860,7 +860,7 @@ class ResearchService:
                 gps_latitude=row["gps_latitude"],
                 gps_longitude=row["gps_longitude"],
                 location_notes=row["location_notes"],
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
             )
             for row in rows
         ]
@@ -972,7 +972,7 @@ class ResearchService:
             measurement_date=date.fromisoformat(row["measurement_date"]),
             notes=row["notes"],
             created_by_user_id=row["created_by_user_id"],
-            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+            created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
         )
 
     def list_measurements(
@@ -1022,7 +1022,7 @@ class ResearchService:
                 measurement_date=date.fromisoformat(row["measurement_date"]),
                 notes=row["notes"],
                 created_by_user_id=row["created_by_user_id"],
-                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now()
+                created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else datetime.now(timezone.utc)
             )
             for row in rows
         ]
@@ -1152,7 +1152,7 @@ class ResearchService:
             trial_id=trial_id,
             trial_name=trial.name,
             measurement_type=measurement_type.value,
-            analysis_date=datetime.now(),
+            analysis_date=datetime.now(timezone.utc),
             overall_mean=round(overall_mean, 2),
             overall_std=round(overall_std, 2),
             cv_percent=round(cv_percent, 1),
@@ -1257,7 +1257,7 @@ class ResearchService:
             plots=plots,
             measurements=measurements,
             analysis=analysis,
-            export_date=datetime.now(),
+            export_date=datetime.now(timezone.utc),
             export_format="json"
         )
 

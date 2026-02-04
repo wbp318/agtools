@@ -4,7 +4,7 @@ Complete financial reporting for farm operations
 SQLite persistent storage implementation
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
@@ -248,7 +248,7 @@ class GenFinReportsService:
             "report_type": "Profit & Loss Statement",
             "period_start": start_date,
             "period_end": end_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "revenue": {
                 "accounts": sorted(revenue_accounts, key=lambda a: a["account_number"]),
                 "total": round(total_revenue, 2)
@@ -475,7 +475,7 @@ class GenFinReportsService:
         return {
             "report_type": "Balance Sheet",
             "as_of_date": as_of_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "assets": {
                 "current_assets": {
                     "accounts": sorted(assets["current"], key=lambda a: a["account_number"]),
@@ -610,7 +610,7 @@ class GenFinReportsService:
             "report_type": "Cash Flow Statement",
             "period_start": start_date,
             "period_end": end_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "beginning_cash": round(beginning_cash, 2),
             "operating_activities": {
                 "net_income": round(net_income, 2),
@@ -690,7 +690,7 @@ class GenFinReportsService:
             "report_type": "General Ledger",
             "period_start": start_date,
             "period_end": end_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "accounts": sorted(accounts_data, key=lambda a: a["account"]["account_number"])
         }
 
@@ -733,7 +733,7 @@ class GenFinReportsService:
             "report_type": "Income by Customer",
             "period_start": start_date,
             "period_end": end_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "customers": results,
             "total_income": round(sum(c["total_sales"] for c in results), 2)
         }
@@ -777,7 +777,7 @@ class GenFinReportsService:
             "report_type": "Expenses by Vendor",
             "period_start": start_date,
             "period_end": end_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "vendors": results,
             "total_expenses": round(sum(v["total_expenses"] for v in results), 2)
         }
@@ -848,7 +848,7 @@ class GenFinReportsService:
         return {
             "report_type": "Financial Ratios",
             "as_of_date": as_of_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "liquidity_ratios": {
                 "current_ratio": round(current_ratio, 2),
                 "current_ratio_status": "Good" if current_ratio >= 1.5 else "Caution" if current_ratio >= 1.0 else "Poor",
@@ -889,7 +889,7 @@ class GenFinReportsService:
     ) -> Dict:
         """Save a report configuration"""
         report_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -923,7 +923,7 @@ class GenFinReportsService:
             # Update last_run
             cursor.execute("""
                 UPDATE genfin_saved_reports SET last_run = ? WHERE report_id = ?
-            """, (datetime.now().isoformat(), report_id))
+            """, (datetime.now(timezone.utc).isoformat(), report_id))
             conn.commit()
 
         if report_type == "profit_loss":

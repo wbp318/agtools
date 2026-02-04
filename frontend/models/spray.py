@@ -7,7 +7,7 @@ Data classes for spray timing evaluation and recommendations.
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class SprayType(str, Enum):
@@ -53,7 +53,7 @@ class WeatherCondition:
     def to_dict(self) -> dict:
         """Convert to dictionary for API request."""
         return {
-            "datetime": self.datetime_str or datetime.now().isoformat(),
+            "datetime": self.datetime_str or datetime.now(timezone.utc).isoformat(),
             "temp_f": self.temp_f,
             "humidity_pct": self.humidity_pct,
             "wind_mph": self.wind_mph,

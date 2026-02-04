@@ -4,7 +4,7 @@ Sends alerts for maintenance, inventory, spray windows, and more.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
@@ -601,7 +601,7 @@ AgTools Farm Management System
             recipients=recipients,
             priority=NotificationPriority.LOW,
             data={
-                "date": datetime.now().strftime("%B %d, %Y"),
+                "date": datetime.now(timezone.utc).strftime("%B %d, %Y"),
                 "tasks_due": tasks_due,
                 "maintenance_alerts": maintenance_alerts,
                 "low_stock_count": low_stock_count,

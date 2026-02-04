@@ -15,7 +15,7 @@ Features:
 - Equipment sanitation logs
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
@@ -602,7 +602,7 @@ class FoodSafetyService:
         overall_percent = total_score / max_score * 100 if max_score > 0 else 0
 
         return {
-            "assessment_date": datetime.now().isoformat(),
+            "assessment_date": datetime.now(timezone.utc).isoformat(),
             "category_results": compliance_results,
             "overall_score": round(total_score, 0),
             "max_score": max_score,
@@ -879,7 +879,7 @@ class FoodSafetyService:
     ) -> Dict:
         """Initiate a product recall"""
 
-        recall_id = f"RCL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        recall_id = f"RCL-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
         # Update lot statuses
         affected_lots = []
@@ -900,7 +900,7 @@ class FoodSafetyService:
 
         return {
             "recall_id": recall_id,
-            "initiated_date": datetime.now().isoformat(),
+            "initiated_date": datetime.now(timezone.utc).isoformat(),
             "initiated_by": initiated_by,
             "recall_type": recall_type,
             "reason": reason,
@@ -931,12 +931,12 @@ class FoodSafetyService:
         Required for GAP certification and good practice.
         """
 
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
 
         # Trace the lot
         trace_data = self.trace_lot(test_lot_number)
 
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
         trace_time = (end_time - start_time).total_seconds()
 
         # Assess completeness
@@ -954,7 +954,7 @@ class FoodSafetyService:
         passed = completeness_score >= 80 and trace_time < 14400  # 4 hours
 
         return {
-            "exercise_date": datetime.now().isoformat(),
+            "exercise_date": datetime.now(timezone.utc).isoformat(),
             "test_lot_number": test_lot_number,
             "trace_time_seconds": round(trace_time, 2),
             "trace_time_acceptable": trace_time < 14400,
@@ -1011,7 +1011,7 @@ class FoodSafetyService:
         overall_percent = passed_items / total_items * 100 if total_items > 0 else 0
 
         return {
-            "assessment_date": datetime.now().isoformat(),
+            "assessment_date": datetime.now(timezone.utc).isoformat(),
             "categories": results,
             "overall_completion": round(overall_percent, 0),
             "ready_for_audit": overall_percent >= 90,
@@ -1140,7 +1140,7 @@ class FoodSafetyService:
         return {
             "report_title": "Food Safety & Traceability Report",
             "grant_program": grant_program,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "executive_summary": {
                 "fsma_compliance_percent": fsma_assessment.get("overall_percent", 0),
                 "gap_readiness_percent": gap_readiness.get("overall_completion", 0),

@@ -4,7 +4,7 @@ Complete accounts receivable management for farm operations
 SQLite persistent storage implementation
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 import uuid
@@ -395,7 +395,7 @@ class GenFinReceivablesService:
     ) -> Dict:
         """Create a new customer"""
         customer_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -437,7 +437,7 @@ class GenFinReceivablesService:
 
         if updates:
             updates.append("updated_at = ?")
-            params.append(datetime.now().isoformat())
+            params.append(datetime.now(timezone.utc).isoformat())
             params.append(customer_id)
 
             with self._get_connection() as conn:
@@ -609,7 +609,7 @@ class GenFinReceivablesService:
                 tax_total += tax_amount
 
             total = subtotal - discount_total + tax_total
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
 
             cursor.execute("""
                 INSERT INTO genfin_invoices
@@ -688,7 +688,7 @@ class GenFinReceivablesService:
         if not je_result["success"]:
             return {"success": False, "error": f"Failed to create journal entry: {je_result.get('error')}"}
 
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         status = "overdue" if datetime.strptime(invoice["due_date"], "%Y-%m-%d").date() < date.today() else "sent"
 
         with self._get_connection() as conn:
@@ -722,7 +722,7 @@ class GenFinReceivablesService:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE genfin_invoices SET status = 'voided', memo = ?, updated_at = ? WHERE invoice_id = ?
-            """, (f"{invoice['memo']} [VOIDED: {reason}]", datetime.now().isoformat(), invoice_id))
+            """, (f"{invoice['memo']} [VOIDED: {reason}]", datetime.now(timezone.utc).isoformat(), invoice_id))
             conn.commit()
 
         return {"success": True, "invoice": self.get_invoice(invoice_id)}
@@ -878,7 +878,7 @@ class GenFinReceivablesService:
                     UPDATE genfin_invoices
                     SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
                     WHERE invoice_id = ?
-                """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), inv_payment["invoice_id"]))
+                """, (new_amount_paid, new_balance, new_status, datetime.now(timezone.utc).isoformat(), inv_payment["invoice_id"]))
 
                 applied_invoices.append({
                     "invoice_id": invoice["invoice_id"],
@@ -898,7 +898,7 @@ class GenFinReceivablesService:
             """, (
                 payment_id, payment_date, customer_id, deposit_account_id, payment_method,
                 reference_number, memo, total_amount, json.dumps(applied_invoices), unapplied,
-                je_result["entry_id"], datetime.now().isoformat()
+                je_result["entry_id"], datetime.now(timezone.utc).isoformat()
             ))
             conn.commit()
 
@@ -945,7 +945,7 @@ class GenFinReceivablesService:
             cursor.execute("""
                 UPDATE genfin_invoices SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
                 WHERE invoice_id = ?
-            """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), invoice_id))
+            """, (new_amount_paid, new_balance, new_status, datetime.now(timezone.utc).isoformat(), invoice_id))
 
             # Update payment
             applied_invoices = payment["applied_invoices"]
@@ -1119,7 +1119,7 @@ class GenFinReceivablesService:
             """, (
                 credit_id, credit_number, customer_id, credit_date, reason, memo,
                 round(total, 2), round(total, 2), je_result.get("entry_id"),
-                related_invoice_id, datetime.now().isoformat()
+                related_invoice_id, datetime.now(timezone.utc).isoformat()
             ))
             conn.commit()
 
@@ -1215,7 +1215,7 @@ class GenFinReceivablesService:
 
         subtotal = 0.0
         tax_total = 0.0
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -1280,7 +1280,7 @@ class GenFinReceivablesService:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE genfin_estimates SET status = 'sent', updated_at = ? WHERE estimate_id = ?
-            """, (datetime.now().isoformat(), estimate_id))
+            """, (datetime.now(timezone.utc).isoformat(), estimate_id))
             conn.commit()
 
         return {"success": True, "estimate": self._get_estimate(estimate_id)}
@@ -1296,7 +1296,7 @@ class GenFinReceivablesService:
             cursor.execute("""
                 UPDATE genfin_estimates SET status = 'accepted', accepted_date = ?, updated_at = ?
                 WHERE estimate_id = ?
-            """, (date.today().isoformat(), datetime.now().isoformat(), estimate_id))
+            """, (date.today().isoformat(), datetime.now(timezone.utc).isoformat(), estimate_id))
             conn.commit()
 
         return {"success": True, "estimate": self._get_estimate(estimate_id)}
@@ -1338,7 +1338,7 @@ class GenFinReceivablesService:
                 cursor.execute("""
                     UPDATE genfin_estimates SET status = 'converted', converted_invoice_id = ?, updated_at = ?
                     WHERE estimate_id = ?
-                """, (result["invoice_id"], datetime.now().isoformat(), estimate_id))
+                """, (result["invoice_id"], datetime.now(timezone.utc).isoformat(), estimate_id))
                 conn.commit()
 
         return result
@@ -1483,7 +1483,7 @@ class GenFinReceivablesService:
             """, (
                 receipt_id, receipt_number, customer_id, receipt_date, payment_method, deposit_account_id,
                 reference_number, memo, round(subtotal, 2), round(tax_total, 2), round(total, 2),
-                je_result.get("entry_id"), datetime.now().isoformat()
+                je_result.get("entry_id"), datetime.now(timezone.utc).isoformat()
             ))
             conn.commit()
 

@@ -10,13 +10,14 @@ Features:
 - Confidence scoring with top-N predictions
 """
 
+import logging
 import os
 import io
 import json
 import base64
 import hashlib
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -25,6 +26,8 @@ from pathlib import Path
 import httpx
 from PIL import Image
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Import existing knowledge base
 import sys
@@ -52,7 +55,7 @@ except ImportError:
         SOYBEAN_DISEASES = seed_data.SOYBEAN_DISEASES
     except Exception as e:
         # Use empty lists if all else fails
-        print(f"Warning: Could not load seed data: {e}")
+        logger.warning(f"Could not load seed data: {e}")
         CORN_PESTS = []
         SOYBEAN_PESTS = []
         CORN_DISEASES = []
@@ -195,70 +198,72 @@ class AIImageService:
     def _init_db(self):
         """Initialize database tables for AI training data"""
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Training images table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ai_training_images (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                image_hash TEXT UNIQUE NOT NULL,
-                file_path TEXT NOT NULL,
-                crop TEXT NOT NULL,
-                growth_stage TEXT,
-                identification_type TEXT NOT NULL,
-                label TEXT NOT NULL,
-                confidence REAL,
-                verified BOOLEAN DEFAULT FALSE,
-                verified_by_user_id INTEGER,
-                verified_at TIMESTAMP,
-                ai_provider TEXT,
-                ai_raw_response TEXT,
-                notes TEXT,
-                latitude REAL,
-                longitude REAL,
-                captured_at TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            # Training images table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_training_images (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    image_hash TEXT UNIQUE NOT NULL,
+                    file_path TEXT NOT NULL,
+                    crop TEXT NOT NULL,
+                    growth_stage TEXT,
+                    identification_type TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    confidence REAL,
+                    verified BOOLEAN DEFAULT FALSE,
+                    verified_by_user_id INTEGER,
+                    verified_at TIMESTAMP,
+                    ai_provider TEXT,
+                    ai_raw_response TEXT,
+                    notes TEXT,
+                    latitude REAL,
+                    longitude REAL,
+                    captured_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
 
-        # AI predictions log (for model improvement)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ai_predictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                image_hash TEXT NOT NULL,
-                provider TEXT NOT NULL,
-                model_name TEXT,
-                prediction_label TEXT NOT NULL,
-                confidence REAL,
-                mapped_to TEXT,
-                user_feedback TEXT,
-                is_correct BOOLEAN,
-                processing_time_ms INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (image_hash) REFERENCES ai_training_images(image_hash)
-            )
-        """)
+            # AI predictions log (for model improvement)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_predictions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    image_hash TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model_name TEXT,
+                    prediction_label TEXT NOT NULL,
+                    confidence REAL,
+                    mapped_to TEXT,
+                    user_feedback TEXT,
+                    is_correct BOOLEAN,
+                    processing_time_ms INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (image_hash) REFERENCES ai_training_images(image_hash)
+                )
+            """)
 
-        # Model versions table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ai_models (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                model_name TEXT NOT NULL,
-                version TEXT NOT NULL,
-                crop TEXT,
-                model_type TEXT NOT NULL,
-                file_path TEXT NOT NULL,
-                training_images_count INTEGER,
-                accuracy REAL,
-                classes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_active BOOLEAN DEFAULT TRUE
-            )
-        """)
+            # Model versions table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS ai_models (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    model_name TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    crop TEXT,
+                    model_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    training_images_count INTEGER,
+                    accuracy REAL,
+                    classes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT TRUE
+                )
+            """)
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     def _load_local_model(self):
         """Load local TensorFlow model if available"""
@@ -272,9 +277,9 @@ class AIImageService:
                 model_path = sorted(model_files, key=lambda x: x.stat().st_mtime)[-1]
                 self.local_model = tf.keras.models.load_model(str(model_path))
                 self.local_model_path = model_path
-                print(f"Loaded local model: {model_path.name}")
+                logger.info(f"Loaded local model: {model_path.name}")
             except Exception as e:
-                print(f"Could not load local model: {e}")
+                logger.warning(f"Could not load local model: {e}")
                 self.local_model = None
 
     def _hash_image(self, image_bytes: bytes) -> str:
@@ -583,54 +588,58 @@ class AIImageService:
 
         # Save metadata to database
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Get top identification
-        top_id = result.mapped_identifications[0] if result.mapped_identifications else None
+            # Get top identification
+            top_id = result.mapped_identifications[0] if result.mapped_identifications else None
 
-        cursor.execute("""
-            INSERT OR REPLACE INTO ai_training_images
-            (image_hash, file_path, crop, growth_stage, identification_type, label,
-             confidence, ai_provider, ai_raw_response, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            image_hash,
-            str(image_path),
-            crop,
-            growth_stage,
-            top_id["type"] if top_id else "unknown",
-            top_id["name"] if top_id else "unknown",
-            top_id["confidence"] if top_id else 0,
-            result.provider.value,
-            json.dumps(result.raw_labels),
-            datetime.now().isoformat(),
-            datetime.now().isoformat()
-        ))
+            cursor.execute("""
+                INSERT OR REPLACE INTO ai_training_images
+                (image_hash, file_path, crop, growth_stage, identification_type, label,
+                 confidence, ai_provider, ai_raw_response, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                image_hash,
+                str(image_path),
+                crop,
+                growth_stage,
+                top_id["type"] if top_id else "unknown",
+                top_id["name"] if top_id else "unknown",
+                top_id["confidence"] if top_id else 0,
+                result.provider.value,
+                json.dumps(result.raw_labels),
+                datetime.now(timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat()
+            ))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     def _save_prediction(self, image_hash: str, result: ImageAnalysisResult):
         """Save prediction for model improvement tracking"""
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        for mapped in result.mapped_identifications[:3]:
-            cursor.execute("""
-                INSERT INTO ai_predictions
-                (image_hash, provider, prediction_label, confidence, mapped_to, processing_time_ms)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                image_hash,
-                result.provider.value,
-                mapped.get("raw_label", ""),
-                mapped["confidence"],
-                mapped["name"],
-                result.processing_time_ms
-            ))
+            for mapped in result.mapped_identifications[:3]:
+                cursor.execute("""
+                    INSERT INTO ai_predictions
+                    (image_hash, provider, prediction_label, confidence, mapped_to, processing_time_ms)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    image_hash,
+                    result.provider.value,
+                    mapped.get("raw_label", ""),
+                    mapped["confidence"],
+                    mapped["name"],
+                    result.processing_time_ms
+                ))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     def submit_feedback(self, image_hash: str, is_correct: bool,
                         correct_label: Optional[str] = None, user_id: Optional[int] = None) -> bool:
@@ -664,14 +673,14 @@ class AIImageService:
                     SET label = ?, verified = TRUE, verified_by_user_id = ?,
                         verified_at = ?, updated_at = ?
                     WHERE image_hash = ?
-                """, (correct_label, user_id, datetime.now().isoformat(),
-                      datetime.now().isoformat(), image_hash))
+                """, (correct_label, user_id, datetime.now(timezone.utc).isoformat(),
+                      datetime.now(timezone.utc).isoformat(), image_hash))
 
             conn.commit()
             return True
         except Exception as e:
             conn.rollback()
-            print(f"Error saving feedback: {e}")
+            logger.error(f"Error saving feedback: {e}")
             return False
         finally:
             conn.close()
@@ -679,59 +688,60 @@ class AIImageService:
     def get_training_stats(self) -> Dict:
         """Get statistics about collected training data"""
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        # Total images
-        cursor.execute("SELECT COUNT(*) FROM ai_training_images")
-        total_images = cursor.fetchone()[0]
+            # Total images
+            cursor.execute("SELECT COUNT(*) FROM ai_training_images")
+            total_images = cursor.fetchone()[0]
 
-        # Verified images
-        cursor.execute("SELECT COUNT(*) FROM ai_training_images WHERE verified = TRUE")
-        verified_images = cursor.fetchone()[0]
+            # Verified images
+            cursor.execute("SELECT COUNT(*) FROM ai_training_images WHERE verified = TRUE")
+            verified_images = cursor.fetchone()[0]
 
-        # By crop
-        cursor.execute("""
-            SELECT crop, COUNT(*) as count
-            FROM ai_training_images
-            GROUP BY crop
-        """)
-        by_crop = dict(cursor.fetchall())
+            # By crop
+            cursor.execute("""
+                SELECT crop, COUNT(*) as count
+                FROM ai_training_images
+                GROUP BY crop
+            """)
+            by_crop = dict(cursor.fetchall())
 
-        # By identification type
-        cursor.execute("""
-            SELECT identification_type, COUNT(*) as count
-            FROM ai_training_images
-            GROUP BY identification_type
-        """)
-        by_type = dict(cursor.fetchall())
+            # By identification type
+            cursor.execute("""
+                SELECT identification_type, COUNT(*) as count
+                FROM ai_training_images
+                GROUP BY identification_type
+            """)
+            by_type = dict(cursor.fetchall())
 
-        # Prediction accuracy (from feedback)
-        cursor.execute("""
-            SELECT
-                COUNT(CASE WHEN is_correct = TRUE THEN 1 END) as correct,
-                COUNT(*) as total
-            FROM ai_predictions
-            WHERE is_correct IS NOT NULL
-        """)
-        accuracy_data = cursor.fetchone()
+            # Prediction accuracy (from feedback)
+            cursor.execute("""
+                SELECT
+                    COUNT(CASE WHEN is_correct = TRUE THEN 1 END) as correct,
+                    COUNT(*) as total
+                FROM ai_predictions
+                WHERE is_correct IS NOT NULL
+            """)
+            accuracy_data = cursor.fetchone()
 
-        conn.close()
-
-        return {
-            "total_images": total_images,
-            "verified_images": verified_images,
-            "unverified_images": total_images - verified_images,
-            "by_crop": by_crop,
-            "by_type": by_type,
-            "prediction_accuracy": {
-                "correct": accuracy_data[0] if accuracy_data else 0,
-                "total": accuracy_data[1] if accuracy_data else 0,
-                "percentage": round(accuracy_data[0] / accuracy_data[1] * 100, 1)
-                              if accuracy_data and accuracy_data[1] > 0 else 0
-            },
-            "ready_for_training": verified_images >= 100,
-            "recommendation": self._get_training_recommendation(total_images, verified_images)
-        }
+            return {
+                "total_images": total_images,
+                "verified_images": verified_images,
+                "unverified_images": total_images - verified_images,
+                "by_crop": by_crop,
+                "by_type": by_type,
+                "prediction_accuracy": {
+                    "correct": accuracy_data[0] if accuracy_data else 0,
+                    "total": accuracy_data[1] if accuracy_data else 0,
+                    "percentage": round(accuracy_data[0] / accuracy_data[1] * 100, 1)
+                                  if accuracy_data and accuracy_data[1] > 0 else 0
+                },
+                "ready_for_training": verified_images >= 100,
+                "recommendation": self._get_training_recommendation(total_images, verified_images)
+            }
+        finally:
+            conn.close()
 
     def _get_training_recommendation(self, total: int, verified: int) -> str:
         """Get recommendation based on training data status"""
@@ -759,22 +769,24 @@ class AIImageService:
         output_path.mkdir(parents=True, exist_ok=True)
 
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        try:
+            cursor = conn.cursor()
 
-        query = """
-            SELECT image_hash, file_path, crop, identification_type, label
-            FROM ai_training_images
-            WHERE verified = TRUE
-        """
-        params = []
+            query = """
+                SELECT image_hash, file_path, crop, identification_type, label
+                FROM ai_training_images
+                WHERE verified = TRUE
+            """
+            params = []
 
-        if crop:
-            query += " AND crop = ?"
-            params.append(crop)
+            if crop:
+                query += " AND crop = ?"
+                params.append(crop)
 
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        conn.close()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+        finally:
+            conn.close()
 
         # Organize by label
         by_label = {}
@@ -809,7 +821,7 @@ class AIImageService:
             "labels": list(by_label.keys()),
             "image_count": exported,
             "by_label": {k: len(v) for k, v in by_label.items()},
-            "exported_at": datetime.now().isoformat()
+            "exported_at": datetime.now(timezone.utc).isoformat()
         }
 
         with open(output_path / "manifest.json", "w") as f:

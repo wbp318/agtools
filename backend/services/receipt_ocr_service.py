@@ -12,13 +12,14 @@ Features:
 - Auto-populate bill/expense forms
 """
 
+import logging
 import os
 import re
 import io
 import json
 import sqlite3
 import hashlib
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
@@ -27,6 +28,8 @@ from pathlib import Path
 
 from PIL import Image
 import httpx
+
+logger = logging.getLogger(__name__)
 
 # Try to import pytesseract for local OCR
 try:
@@ -281,7 +284,7 @@ class ReceiptOCRService:
                     provider_used = provider
                     break
             except Exception as e:
-                print(f"OCR provider {provider} failed: {e}")
+                logger.warning(f"OCR provider {provider} failed: {e}")
                 continue
 
         # Parse the raw text
@@ -587,7 +590,7 @@ class ReceiptOCRService:
                 receipt_data.confidence,
                 receipt_data.processing_time_ms,
                 user_id,
-                datetime.now().isoformat()
+                datetime.now(timezone.utc).isoformat()
             ))
 
             receipt_id = cursor.lastrowid

@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 pytest.importorskip("PyQt6")
 
 from PyQt6.QtWidgets import QApplication, QWidget
-from PyQt6.QtCore import Qt
 
 
 @pytest.fixture(scope="module")

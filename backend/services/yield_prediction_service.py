@@ -10,6 +10,7 @@ Features:
 - Marketing/pricing decision support
 """
 
+import logging
 import json
 import sqlite3
 import pickle
@@ -21,6 +22,8 @@ from pathlib import Path
 
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 # Try to import sklearn for ML
 try:
     from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -31,7 +34,7 @@ try:
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
-    print("scikit-learn not available - using simplified prediction model")
+    logger.info("scikit-learn not available - using simplified prediction model")
 
 
 class CropType(str, Enum):
@@ -294,9 +297,9 @@ class YieldPredictionService:
                     if features_path.exists():
                         with open(features_path, 'r') as f:
                             self.feature_names[crop] = json.load(f)
-                    print(f"Loaded yield model for {crop.value}")
+                    logger.info(f"Loaded yield model for {crop.value}")
                 except Exception as e:
-                    print(f"Failed to load model for {crop.value}: {e}")
+                    logger.warning(f"Failed to load model for {crop.value}: {e}")
 
     def add_historical_data(self, data: TrainingData) -> int:
         """

@@ -13,7 +13,7 @@ Features:
 - Edge-of-field monitoring support
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -567,7 +567,7 @@ class WaterQualityService:
             "longitude": longitude,
             "upstream_field_ids": upstream_field_ids,
             "description": description,
-            "date_established": datetime.now().isoformat()
+            "date_established": datetime.now(timezone.utc).isoformat()
         }
 
         return {
@@ -1148,7 +1148,7 @@ class WaterQualityService:
         report_data = {
             "report_title": f"Water Quality & Nutrient Management Report - {crop_year}",
             "grant_program": grant_program,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "fields_included": field_ids,
             "sections": {}
         }

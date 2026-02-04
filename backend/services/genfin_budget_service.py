@@ -4,7 +4,7 @@ Complete budgeting and planning for farm operations
 SQLite persistence for data durability
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
@@ -529,7 +529,7 @@ class GenFinBudgetService:
             self._save_budget_line(budget_id, new_line)
 
         self._calculate_budget_totals(budget)
-        budget.updated_at = datetime.now()
+        budget.updated_at = datetime.now(timezone.utc)
         self._save_budget(budget)
 
         return {"success": True, "message": "Budget line updated"}
@@ -588,8 +588,8 @@ class GenFinBudgetService:
 
         budget.status = BudgetStatus.ACTIVE
         budget.approved_by = approved_by
-        budget.approved_at = datetime.now()
-        budget.updated_at = datetime.now()
+        budget.approved_at = datetime.now(timezone.utc)
+        budget.updated_at = datetime.now(timezone.utc)
         self._save_budget(budget)
 
         return {"success": True, "message": "Budget activated"}
@@ -601,7 +601,7 @@ class GenFinBudgetService:
             return {"success": False, "error": "Budget not found"}
 
         budget.status = BudgetStatus.CLOSED
-        budget.updated_at = datetime.now()
+        budget.updated_at = datetime.now(timezone.utc)
         self._save_budget(budget)
 
         return {"success": True, "message": "Budget closed"}
@@ -744,7 +744,7 @@ class GenFinBudgetService:
             "budget_name": budget.name,
             "period_start": s_date.isoformat(),
             "period_end": e_date.isoformat(),
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "summary": {
                 "revenue": {
                     "budget": round(total_budget_revenue, 2),

@@ -10,11 +10,12 @@ Features:
 - Treatment recommendations based on detected issues
 """
 
+import logging
 import io
 import json
 import hashlib
 import sqlite3
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -23,13 +24,15 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+logger = logging.getLogger(__name__)
+
 # Try to import optional dependencies
 try:
     import cv2
     HAS_OPENCV = True
 except ImportError:
     HAS_OPENCV = False
-    print("OpenCV not available - using PIL fallback for image processing")
+    logger.info("OpenCV not available - using PIL fallback for image processing")
 
 
 class HealthStatus(str, Enum):
@@ -339,7 +342,7 @@ class CropHealthService:
         report = FieldHealthReport(
             field_id=field_id,
             field_name=field_name,
-            analysis_date=datetime.now().isoformat(),
+            analysis_date=datetime.now(timezone.utc).isoformat(),
             image_hash=image_hash,
             image_type=image_type,
             overall_ndvi=round(overall_ndvi, 3),
@@ -849,7 +852,7 @@ class CropHealthService:
             "score": existing.get("score", 70.0),
             "health_status": existing.get("health_status", "good"),
             "recalculated": True,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
     def get_field_history(self, field_id: int, limit: int = 10) -> List[Dict]:

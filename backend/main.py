@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 import uvicorn
 
@@ -5304,7 +5304,7 @@ async def generate_scouting_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=scouting_{field_name}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=scouting_{field_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5351,7 +5351,7 @@ async def generate_spray_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=spray_rec_{field_name}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=spray_rec_{field_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5471,7 +5471,7 @@ async def generate_equipment_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=equipment_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=equipment_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5514,7 +5514,7 @@ async def generate_inventory_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=inventory_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=inventory_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5625,7 +5625,7 @@ async def generate_lender_package_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=lender_package_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=lender_package_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5673,7 +5673,7 @@ async def generate_spray_records_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=spray_records_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=spray_records_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5726,7 +5726,7 @@ async def generate_labor_summary_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=labor_summary_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=labor_summary_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5778,7 +5778,7 @@ async def generate_maintenance_log_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=maintenance_log_{equipment_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=maintenance_log_{equipment_name.replace(' ', '_')}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5831,7 +5831,7 @@ async def generate_field_history_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=field_history_{field_name}_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=field_history_{field_name}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -5985,7 +5985,7 @@ async def generate_cash_flow_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=cash_flow_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=cash_flow_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -6038,7 +6038,7 @@ async def generate_succession_plan_pdf(
     return StreamingResponse(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=succession_plan_{datetime.now().strftime('%Y%m%d')}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename=succession_plan_{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"}
     )
 
 
@@ -13572,7 +13572,7 @@ async def create_purchase_order(data: GenFinPurchaseOrderCreate, user: Authentic
         "memo": data.memo,
         "total": total,
         "status": "open",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
     _purchase_orders[po_id] = po
 
@@ -13945,7 +13945,7 @@ async def update_employee(employee_id: str, data: Dict[str, Any], user: Authenti
 async def delete_employee(employee_id: str, user: AuthenticatedUser = Depends(get_current_active_user)):
     """Delete an employee (sets status to terminated)"""
     result = genfin_payroll_service.terminate_employee(employee_id,
-        termination_date=datetime.now().strftime("%Y-%m-%d"),
+        termination_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         reason="Deleted via UI")
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Failed to delete employee"))

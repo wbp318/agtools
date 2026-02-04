@@ -8,7 +8,10 @@ Uses Fernet symmetric encryption with a machine-derived key.
 
 import base64
 import getpass
+import logging
 import platform
+
+logger = logging.getLogger(__name__)
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
@@ -102,7 +105,7 @@ def encrypt_token(token: str) -> str:
         return encrypted.decode()
     except Exception as e:
         # On encryption failure, return plaintext with marker
-        print(f"Warning: Token encryption failed: {e}")
+        logger.warning("Token encryption failed: %s", e)
         return f"UNENCRYPTED:{token}"
 
 
@@ -125,7 +128,7 @@ def decrypt_token(encrypted_token: str) -> str:
 
     if not CRYPTO_AVAILABLE:
         # Can't decrypt without cryptography library
-        print("Warning: Cannot decrypt token - cryptography library not available")
+        logger.warning("Cannot decrypt token - cryptography library not available")
         return ""
 
     try:
@@ -134,10 +137,10 @@ def decrypt_token(encrypted_token: str) -> str:
         return decrypted.decode()
     except InvalidToken:
         # Token was encrypted on a different machine or is corrupted
-        print("Warning: Token decryption failed - token may be from another machine")
+        logger.warning("Token decryption failed - token may be from another machine")
         return ""
     except Exception as e:
-        print(f"Warning: Token decryption failed: {e}")
+        logger.warning("Token decryption failed: %s", e)
         return ""
 
 

@@ -7,7 +7,7 @@ with drill-down capabilities.
 AgTools v6.8.0
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional, Dict, Any, List
 
 from PyQt6.QtWidgets import (
@@ -381,7 +381,7 @@ class AdvancedReportingDashboard(QWidget):
 
         # Update last updated
         self._last_updated_label.setText(
-            f"Last updated: {datetime.now().strftime('%I:%M %p')}"
+            f"Last updated: {datetime.now(timezone.utc).strftime('%I:%M %p')}"
         )
 
     def _create_kpi_card(self, kpi: KPI) -> KPICard:

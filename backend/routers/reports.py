@@ -10,7 +10,7 @@ Handles:
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import date
+from datetime import date, timezone
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
 from pydantic import BaseModel
@@ -318,7 +318,7 @@ async def get_cost_per_acre_report(
     """Get cost per acre report."""
     from datetime import datetime
     cost_service = get_cost_tracking_service()
-    crop_year = year if year else datetime.now().year
+    crop_year = year if year else datetime.now(timezone.utc).year
     field_ids = [field_id] if field_id else None
     return cost_service.get_cost_per_acre_report(crop_year=crop_year, field_ids=field_ids)
 
@@ -331,7 +331,7 @@ async def get_costs_by_category(
     """Get costs broken down by category."""
     from datetime import datetime
     cost_service = get_cost_tracking_service()
-    crop_year = year if year else datetime.now().year
+    crop_year = year if year else datetime.now(timezone.utc).year
     return cost_service.get_category_breakdown(crop_year=crop_year)
 
 
@@ -343,7 +343,7 @@ async def get_costs_by_crop(
     """Get costs broken down by crop."""
     from datetime import datetime
     cost_service = get_cost_tracking_service()
-    crop_year = year if year else datetime.now().year
+    crop_year = year if year else datetime.now(timezone.utc).year
     return cost_service.get_cost_by_crop(crop_year=crop_year)
 
 

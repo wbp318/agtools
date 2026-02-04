@@ -4,7 +4,7 @@ GenFin Advanced Reports Service - QuickBooks-style Comprehensive Reporting
 SQLite persistence for data durability
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 from dataclasses import dataclass, field
@@ -1070,7 +1070,7 @@ class GenFinAdvancedReportsService:
         report_method = getattr(self, f"run_{memorized.report_type}", None)
         if report_method:
             result = report_method(start.isoformat(), end.isoformat())
-            memorized.last_run = datetime.now()
+            memorized.last_run = datetime.now(timezone.utc)
             self._save_memorized_report(memorized)
             return result
 
@@ -1130,7 +1130,7 @@ class GenFinAdvancedReportsService:
 
         return {
             "dashboard": "Company Snapshot",
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
             "widgets": widgets_list
         }
 

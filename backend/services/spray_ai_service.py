@@ -10,16 +10,19 @@ Features:
 - Integrates with existing SprayTimingOptimizer
 """
 
+import logging
 import os
 import json
 import sqlite3
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Try to import sklearn
 try:
@@ -242,7 +245,7 @@ class SprayAIService:
                         self.models[spray_type] = data.get('model')
                         self.scalers[spray_type] = data.get('scaler')
                 except Exception as e:
-                    print(f"Failed to load {spray_type.value} model: {e}")
+                    logger.warning(f"Failed to load {spray_type.value} model: {e}")
 
     def _calculate_condition_weights(self):
         """Calculate condition weights from historical data"""
@@ -509,7 +512,7 @@ class SprayAIService:
 
         hour_map = {'morning': 8, 'midday': 12, 'evening': 18, 'night': 22}
         hour = hour_map.get(time_of_day, 12)
-        month = datetime.now().month
+        month = datetime.now(timezone.utc).month
 
         cursor.execute("""
             SELECT avg_temp_adjustment, avg_wind_adjustment, avg_humidity_adjustment

@@ -8,7 +8,7 @@ Handles online/offline detection, data syncing, and conflict resolution.
 import httpx
 from typing import Any, Optional, Callable, List, Dict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import threading
 
@@ -47,7 +47,7 @@ class SyncResult:
     synced_items: int = 0
     failed_items: int = 0
     errors: List[str] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class SyncManager(QObject):
@@ -104,9 +104,25 @@ class SyncManager(QObject):
         return self._state == ConnectionState.ONLINE
 
     @property
+    def is_syncing(self) -> bool:
+        """Check if currently syncing."""
+        return self._state == ConnectionState.SYNCING or self._sync_in_progress
+
+    @property
+    def should_use_cache(self) -> bool:
+        """Check if should use cache instead of API (offline or error state)."""
+        return self._state in (ConnectionState.OFFLINE, ConnectionState.ERROR, ConnectionState.UNKNOWN)
+
+    @property
     def state(self) -> ConnectionState:
         """Get current connection state."""
         return self._state
+
+    def set_state(self, state: ConnectionState) -> None:
+        """Set the connection state (primarily for testing)."""
+        if self._state != state:
+            self._state = state
+            self.connection_changed.emit(state)
 
     @property
     def last_sync(self) -> Optional[datetime]:
@@ -150,7 +166,7 @@ class SyncManager(QObject):
             )
             if response.status_code == 200:
                 self._set_state(ConnectionState.ONLINE)
-                self._last_check = datetime.now()
+                self._last_check = datetime.now(timezone.utc)
 
                 # Trigger sync if we just came online and have pending items
                 if previous_state != ConnectionState.ONLINE:
@@ -163,7 +179,7 @@ class SyncManager(QObject):
             pass
 
         self._set_state(ConnectionState.OFFLINE)
-        self._last_check = datetime.now()
+        self._last_check = datetime.now(timezone.utc)
         return False
 
     def _periodic_check(self) -> None:
@@ -229,7 +245,7 @@ class SyncManager(QObject):
             else:
                 result.status = SyncStatus.FAILED
 
-            self._last_sync = datetime.now()
+            self._last_sync = datetime.now(timezone.utc)
             self._settings.last_sync = self._last_sync.isoformat()
             self._settings.save()
 

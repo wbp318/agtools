@@ -4,7 +4,7 @@ Complete accounts payable management for farm operations
 SQLite-backed persistence
 """
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional
 from enum import Enum
 import uuid
@@ -334,7 +334,7 @@ class GenFinPayablesService:
     ) -> Dict:
         """Create a new vendor"""
         vendor_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -408,7 +408,7 @@ class GenFinPayablesService:
 
         if updates:
             updates.append("updated_at = ?")
-            values.append(datetime.now().isoformat())
+            values.append(datetime.now(timezone.utc).isoformat())
             values.append(vendor_id)
 
             with self._get_connection() as conn:
@@ -430,7 +430,7 @@ class GenFinPayablesService:
             cursor = conn.cursor()
             cursor.execute(
                 "UPDATE genfin_vendors SET is_active = 0, updated_at = ? WHERE vendor_id = ?",
-                (datetime.now().isoformat(), vendor_id)
+                (datetime.now(timezone.utc).isoformat(), vendor_id)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -577,7 +577,7 @@ class GenFinPayablesService:
         days = PAYMENT_TERMS.get(terms, 30)
         d_date = b_date + timedelta(days=days)
 
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Calculate totals
         subtotal = 0.0
@@ -697,7 +697,7 @@ class GenFinPayablesService:
             cursor.execute("""
                 UPDATE genfin_bills SET status = ?, journal_entry_id = ?, updated_at = ?
                 WHERE bill_id = ?
-            """, (new_status, je_result["entry_id"], datetime.now().isoformat(), bill_id))
+            """, (new_status, je_result["entry_id"], datetime.now(timezone.utc).isoformat(), bill_id))
             conn.commit()
 
         return {
@@ -725,7 +725,7 @@ class GenFinPayablesService:
             cursor.execute("""
                 UPDATE genfin_bills SET status = ?, memo = ?, updated_at = ?
                 WHERE bill_id = ?
-            """, ('voided', new_memo, datetime.now().isoformat(), bill_id))
+            """, ('voided', new_memo, datetime.now(timezone.utc).isoformat(), bill_id))
             conn.commit()
 
         return {
@@ -752,7 +752,7 @@ class GenFinPayablesService:
             cursor = conn.cursor()
             cursor.execute(
                 "UPDATE genfin_bills SET is_active = 0, updated_at = ? WHERE bill_id = ?",
-                (datetime.now().isoformat(), bill_id)
+                (datetime.now(timezone.utc).isoformat(), bill_id)
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -931,7 +931,7 @@ class GenFinPayablesService:
                     UPDATE genfin_bills
                     SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
                     WHERE bill_id = ?
-                """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), bill["bill_id"]))
+                """, (new_amount_paid, new_balance, new_status, datetime.now(timezone.utc).isoformat(), bill["bill_id"]))
 
                 applied_bills.append({
                     "bill_id": bill["bill_id"],
@@ -950,7 +950,7 @@ class GenFinPayablesService:
             """, (
                 payment_id, p_date.isoformat(), vendor_id, bank_account_id, payment_method,
                 reference_number, memo, total_payment, json.dumps(applied_bills),
-                je_result["entry_id"], 0, datetime.now().isoformat(), 1
+                je_result["entry_id"], 0, datetime.now(timezone.utc).isoformat(), 1
             ))
 
             conn.commit()
@@ -998,7 +998,7 @@ class GenFinPayablesService:
                         UPDATE genfin_bills
                         SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
                         WHERE bill_id = ?
-                    """, (new_amount_paid, new_balance, new_status, datetime.now().isoformat(), bill["bill_id"]))
+                    """, (new_amount_paid, new_balance, new_status, datetime.now(timezone.utc).isoformat(), bill["bill_id"]))
 
             # Mark payment as voided
             cursor.execute(
@@ -1097,7 +1097,7 @@ class GenFinPayablesService:
         credit_number = f"VCRD-{self._get_next_number('next_credit_number'):05d}"
 
         c_date = datetime.strptime(credit_date, "%Y-%m-%d").date()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         # Calculate total
         total = 0.0
@@ -1229,7 +1229,7 @@ class GenFinPayablesService:
             cursor.execute("""
                 UPDATE genfin_bills SET amount_paid = ?, balance_due = ?, status = ?, updated_at = ?
                 WHERE bill_id = ?
-            """, (new_bill_paid, new_bill_balance, new_bill_status, datetime.now().isoformat(), bill_id))
+            """, (new_bill_paid, new_bill_balance, new_bill_status, datetime.now(timezone.utc).isoformat(), bill_id))
 
             conn.commit()
 
@@ -1312,7 +1312,7 @@ class GenFinPayablesService:
         po_number = f"PO-{self._get_next_number('next_po_number'):05d}"
 
         o_date = datetime.strptime(order_date, "%Y-%m-%d").date()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         subtotal = 0.0
 
@@ -1379,7 +1379,7 @@ class GenFinPayablesService:
                 UPDATE genfin_purchase_orders
                 SET status = ?, approved_by = ?, approved_date = ?, updated_at = ?
                 WHERE po_id = ?
-            """, ('approved', approved_by, date.today().isoformat(), datetime.now().isoformat(), po_id))
+            """, ('approved', approved_by, date.today().isoformat(), datetime.now(timezone.utc).isoformat(), po_id))
             conn.commit()
 
         return {
@@ -1424,7 +1424,7 @@ class GenFinPayablesService:
             cursor.execute("""
                 UPDATE genfin_purchase_orders SET status = ?, updated_at = ?
                 WHERE po_id = ?
-            """, (new_status, datetime.now().isoformat(), po_id))
+            """, (new_status, datetime.now(timezone.utc).isoformat(), po_id))
 
             conn.commit()
 
@@ -1473,7 +1473,7 @@ class GenFinPayablesService:
                 cursor.execute("""
                     UPDATE genfin_purchase_orders SET status = ?, updated_at = ?
                     WHERE po_id = ?
-                """, ('closed', datetime.now().isoformat(), po_id))
+                """, ('closed', datetime.now(timezone.utc).isoformat(), po_id))
                 conn.commit()
 
         return result

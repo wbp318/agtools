@@ -6,7 +6,6 @@ Tests for frontend data models - enums, dataclasses, serialization.
 
 import sys
 import os
-import pytest
 
 # Add frontend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -303,7 +302,7 @@ class TestPricingModels:
 
     def test_pricing_model_imports(self):
         """Test pricing models import correctly."""
-        from models.pricing import ProductPrice, GetPricesResponse, ProductCategory
+        from models.pricing import ProductPrice, GetPricesResponse
         assert ProductPrice is not None
         assert GetPricesResponse is not None
 
@@ -334,7 +333,7 @@ class TestCostOptimizerModels:
 
     def test_cost_optimizer_model_imports(self):
         """Test cost optimizer models import correctly."""
-        from models.cost_optimizer import QuickEstimateRequest, QuickEstimateResponse, OptimizationPriority
+        from models.cost_optimizer import QuickEstimateRequest, QuickEstimateResponse
         assert QuickEstimateRequest is not None
         assert QuickEstimateResponse is not None
 
@@ -363,7 +362,7 @@ class TestMeasurementConverterModels:
 
     def test_measurement_converter_imports(self):
         """Test measurement converter models import correctly."""
-        from models.measurement_converter import ConversionResult, UnitType, ApplicationRateUnit
+        from models.measurement_converter import ConversionResult, UnitType
         assert ConversionResult is not None
         assert UnitType is not None
 

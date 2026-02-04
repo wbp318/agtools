@@ -8,7 +8,7 @@ Tracks historical prices for "buy now or wait" decisions
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class InputCategory(str, Enum):
@@ -162,7 +162,7 @@ class PriceHistory:
         if len(self.prices) < 2:
             return PriceTrend.STABLE
 
-        cutoff = datetime.now() - timedelta(days=lookback_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
         recent_prices = [p for p in self.prices if p.date_recorded >= cutoff]
 
         if len(recent_prices) < 2:
@@ -194,7 +194,7 @@ class PriceHistory:
 
     def get_average(self, lookback_days: int = 90) -> float:
         """Get average price over lookback period"""
-        cutoff = datetime.now() - timedelta(days=lookback_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
         recent = [p.price for p in self.prices if p.date_recorded >= cutoff]
         return sum(recent) / len(recent) if recent else 0
 
@@ -306,7 +306,7 @@ class PricingService:
         self.current_prices[product_id]["source"] = "user_quote"
         self.current_prices[product_id]["supplier"] = supplier
         self.current_prices[product_id]["valid_until"] = valid_until
-        self.current_prices[product_id]["date_updated"] = datetime.now()
+        self.current_prices[product_id]["date_updated"] = datetime.now(timezone.utc)
 
         # Add to history
         record = PriceRecord(
@@ -314,7 +314,7 @@ class PricingService:
             price=price,
             unit=self.current_prices[product_id]["unit"],
             source="user_quote",
-            date_recorded=datetime.now(),
+            date_recorded=datetime.now(timezone.utc),
             supplier=supplier,
             notes=notes,
             valid_until=valid_until
@@ -329,7 +329,7 @@ class PricingService:
             "product_id": product_id,
             "supplier": supplier,
             "price": price,
-            "date_quoted": datetime.now().isoformat(),
+            "date_quoted": datetime.now(timezone.utc).isoformat(),
             "valid_until": valid_until.isoformat() if valid_until else None,
             "notes": notes
         })
@@ -406,7 +406,7 @@ class PricingService:
             "updates_processed": len(results),
             "total_potential_savings_per_unit": round(total_savings, 2),
             "supplier": supplier,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "details": results
         }
 
@@ -536,7 +536,7 @@ class PricingService:
 
         # Check deadline urgency
         if purchase_deadline:
-            days_until_deadline = (purchase_deadline - datetime.now()).days
+            days_until_deadline = (purchase_deadline - datetime.now(timezone.utc)).days
             if days_until_deadline < 14:
                 recommendation = BuyRecommendation.BUY_NOW
                 action = f"Purchase soon - only {days_until_deadline} days until deadline"
@@ -648,7 +648,7 @@ class PricingService:
     def get_price_alerts(self) -> List[Dict[str, Any]]:
         """Get alerts for expiring quotes and significant price changes"""
         alerts = []
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         for product_id, data in self.current_prices.items():
             # Check for expiring quotes
@@ -738,7 +738,7 @@ class PricingService:
             "crop": crop,
             "region": self.region,
             "regional_multiplier": self.regional_multiplier,
-            "generated_date": datetime.now().isoformat(),
+            "generated_date": datetime.now(timezone.utc).isoformat(),
             "prices": budget_items,
             "notes": [
                 "Prices marked 'user_quote' are from your supplier quotes",

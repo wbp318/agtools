@@ -635,8 +635,8 @@ class MainWindow(QMainWindow):
 
         # Update last sync time
         if result.status in [SyncStatus.SUCCESS, SyncStatus.PARTIAL]:
-            from datetime import datetime
-            self._last_sync_label.setText(f"Last sync: {datetime.now().strftime('%H:%M')}")
+            from datetime import datetime, timezone
+            self._last_sync_label.setText(f"Last sync: {datetime.now(timezone.utc).strftime('%H:%M')}")
 
             if result.status == SyncStatus.SUCCESS:
                 self.statusBar().showMessage(f"Sync complete: {result.synced_items} items synced")
