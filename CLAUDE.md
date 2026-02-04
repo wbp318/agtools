@@ -128,7 +128,7 @@ GenFin is a full accounting system with 13 service files:
 
 ## Testing Notes
 
-- 810+ tests total, 227 GenFin tests in `test_genfin_endpoints.py`
+- 820+ tests total, 227 GenFin tests in `test_genfin_endpoints.py`
 - Tests set `AGTOOLS_DEV_MODE=1` and `AGTOOLS_TEST_MODE=1` automatically
 - Default test admin credentials: username `admin`, password `admin123`
 - Use `DataFactory` class from `conftest.py` to generate test data
@@ -148,6 +148,12 @@ GenFin is a full accounting system with 13 service files:
 - Python 3.12+ datetime:
   - Use `datetime.now(timezone.utc)` not `datetime.utcnow()`
   - When passing datetime to SQLite queries, use `.isoformat()`
+- Logging pattern for services:
+  ```python
+  import logging
+  logger = logging.getLogger(__name__)
+  logger.warning("Message: %s", variable)  # Use %s formatting, not f-strings
+  ```
 
 ## Common Issues
 
