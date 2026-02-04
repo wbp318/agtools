@@ -8,6 +8,8 @@ AgTools (v6.15.3) is a farm management system for crop consulting, pest identifi
 
 **Requirements:** Python 3.12+
 
+**License:** Proprietary - Commercial use requires a license from New Generation Farms.
+
 ## Build & Run Commands
 
 ### Backend (FastAPI Server)
