@@ -34,6 +34,9 @@
 *.fsi text eol=lf
 *.fsproj text eol=lf
 
+# PyInstaller spec files (Python)
+*.spec text eol=lf
+
 # Configuration files
 *.yml text eol=lf
 *.yaml text eol=lf
@@ -119,6 +122,8 @@ Dockerfile text eol=lf
 *.pyi linguist-detectable=true
 *.pyw linguist-language=Python
 *.pyw linguist-detectable=true
+*.spec linguist-language=Python
+*.spec linguist-detectable=true
 
 # F# - detectable
 *.fs linguist-language=F#
