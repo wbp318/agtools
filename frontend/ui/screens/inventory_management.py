@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QComboBox, QDialog, QFormLayout,
     QMessageBox, QTextEdit, QDoubleSpinBox, QGroupBox,
-    QDateEdit, QCheckBox
+    QDateEdit, QCheckBox, QInputDialog
 )
 from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QFont, QColor
@@ -123,14 +123,27 @@ class CreateItemDialog(QDialog):
         storage_layout = QFormLayout()
         storage_layout.setSpacing(10)
 
-        # Storage Location
+        # Storage Location with Add button
+        location_widget = QWidget()
+        location_layout = QHBoxLayout(location_widget)
+        location_layout.setContentsMargins(0, 0, 0, 0)
+        location_layout.setSpacing(5)
+
         self._location_combo = QComboBox()
         self._location_combo.setEditable(True)
         self._location_combo.addItem("")
         for loc in self.storage_locations:
             self._location_combo.addItem(loc)
-        self._location_combo.setPlaceholderText("e.g., Chemical Shed, Main Barn")
-        storage_layout.addRow("Storage Location:", self._location_combo)
+        self._location_combo.setPlaceholderText("Type or select location")
+        location_layout.addWidget(self._location_combo, 1)
+
+        add_location_btn = QPushButton("+")
+        add_location_btn.setFixedWidth(30)
+        add_location_btn.setToolTip("Add new storage location")
+        add_location_btn.clicked.connect(self._add_storage_location)
+        location_layout.addWidget(add_location_btn)
+
+        storage_layout.addRow("Storage Location:", location_widget)
 
         # Batch Number
         self._batch_input = QLineEdit()
@@ -200,6 +213,20 @@ class CreateItemDialog(QDialog):
         button_layout.addWidget(create_btn)
 
         layout.addLayout(button_layout)
+
+    def _add_storage_location(self):
+        """Prompt user to add a new storage location."""
+        text, ok = QInputDialog.getText(
+            self, "Add Storage Location",
+            "Enter new storage location name:",
+            QLineEdit.EchoMode.Normal
+        )
+        if ok and text.strip():
+            location = text.strip()
+            # Add to combo if not already present
+            if self._location_combo.findText(location) == -1:
+                self._location_combo.addItem(location)
+            self._location_combo.setCurrentText(location)
 
     def _create_item(self):
         """Validate and prepare item data."""
@@ -314,7 +341,12 @@ class EditItemDialog(QDialog):
         storage_layout = QFormLayout()
         storage_layout.setSpacing(10)
 
-        # Storage Location
+        # Storage Location with Add button
+        location_widget = QWidget()
+        location_layout = QHBoxLayout(location_widget)
+        location_layout.setContentsMargins(0, 0, 0, 0)
+        location_layout.setSpacing(5)
+
         self._location_combo = QComboBox()
         self._location_combo.setEditable(True)
         self._location_combo.addItem("")
@@ -322,7 +354,16 @@ class EditItemDialog(QDialog):
             self._location_combo.addItem(loc)
         if self.item.storage_location:
             self._location_combo.setCurrentText(self.item.storage_location)
-        storage_layout.addRow("Storage Location:", self._location_combo)
+        self._location_combo.setPlaceholderText("Type or select location")
+        location_layout.addWidget(self._location_combo, 1)
+
+        add_location_btn = QPushButton("+")
+        add_location_btn.setFixedWidth(30)
+        add_location_btn.setToolTip("Add new storage location")
+        add_location_btn.clicked.connect(self._add_storage_location)
+        location_layout.addWidget(add_location_btn)
+
+        storage_layout.addRow("Storage Location:", location_widget)
 
         # Batch Number
         self._batch_input = QLineEdit(self.item.batch_number or "")
@@ -402,6 +443,20 @@ class EditItemDialog(QDialog):
         button_layout.addWidget(save_btn)
 
         layout.addLayout(button_layout)
+
+    def _add_storage_location(self):
+        """Prompt user to add a new storage location."""
+        text, ok = QInputDialog.getText(
+            self, "Add Storage Location",
+            "Enter new storage location name:",
+            QLineEdit.EchoMode.Normal
+        )
+        if ok and text.strip():
+            location = text.strip()
+            # Add to combo if not already present
+            if self._location_combo.findText(location) == -1:
+                self._location_combo.addItem(location)
+            self._location_combo.setCurrentText(location)
 
     def _save_item(self):
         """Validate and prepare item data."""

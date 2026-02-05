@@ -199,3 +199,29 @@ Always use `.isoformat()` when passing datetime objects to SQLite:
 cursor.execute("INSERT INTO table (created_at) VALUES (?)",
                (datetime.now(timezone.utc).isoformat(),))
 ```
+
+### Frontend API Path Prefix
+Frontend API client's `base_url` already includes `/api/v1`. Use relative paths without the prefix:
+```python
+# CORRECT
+response = self._client.get("/fields")
+response = self._client.get("/crop-analysis/summary")
+
+# WRONG - causes /api/v1/api/v1/... and 404s
+response = self._client.get("/api/v1/fields")
+```
+
+### GenFin Screen Auth
+The `genfin.py` screen uses raw `requests` instead of the main API client. Must manually include auth headers via `_get_auth_headers()`.
+
+### Naive vs Aware Datetime
+When comparing datetimes, ensure both are timezone-aware:
+```python
+# WRONG - will fail if deadline is naive
+days = (purchase_deadline - datetime.now(timezone.utc)).days
+
+# CORRECT
+if purchase_deadline.tzinfo is None:
+    purchase_deadline = purchase_deadline.replace(tzinfo=timezone.utc)
+days = (purchase_deadline - datetime.now(timezone.utc)).days
+```

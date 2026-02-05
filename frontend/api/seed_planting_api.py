@@ -222,7 +222,7 @@ class SeedPlantingAPI:
         """Get seed & planting summary."""
         try:
             params = {"year": year} if year else {}
-            response = self._client.get("/api/v1/seeds/summary", params=params)
+            response = self._client.get("/seeds/summary", params=params)
             if response.status_code == 200:
                 return SeedPlantingSummary.from_dict(response.json()), None
             return None, f"Error: {response.status_code}"
@@ -249,7 +249,7 @@ class SeedPlantingAPI:
             if in_stock_only:
                 params["in_stock_only"] = "true"
 
-            response = self._client.get("/api/v1/seeds", params=params)
+            response = self._client.get("/seeds", params=params)
             if response.status_code == 200:
                 data = response.json()
                 seeds = [SeedInfo.from_dict(s) for s in data.get("seeds", [])]
@@ -261,7 +261,7 @@ class SeedPlantingAPI:
     def create_seed(self, **kwargs) -> Tuple[Optional[SeedInfo], Optional[str]]:
         """Create a seed inventory item."""
         try:
-            response = self._client.post("/api/v1/seeds", json=kwargs)
+            response = self._client.post("/seeds", json=kwargs)
             if response.status_code in (200, 201):
                 return SeedInfo.from_dict(response.json()), None
             return None, f"Error: {response.status_code} - {response.text}"
@@ -271,7 +271,7 @@ class SeedPlantingAPI:
     def update_seed(self, seed_id: int, **kwargs) -> Tuple[Optional[SeedInfo], Optional[str]]:
         """Update a seed inventory item."""
         try:
-            response = self._client.put(f"/api/v1/seeds/{seed_id}", json=kwargs)
+            response = self._client.put(f"/seeds/{seed_id}", json=kwargs)
             if response.status_code == 200:
                 return SeedInfo.from_dict(response.json()), None
             return None, f"Error: {response.status_code}"
@@ -281,7 +281,7 @@ class SeedPlantingAPI:
     def delete_seed(self, seed_id: int) -> Tuple[bool, Optional[str]]:
         """Delete a seed inventory item."""
         try:
-            response = self._client.delete(f"/api/v1/seeds/{seed_id}")
+            response = self._client.delete(f"/seeds/{seed_id}")
             return response.status_code in (200, 204), None
         except Exception as e:
             return False, str(e)
@@ -289,7 +289,7 @@ class SeedPlantingAPI:
     def get_traits(self, crop_type: str) -> Tuple[List[str], Optional[str]]:
         """Get trait packages for a crop type."""
         try:
-            response = self._client.get(f"/api/v1/seeds/traits/{crop_type}")
+            response = self._client.get(f"/seeds/traits/{crop_type}")
             if response.status_code == 200:
                 return response.json().get("traits", []), None
             return [], f"Error: {response.status_code}"
@@ -316,7 +316,7 @@ class SeedPlantingAPI:
             if year:
                 params["year"] = year
 
-            response = self._client.get("/api/v1/planting", params=params)
+            response = self._client.get("/planting", params=params)
             if response.status_code == 200:
                 data = response.json()
                 plantings = [PlantingInfo.from_dict(p) for p in data.get("plantings", [])]
@@ -328,7 +328,7 @@ class SeedPlantingAPI:
     def create_planting(self, **kwargs) -> Tuple[Optional[PlantingInfo], Optional[str]]:
         """Create a planting record."""
         try:
-            response = self._client.post("/api/v1/planting", json=kwargs)
+            response = self._client.post("/planting", json=kwargs)
             if response.status_code in (200, 201):
                 return PlantingInfo.from_dict(response.json()), None
             return None, f"Error: {response.status_code} - {response.text}"
@@ -338,7 +338,7 @@ class SeedPlantingAPI:
     def update_planting(self, planting_id: int, **kwargs) -> Tuple[Optional[PlantingInfo], Optional[str]]:
         """Update a planting record."""
         try:
-            response = self._client.put(f"/api/v1/planting/{planting_id}", json=kwargs)
+            response = self._client.put(f"/planting/{planting_id}", json=kwargs)
             if response.status_code == 200:
                 return PlantingInfo.from_dict(response.json()), None
             return None, f"Error: {response.status_code}"
@@ -349,7 +349,7 @@ class SeedPlantingAPI:
     def list_emergence(self, planting_record_id: int) -> Tuple[List[EmergenceInfo], Optional[str]]:
         """List emergence records for a planting."""
         try:
-            response = self._client.get(f"/api/v1/planting/{planting_record_id}/emergence")
+            response = self._client.get(f"/planting/{planting_record_id}/emergence")
             if response.status_code == 200:
                 data = response.json()
                 records = [EmergenceInfo.from_dict(e) for e in data.get("records", [])]
@@ -361,7 +361,7 @@ class SeedPlantingAPI:
     def create_emergence(self, **kwargs) -> Tuple[Optional[EmergenceInfo], Optional[str]]:
         """Create an emergence record."""
         try:
-            response = self._client.post("/api/v1/planting/emergence", json=kwargs)
+            response = self._client.post("/planting/emergence", json=kwargs)
             if response.status_code in (200, 201):
                 return EmergenceInfo.from_dict(response.json()), None
             return None, f"Error: {response.status_code} - {response.text}"

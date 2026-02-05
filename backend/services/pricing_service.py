@@ -536,6 +536,9 @@ class PricingService:
 
         # Check deadline urgency
         if purchase_deadline:
+            # Ensure deadline is timezone-aware for comparison
+            if purchase_deadline.tzinfo is None:
+                purchase_deadline = purchase_deadline.replace(tzinfo=timezone.utc)
             days_until_deadline = (purchase_deadline - datetime.now(timezone.utc)).days
             if days_until_deadline < 14:
                 recommendation = BuyRecommendation.BUY_NOW

@@ -205,13 +205,26 @@ async def get_field_history(
 
 @router.get("/crop-analysis/years", tags=["Crop Analysis"])
 async def get_year_over_year(
+    years: Optional[str] = None,
     start_year: Optional[int] = None,
     end_year: Optional[int] = None,
+    field_id: Optional[int] = None,
+    crop_type: Optional[str] = None,
     user: AuthenticatedUser = Depends(get_current_active_user)
 ):
     """Get year-over-year comparison."""
     service = get_crop_cost_analysis_service()
-    return service.get_year_over_year(start_year=start_year, end_year=end_year)
+    # Support both years param (comma-separated) and start_year/end_year
+    if years:
+        years_list = [int(y.strip()) for y in years.split(",")]
+    elif start_year and end_year:
+        years_list = list(range(start_year, end_year + 1))
+    else:
+        # Default to last 5 years
+        from datetime import datetime
+        current_year = datetime.now().year
+        years_list = list(range(current_year - 4, current_year + 1))
+    return service.get_year_comparison(years_list, field_id, crop_type)
 
 
 @router.get("/crop-analysis/roi", tags=["Crop Analysis"])

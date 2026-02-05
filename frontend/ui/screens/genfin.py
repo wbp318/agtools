@@ -35,17 +35,30 @@ from ui.genfin_styles import GENFIN_COLORS, get_genfin_stylesheet
 
 logger = logging.getLogger(__name__)
 from config import APIConfig
+from api.client import get_api_client
 
 # Backend API base URL - uses config for flexibility
 _api_config = APIConfig()
 API_BASE = f"{_api_config.base_url}{_api_config.api_prefix}/genfin"
 
 
+def _get_auth_headers() -> Dict[str, str]:
+    """Get auth headers from the main API client."""
+    try:
+        client = get_api_client()
+        if client._auth_token:
+            return {"Authorization": f"Bearer {client._auth_token}"}
+    except Exception:
+        pass
+    return {}
+
+
 def api_get(endpoint: str) -> Optional[Dict]:
     """Make GET request to GenFin API."""
     try:
         url = f"{API_BASE}{endpoint}"
-        response = requests.get(url, timeout=5)
+        headers = _get_auth_headers()
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             return response.json()
         logger.warning("API GET %s returned status %s: %s", url, response.status_code, response.text[:200])
@@ -59,7 +72,8 @@ def api_post(endpoint: str, data: Dict) -> Optional[Dict]:
     """Make POST request to GenFin API."""
     try:
         url = f"{API_BASE}{endpoint}"
-        response = requests.post(url, json=data, timeout=5)
+        headers = _get_auth_headers()
+        response = requests.post(url, json=data, headers=headers, timeout=5)
         if response.status_code in [200, 201]:
             return response.json()
         logger.warning("API POST %s returned status %s: %s", url, response.status_code, response.text[:200])
@@ -73,7 +87,8 @@ def api_put(endpoint: str, data: Dict) -> Optional[Dict]:
     """Make PUT request to GenFin API."""
     try:
         url = f"{API_BASE}{endpoint}"
-        response = requests.put(url, json=data, timeout=5)
+        headers = _get_auth_headers()
+        response = requests.put(url, json=data, headers=headers, timeout=5)
         if response.status_code == 200:
             return response.json()
         logger.warning("API PUT %s returned status %s: %s", url, response.status_code, response.text[:200])
@@ -87,7 +102,8 @@ def api_delete(endpoint: str) -> bool:
     """Make DELETE request to GenFin API."""
     try:
         url = f"{API_BASE}{endpoint}"
-        response = requests.delete(url, timeout=5)
+        headers = _get_auth_headers()
+        response = requests.delete(url, headers=headers, timeout=5)
         if response.status_code in [200, 204]:
             return True
         logger.warning("API DELETE %s returned status %s: %s", url, response.status_code, response.text[:200])

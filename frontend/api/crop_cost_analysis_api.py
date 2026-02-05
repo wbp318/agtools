@@ -354,7 +354,7 @@ class CropCostAnalysisAPI:
         if crop_types:
             params["crop_types"] = ",".join(crop_types)
 
-        response = self._client.get("/api/v1/crop-analysis/summary", params=params)
+        response = self._client.get("/crop-analysis/summary", params=params)
         if not response.success:
             return None, response.error_message
         return CropAnalysisSummary.from_dict(response.data), None
@@ -375,7 +375,7 @@ class CropCostAnalysisAPI:
         if field_ids:
             params["field_ids"] = ",".join(map(str, field_ids))
 
-        response = self._client.get("/api/v1/crop-analysis/comparison", params=params)
+        response = self._client.get("/crop-analysis/comparison", params=params)
         if not response.success:
             return None, response.error_message
         return FieldComparisonMatrix.from_dict(response.data), None
@@ -390,7 +390,7 @@ class CropCostAnalysisAPI:
         if crop_types:
             params["crop_types"] = ",".join(crop_types)
 
-        response = self._client.get("/api/v1/crop-analysis/crops", params=params)
+        response = self._client.get("/crop-analysis/crops", params=params)
         if not response.success:
             return None, response.error_message
         return [CropComparisonItem.from_dict(item) for item in response.data], None
@@ -402,7 +402,7 @@ class CropCostAnalysisAPI:
     ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
         """Get detailed analysis for a specific crop type."""
         params = {"crop_year": crop_year}
-        response = self._client.get(f"/api/v1/crop-analysis/crops/{crop_type}", params=params)
+        response = self._client.get(f"/crop-analysis/crops/{crop_type}", params=params)
         if not response.success:
             return None, response.error_message
         return response.data, None
@@ -417,7 +417,7 @@ class CropCostAnalysisAPI:
         if years:
             params["years"] = ",".join(map(str, years))
 
-        response = self._client.get(f"/api/v1/crop-analysis/field/{field_id}/history", params=params)
+        response = self._client.get(f"/crop-analysis/field/{field_id}/history", params=params)
         if not response.success:
             return None, response.error_message
         return [YearOverYearData.from_dict(item) for item in response.data], None
@@ -435,7 +435,7 @@ class CropCostAnalysisAPI:
         if crop_type:
             params["crop_type"] = crop_type
 
-        response = self._client.get("/api/v1/crop-analysis/years", params=params)
+        response = self._client.get("/crop-analysis/years", params=params)
         if not response.success:
             return None, response.error_message
         return [YearOverYearData.from_dict(item) for item in response.data], None
@@ -450,7 +450,7 @@ class CropCostAnalysisAPI:
             "crop_year": crop_year,
             "group_by": group_by
         }
-        response = self._client.get("/api/v1/crop-analysis/roi", params=params)
+        response = self._client.get("/crop-analysis/roi", params=params)
         if not response.success:
             return None, response.error_message
         return [ROIAnalysisItem.from_dict(item) for item in response.data], None
@@ -474,7 +474,7 @@ class CropCostAnalysisAPI:
         if crop_type:
             params["crop_type"] = crop_type
 
-        response = self._client.get("/api/v1/crop-analysis/trends", params=params)
+        response = self._client.get("/crop-analysis/trends", params=params)
         if not response.success:
             return None, response.error_message
         return [TrendDataPoint.from_dict(item) for item in response.data], None
