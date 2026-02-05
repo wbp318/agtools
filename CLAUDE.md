@@ -225,3 +225,38 @@ if purchase_deadline.tzinfo is None:
     purchase_deadline = purchase_deadline.replace(tzinfo=timezone.utc)
 days = (purchase_deadline - datetime.now(timezone.utc)).days
 ```
+
+## Security Guidelines
+
+### SQL Injection Prevention
+The codebase uses f-string SQL queries but they're **safe** because:
+- User input always goes through `?` placeholders with params list
+- F-strings only interpolate column names/filters built in code
+```python
+# SAFE - user data in params, f-string only for structure
+cursor.execute(f"""
+    SELECT * FROM table WHERE year = ? {field_filter}
+""", params)
+
+# DANGEROUS - never do this
+cursor.execute(f"SELECT * FROM users WHERE name = '{user_input}'")
+```
+
+### CORS Configuration
+CORS defaults to localhost only. For production, set `AGTOOLS_CORS_ORIGINS` env var:
+```
+AGTOOLS_CORS_ORIGINS=https://agtools.yourfarm.com
+```
+Never use `AGTOOLS_CORS_ORIGINS=*` in production.
+
+### Credentials
+- Never hardcode secrets - use environment variables or `.credentials` file
+- API keys loaded from env: `HUGGINGFACE_API_KEY`, `GOOGLE_VISION_API_KEY`, `SMTP_PASSWORD`
+
+### XSS Prevention
+Jinja2 templates auto-escape by default. Never use `|safe` filter with user input.
+
+## Claude Code Agent Limitations
+
+### Agent Task Failures
+The `general-purpose` agent may fail with internal errors like `classifyHandoffIfNeeded is not defined`. This is a system limitation, not a code issue. Workaround: Run targeted searches manually using Grep/Read tools instead of relying on the agent for large audits.
