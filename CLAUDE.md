@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Next Up: New Holland Telematics Integration
+
+Research and implement New Holland (CNH Industrial) telematics integration for JDOps-like functionality:
+- New Holland PLM Connect (Precision Land Management) API
+- Real-time machine data, GPS tracking, task management
+- Alternative to John Deere Operations Center
+- CNH Industrial brands: New Holland, Case IH (avoid Fendt - AGCO/green adjacent)
+- Look into: PLM Connect API, MyPLM Connect portal, AFS Connect (Case IH equivalent)
+
 ## Project Overview
 
 AgTools (v6.16.0) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
@@ -156,6 +165,46 @@ GenFin is a full accounting system with 13 service files:
 - `genfin_fixed_assets_service.py` - Depreciation, asset tracking
 - `genfin_bank_feeds_service.py` - OFX import, transaction matching
 - `genfin_advanced_reports_service.py` - Additional report types
+
+### GIS Module Structure (v6.16.0)
+The GIS module provides geographic information system capabilities with QGIS integration.
+
+**Backend Services:**
+- `gis_service.py` - Core GIS operations: import/export, coordinate transformations, area calculations, QGIS project generation
+- `gis_layers_service.py` - Layer management: custom layers, styling, visibility, feature CRUD
+
+**Frontend Components:**
+- `frontend/ui/screens/gis.py` - Main GIS screen with QGIS-inspired layout
+- `frontend/ui/widgets/map_canvas.py` - Leaflet map widget via WebEngineView
+- `frontend/api/gis_api.py` - API client for GIS endpoints
+
+**API Endpoints:**
+- `/api/v1/gis/fields/boundaries` - GET field boundaries as GeoJSON
+- `/api/v1/gis/fields/{id}/boundary` - PUT update field boundary
+- `/api/v1/gis/import` - POST import shapefile/KML/GeoJSON
+- `/api/v1/gis/export` - POST export to GIS format
+- `/api/v1/gis/layers` - GET/POST layer management
+- `/api/v1/gis/layers/{id}/features` - GET/POST layer features
+- `/api/v1/gis/qgis/project` - GET generate QGIS project file
+
+**Dependencies:**
+- Backend: geopandas, shapely, fiona, pyproj
+- Frontend: PyQt6-WebEngine (optional, for interactive maps)
+
+**Key Patterns:**
+```python
+# GeoJSON is stored as string in fields.boundary column
+boundary = json.dumps({"type": "Polygon", "coordinates": [...]})
+
+# Area calculations use UTM projection for accuracy
+from services.gis_service import get_gis_service
+service = get_gis_service()
+result = service.calculate_area(geometry_dict)  # Returns AreaResult
+
+# QGIS bridge exports to GeoPackage + generates .qgs project
+result = service.generate_qgis_project(field_ids=[1, 2, 3])
+# Opens in QGIS: qgis.exe result.project_path
+```
 
 ## Environment Variables
 

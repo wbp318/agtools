@@ -41,6 +41,7 @@ from ui.screens.seed_planting import SeedPlantingScreen
 from ui.screens.advanced_reporting_dashboard import AdvancedReportingDashboard
 from ui.screens.crop_cost_analysis import CropCostAnalysisScreen
 from ui.screens.measurement_converter import MeasurementConverterScreen
+from ui.screens.gis import GISScreen
 from core.sync_manager import get_sync_manager, ConnectionState, SyncStatus
 from api.auth_api import UserInfo
 
@@ -482,6 +483,10 @@ class MainWindow(QMainWindow):
         converter_screen = MeasurementConverterScreen()
         self._add_screen("unit_converter", converter_screen)
 
+        # GIS Screen (v6.16.0) - All users
+        gis_screen = GISScreen()
+        self._add_screen("gis", gis_screen)
+
         # Admin Screens (only show for admin/manager)
         if self._current_user and self._current_user.role in ["admin", "manager"]:
             # User Management (admin only)
@@ -583,6 +588,7 @@ class MainWindow(QMainWindow):
                 "genfin": "GenFin Accounting",
                 "livestock": "Livestock Management",
                 "seeds": "Seed & Planting",
+                "gis": "GIS Mapping",
                 "pests": "Pest Identification",
                 "diseases": "Disease Identification",
                 "spray": "Spray Recommendations",

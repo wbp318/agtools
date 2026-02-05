@@ -16064,6 +16064,300 @@ async def get_crop_analysis_service_summary(
 
 
 # ============================================================================
+# GIS ENDPOINTS (v6.16.0)
+# ============================================================================
+
+from services.gis_service import (
+    get_gis_service,
+    GeoJSONFeatureCollection as GISFeatureCollection,
+    BoundaryUpdate,
+    ImportRequest,
+    ImportResult,
+    ExportRequest,
+    ExportResult,
+    AreaResult,
+    QGISProjectResult
+)
+from services.gis_layers_service import (
+    get_gis_layers_service,
+    LayerCreate,
+    LayerUpdate,
+    LayerResponse,
+    LayerType,
+    FeatureCreate,
+    FeatureUpdate,
+    FeatureResponse,
+    GeoJSONFeatureCollection as LayerFeatureCollection
+)
+
+
+@app.get("/api/v1/gis/fields/boundaries", tags=["GIS"])
+async def get_field_boundaries(
+    field_ids: Optional[str] = Query(None, description="Comma-separated field IDs"),
+    farm_name: Optional[str] = None,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get field boundaries as GeoJSON FeatureCollection."""
+    service = get_gis_service()
+    ids = None
+    if field_ids:
+        ids = [int(x.strip()) for x in field_ids.split(",")]
+    return service.get_field_boundaries(field_ids=ids, farm_name=farm_name)
+
+
+@app.put("/api/v1/gis/fields/{field_id}/boundary", tags=["GIS"])
+async def update_field_boundary(
+    field_id: int,
+    data: BoundaryUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a field's boundary from GeoJSON."""
+    service = get_gis_service()
+    success, error = service.update_field_boundary(
+        field_id=field_id,
+        boundary=data.boundary,
+        user_id=user.id
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": True, "message": "Boundary updated"}
+
+
+@app.post("/api/v1/gis/import", response_model=ImportResult, tags=["GIS"])
+async def import_gis_file(
+    file: UploadFile = File(...),
+    file_type: str = Form(default="auto"),
+    match_by: str = Form(default="name"),
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Import shapefile, KML, or GeoJSON."""
+    import tempfile
+    import os
+
+    # Save uploaded file temporarily
+    suffix = os.path.splitext(file.filename)[1] if file.filename else ".tmp"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        service = get_gis_service()
+        result = service.import_file(
+            file_path=tmp_path,
+            file_type=file_type,
+            match_by=match_by,
+            user_id=user.id
+        )
+        return result
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.post("/api/v1/gis/export", response_model=ExportResult, tags=["GIS"])
+async def export_gis_data(
+    data: ExportRequest,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Export field boundaries to GIS format (shapefile, geojson, kml, geopackage)."""
+    service = get_gis_service()
+    return service.export_to_format(
+        format=data.format,
+        field_ids=data.field_ids,
+        include_layers=data.include_layers
+    )
+
+
+@app.get("/api/v1/gis/export/download", tags=["GIS"])
+async def download_gis_export(
+    file_path: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Download an exported GIS file."""
+    import os
+    from fastapi.responses import FileResponse
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Export file not found")
+
+    filename = os.path.basename(file_path)
+    return FileResponse(
+        file_path,
+        filename=filename,
+        media_type="application/octet-stream"
+    )
+
+
+@app.post("/api/v1/gis/calculate/area", response_model=AreaResult, tags=["GIS"])
+async def calculate_area(
+    geometry: Dict[str, Any],
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Calculate area of a GeoJSON geometry."""
+    service = get_gis_service()
+    try:
+        return service.calculate_area(geometry)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/gis/validate/boundary", tags=["GIS"])
+async def validate_boundary(
+    boundary: str,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Validate a GeoJSON boundary."""
+    service = get_gis_service()
+    is_valid, error = service.validate_boundary(boundary)
+    return {"valid": is_valid, "error": error}
+
+
+@app.get("/api/v1/gis/qgis/project", response_model=QGISProjectResult, tags=["GIS"])
+async def generate_qgis_project(
+    field_ids: Optional[str] = Query(None, description="Comma-separated field IDs"),
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Generate a QGIS project file with field data."""
+    service = get_gis_service()
+    ids = None
+    if field_ids:
+        ids = [int(x.strip()) for x in field_ids.split(",")]
+    return service.generate_qgis_project(field_ids=ids)
+
+
+# GIS Layers endpoints
+
+@app.get("/api/v1/gis/layers", response_model=List[LayerResponse], tags=["GIS Layers"])
+async def list_gis_layers(
+    layer_type: Optional[str] = None,
+    visible_only: bool = False,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """List all GIS layers."""
+    service = get_gis_layers_service()
+    lt = LayerType(layer_type) if layer_type else None
+    return service.list_layers(layer_type=lt, visible_only=visible_only)
+
+
+@app.post("/api/v1/gis/layers", response_model=LayerResponse, tags=["GIS Layers"])
+async def create_gis_layer(
+    data: LayerCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a new GIS layer."""
+    service = get_gis_layers_service()
+    layer, error = service.create_layer(data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return layer
+
+
+@app.get("/api/v1/gis/layers/{layer_id}", response_model=LayerResponse, tags=["GIS Layers"])
+async def get_gis_layer(
+    layer_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get a GIS layer by ID."""
+    service = get_gis_layers_service()
+    layer = service.get_layer_by_id(layer_id)
+    if not layer:
+        raise HTTPException(status_code=404, detail="Layer not found")
+    return layer
+
+
+@app.put("/api/v1/gis/layers/{layer_id}", response_model=LayerResponse, tags=["GIS Layers"])
+async def update_gis_layer(
+    layer_id: int,
+    data: LayerUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a GIS layer."""
+    service = get_gis_layers_service()
+    layer, error = service.update_layer(layer_id, data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return layer
+
+
+@app.delete("/api/v1/gis/layers/{layer_id}", tags=["GIS Layers"])
+async def delete_gis_layer(
+    layer_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a GIS layer."""
+    service = get_gis_layers_service()
+    success, error = service.delete_layer(layer_id, user.id)
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": True}
+
+
+@app.put("/api/v1/gis/layers/{layer_id}/visibility", tags=["GIS Layers"])
+async def toggle_layer_visibility(
+    layer_id: int,
+    is_visible: bool,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Toggle layer visibility."""
+    service = get_gis_layers_service()
+    success, error = service.update_layer_visibility(layer_id, is_visible, user.id)
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": True}
+
+
+@app.get("/api/v1/gis/layers/{layer_id}/features", tags=["GIS Layers"])
+async def get_layer_features(
+    layer_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Get all features in a layer as GeoJSON FeatureCollection."""
+    service = get_gis_layers_service()
+    return service.get_layer_features(layer_id)
+
+
+@app.post("/api/v1/gis/layers/{layer_id}/features", response_model=FeatureResponse, tags=["GIS Layers"])
+async def create_layer_feature(
+    layer_id: int,
+    data: FeatureCreate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Create a feature in a layer."""
+    service = get_gis_layers_service()
+    feature, error = service.create_feature(layer_id, data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return feature
+
+
+@app.put("/api/v1/gis/features/{feature_id}", response_model=FeatureResponse, tags=["GIS Layers"])
+async def update_layer_feature(
+    feature_id: int,
+    data: FeatureUpdate,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Update a feature."""
+    service = get_gis_layers_service()
+    feature, error = service.update_feature(feature_id, data, user.id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return feature
+
+
+@app.delete("/api/v1/gis/features/{feature_id}", tags=["GIS Layers"])
+async def delete_layer_feature(
+    feature_id: int,
+    user: AuthenticatedUser = Depends(get_current_active_user)
+):
+    """Delete a feature."""
+    service = get_gis_layers_service()
+    success, error = service.delete_feature(feature_id, user.id)
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    return {"success": True}
+
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 

@@ -222,6 +222,10 @@ class Sidebar(QFrame):
         self._add_nav_item(nav_layout, "Livestock", icon="\u2618")  # Animal-like
         self._add_nav_item(nav_layout, "Seeds", icon="\u2619")  # Seed/plant
 
+        # Mapping Section (v6.16.0)
+        nav_layout.addWidget(SectionHeader("Mapping"))
+        self._add_nav_item(nav_layout, "GIS", icon="\u2316")  # Map/crosshair
+
         # Spacer
         nav_layout.addSpacerItem(
             QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)

@@ -44,6 +44,12 @@ openpyxl>=3.1.0
 # Email
 aiosmtplib>=3.0.0
 
+# GIS (Geographic Information System)
+geopandas>=0.14.0
+shapely>=2.0.0
+fiona>=1.9.0
+pyproj>=3.6.0
+
 # Development
 pytest>=7.4.3
 pytest-bdd>=7.0.0
