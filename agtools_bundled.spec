@@ -19,35 +19,54 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, coll
 block_cipher = None
 
 # Project root directory (where this spec file is located)
-ROOT_DIR = os.path.dirname(os.path.abspath(SPECPATH))
+# SPECPATH is provided by PyInstaller and points to the spec file's directory
+ROOT_DIR = SPECPATH
 BACKEND_DIR = os.path.join(ROOT_DIR, 'backend')
 FRONTEND_DIR = os.path.join(ROOT_DIR, 'frontend')
+
+# Debug: Print paths to verify
+print(f"ROOT_DIR: {ROOT_DIR}")
+print(f"BACKEND_DIR: {BACKEND_DIR}")
+print(f"FRONTEND_DIR: {FRONTEND_DIR}")
 
 # ============================================================================
 # DATA FILES
 # ============================================================================
 # Collect all non-Python files needed at runtime
 
-datas = [
-    # Backend static files (CSS, JS, icons for mobile web interface)
-    (os.path.join(BACKEND_DIR, 'static'), os.path.join('backend', 'static')),
+datas = []
 
-    # Backend templates (Jinja2 HTML templates)
-    (os.path.join(BACKEND_DIR, 'templates'), os.path.join('backend', 'templates')),
+# Helper to add data if path exists
+def add_data_if_exists(src, dst):
+    if os.path.exists(src):
+        print(f"  Adding data: {src} -> {dst}")
+        datas.append((src, dst))
+    else:
+        print(f"  WARNING: Path not found, skipping: {src}")
 
-    # Backend mobile module templates (if any)
-    (os.path.join(BACKEND_DIR, 'mobile'), os.path.join('backend', 'mobile')),
+# Backend static files (CSS, JS, icons for mobile web interface)
+add_data_if_exists(
+    os.path.join(BACKEND_DIR, 'static'),
+    os.path.join('backend', 'static')
+)
 
-    # Backend credentials example
-    (os.path.join(BACKEND_DIR, '.credentials.example'), os.path.join('backend', '.credentials.example')),
+# Backend templates (Jinja2 HTML templates)
+add_data_if_exists(
+    os.path.join(BACKEND_DIR, 'templates'),
+    os.path.join('backend', 'templates')
+)
 
-    # Frontend resources (if they exist)
-]
+# Backend credentials example (single file)
+creds_example = os.path.join(BACKEND_DIR, '.credentials.example')
+if os.path.exists(creds_example):
+    print(f"  Adding data: {creds_example} -> backend")
+    datas.append((creds_example, 'backend'))
 
-# Add frontend resources if they exist
-frontend_resources = os.path.join(FRONTEND_DIR, 'resources')
-if os.path.exists(frontend_resources):
-    datas.append((frontend_resources, os.path.join('frontend', 'resources')))
+# Frontend resources (if they exist)
+add_data_if_exists(
+    os.path.join(FRONTEND_DIR, 'resources'),
+    os.path.join('frontend', 'resources')
+)
 
 # ============================================================================
 # HIDDEN IMPORTS
@@ -143,7 +162,7 @@ for pkg in ['uvicorn', 'starlette', 'fastapi', 'pydantic', 'anyio', 'httpx', 'ht
 # ============================================================================
 
 a = Analysis(
-    ['launcher.py'],  # Entry point
+    [os.path.join(ROOT_DIR, 'launcher.py')],  # Entry point with full path
     pathex=[ROOT_DIR, BACKEND_DIR, FRONTEND_DIR],
     binaries=[],
     datas=datas,
@@ -177,6 +196,11 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Check for icon file
+icon_path = os.path.join(FRONTEND_DIR, 'resources', 'icons', 'agtools.ico')
+if not os.path.exists(icon_path):
+    icon_path = None
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -197,6 +221,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(FRONTEND_DIR, 'resources', 'icons', 'agtools.ico') if os.path.exists(os.path.join(FRONTEND_DIR, 'resources', 'icons', 'agtools.ico')) else None,
-    version='file_version_info.txt' if os.path.exists('file_version_info.txt') else None,
+    icon=icon_path,
+    version=None,
 )
