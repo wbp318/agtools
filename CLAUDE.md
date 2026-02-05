@@ -291,19 +291,17 @@ Jinja2 templates auto-escape by default. Never use `|safe` filter with user inpu
 - Sometimes randomly on tasks that previously worked
 
 **Workarounds:**
-1. **Use direct tools instead of agents:**
-   - Instead of `Task tool with Explore agent`, use `Grep`, `Glob`, and `Read` directly
-   - Break complex searches into smaller, targeted queries
 
-2. **Retry the task** - Sometimes it works on the second attempt
+| Instead of... | Do this... |
+|---------------|------------|
+| "Explore how auth works in the codebase" | "Grep for `def authenticate` in backend/services/" |
+| "What's the codebase structure?" | "Run `ls` or `tree` on specific directories" |
+| Large open-ended searches | Targeted searches with specific file patterns |
+| Relying on Task/Explore agents | Use Grep, Glob, Read tools directly |
 
-3. **Be more specific** - Narrow the search scope to fewer files/directories
-
-**Example - Instead of asking:**
-> "Search the entire codebase for how authentication works"
-
-**Ask:**
-> "Search for 'def authenticate' in backend/services/"
-> "Read backend/middleware/auth_middleware.py"
+**Additional tips:**
+- **Retry** - Sometimes the same task works on second attempt
+- **Be specific** - Narrow scope to fewer files/directories
+- **Break it up** - Split large searches into multiple smaller queries
 
 This error cannot be fixed by users - it requires a fix from Anthropic's Claude Code team.
