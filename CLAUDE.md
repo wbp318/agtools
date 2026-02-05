@@ -4,13 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AgTools (v6.15.3) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
+AgTools (v6.16.0) is a farm management system for crop consulting, pest identification, spray recommendations, financial tracking (GenFin), and farm operations. It consists of a FastAPI backend, PyQt6 desktop frontend, and mobile PWA interface.
 
 **Requirements:** Python 3.12+
 
 **License:** Proprietary - Commercial use requires a license from New Generation Farms.
 
 ## Build & Run Commands
+
+### Quick Start (Unified Launcher)
+```bash
+# Run both backend and frontend together
+python launcher.py
+```
+
+This starts the backend server in a background thread and launches the frontend GUI. When the GUI closes, everything shuts down cleanly.
 
 ### Backend (FastAPI Server)
 ```bash
@@ -30,13 +38,28 @@ python main.py
 Access at `http://localhost:8000/m/login` when backend is running.
 
 ### Building Standalone Executable
+
+**Option 1: Bundled (Recommended for distribution)**
+```bash
+# From project root - creates single exe with backend + frontend
+python build_bundled.py
+```
+
+This creates `dist/AgTools.exe` - a complete standalone Windows executable that includes both the backend server and frontend GUI. Users can double-click to run without any setup.
+
+Data is stored in `%LOCALAPPDATA%\AgTools\`:
+- `agtools.db` - Main database
+- `.credentials` - Admin credentials (copy from `.credentials.example` and configure)
+- `logs/` - Application logs
+
+**Option 2: Frontend Only**
 ```bash
 cd frontend
 pip install -r requirements.txt
 python build.py
 ```
 
-This creates `dist/AgTools.exe` - a standalone Windows executable that users can download and run without Python installed. The backend server must still be running for full functionality.
+Creates frontend-only executable. Requires backend server running separately.
 
 ### Running Tests
 ```bash

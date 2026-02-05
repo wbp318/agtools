@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Tuple, Any, Type, TypeVar, Dict, Generic
 from pydantic import BaseModel
 
-from database.db_utils import get_db_connection, DatabaseManager
+from database.db_utils import get_db_connection, DatabaseManager, DEFAULT_DB_PATH
 
 
 # Type variables for generic typing
@@ -41,15 +41,15 @@ class BaseService(ABC, Generic[ResponseT]):
     # Subclasses should override
     TABLE_NAME: str = None
 
-    def __init__(self, db_path: str = "agtools.db"):
+    def __init__(self, db_path: str = None):
         """
         Initialize base service.
 
         Args:
-            db_path: Path to SQLite database
+            db_path: Path to SQLite database (defaults to DEFAULT_DB_PATH)
         """
-        self.db_path = db_path
-        self.db = DatabaseManager(db_path)
+        self.db_path = db_path or DEFAULT_DB_PATH
+        self.db = DatabaseManager(self.db_path)
         self._auth_service = None  # Lazy loaded to avoid circular imports
         self._init_database()
 
@@ -493,18 +493,19 @@ class ServiceRegistry:
     def get_service(
         cls,
         service_class: Type[BaseService],
-        db_path: str = "agtools.db"
+        db_path: str = None
     ) -> BaseService:
         """
         Get or create a service singleton.
 
         Args:
             service_class: Service class to instantiate
-            db_path: Database path
+            db_path: Database path (defaults to DEFAULT_DB_PATH)
 
         Returns:
             Service instance
         """
+        db_path = db_path or DEFAULT_DB_PATH
         key = f"{service_class.__name__}:{db_path}"
 
         if key not in cls._instances:
@@ -520,19 +521,19 @@ class ServiceRegistry:
 
 def get_service(
     service_class: Type[BaseService],
-    db_path: str = "agtools.db"
+    db_path: str = None
 ) -> BaseService:
     """
     Convenience function to get service instance.
 
     Args:
         service_class: Service class
-        db_path: Database path
+        db_path: Database path (defaults to DEFAULT_DB_PATH)
 
     Returns:
         Service instance
     """
-    return ServiceRegistry.get_service(service_class, db_path)
+    return ServiceRegistry.get_service(service_class, db_path or DEFAULT_DB_PATH)
 
 
 def sanitize_error(error: Exception, operation: str = "operation") -> str:

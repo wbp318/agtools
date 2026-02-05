@@ -346,7 +346,7 @@ from routers import (
 app = FastAPI(
     title="AgTools Professional Crop Consulting API",
     description="Professional-grade crop consulting system with comprehensive farm management: pest/disease management, input optimization, profitability analysis, sustainability metrics, grant compliance, farm intelligence, enterprise operations, precision agriculture intelligence, grain storage management, complete farm business suite, professional PDF report generation, and GenFin complete accounting system with recurring transactions, bank feeds, and fixed assets",
-    version="6.15.3",
+    version="6.16.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -391,8 +391,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 # MOBILE WEB INTERFACE (Server-rendered HTML)
 # ============================================================================
 
-# Get the directory containing main.py
-_backend_dir = os.path.dirname(os.path.abspath(__file__))
+# Get the directory containing main.py (supports bundled executable)
+# In bundled mode, AGTOOLS_BACKEND_DIR env var points to the backend resources
+_backend_dir = os.environ.get('AGTOOLS_BACKEND_DIR') or os.path.dirname(os.path.abspath(__file__))
 
 # Mount static files (CSS, JS, icons)
 app.mount("/static", StaticFiles(directory=os.path.join(_backend_dir, "static")), name="static")
@@ -16065,6 +16066,29 @@ async def get_crop_analysis_service_summary(
 # ============================================================================
 # RUN SERVER
 # ============================================================================
+
+
+def run_server(host: str = "127.0.0.1", port: int = 8000, log_level: str = "warning"):
+    """
+    Run the server programmatically (for embedded/bundled use).
+
+    This function is called by the unified launcher when running as a
+    bundled executable. It does NOT use string-based app import since
+    reload is not supported in bundled mode.
+
+    Args:
+        host: Host to bind to (default: 127.0.0.1 for localhost only)
+        port: Port to bind to (default: 8000)
+        log_level: Logging level (default: warning for quiet operation)
+    """
+    uvicorn.run(
+        app,  # Pass the app object directly, not a string
+        host=host,
+        port=port,
+        log_level=log_level,
+        reload=False  # No hot reload in bundled mode
+    )
+
 
 if __name__ == "__main__":
     uvicorn.run(

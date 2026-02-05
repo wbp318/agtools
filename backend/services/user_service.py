@@ -21,6 +21,7 @@ from .auth_service import (
     get_auth_service
 )
 from .base_service import sanitize_error
+from database.db_utils import DEFAULT_DB_PATH
 
 
 # ============================================================================
@@ -81,14 +82,14 @@ class UserService:
     - User-crew associations
     """
 
-    def __init__(self, db_path: str = "agtools.db"):
+    def __init__(self, db_path: str = None):
         """
         Initialize user service.
 
         Args:
-            db_path: Path to SQLite database
+            db_path: Path to SQLite database (defaults to DEFAULT_DB_PATH)
         """
-        self.db_path = db_path
+        self.db_path = db_path or DEFAULT_DB_PATH
         self.auth_service = get_auth_service()
         self._init_database()
 
@@ -1073,11 +1074,11 @@ class UserService:
 _user_service: Optional[UserService] = None
 
 
-def get_user_service(db_path: str = "agtools.db") -> UserService:
+def get_user_service(db_path: str = None) -> UserService:
     """Get or create the user service singleton."""
     global _user_service
 
     if _user_service is None:
-        _user_service = UserService(db_path)
+        _user_service = UserService(db_path or DEFAULT_DB_PATH)
 
     return _user_service

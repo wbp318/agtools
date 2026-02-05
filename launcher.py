@@ -1,251 +1,305 @@
 #!/usr/bin/env python3
 """
-AgTools Professional - All-in-One Launcher
+AgTools Professional - Unified Launcher
 
-This launcher starts both the backend API server and the frontend desktop app.
-When the frontend closes, it automatically shuts down the backend.
+Single entry point that starts both backend server and frontend GUI.
+For use with bundled executable (PyInstaller) or development.
 
 Usage:
-    python launcher.py
+    python launcher.py           # Start both backend and frontend
+    python launcher.py --help    # Show options
 """
 
-import sys
 import os
-import subprocess
+import sys
 import time
-import threading
-import signal
 import socket
-import atexit
+import logging
+import threading
+import urllib.request
+import urllib.error
+from pathlib import Path
 
-# Determine if we're running as a frozen executable
-if getattr(sys, 'frozen', False):
-    # Running as compiled executable
-    BASE_DIR = os.path.dirname(sys.executable)
-    # Look for backend in the same directory or parent
-    BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
-    if not os.path.exists(BACKEND_DIR):
-        BACKEND_DIR = os.path.join(os.path.dirname(BASE_DIR), 'backend')
-else:
-    # Running as script
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
-
-FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
-
-# Backend configuration
-BACKEND_HOST = "127.0.0.1"
-BACKEND_PORT = 8000
+# Configure logging before any imports that might use it
+LOG_DIR = None
+LOG_FILE = None
 
 
-class BackendProcess:
-    """Manages the backend server process."""
+def get_app_data_dir() -> Path:
+    """Get the application data directory (for database, logs, credentials)."""
+    if getattr(sys, 'frozen', False):
+        app_data = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
+        return Path(app_data) / 'AgTools'
+    else:
+        return Path(__file__).parent
 
-    def __init__(self):
-        self.process = None
-        self.output_thread = None
-        self.running = False
 
-    def start(self):
-        """Start the backend server."""
-        print("Starting AgTools backend server...")
+def get_base_path() -> Path:
+    """Get the base path for bundled resources."""
+    if getattr(sys, 'frozen', False):
+        # Running as bundled exe - resources are in _MEIPASS
+        return Path(sys._MEIPASS)
+    else:
+        # Development mode - use project root
+        return Path(__file__).parent
 
-        # Set up environment
-        env = os.environ.copy()
-        env['PYTHONPATH'] = BACKEND_DIR
-        env['AGTOOLS_DEV_MODE'] = '1'  # Enable dev mode for auto-auth
 
-        # Start uvicorn with the FastAPI app
-        cmd = [
-            sys.executable, '-m', 'uvicorn',
-            'main:app',
-            '--host', BACKEND_HOST,
-            '--port', str(BACKEND_PORT),
-            '--log-level', 'warning'
-        ]
+def setup_logging():
+    """Set up logging to file in AppData."""
+    global LOG_DIR, LOG_FILE
 
+    app_data_dir = get_app_data_dir()
+    LOG_DIR = app_data_dir / 'logs'
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_FILE = LOG_DIR / 'agtools.log'
+
+    handlers = [logging.FileHandler(LOG_FILE, encoding='utf-8')]
+
+    # Only log to console in development
+    if not getattr(sys, 'frozen', False):
+        handlers.append(logging.StreamHandler())
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+
+setup_logging()
+logger = logging.getLogger(__name__)
+
+
+def find_available_port(start_port: int = 8000, max_attempts: int = 10) -> int:
+    """Find an available port starting from start_port."""
+    for port in range(start_port, start_port + max_attempts):
         try:
-            self.process = subprocess.Popen(
-                cmd,
-                cwd=BACKEND_DIR,
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
-            self.running = True
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"No available port found in range {start_port}-{start_port + max_attempts}")
 
-            # Start output monitoring thread
-            self.output_thread = threading.Thread(target=self._monitor_output, daemon=True)
-            self.output_thread.start()
 
-            return True
+def wait_for_backend(host: str, port: int, timeout: float = 30.0) -> bool:
+    """
+    Wait for backend to be ready by polling health endpoint.
 
-        except Exception as e:
-            print(f"Failed to start backend: {e}")
-            return False
+    Args:
+        host: Backend host
+        port: Backend port
+        timeout: Maximum time to wait in seconds
 
-    def _monitor_output(self):
-        """Monitor backend output for errors."""
-        if self.process and self.process.stdout:
-            for line in iter(self.process.stdout.readline, b''):
-                if line:
-                    text = line.decode('utf-8', errors='ignore').strip()
-                    if text and 'error' in text.lower():
-                        print(f"[Backend] {text}")
+    Returns:
+        True if backend is ready, False if timeout
+    """
+    url = f"http://{host}:{port}/api/v1/auth/health"
+    start_time = time.time()
 
-    def wait_until_ready(self, timeout=30):
-        """Wait for the backend to be ready to accept connections."""
-        print(f"Waiting for backend to be ready on port {BACKEND_PORT}...")
-
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            if self._is_port_open():
-                print("Backend is ready!")
-                return True
-
-            # Check if process died
-            if self.process and self.process.poll() is not None:
-                print("Backend process exited unexpectedly!")
-                return False
-
-            time.sleep(0.5)
-
-        print(f"Backend did not start within {timeout} seconds")
-        return False
-
-    def _is_port_open(self):
-        """Check if the backend port is open."""
+    while time.time() - start_time < timeout:
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            result = sock.connect_ex((BACKEND_HOST, BACKEND_PORT))
-            sock.close()
-            return result == 0
-        except:
-            return False
+            with urllib.request.urlopen(url, timeout=2) as response:
+                if response.status == 200:
+                    logger.info("Backend is ready")
+                    return True
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError):
+            pass
+        time.sleep(0.5)
 
-    def stop(self):
-        """Stop the backend server."""
-        if self.process and self.running:
-            print("Shutting down backend server...")
-            self.running = False
-
-            try:
-                # Try graceful shutdown first
-                if sys.platform == 'win32':
-                    self.process.terminate()
-                else:
-                    self.process.send_signal(signal.SIGTERM)
-
-                # Wait for process to end
-                try:
-                    self.process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    # Force kill if it doesn't stop
-                    self.process.kill()
-                    self.process.wait()
-
-                print("Backend server stopped.")
-
-            except Exception as e:
-                print(f"Error stopping backend: {e}")
+    logger.error("Backend failed to start within %s seconds", timeout)
+    return False
 
 
-def check_port_available(port):
-    """Check if the port is available (not in use)."""
+def setup_bundled_environment():
+    """Set up environment for bundled executable mode."""
+    base_path = get_base_path()
+    app_data_dir = get_app_data_dir()
+
+    # Ensure app data directory exists
+    app_data_dir.mkdir(parents=True, exist_ok=True)
+
+    # Add backend to path
+    backend_path = base_path / 'backend'
+    if str(backend_path) not in sys.path:
+        sys.path.insert(0, str(backend_path))
+
+    # Set database path to AppData
+    db_path = app_data_dir / 'agtools.db'
+    os.environ['AGTOOLS_DB_PATH'] = str(db_path)
+
+    # Set backend directory for static files and templates
+    os.environ['AGTOOLS_BACKEND_DIR'] = str(backend_path)
+
+    # Handle credentials file
+    creds_file = app_data_dir / '.credentials'
+    if not creds_file.exists():
+        # Copy example credentials if available
+        example_creds = backend_path / '.credentials.example'
+        if example_creds.exists():
+            logger.info("Copying example credentials to AppData - please configure!")
+            import shutil
+            shutil.copy(example_creds, creds_file)
+
+    logger.info("Bundled environment configured:")
+    logger.info("  Database: %s", db_path)
+    logger.info("  Backend: %s", backend_path)
+    logger.info("  Credentials: %s", creds_file)
+
+
+def setup_dev_environment():
+    """Set up environment for development mode."""
+    base_path = get_base_path()
+
+    # Add backend to path
+    backend_path = base_path / 'backend'
+    if str(backend_path) not in sys.path:
+        sys.path.insert(0, str(backend_path))
+
+    logger.info("Development environment configured:")
+    logger.info("  Backend: %s", backend_path)
+
+
+def run_backend(host: str, port: int):
+    """
+    Run the backend server in the current thread (blocking).
+
+    Args:
+        host: Host to bind to
+        port: Port to bind to
+    """
+    logger.info("Starting backend server on %s:%d", host, port)
+
+    if getattr(sys, 'frozen', False):
+        setup_bundled_environment()
+    else:
+        setup_dev_environment()
+
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex((BACKEND_HOST, port))
-        sock.close()
-        return result != 0  # Port is available if connection fails
-    except:
-        return True
+        # Import and run the backend using programmatic uvicorn
+        from main import run_server
+        run_server(host=host, port=port)
+    except Exception as e:
+        logger.exception("Backend server error: %s", e)
+        raise
 
 
-def start_frontend():
-    """Start the PyQt6 frontend application."""
-    print("Starting AgTools frontend...")
+def run_frontend(api_port: int):
+    """
+    Run the frontend GUI.
 
-    # Enable dev mode for auto-login (local development only)
-    os.environ['AGTOOLS_DEV_MODE'] = '1'
+    Args:
+        api_port: Port the backend is running on
+    """
+    logger.info("Starting frontend GUI (API on port %d)", api_port)
+
+    base_path = get_base_path()
 
     # Add frontend to path
-    if FRONTEND_DIR not in sys.path:
-        sys.path.insert(0, FRONTEND_DIR)
+    if getattr(sys, 'frozen', False):
+        frontend_path = base_path / 'frontend'
+    else:
+        frontend_path = base_path / 'frontend'
 
-    # Import and run the frontend
+    if str(frontend_path) not in sys.path:
+        sys.path.insert(0, str(frontend_path))
+
+    # Set API URL to use the local backend
+    os.environ['AGTOOLS_API_URL'] = f'http://127.0.0.1:{api_port}'
+
     try:
+        # Import and run the frontend
         from app import create_application
-
         app = create_application()
         return app.start()
-
-    except ImportError as e:
-        print(f"Failed to import frontend: {e}")
-        print("Make sure all frontend dependencies are installed.")
-        return 1
+    except Exception as e:
+        logger.exception("Frontend error: %s", e)
+        raise
 
 
 def show_splash():
-    """Show a simple splash/loading message."""
+    """Show startup information."""
     print("")
     print("=" * 50)
     print("  AgTools Professional")
-    print("  Crop Consulting System")
+    print("  Farm Management System")
     print("=" * 50)
     print("")
+    logger.info("=" * 60)
+    logger.info("AgTools Launcher Starting")
+    logger.info("Frozen: %s", getattr(sys, 'frozen', False))
+    logger.info("Base path: %s", get_base_path())
+    logger.info("App data: %s", get_app_data_dir())
+    logger.info("=" * 60)
 
 
 def main():
-    """Main entry point for the all-in-one launcher."""
+    """Main entry point."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='AgTools - Farm Management System')
+    parser.add_argument('--port', type=int, default=8000,
+                        help='Backend server port (default: 8000)')
+    parser.add_argument('--host', type=str, default='127.0.0.1',
+                        help='Backend server host (default: 127.0.0.1)')
+    parser.add_argument('--backend-only', action='store_true',
+                        help='Run only the backend server')
+    parser.add_argument('--frontend-only', action='store_true',
+                        help='Run only the frontend (requires backend already running)')
+    args = parser.parse_args()
+
     show_splash()
 
-    backend = BackendProcess()
+    # Ensure app data directory exists
+    app_data_dir = get_app_data_dir()
+    app_data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Register cleanup
-    def cleanup():
-        backend.stop()
-
-    atexit.register(cleanup)
-
-    # Check if backend port is already in use
-    if not check_port_available(BACKEND_PORT):
-        print(f"Port {BACKEND_PORT} is already in use.")
-        print("Either another instance is running, or the backend is already started.")
-        print("Attempting to connect to existing backend...")
-
-        # Try to start frontend with existing backend
-        exit_code = start_frontend()
+    if args.frontend_only:
+        # Just run the frontend (assume backend is already running)
+        exit_code = run_frontend(args.port)
         return exit_code
 
-    # Start backend
-    if not backend.start():
-        print("Failed to start backend server!")
-        print("Please check that all dependencies are installed.")
-        input("Press Enter to exit...")
-        return 1
+    # Find available port
+    try:
+        port = find_available_port(args.port)
+        if port != args.port:
+            logger.info("Port %d in use, using port %d instead", args.port, port)
+            print(f"Port {args.port} in use, using port {port}")
+    except RuntimeError as e:
+        logger.error("Failed to find available port: %s", e)
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    if args.backend_only:
+        # Just run the backend (blocking)
+        run_backend(args.host, port)
+        return
+
+    # Start backend in a daemon thread
+    backend_thread = threading.Thread(
+        target=run_backend,
+        args=(args.host, port),
+        daemon=True,
+        name='BackendServer'
+    )
+    backend_thread.start()
 
     # Wait for backend to be ready
-    if not backend.wait_until_ready():
-        print("Backend failed to start properly!")
-        backend.stop()
-        input("Press Enter to exit...")
-        return 1
+    print("Waiting for backend server...")
+    if not wait_for_backend(args.host, port, timeout=30.0):
+        logger.error("Backend failed to start. Check logs at: %s", LOG_FILE)
+        print(f"Backend failed to start. Check logs at: {LOG_FILE}")
+        sys.exit(1)
 
-    # Start frontend
-    try:
-        exit_code = start_frontend()
-    except Exception as e:
-        print(f"Frontend error: {e}")
-        exit_code = 1
-    finally:
-        # Clean up backend when frontend closes
-        backend.stop()
+    print("Backend ready, starting frontend...")
 
-    return exit_code
+    # Run frontend (blocks until GUI closes)
+    exit_code = run_frontend(port)
+
+    # When frontend exits, the daemon thread will be cleaned up automatically
+    logger.info("AgTools exiting with code %d", exit_code)
+    sys.exit(exit_code)
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == '__main__':
+    main()

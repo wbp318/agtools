@@ -24,7 +24,7 @@ from utils.secure_storage import (
 
 # Application Info
 APP_NAME = "AgTools Professional"
-APP_VERSION = "6.15.3"
+APP_VERSION = "6.16.0"
 APP_ORGANIZATION = "New Generation Farms"
 
 

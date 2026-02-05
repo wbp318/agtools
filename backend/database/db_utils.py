@@ -6,13 +6,44 @@ Provides context managers and utilities for safe database connection handling.
 Ensures connections are properly closed even when exceptions occur.
 """
 
+import os
+import sys
 import sqlite3
 from contextlib import contextmanager
 from typing import Generator, Optional
 
 
-# Default database path
-DEFAULT_DB_PATH = "agtools.db"
+def get_default_db_path() -> str:
+    """
+    Get the default database path.
+
+    In bundled mode (PyInstaller), uses AppData for writable storage.
+    In development, uses the current directory.
+
+    The path can be overridden via AGTOOLS_DB_PATH environment variable.
+    """
+    # Check for explicit override
+    env_path = os.environ.get('AGTOOLS_DB_PATH')
+    if env_path:
+        # Ensure directory exists
+        db_dir = os.path.dirname(env_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+        return env_path
+
+    if getattr(sys, 'frozen', False):
+        # Running as bundled exe - use AppData for writable storage
+        app_data = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
+        db_dir = os.path.join(app_data, 'AgTools')
+        os.makedirs(db_dir, exist_ok=True)
+        return os.path.join(db_dir, 'agtools.db')
+    else:
+        # Development mode - use current directory
+        return 'agtools.db'
+
+
+# Default database path (computed on module load)
+DEFAULT_DB_PATH = get_default_db_path()
 
 
 @contextmanager
