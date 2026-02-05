@@ -11,6 +11,7 @@ AgTools is like having a digital assistant for your farm. It helps you:
 - **Identify crop problems** - Take a photo of a sick plant or describe the symptoms, and AgTools tells you what's wrong and how to fix it
 - **Plan spray applications** - Get recommendations on what products to use, when to spray, and how much it will cost
 - **Track your fields** - Keep records of all your fields, what's planted, and what work has been done
+- **Map your operation** - View and edit field boundaries on interactive maps, import/export to QGIS
 - **Manage equipment** - Log hours, schedule maintenance, and track your fleet
 - **Handle accounting** - Full bookkeeping with check printing, payroll, invoices, and financial reports
 - **Organize your crew** - Assign tasks to workers and track their time
@@ -127,6 +128,7 @@ Or create `backend/.credentials` file (see `backend/.credentials.example`).
 | **Check Printing** | Print checks directly with MICR encoding |
 | **Payroll** | Calculate wages, taxes, and generate direct deposits |
 | **Seed & Planting** | Track seed inventory and planting records |
+| **GIS Mapping** | View/edit field boundaries with Leaflet maps, QGIS integration |
 | **Weather Integration** | Spray timing based on weather conditions |
 | **AI Features** | Yield prediction, expense categorization, crop health |
 

@@ -1,8 +1,45 @@
 # AgTools Development Changelog
 
-> **Current Version:** 6.15.3 | **Last Updated:** February 4, 2026
+> **Current Version:** 6.16.0 | **Last Updated:** February 5, 2026
 
 For detailed historical changes, see `docs/CHANGELOG_ARCHIVE.md`.
+
+---
+
+## v6.16.0 (February 5, 2026)
+
+### GIS Module with Leaflet Maps & QGIS Integration
+
+**Added full GIS (Geographic Information System) capabilities inspired by QGIS.**
+
+**Backend Services:**
+- `gis_service.py` - Core GIS operations: import/export, coordinate transformations, area/distance calculations, boundary validation, QGIS project generation
+- `gis_layers_service.py` - Layer management: custom layers, styling, visibility, feature CRUD
+- Supports Shapefile, KML, GeoJSON, and GeoPackage formats
+- Automatic UTM zone detection for accurate area calculations
+- Generates `.qgs` project files for seamless QGIS integration
+
+**Frontend Components:**
+- QGIS-inspired GIS screen with layer panel, map canvas, and toolbar
+- Leaflet map widget via PyQt6-WebEngine with OpenStreetMap and satellite imagery
+- Drawing tools for polygons and points
+- Layer visibility toggles and properties panel
+- Import/Export dialogs for GIS file formats
+- "Open in QGIS" button launches QGIS with pre-configured project
+
+**API Endpoints (12 new):**
+- `GET/PUT /api/v1/gis/fields/boundaries` - Field boundary management
+- `POST /api/v1/gis/import` - Import GIS files
+- `POST /api/v1/gis/export` - Export to various formats
+- `GET/POST/PUT/DELETE /api/v1/gis/layers` - Layer CRUD
+- `GET/POST /api/v1/gis/layers/{id}/features` - Feature management
+- `GET /api/v1/gis/qgis/project` - Generate QGIS project file
+
+**Dependencies Added:**
+- Backend: geopandas, shapely, fiona, pyproj
+- Frontend: PyQt6-WebEngine (optional - graceful fallback when not installed)
+
+**Note:** This feature is in the codebase but not yet verified for release builds. Dependencies are optional with graceful fallbacks.
 
 ---
 
