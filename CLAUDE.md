@@ -281,5 +281,29 @@ Jinja2 templates auto-escape by default. Never use `|safe` filter with user inpu
 
 ## Claude Code Agent Limitations
 
-### Agent Task Failures
-The `general-purpose` agent may fail with internal errors like `classifyHandoffIfNeeded is not defined`. This is a system limitation, not a code issue. Workaround: Run targeted searches manually using Grep/Read tools instead of relying on the agent for large audits.
+### Agent Task Failures (`classifyHandoffIfNeeded is not defined`)
+
+**What it is:** This is an internal Claude Code system bug, NOT a problem with your code. It occurs when the Task tool spawns a subagent (like `general-purpose` or `Explore`) and the agent encounters an internal error.
+
+**When it happens:**
+- Complex multi-step searches across many files
+- Large codebase exploration tasks
+- Sometimes randomly on tasks that previously worked
+
+**Workarounds:**
+1. **Use direct tools instead of agents:**
+   - Instead of `Task tool with Explore agent`, use `Grep`, `Glob`, and `Read` directly
+   - Break complex searches into smaller, targeted queries
+
+2. **Retry the task** - Sometimes it works on the second attempt
+
+3. **Be more specific** - Narrow the search scope to fewer files/directories
+
+**Example - Instead of asking:**
+> "Search the entire codebase for how authentication works"
+
+**Ask:**
+> "Search for 'def authenticate' in backend/services/"
+> "Read backend/middleware/auth_middleware.py"
+
+This error cannot be fixed by users - it requires a fix from Anthropic's Claude Code team.
